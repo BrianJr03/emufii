@@ -1,5 +1,6 @@
 package eu.emufii.app.ui.screens
 
+import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
@@ -62,6 +63,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -80,6 +82,7 @@ import eu.emufii.app.library.HiddenRoms
 import eu.emufii.app.BuildConfig
 import eu.emufii.app.R
 import eu.emufii.app.azahar.AzaharLauncher
+import eu.emufii.app.azahar.LaunchResult
 import eu.emufii.app.library.ConsoleKeysStore
 import eu.emufii.app.library.Console
 import eu.emufii.app.profile.FriendStore
@@ -96,6 +99,14 @@ import eu.emufii.app.ui.theme.CardCorner
 import eu.emufii.app.ui.theme.accentCuts
 import eu.emufii.app.ui.components.ConsoleGrid
 import eu.emufii.app.ps2.Ps2NetworkProfile
+import eu.emufii.app.ps2.Ps2Armsx2Folder
+import eu.emufii.app.ps2.Ps2Launcher
+import eu.emufii.app.ps2.Ps2ProvisioningAutomation
+import eu.emufii.app.ps2.Ps2ProvisioningPlan
+import eu.emufii.app.ps2.Ps2ProvisioningProgress
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import eu.emufii.app.ui.theme.CardShape
 import eu.emufii.app.ui.components.Avatar
 import eu.emufii.app.ui.components.EmufiiScaffold
@@ -452,10 +463,10 @@ fun SettingsScreen(
                 ) {
                     Ps2ProfileDetail(
                         ready = ps2ProfileReady,
-                        onReadyChange = {
-                            Ps2NetworkProfile.setReady(context, it)
-                            ps2ProfileReady = it
-                        }
+                        profileName = name.ifBlank { Profile.DEFAULT_NAME },
+                        automationEnabled = autofillOn,
+                        onOpenAccessibility = { autofillLauncher.openAccessibilitySettings() },
+                        onReadyChanged = { ps2ProfileReady = it },
                     )
                 }
                 SettingsRow(
@@ -704,81 +715,188 @@ private enum class SettingsRowId {
 }
 
 /** A section: a heading, then its rows inside a single card. */
-/**
- * The PS2 network profile: hand over the card, then take the player's word.
- *
- * Laid out as what it is, a short procedure: prepare, then four steps inside
- * ARMSX2, the warning that carries the one nobody must skip, then the
- * confirmation. The steps are shown before the file is prepared
- * as well as after, because a player deciding whether to bother deserves to see
- * what it will cost them.
- *
- * The confirmation is a real switch and not a formality. Nothing here can look
- * inside ARMSX2 to check the import happened, so this flag is what a PS2 launch
- * is gated on, and flipping it without importing is the one way to get the dead
- * local menu back.
- */
 @Composable
-private fun Ps2ProfileDetail(ready: Boolean, onReadyChange: (Boolean) -> Unit) {
+private fun Ps2ProfileDetail(
+    ready: Boolean,
+    profileName: String,
+    automationEnabled: Boolean,
+    onOpenAccessibility: () -> Unit,
+    onReadyChanged: (Boolean) -> Unit,
+) {
     val context = LocalContext.current
-    var exported by remember { mutableStateOf<String?>(null) }
-    var failed by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val progress by Ps2ProvisioningAutomation.progress.collectAsState()
+    var rootUri by remember { mutableStateOf(Ps2NetworkProfile.rootUri(context)) }
+    var receipt by remember { mutableStateOf(Ps2NetworkProfile.receipt(context)) }
+    var busy by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    val saveTitle = playerDisplayName(profileName)
+
+    fun prepare(uri: Uri) {
+        Ps2NetworkProfile.clearReady(context)
+        onReadyChanged(false)
+        busy = true
+        error = null
+        scope.launch {
+            when (val outcome = withContext(Dispatchers.IO) {
+                Ps2Armsx2Folder.prepare(context, uri, saveTitle)
+            }) {
+                is Ps2Armsx2Folder.Outcome.Success -> {
+                    Ps2NetworkProfile.recordPrepared(context, outcome.prepared)
+                    receipt = Ps2NetworkProfile.receipt(context)
+                    if (!automationEnabled) {
+                        error = context.getString(R.string.settings_ps2_profile_accessibility)
+                        onOpenAccessibility()
+                    } else {
+                        when (val launched = Ps2Launcher(context).openForProvisioning(
+                            Ps2ProvisioningPlan(
+                                outcome.prepared.cardName,
+                                outcome.prepared.cardSha256,
+                                outcome.prepared.sourceCardForSlot2,
+                            )
+                        )) {
+                            LaunchResult.Success -> Unit
+                            LaunchResult.NotInstalled -> error = context.getString(R.string.settings_ps2_profile_no_armsx2)
+                            is LaunchResult.Error -> error = launched.message
+                            is LaunchResult.NoNetplayUi -> error = context.getString(R.string.settings_ps2_profile_no_armsx2)
+                        }
+                    }
+                }
+                Ps2Armsx2Folder.Outcome.NotArmsx2Folder ->
+                    error = context.getString(R.string.settings_ps2_profile_bad_folder)
+                Ps2Armsx2Folder.Outcome.MissingWritePermission ->
+                    error = context.getString(R.string.settings_ps2_profile_no_write)
+                is Ps2Armsx2Folder.Outcome.FolderMemoryCard ->
+                    error = context.getString(R.string.settings_ps2_profile_folder_card, outcome.name)
+                is Ps2Armsx2Folder.Outcome.InvalidMemoryCard ->
+                    error = context.getString(R.string.settings_ps2_profile_invalid_card, outcome.name)
+                is Ps2Armsx2Folder.Outcome.SourceChanged ->
+                    error = context.getString(R.string.settings_ps2_profile_source_changed, outcome.name)
+                is Ps2Armsx2Folder.Outcome.AmbiguousBios ->
+                    error = context.getString(
+                        R.string.settings_ps2_profile_ambiguous_bios,
+                        outcome.candidates.joinToString(", "),
+                    )
+                is Ps2Armsx2Folder.Outcome.BiosUnavailable ->
+                    error = context.getString(R.string.settings_ps2_profile_bios_unavailable, outcome.name)
+                is Ps2Armsx2Folder.Outcome.BiosUnreadable ->
+                    error = context.getString(R.string.settings_ps2_profile_bios_unreadable, outcome.name)
+                is Ps2Armsx2Folder.Outcome.WriteFailed -> error = outcome.detail
+            }
+            busy = false
+        }
+    }
+
+    val folderPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        if (uri != null) {
+            val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            val granted = runCatching {
+                context.contentResolver.takePersistableUriPermission(uri, flags)
+                Ps2NetworkProfile.setRootUri(context, uri)
+            }.getOrDefault(false)
+            if (granted) {
+                rootUri = uri
+                receipt = null
+                prepare(uri)
+            } else error = context.getString(R.string.settings_ps2_profile_no_write)
+        }
+    }
+
+    LaunchedEffect(progress) {
+        when (val state = progress) {
+            is Ps2ProvisioningProgress.Done -> {
+                receipt = Ps2NetworkProfile.receipt(context)
+                onReadyChanged(true)
+            }
+            is Ps2ProvisioningProgress.Failed -> error = state.reason
+            else -> Unit
+        }
+    }
 
     Text(
         stringResource(R.string.settings_ps2_profile_body),
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurface
     )
-    // A GhostButton and not a TextButton: this is the project's focusable pill,
-    // the one that carries the focus ring. A bare TextButton sat there unreachable
-    // to anyone driving the app with a pad, which on a handheld is everyone.
     GhostButton(
-        label = stringResource(R.string.hint_ps2_profile_button),
+        label = stringResource(
+            if (rootUri == null) R.string.hint_ps2_profile_choose_folder
+            else R.string.hint_ps2_profile_button
+        ),
         onClick = {
-            val name = Ps2NetworkProfile.export(context)
-            exported = name
-            failed = name == null
+            val uri = rootUri
+            if (uri == null) folderPicker.launch(null) else prepare(uri)
         },
         fillWidth = true
     )
-    exported?.let {
+    if (rootUri != null) {
+        GhostButton(
+            label = stringResource(R.string.hint_ps2_profile_change_folder),
+            onClick = { folderPicker.launch(rootUri) },
+            fillWidth = true,
+        )
+    }
+    if (busy) {
         Text(
-            stringResource(R.string.settings_ps2_profile_created, it),
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.SemiBold,
+            stringResource(R.string.settings_ps2_profile_preparing),
+            style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.primary
         )
     }
-    if (failed) {
+    val currentReceipt = receipt
+    if (currentReceipt != null) {
         Text(
-            stringResource(R.string.hint_ps2_profile_failed),
+            stringResource(
+                R.string.settings_ps2_profile_created,
+                currentReceipt.cardName,
+                currentReceipt.sourceCardName ?: stringResource(R.string.settings_ps2_profile_new_card),
+            ),
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.error
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Text(
+            stringResource(
+                R.string.settings_ps2_profile_identity,
+                currentReceipt.biosName ?: stringResource(R.string.settings_ps2_profile_default_bios),
+                currentReceipt.consoleIdHex,
+            ),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        if (currentReceipt.gameOverrideCount > 0) {
+            Text(
+                pluralStringResource(
+                    R.plurals.settings_ps2_profile_overrides,
+                    currentReceipt.gameOverrideCount,
+                    currentReceipt.gameOverrideCount,
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+    }
+    val progressText = when (progress) {
+        Ps2ProvisioningProgress.OpeningArmsx2,
+        Ps2ProvisioningProgress.OpeningMemoryCards -> R.string.settings_ps2_profile_opening
+        Ps2ProvisioningProgress.AssigningSlot2 -> R.string.settings_ps2_profile_preserving
+        Ps2ProvisioningProgress.AssigningSlot1 -> R.string.settings_ps2_profile_assigning
+        is Ps2ProvisioningProgress.Done -> R.string.settings_ps2_profile_done
+        else -> null
+    }
+    progressText?.let {
+        Text(stringResource(it), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+    }
+    if (ready) {
+        Text(
+            stringResource(R.string.settings_ps2_profile_done),
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.primary,
         )
     }
-    Text(
-        stringResource(R.string.settings_ps2_profile_steps_title),
-        style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.onSurface
-    )
-    SettingsStep(1, stringResource(R.string.settings_ps2_profile_step1))
-    SettingsStep(2, stringResource(R.string.settings_ps2_profile_step2))
-    SettingsStep(3, stringResource(R.string.settings_ps2_profile_step3))
-    SettingsStep(4, stringResource(R.string.settings_ps2_profile_step4))
-    // Spelled out rather than left as a fifth step: a player who stops after the
-    // import has a card that boots and a game that still refuses, which is the
-    // exact dead end this whole row exists to avoid.
-    Text(
-        stringResource(R.string.settings_ps2_profile_warning),
-        style = MaterialTheme.typography.bodyMedium,
-        fontWeight = FontWeight.SemiBold,
-        color = MaterialTheme.colorScheme.primary
-    )
-    ChoiceRow(
-        label = stringResource(R.string.settings_ps2_profile_confirm),
-        selected = ready,
-        onClick = { onReadyChange(!ready) }
-    )
+    error?.let {
+        Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+    }
 }
 
 /**

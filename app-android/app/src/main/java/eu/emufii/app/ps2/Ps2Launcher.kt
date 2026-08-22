@@ -74,10 +74,29 @@ class Ps2Launcher(private val context: Context) {
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         return runCatching {
             val store = PlanStore(context)
+            Ps2ProvisioningAutomation.clear(Ps2ProvisioningStore(context))
             if (automationOn) NetplayAutomation.arm(plan, store) else NetplayAutomation.clear(store)
             context.startActivity(intent)
             LaunchResult.Success
         }.getOrElse { LaunchResult.Error(it.message ?: "Unknown launch error") }
+    }
+
+    /** Opens the ARMSX2 library while the separate global-card setup is armed. */
+    fun openForProvisioning(plan: Ps2ProvisioningPlan): LaunchResult {
+        val pkg = installedPackage() ?: return LaunchResult.NotInstalled
+        val intent = Intent(Intent.ACTION_MAIN).apply {
+            component = ComponentName(pkg, VIEW_ACTIVITY)
+            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        return runCatching {
+            NetplayAutomation.clear(PlanStore(context))
+            Ps2ProvisioningAutomation.arm(plan, Ps2ProvisioningStore(context))
+            context.startActivity(intent)
+            LaunchResult.Success
+        }.getOrElse {
+            Ps2ProvisioningAutomation.clear(Ps2ProvisioningStore(context))
+            LaunchResult.Error(it.message ?: "Unknown launch error")
+        }
     }
 
     /**
@@ -92,6 +111,7 @@ class Ps2Launcher(private val context: Context) {
         val pkg = installedPackage() ?: return LaunchResult.NotInstalled
         val intent = viewIntent(pkg, rom).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
         return runCatching {
+            Ps2ProvisioningAutomation.clear(Ps2ProvisioningStore(context))
             context.startActivity(intent)
             LaunchResult.Success
         }.getOrElse { LaunchResult.Error(it.message ?: "Unknown launch error") }

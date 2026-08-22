@@ -3,6 +3,10 @@ package eu.emufii.app.azahar
 import eu.emufii.app.R
 import eu.emufii.app.dolphin.DolphinNetplayDriver
 import eu.emufii.app.ps2.Ps2NetplayDriver
+import eu.emufii.app.ps2.Ps2MemoryCardProvisioningDriver
+import eu.emufii.app.ps2.Ps2ProvisioningAutomation
+import eu.emufii.app.ps2.Ps2ProvisioningProgress
+import eu.emufii.app.ps2.Ps2ProvisioningStore
 import eu.emufii.app.ps2.Ps2Target
 import eu.emufii.app.dolphin.DolphinTarget
 import eu.emufii.app.netplay.NetplayLabels
@@ -67,6 +71,25 @@ class AzaharNetplayService : AccessibilityService() {
     private var pendingLook: Runnable? = null
 
     private val store by lazy { PlanStore(this) }
+    private val ps2ProvisioningStore by lazy { Ps2ProvisioningStore(this) }
+
+    private val ps2ProvisioningDriver by lazy {
+        Ps2MemoryCardProvisioningDriver(
+            this,
+            { performGlobalAction(GLOBAL_ACTION_BACK) },
+        ) { success, reason ->
+            val plan = Ps2ProvisioningAutomation.plan.value
+            if (success && plan != null) {
+                Ps2ProvisioningAutomation.complete(this, plan, ps2ProvisioningStore)
+            } else {
+                Ps2ProvisioningAutomation.fail(
+                    reason ?: "La configuration globale ARMSX2 n’a pas pu être vérifiée.",
+                    ps2ProvisioningStore,
+                )
+            }
+            comeBackToEmufii()
+        }
+    }
 
     /**
      * The Dolphin side of the automation.
@@ -109,6 +132,7 @@ class AzaharNetplayService : AccessibilityService() {
         // We may be starting because Android killed Emufii mid-flow and brought
         // the service back on its own.
         NetplayAutomation.restore(store)
+        Ps2ProvisioningAutomation.restore(ps2ProvisioningStore)
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
@@ -134,6 +158,10 @@ class AzaharNetplayService : AccessibilityService() {
      * catches a view arriving late.
      */
     private fun stepNow(pkg: String, looksLeft: Int = RECHECKS) {
+        if (Ps2Target.owns(pkg) && Ps2ProvisioningAutomation.plan.value != null) {
+            stepProvisioningNow(pkg, looksLeft)
+            return
+        }
         val plan = NetplayAutomation.plan.value ?: return
         // Dolphin's screen is Compose and carries no resource ids, so it cannot
         // be walked by [step] at all, it gets its own driver, and the two never
@@ -182,6 +210,47 @@ class AzaharNetplayService : AccessibilityService() {
         val looksNext = if (advanced) RECHECKS else looksLeft - 1
         if (looksNext > 0 && NetplayAutomation.plan.value != null) {
             val again = Runnable { stepNow(pkg, looksNext) }
+            pendingLook = again
+            handler.postDelayed(again, RECHECK_MS)
+        }
+    }
+
+    /** One pass of the global-memory-card route, isolated from netplay. */
+    private fun stepProvisioningNow(pkg: String, looksLeft: Int) {
+        if (Ps2ProvisioningAutomation.expireIfNeeded(ps2ProvisioningStore)) {
+            comeBackToEmufii()
+            return
+        }
+        val plan = Ps2ProvisioningAutomation.plan.value ?: return
+        if (!Ps2Target.owns(pkg)) return
+        val root = rootInActiveWindow
+        if (root == null) {
+            if (looksLeft > 1) {
+                val again = Runnable { stepProvisioningNow(pkg, looksLeft - 1) }
+                pendingLook = again
+                handler.postDelayed(again, RECHECK_MS)
+            }
+            return
+        }
+        val advanced = try {
+            ps2ProvisioningDriver.step(root, plan)
+        } catch (t: Throwable) {
+            Log.w(TAG, "PS2 provisioning step failed", t)
+            Ps2ProvisioningAutomation.fail(
+                t.message ?: "L’écran ARMSX2 n’a pas pu être lu.",
+                ps2ProvisioningStore,
+            )
+            comeBackToEmufii()
+            false
+        } finally {
+            root.recycle()
+        }
+        if (advanced) lastStepAt = System.currentTimeMillis()
+        pendingLook?.let(handler::removeCallbacks)
+        pendingLook = null
+        val looksNext = if (advanced) RECHECKS else looksLeft - 1
+        if (looksNext > 0 && Ps2ProvisioningAutomation.plan.value != null) {
+            val again = Runnable { stepProvisioningNow(pkg, looksNext) }
             pendingLook = again
             handler.postDelayed(again, RECHECK_MS)
         }
@@ -513,6 +582,7 @@ class AzaharNetplayService : AccessibilityService() {
         // process is recycled, which is exactly when the stored plan has to
         // survive.
         NetplayAutomation.clear()
+        Ps2ProvisioningAutomation.clear()
     }
 
     private companion object {
