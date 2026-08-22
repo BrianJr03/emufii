@@ -1,0 +1,60 @@
+# Compile l'app et lance ses tests, à chaque pull request.
+#
+# Le but est étroit et assumé : dire vert ou rouge sur la PR avant qu'elle soit
+# fusionnée. Rien n'est publié d'ici, rien n'est signé d'ici.
+#
+# AUCUN SECRET NE DOIT ENTRER DANS CE FICHIER. Une pull request venue d'un fork
+# s'exécute avec le code de son auteur : tout secret lisible ici serait lisible
+# par n'importe qui ouvrant une PR. La compilation de debug s'en passe — elle
+# produit une app qui s'installe et ne crée aucune session, ce qui est
+# exactement ce qu'on veut d'une vérification.
+
+name: Android
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: SDK Android
+        uses: android-actions/setup-android@v3
+
+      - name: Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Tests unitaires et build debug
+        working-directory: app-android
+        run: ./gradlew :app:testDebugUnitTest :app:assembleDebug --no-daemon --stacktrace
+
+      # Récupérable depuis l'onglet de la PR, pour essayer la build de
+      # quelqu'un d'autre sans la compiler soi-même.
+      - name: Garder l'APK de debug
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: emufii-debug-apk
+          path: app-android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: warn
+
+      - name: Garder les rapports de test quand ça casse
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rapports-de-test
+          path: app-android/app/build/reports/tests/
+          if-no-files-found: ignore
