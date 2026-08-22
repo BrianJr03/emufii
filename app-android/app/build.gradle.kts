@@ -127,8 +127,8 @@ android {
         // coming, no banner, no way to notice. A published binary freezes its
         // number: rebuilding it under the same code makes the fix invisible to
         // the very people who need it most.
-        versionCode = 40
-        versionName = "1.12.2"
+        versionCode = 41
+        versionName = "1.12.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

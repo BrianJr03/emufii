@@ -458,13 +458,19 @@ fun GameLaunchDialog(
                                 onChange = { isPrivate = it }
                             )
                         }
-                        if (ps2Blocked) Ps2ProfileMissing() else
-                        PrimaryAction(
-                            label = primaryLabel,
-                            starting = starting,
-                            onClick = { starting = true },
-                            modifier = Modifier.fillMaxWidth().focusRequester(firstAction)
-                        )
+                        // Braced, and it is not a style point: an `else` whose branch sits
+                        // at the same indentation as the `if` reads to a human as two
+                        // statements, and Lint fails the build over it (SuspiciousIndentation).
+                        if (ps2Blocked) {
+                            Ps2ProfileMissing()
+                        } else {
+                            PrimaryAction(
+                                label = primaryLabel,
+                                starting = starting,
+                                onClick = { starting = true },
+                                modifier = Modifier.fillMaxWidth().focusRequester(firstAction)
+                            )
+                        }
                         if (!ps2Blocked && onJoinWithCode != null && !publicMode) {
                             OutlinedButton(
                                 onClick = onJoinWithCode,
@@ -537,13 +543,19 @@ fun GameLaunchDialog(
                     )
                 }
 
-                if (ps2Blocked) Ps2ProfileMissing() else
-                PrimaryAction(
-                    label = primaryLabel,
-                    starting = starting,
-                    onClick = { starting = true },
-                    modifier = Modifier.fillMaxWidth().focusRequester(firstAction)
-                )
+                // Braced, and it is not a style point: an `else` whose branch sits
+                // at the same indentation as the `if` reads to a human as two
+                // statements, and Lint fails the build over it (SuspiciousIndentation).
+                if (ps2Blocked) {
+                    Ps2ProfileMissing()
+                } else {
+                    PrimaryAction(
+                        label = primaryLabel,
+                        starting = starting,
+                        onClick = { starting = true },
+                        modifier = Modifier.fillMaxWidth().focusRequester(firstAction)
+                    )
+                }
 
                 // Hidden in public mode: there is no session to join, exactly as
                 // for DS online play.
