@@ -37,6 +37,8 @@ build/
 *.apk
 *.aab
 mapping.txt
+__pycache__/
+*.pyc
 .DS_Store
 
 # Notes qui parlent à l'auteur, pas au public.
