@@ -4,10 +4,22 @@ import android.content.Context
 import android.net.Uri
 import androidx.core.content.edit
 import androidx.core.net.toUri
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
 /** Durable state of the generated card and of its verified global assignment. */
 object Ps2NetworkProfile {
+
+    /**
+     * Last full verdict, for the life of the process.
+     *
+     * Cleared wherever the answer can change — preparing a card, assigning one,
+     * dropping readiness — so a cached yes never outlives the thing it was
+     * about.
+     */
+    @Volatile
+    private var verified: Boolean? = null
 
     data class Receipt(
         val rootUri: String,
@@ -20,6 +32,9 @@ object Ps2NetworkProfile {
         val biosName: String?,
         val biosVersion: Int?,
         val gameOverrideCount: Int,
+        val folderCardName: String?,
+        val importedSaveCount: Int,
+        val savesLeftBehind: Int,
         val slot2AlreadyPreserved: Boolean,
         val sourceCardForSlot2: String?,
         val assigned: Boolean,
@@ -50,9 +65,13 @@ object Ps2NetworkProfile {
             put("bios", prepared.biosName)
             put("bios_version", prepared.biosVersion)
             put("override_count", prepared.gameOverrideCount)
+            put("folder_card", prepared.folderCardName)
+            put("imported_saves", prepared.importedSaveCount)
+            put("saves_left", prepared.savesLeftBehind)
             put("slot2_preserved", prepared.slot2AlreadyPreserved)
             put("source_for_slot2", prepared.sourceCardForSlot2)
         }
+        verified = null
         prefs(context).edit {
             putString(KEY_ROOT, prepared.rootUri)
             putString(KEY_RECEIPT, json.toString())
@@ -75,6 +94,9 @@ object Ps2NetworkProfile {
                 biosName = json.optNullableString("bios"),
                 biosVersion = if (json.isNull("bios_version")) null else json.getInt("bios_version"),
                 gameOverrideCount = json.optInt("override_count", 0),
+                folderCardName = json.optNullableString("folder_card"),
+                importedSaveCount = json.optInt("imported_saves", 0),
+                savesLeftBehind = json.optInt("saves_left", 0),
                 slot2AlreadyPreserved = json.optBoolean("slot2_preserved", false),
                 sourceCardForSlot2 = json.optNullableString("source_for_slot2"),
                 assigned = prefs(context).getBoolean(KEY_READY, false),
@@ -88,10 +110,23 @@ object Ps2NetworkProfile {
         if (receipt.cardName != cardName || !receipt.cardSha256.equals(cardSha256, ignoreCase = true)) {
             return false
         }
+        verified = null
         prefs(context).edit { putBoolean(KEY_READY, true) }
         return true
     }
 
+    /**
+     * The full check, and it is **not** cheap: measured at ~175 ms on the Thor,
+     * because proving the profile is still on the card means reading the whole
+     * 8 MB image and the BIOS beside it. Never call it from a composable body or
+     * anywhere else on the main thread — use [isReadyQuick] to draw and
+     * [verifyReady] to confirm.
+     *
+     * Kept synchronous for the one caller that must be authoritative in a single
+     * step: the gate before joining a session, where a stale yes would land the
+     * guest in a tunnel whose game never opens its local menu, and where 175 ms
+     * disappears next to the round trip that follows.
+     */
     fun isReady(context: Context): Boolean {
         if (!prefs(context).getBoolean(KEY_READY, false)) return false
         val receipt = receipt(context) ?: return false
@@ -100,10 +135,27 @@ object Ps2NetworkProfile {
             receipt.rootUri.toUri(),
             receipt.cardName,
             receipt.consoleIdHex,
-        )
+        ).also { verified = it }
     }
 
+    /**
+     * What to draw with, answered from memory or from one preference read.
+     *
+     * A composable body runs on every recomposition, and the launch card called
+     * [isReady] three times for a single opening: half a second of blocked main
+     * thread on a popup that should appear instantly. This is the answer that
+     * costs nothing, and [verifyReady] refines it a moment later if the card has
+     * moved since.
+     */
+    fun isReadyQuick(context: Context): Boolean =
+        verified ?: prefs(context).getBoolean(KEY_READY, false)
+
+    /** [isReady], off the main thread, caching its verdict for [isReadyQuick]. */
+    suspend fun verifyReady(context: Context): Boolean =
+        withContext(Dispatchers.IO) { isReady(context) }
+
     fun clearReady(context: Context) {
+        verified = null
         prefs(context).edit { putBoolean(KEY_READY, false) }
     }
 

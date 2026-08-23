@@ -120,8 +120,7 @@ fun GameLaunchDialog(
      * ARMSX2 there is nothing worth starting here — so the actions are replaced
      * by what to do about it, rather than left to fail twenty minutes later.
      */
-    val ps2Blocked = rom.console == Console.PS2 &&
-        !Ps2NetworkProfile.isReady(LocalContext.current)
+    val ps2Blocked = rom.console == Console.PS2 && !rememberPs2Ready()
 
     /**
      * Will the session be hidden from the finder?

@@ -53,6 +53,7 @@ import androidx.compose.ui.platform.LocalContext
 import eu.emufii.app.library.Console
 import eu.emufii.app.network.OpenSession
 import eu.emufii.app.ps2.Ps2NetworkProfile
+import eu.emufii.app.ui.components.rememberPs2Ready
 import eu.emufii.app.ui.components.Avatar
 import eu.emufii.app.ui.components.EmufiiScaffold
 import eu.emufii.app.ui.components.GhostButton
@@ -214,8 +215,7 @@ private fun SessionCard(session: OpenSession, rom: Rom?, onJoin: () -> Unit) {
 
     // Only knowable for a game we own: the coordinator publishes a title, not a
     // console.
-    val ps2Blocked = rom?.console == Console.PS2 &&
-        !Ps2NetworkProfile.isReady(LocalContext.current)
+    val ps2Blocked = rom?.console == Console.PS2 && !rememberPs2Ready()
 
     // The card is the "down" destination from the header, and not the pill it
     // contains: a `GhostButton`'s modifier applies to its frame, which is not

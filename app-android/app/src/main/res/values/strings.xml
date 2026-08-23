@@ -439,7 +439,7 @@
     <string name="settings_ps2_status_not_assigned">Carte prête, pas encore dans l\'emplacement 1</string>
     <string name="settings_ps2_status_no_folder">Indique le dossier d\'ARMSX2 pour commencer</string>
     <string name="settings_ps2_status_todo">Reste à préparer</string>
-    <string name="settings_ps2_profile_body">Choisis le dossier personnalisé d\'ARMSX2. Emufii détecte la carte globale et le BIOS, sauvegarde la carte originale, injecte un profil DHCP compatible avec son NVM, puis affecte automatiquement le clone au slot 1. Aucune sauvegarde de jeu n\'est supprimée et aucun passage dans le BIOS n\'est nécessaire.</string>
+    <string name="settings_ps2_profile_body">Choisis le dossier personnalisé d\'ARMSX2. Emufii détecte la carte globale et le BIOS, puis prépare une carte portant un profil DHCP compatible avec son NVM et l\'affecte au slot 1 : un clone de ta carte quand c\'est une image, sauvegardée avant d\'être copiée, une carte neuve quand c\'est une carte dossier. Aucune sauvegarde de jeu n\'est supprimée et aucun passage dans le BIOS n\'est nécessaire.</string>
     <string name="settings_ps2_profile_created">Clone : %1$s · source : %2$s</string>
     <string name="settings_ps2_profile_new_card">nouvelle carte</string>
     <string name="settings_ps2_profile_identity">BIOS : %1$s · i.Link : %2$s</string>
@@ -453,7 +453,10 @@
     <string name="settings_ps2_profile_no_armsx2">ARMSX2 n\'est pas installé.</string>
     <string name="settings_ps2_profile_bad_folder">Ce n\'est pas la racine du dossier personnalisé ARMSX2 : le sous-dossier memcards est introuvable.</string>
     <string name="settings_ps2_profile_no_write">Android n\'a pas accordé l\'accès permanent en lecture et écriture à ce dossier.</string>
-    <string name="settings_ps2_profile_folder_card">%1$s est une carte dossier. Le portage sûr prend actuellement en charge les images .ps2.</string>
+    <string name="netplay_automation_silent">L\'automatisation n\'a pas démarré. Désactive puis réactive le service d\'accessibilité d\'Emufii dans les réglages Android, ou règle l\'émulateur à la main.</string>
+    <string name="settings_ps2_profile_folder_imported">%1$s est une carte dossier : elle ne peut pas porter le profil réseau, et le navigateur du BIOS l\'affiche vide, donc rien ne s\'en copie à la main. Emufii a donc créé une carte neuve pour l\'emplacement 1 et y a copié %2$d sauvegarde(s) venues de %1$s. Ton dossier d\'origine n\'est pas modifié.</string>
+    <string name="settings_ps2_profile_folder_partial">%1$s est une carte dossier. Emufii a créé une carte neuve pour l\'emplacement 1 et y a copié %2$d sauvegarde(s), mais %3$d n\'ont pas tenu : une carte PS2 fait 8 Mo. Ton dossier d\'origine n\'est pas modifié.</string>
+    <string name="settings_ps2_profile_folder_empty">%1$s est une carte dossier, et elle est vide. Emufii a créé une carte neuve portant le profil réseau pour l\'emplacement 1. Ton dossier d\'origine n\'est pas modifié.</string>
     <string name="settings_ps2_profile_invalid_card">%1$s n\'est pas une image de carte PS2 exploitable. L\'originale n\'a pas été modifiée.</string>
     <string name="settings_ps2_profile_source_changed">%1$s a changé pendant sa copie. Ferme le jeu en cours dans ARMSX2 puis réessaie ; aucun clone incomplet n\'a été publié.</string>
     <string name="settings_ps2_profile_ambiguous_bios">Plusieurs BIOS avec NVM sont possibles (%1$s). Sélectionne le BIOS actif dans ARMSX2 puis relance la préparation.</string>

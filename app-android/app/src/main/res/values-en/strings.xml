@@ -429,7 +429,7 @@
     <string name="settings_ps2_status_not_assigned">Card ready, not in Slot 1 yet</string>
     <string name="settings_ps2_status_no_folder">Point Emufii at ARMSX2\'s folder to start</string>
     <string name="settings_ps2_status_todo">Still to prepare</string>
-    <string name="settings_ps2_profile_body">Choose ARMSX2\'s custom data folder. Emufii detects the global card and BIOS, backs up the original card, injects a DHCP profile compatible with its NVM, then assigns the clone to slot 1 automatically. No game save is removed and the BIOS menu is not needed.</string>
+    <string name="settings_ps2_profile_body">Choose ARMSX2\'s custom data folder. Emufii detects the global card and BIOS, then prepares a card carrying a DHCP profile compatible with its NVM and assigns it to slot 1: a clone of your card when that card is an image, backed up before being copied, a new card when it is a folder memory card. No game save is removed and the BIOS menu is not needed.</string>
     <string name="settings_ps2_profile_created">Clone: %1$s · source: %2$s</string>
     <string name="settings_ps2_profile_new_card">new card</string>
     <string name="settings_ps2_profile_identity">BIOS: %1$s · i.Link: %2$s</string>
@@ -443,7 +443,10 @@
     <string name="settings_ps2_profile_no_armsx2">ARMSX2 is not installed.</string>
     <string name="settings_ps2_profile_bad_folder">This is not the root of ARMSX2\'s custom folder: the memcards subfolder is missing.</string>
     <string name="settings_ps2_profile_no_write">Android did not grant permanent read and write access to this folder.</string>
-    <string name="settings_ps2_profile_folder_card">%1$s is a folder memory card. The safe port currently supports .ps2 images.</string>
+    <string name="netplay_automation_silent">The automation never started. Turn Emufii\'s accessibility service off and back on in Android settings, or set the emulator up by hand.</string>
+    <string name="settings_ps2_profile_folder_imported">%1$s is a folder memory card: it cannot carry the network profile, and the BIOS browser shows it as empty, so nothing can be copied out of it by hand. Emufii created a new card for slot 1 and copied %2$d save(s) from %1$s onto it. Your original folder is left untouched.</string>
+    <string name="settings_ps2_profile_folder_partial">%1$s is a folder memory card. Emufii created a new card for slot 1 and copied %2$d save(s) onto it, but %3$d did not fit: a PS2 card holds 8 MB. Your original folder is left untouched.</string>
+    <string name="settings_ps2_profile_folder_empty">%1$s is a folder memory card, and it is empty. Emufii created a new card carrying the network profile for slot 1. Your original folder is left untouched.</string>
     <string name="settings_ps2_profile_invalid_card">%1$s is not a usable PS2 memory-card image. The original was not modified.</string>
     <string name="settings_ps2_profile_source_changed">%1$s changed while it was being copied. Close the running game in ARMSX2 and try again; no incomplete clone was published.</string>
     <string name="settings_ps2_profile_ambiguous_bios">Several BIOS/NVM pairs are possible (%1$s). Select the active BIOS in ARMSX2, then prepare again.</string>

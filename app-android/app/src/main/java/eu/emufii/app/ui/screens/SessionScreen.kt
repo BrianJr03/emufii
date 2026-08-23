@@ -232,6 +232,16 @@ fun SessionScreen(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 automationOn = azahar.isNetplayAutomationEnabled()
+                // Coming back from the emulator is the moment to notice that
+                // the automation was never heard from. See
+                // NetplayAutomation.neverStarted: silence has a cause the
+                // player can act on, and saying nothing reads as "the app is
+                // broken".
+                if (NetplayAutomation.neverStarted()) {
+                    NetplayAutomation.report(
+                        NetplayProgress.Failed(context.getString(R.string.netplay_automation_silent))
+                    )
+                }
                 returns++
             }
         }

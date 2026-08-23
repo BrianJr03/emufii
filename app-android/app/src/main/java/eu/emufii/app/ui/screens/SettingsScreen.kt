@@ -106,6 +106,7 @@ import eu.emufii.app.ps2.Ps2Launcher
 import eu.emufii.app.ps2.Ps2ProvisioningAutomation
 import eu.emufii.app.ps2.Ps2ProvisioningPlan
 import eu.emufii.app.ps2.Ps2ProvisioningProgress
+import eu.emufii.app.ps2.Ps2ProvisioningStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -188,7 +189,10 @@ fun SettingsScreen(
     val context = LocalContext.current
     // Le joueur l'a-t-il importee dans ARMSX2 ? Rien ici ne peut le verifier,
     // et c'est ce drapeau qui autorise une session PS2.
-    var ps2ProfileReady by remember { mutableStateOf(Ps2NetworkProfile.isReady(context)) }
+    // Drawn from the cheap answer, confirmed off the main thread just after:
+    // opening Settings must not wait on 175 ms of card reading.
+    var ps2ProfileReady by remember { mutableStateOf(Ps2NetworkProfile.isReadyQuick(context)) }
+    LaunchedEffect(Unit) { ps2ProfileReady = Ps2NetworkProfile.verifyReady(context) }
     var hiddenCount by remember { mutableStateOf(HiddenRoms(context).count()) }
 
     // Whether Emufii's accessibility service is on, re-read while this screen is
@@ -785,8 +789,6 @@ private fun Ps2ProfileDetail(
                     error = context.getString(R.string.settings_ps2_profile_bad_folder)
                 Ps2Armsx2Folder.Outcome.MissingWritePermission ->
                     error = context.getString(R.string.settings_ps2_profile_no_write)
-                is Ps2Armsx2Folder.Outcome.FolderMemoryCard ->
-                    error = context.getString(R.string.settings_ps2_profile_folder_card, outcome.name)
                 is Ps2Armsx2Folder.Outcome.InvalidMemoryCard ->
                     error = context.getString(R.string.settings_ps2_profile_invalid_card, outcome.name)
                 is Ps2Armsx2Folder.Outcome.SourceChanged ->
@@ -828,6 +830,20 @@ private fun Ps2ProfileDetail(
                 onReadyChanged(true)
             }
             is Ps2ProvisioningProgress.Failed -> error = state.reason
+            // Waiting on ARMSX2 to open is the one state that can last forever
+            // when the accessibility service has gone silent, and a spinner
+            // with no end is the worst thing this section can show. Give the
+            // driver its second, then say what happened.
+            // See Ps2ProvisioningAutomation.neverStarted.
+            Ps2ProvisioningProgress.OpeningArmsx2 -> {
+                delay(SILENCE_CHECK_MS)
+                if (Ps2ProvisioningAutomation.neverStarted()) {
+                    Ps2ProvisioningAutomation.fail(
+                        context.getString(R.string.netplay_automation_silent),
+                        Ps2ProvisioningStore(context),
+                    )
+                }
+            }
             else -> Unit
         }
     }
@@ -915,8 +931,27 @@ private fun Ps2ProfileDetail(
             add(DetailFact(stringResource(R.string.settings_ps2_fact_console), current.consoleIdHex))
         }
     }
+    val folderCardNote = current?.folderCardName?.let { name ->
+        when {
+            current.savesLeftBehind > 0 -> stringResource(
+                R.string.settings_ps2_profile_folder_partial,
+                name,
+                current.importedSaveCount,
+                current.savesLeftBehind,
+            )
+            current.importedSaveCount > 0 -> stringResource(
+                R.string.settings_ps2_profile_folder_imported,
+                name,
+                current.importedSaveCount,
+            )
+            else -> stringResource(R.string.settings_ps2_profile_folder_empty, name)
+        }
+    }
+    // A folder card is not an error and not an override: it is the one thing the
+    // player most needs told, because it is why no save of theirs was cloned.
     val caveat = when {
         error != null -> error
+        folderCardNote != null -> folderCardNote
         current != null && current.gameOverrideCount > 0 -> pluralStringResource(
             R.plurals.settings_ps2_profile_overrides,
             current.gameOverrideCount,
@@ -1667,3 +1702,6 @@ private fun ChoiceRow(label: String, selected: Boolean, onClick: () -> Unit) {
         )
     }
 }
+
+/** How long ARMSX2 gets to show the driver's first move before we call it silence. */
+private const val SILENCE_CHECK_MS = 11_000L

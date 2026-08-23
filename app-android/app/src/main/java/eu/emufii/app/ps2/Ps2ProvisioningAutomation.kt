@@ -73,6 +73,28 @@ object Ps2ProvisioningAutomation {
         _progress.value = Ps2ProvisioningProgress.Idle
     }
 
+    /**
+     * Was ARMSX2 opened for provisioning and the driver never heard from?
+     *
+     * The mirror of `NetplayAutomation.neverStarted`, and it exists for the
+     * same measured reason: after an `install -r` the accessibility service
+     * stays listed and bound but stops receiving events, so the route opens
+     * ARMSX2 and nothing follows. Here that is worse than useless, because the
+     * section is left showing a busy state that can never end.
+     *
+     * The driver reports [Ps2ProvisioningProgress.OpeningMemoryCards] on its
+     * very first navigation action, about a second in, so still sitting on
+     * [Ps2ProvisioningProgress.OpeningArmsx2] well past that means no pass ever
+     * ran.
+     */
+    fun neverStarted(now: Long = System.currentTimeMillis()): Boolean {
+        val current = _plan.value ?: return false
+        return _progress.value == Ps2ProvisioningProgress.OpeningArmsx2 &&
+            now - current.armedAtMs > SILENCE_MS
+    }
+
+    private const val SILENCE_MS = 10_000L
+
     fun expireIfNeeded(store: Ps2ProvisioningStore, now: Long = System.currentTimeMillis()): Boolean {
         val current = _plan.value ?: return false
         if (now >= current.armedAtMs && now - current.armedAtMs <= Ps2ProvisioningStore.TTL_MS) return false

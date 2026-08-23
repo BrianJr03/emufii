@@ -64,6 +64,10 @@ sealed class NetplayProgress {
  */
 object NetplayAutomation {
 
+    /** When [arm] last ran, for [neverStarted]. Not persisted: a plan that came
+     *  back through [restore] means the service was alive enough to restore it. */
+    private var armedAtMs = 0L
+
     private val _plan = MutableStateFlow<NetplayPlan?>(null)
     val plan: StateFlow<NetplayPlan?> = _plan.asStateFlow()
 
@@ -80,6 +84,7 @@ object NetplayAutomation {
     fun arm(plan: NetplayPlan, store: PlanStore? = null) {
         _plan.value = plan
         _progress.value = NetplayProgress.OpeningMenu
+        armedAtMs = System.currentTimeMillis()
         store?.save(plan)
     }
 
@@ -87,6 +92,7 @@ object NetplayAutomation {
     fun clear(store: PlanStore? = null) {
         _plan.value = null
         _progress.value = NetplayProgress.Idle
+        armedAtMs = 0L
         store?.clear()
     }
 
@@ -102,13 +108,43 @@ object NetplayAutomation {
         store.load()?.let {
             _plan.value = it
             _progress.value = NetplayProgress.OpeningMenu
+            armedAtMs = System.currentTimeMillis()
         }
     }
+
+    /**
+     * Was the automation armed, given its chance, and never heard from?
+     *
+     * This is not the same thing as failing. A driver that ran and gave up
+     * reports [NetplayProgress.Failed] and says what to type instead; the case
+     * here is total silence, and it has one cause worth naming out loud: the
+     * accessibility service is still listed and still bound, but no longer
+     * receives a single event, which is what reinstalling the app over itself
+     * leaves behind. Measured on the Thor on 2026-08-23 after an `install -r`:
+     * every launch opened the emulator and did nothing, with no error, no
+     * progress and no log line, and toggling the service off and on in
+     * Android's settings brought it straight back. Players meet the same
+     * reinstall through the update channel.
+     *
+     * Asked when the player comes back to Emufii: that is the one moment we
+     * know both that the emulator has had its turn and that we are alive to
+     * say so. [SILENCE_MS] is what separates "never started" from "still
+     * opening the menu", so a player who flicks back immediately is not told
+     * anything is wrong.
+     */
+    fun neverStarted(now: Long = System.currentTimeMillis()): Boolean =
+        _plan.value != null &&
+            _progress.value == NetplayProgress.OpeningMenu &&
+            armedAtMs > 0L &&
+            now - armedAtMs > SILENCE_MS
 
     internal fun report(progress: NetplayProgress) {
         _progress.value = progress
         if (progress is NetplayProgress.Done || progress is NetplayProgress.Failed) {
             _plan.value = null
+            armedAtMs = 0L
         }
     }
+
+    private const val SILENCE_MS = 8_000L
 }
