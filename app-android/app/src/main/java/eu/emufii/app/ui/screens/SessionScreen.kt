@@ -87,6 +87,9 @@ import eu.emufii.app.azahar.PlanStore
 import eu.emufii.app.dolphin.DolphinLauncher
 import eu.emufii.app.dolphin.DolphinTarget
 import eu.emufii.app.ps2.Ps2Launcher
+import eu.emufii.app.ps2.Ps2GameSettings
+import eu.emufii.app.ps2.Ps2NetworkProfile
+import eu.emufii.app.ps2.Ps2ProvisioningPlan
 import eu.emufii.app.ps2.Ps2Target
 import eu.emufii.app.eden.EdenLauncher
 import eu.emufii.app.netplay.NetplayNames
@@ -146,6 +149,10 @@ fun SessionScreen(
             rom.filename,
             rom.displayName,
         )
+    }
+    val ps2Automatic = remember(session.code, session.rom) {
+        val rom = session.rom
+        rom != null && session.backend == Backend.ARMSX2 && Ps2GameSettings.canConfigure(context, rom)
     }
     var status by remember { mutableStateOf<String?>(null) }
     var members by remember { mutableStateOf<List<Member>>(emptyList()) }
@@ -270,7 +277,35 @@ fun SessionScreen(
      * Step 1, pressed. One definition for both layouts: the day one of the two
      * drifted, half the screens changed behaviour without anyone noticing.
      */
-    val onNetplayStep = {
+    val onNetplayStep: () -> Unit = fun() {
+        // Only an image whose boot ELF cannot be read reaches this branch. Its
+        // network form can still use the established accessibility driver, but
+        // the prepared card first needs the one legacy global assignment that
+        // direct per-game files avoid. Keep that extra navigation out of every
+        // supported ISO/CHD and make it explicit here instead of silently
+        // launching a game with no network profile.
+        if (session.backend == Backend.ARMSX2 && !ps2Automatic) {
+            val receipt = Ps2NetworkProfile.receipt(context)
+            if (receipt != null && !receipt.assigned) {
+                if (!automationOn) {
+                    status = context.getString(R.string.session_ps2_fallback_accessibility)
+                    return
+                }
+                status = when (val result = Ps2Launcher(context).openForProvisioning(
+                    Ps2ProvisioningPlan(
+                        receipt.cardName,
+                        receipt.cardSha256,
+                        receipt.sourceCardForSlot2,
+                    )
+                )) {
+                    LaunchResult.Success -> context.getString(R.string.session_ps2_fallback_assigning)
+                    LaunchResult.NotInstalled -> context.getString(R.string.err_not_installed, "ARMSX2")
+                    is LaunchResult.Error -> context.getString(R.string.err_generic, result.message)
+                    is LaunchResult.NoNetplayUi -> context.getString(R.string.err_not_installed, "ARMSX2")
+                }
+                return
+            }
+        }
         netplayDone = false
         // Setting up again destroys the previous room: putting the guests back
         // in the waiting state beats letting them run at a room that is gone.
@@ -279,6 +314,18 @@ fun SessionScreen(
         }
         status = session.prepareNetplay(context, azahar, eden, profile.name)
         if (status == null) netplayPrepared = true
+    }
+
+    /** ARMSX2's direct path performs its former two steps behind one launch. */
+    val onLaunchStep: () -> Unit = fun() {
+        scope.launch {
+            status = session.launch(context, azahar, eden, ppsspp) {
+                if (ps2Automatic) {
+                    netplayPrepared = true
+                    netplayDone = true
+                }
+            }
+        }
     }
 
 
@@ -506,7 +553,7 @@ fun SessionScreen(
                     // step is done, and a disabled button does not take focus:
                     // going down failed and the cursor went off into the left
                     // column.
-                    if (session.backend.hasNetplay) {
+                    if (session.backend.hasNetplay && !ps2Automatic) {
                         NetplayButton(
                             session = session,
                             netplayDone = netplayDone,
@@ -529,10 +576,12 @@ fun SessionScreen(
                     LaunchButton(
                         session = session,
                         netplayPrepared = netplayPrepared,
-                        onClick = { status = session.launch(context, azahar, eden, ppsspp) },
+                        directPs2 = ps2Automatic,
+                        waitingForHost = ps2Automatic && waitingForHost,
+                        onClick = onLaunchStep,
                         // Last resort: when no step precedes it, this is the
                         // first button on the page.
-                        modifier = if (session.backend.hasNetplay ||
+                        modifier = if ((session.backend.hasNetplay && !ps2Automatic) ||
                                        (session.backend == Backend.PPSSPP && !pspAutomatic)) Modifier
                                    else Modifier.padEntry()
                     )
@@ -604,7 +653,7 @@ fun SessionScreen(
             // from its main menu, then boot the game. One button did both, so
             // the ROM started in an emulator that had joined nothing, and the
             // player learned it from the game instead of from Emufii.
-            if (session.backend.hasNetplay) {
+            if (session.backend.hasNetplay && !ps2Automatic) {
                 NetplayButton(
                     session = session,
                     netplayDone = netplayDone,
@@ -632,8 +681,10 @@ fun SessionScreen(
             LaunchButton(
                 session = session,
                 netplayPrepared = netplayPrepared,
-                onClick = { status = session.launch(context, azahar, eden, ppsspp) },
-                modifier = if (session.backend.hasNetplay ||
+                directPs2 = ps2Automatic,
+                waitingForHost = ps2Automatic && waitingForHost,
+                onClick = onLaunchStep,
+                modifier = if ((session.backend.hasNetplay && !ps2Automatic) ||
                                (session.backend == Backend.PPSSPP && !pspAutomatic)) Modifier
                            else Modifier.padEntry()
             )
@@ -695,7 +746,9 @@ private fun EmulatorHintCard(
             port = DolphinTarget.DEFAULT_PORT.toString()
         )
         Backend.ARMSX2 -> Ps2HintCard(
-            automationOn = automationOn,
+            automationOn = session.rom.let {
+                Ps2GameSettings.canConfigure(LocalContext.current, it)
+            } == true,
             isHost = session.role == Session.Role.HOST,
             hostIp = session.hostIp,
             port = Ps2Target.DEFAULT_PORT.toString()
@@ -813,6 +866,8 @@ private fun PspSetupButton(
 private fun LaunchButton(
     session: Session,
     netplayPrepared: Boolean,
+    directPs2: Boolean = false,
+    waitingForHost: Boolean = false,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -820,8 +875,8 @@ private fun LaunchButton(
         onClick = onClick,
         // Greyed until the room step has been through: launching first is the
         // mistake this pair exists to prevent.
-        enabled = session.rom != null && session.backend != Backend.NONE &&
-            (!session.backend.hasNetplay || netplayPrepared),
+        enabled = session.rom != null && session.backend != Backend.NONE && !waitingForHost &&
+            (!session.backend.hasNetplay || netplayPrepared || directPs2),
         shape = ActionShape,
         // Disabled, but still legibly the next step: Material's grey-on-grey
         // slab read as an absence rather than as a button waiting for step 1.
@@ -833,6 +888,10 @@ private fun LaunchButton(
     ) {
         Text(
             when {
+                waitingForHost -> stringResource(
+                    R.string.session_netplay_waiting_host,
+                    session.backend.emulatorName,
+                )
                 // Joining from the finder for a game we don't own is a different
                 // situation from an unsupported console, and saying the wrong
                 // one sends the user looking in the wrong place.
@@ -846,7 +905,7 @@ private fun LaunchButton(
                     session.backend == Backend.ARMSX2 ->
                     // Numbered only where there is a step 1 above it.
                     stringResource(
-                        if (session.backend.hasNetplay) R.string.session_launch_step2
+                        if (session.backend.hasNetplay && !directPs2) R.string.session_launch_step2
                         else R.string.session_launch_emulation
                     )
                 session.backend == Backend.MELONDS_WFC -> stringResource(R.string.session_wfc_not_a_session)
@@ -1711,11 +1770,12 @@ private fun openPpssppForSetup(
     is LaunchResult.NoNetplayUi -> null
 }
 
-private fun Session.launch(
+private suspend fun Session.launch(
     context: android.content.Context,
     azahar: AzaharLauncher,
     eden: EdenLauncher,
-    ppsspp: PpssppLauncher
+    ppsspp: PpssppLauncher,
+    onPs2Started: () -> Unit = {},
 ): String {
     val rom = this.rom ?: return context.getString(R.string.session_no_rom_attached)
     // Step two runs after the room has been joined, so the plan has done its
@@ -1757,7 +1817,19 @@ private fun Session.launch(
         // intent. No armed plan for all that, the network was set at step one,
         // and re-arming would send the driver to fill the form in again over a
         // running game.
-        Backend.ARMSX2 -> Ps2Launcher(context).launchGame(rom.uri) to "ARMSX2"
+        Backend.ARMSX2 -> {
+            val launcher = Ps2Launcher(context)
+            val plan = netplayPlan(profileName = null)
+            val result = if (plan != null && Ps2GameSettings.canConfigure(context, rom)) {
+                launcher.launchPrivateGame(rom, plan)
+            } else {
+                // Unsupported CHD codec or a pre-migration profile: keep the
+                // proven accessibility setup as the compatibility fallback.
+                launcher.launchGame(rom.uri)
+            }
+            if (result == LaunchResult.Success) onPs2Started()
+            result to "ARMSX2"
+        }
         Backend.MELONDS_WFC ->
             return context.getString(R.string.session_wfc_launch_from_library)
         Backend.NONE -> return context.getString(R.string.session_unsupported_console)

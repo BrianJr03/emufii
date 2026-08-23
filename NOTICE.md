@@ -61,6 +61,16 @@ qui passe par le `VpnService` d'Android. Aucun binaire natif n'est vendoré.
 AndroidX et Jetpack Compose, Coil, Haze (`dev.chrisbanes.haze`), et la
 bibliothèque standard Kotlin — toutes sous **Apache License 2.0**.
 
+### Décompression des images CHD
+
+- Aircompressor (`io.airlift:aircompressor`) — **Apache License 2.0**, décodeur
+  Zstandard pur Java utilisé pour lire le seul ELF de démarrage des CHD PS2.
+- XZ for Java (`org.tukaani:xz`) — domaine public, décodeur LZMA des CHD.
+
+Les images ne sont jamais extraites et aucun code d'émulateur n'est incorporé :
+ces bibliothèques ne font que présenter quelques octets du fichier choisi par le
+joueur au calcul d'identité documenté dans `ARMSX2-AUTOCONFIG.md`.
+
 ### Coordinator
 
 Express — **licence MIT**. Le relais (`relay/`) n'a aucune dépendance.

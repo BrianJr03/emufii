@@ -13,6 +13,7 @@ documentfile = "1.1.0"
 haze = "1.7.2"
 wireguard = "1.0.20260102"
 xz = "1.10"
+aircompressor = "2.0.3"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -38,8 +39,10 @@ wireguard-tunnel = { group = "com.wireguard.android", name = "tunnel", version.r
 # Public domain, no transitive dependencies: the only LZMA decoder Android does
 # not ship, and CHD stores its data hunks with it.
 xz = { group = "org.tukaani", name = "xz", version.ref = "xz" }
+# Pure Java on purpose: the usual zstd-jni artifact carries glibc desktop
+# binaries, not an Android-compatible .so. PS2 DVD CHDs need this decoder.
+aircompressor = { group = "io.airlift", name = "aircompressor", version.ref = "aircompressor" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
-

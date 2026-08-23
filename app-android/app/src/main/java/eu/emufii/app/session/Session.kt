@@ -19,6 +19,8 @@ data class RomRef(
     val filename: String? = null,
     /** PSP DISC_ID is stored as `PSP-ULUS10277`; other consoles keep their own product code. */
     val productCode: String? = null,
+    /** ARMSX2's per-game settings suffix, carried so launch performs no disc scan. */
+    val ps2ElfCrc: String? = null,
 )
 
 data class Session(

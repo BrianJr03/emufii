@@ -453,10 +453,10 @@
     <string name="settings_ps2_fact_bios">BIOS</string>
     <string name="settings_ps2_fact_console">Console</string>
     <string name="settings_ps2_status_failed">La préparation a échoué</string>
-    <string name="settings_ps2_status_not_assigned">Carte prête, pas encore dans l\'emplacement 1</string>
+    <string name="settings_ps2_status_not_assigned">La carte préparée doit être vérifiée à nouveau</string>
     <string name="settings_ps2_status_no_folder">Indique le dossier d\'ARMSX2 pour commencer</string>
     <string name="settings_ps2_status_todo">Reste à préparer</string>
-    <string name="settings_ps2_profile_body">Choisis le dossier personnalisé d\'ARMSX2. Emufii détecte la carte globale et le BIOS, puis prépare une carte portant un profil DHCP compatible avec son NVM et l\'affecte au slot 1 : un clone de ta carte quand c\'est une image, sauvegardée avant d\'être copiée, une carte neuve quand c\'est une carte dossier. Aucune sauvegarde de jeu n\'est supprimée et aucun passage dans le BIOS n\'est nécessaire.</string>
+    <string name="settings_ps2_profile_body">Choisis le dossier personnalisé d\'ARMSX2. Emufii détecte la carte et le BIOS, puis prépare une carte vérifiée portant le profil réseau : une copie sauvegardée quand c\'est possible, ou une carte neuve avec les sauvegardes d\'une carte dossier. Au lancement, Emufii ne l\'affecte qu\'au jeu choisi. Aucun parcours d\'ARMSX2 et aucune suppression de sauvegarde.</string>
     <string name="settings_ps2_profile_created">Clone : %1$s · source : %2$s</string>
     <string name="settings_ps2_profile_new_card">nouvelle carte</string>
     <string name="settings_ps2_profile_identity">BIOS : %1$s · i.Link : %2$s</string>
@@ -465,7 +465,7 @@
     <string name="settings_ps2_profile_opening">Ouverture du gestionnaire global de cartes ARMSX2…</string>
     <string name="settings_ps2_profile_preserving">Conservation de la carte originale dans le slot 2…</string>
     <string name="settings_ps2_profile_assigning">Affectation au slot 1 et vérification…</string>
-    <string name="settings_ps2_profile_done">Profil PS2 prêt dans le slot 1 global.</string>
+    <string name="settings_ps2_profile_done">Profil PS2 prêt pour le lancement automatique par jeu.</string>
     <string name="settings_ps2_profile_accessibility">Active le remplissage automatique : Emufii en a besoin pour affecter la carte dans les vrais réglages ARMSX2.</string>
     <string name="settings_ps2_profile_no_armsx2">ARMSX2 n\'est pas installé.</string>
     <string name="settings_ps2_profile_bad_folder">Ce n\'est pas la racine du dossier personnalisé ARMSX2 : le sous-dossier memcards est introuvable.</string>
@@ -489,11 +489,13 @@
     <string name="hint_ps2_lan_only">Seuls les jeux livrés avec un mode LAN ou System Link marchent ici, une soixantaine en tout. Si le jeu demande de se connecter à un serveur, c\'était un jeu en ligne, et Emufii ne peut rien pour lui.</string>
     <string name="hint_ps2_profile_choose_folder">Choisir le dossier ARMSX2</string>
     <string name="hint_ps2_profile_redo">Refaire le paramétrage</string>
-    <string name="hint_ps2_profile_button">Préparer et affecter automatiquement</string>
+    <string name="hint_ps2_profile_button">Préparer automatiquement</string>
     <string name="hint_ps2_profile_change_folder">Changer de dossier ARMSX2</string>
     <string name="hint_ps2_pad">Avec l\'adaptateur réseau branché, certains jeux ne répondent plus du tout à la manette. Si ça arrive, coupe DEV9 Ethernet dans ARMSX2.</string>
-    <string name="hint_ps2_automated">Emufii active DEV9, met ARMSX2 en mode local, et remplit l\'adresse, le port et le code de salon.</string>
+    <string name="hint_ps2_automated">Au lancement, Emufii configure DEV9, Local Link, le salon et la carte réseau pour ce jeu, puis l\'ouvre directement. Aucun parcours d\'ARMSX2 n\'est nécessaire.</string>
     <string name="hint_ps2_manual">Dans ARMSX2, Réglages puis Réseau : mode local, et saisis %1$s.</string>
+    <string name="session_ps2_fallback_assigning">Cette image ne donne pas accès à un CRC de démarrage lisible. Emufii a ouvert ARMSX2 uniquement pour affecter la carte préparée. Reviens ensuite ici et relance le paramétrage des champs réseau.</string>
+    <string name="session_ps2_fallback_accessibility">Cette image ne donne pas accès à un CRC de démarrage lisible et nécessite l’ancien parcours ARMSX2. Active le remplissage automatique dans les réglages d’Emufii, puis réessaie.</string>
     <string name="emulators_version_short">v%1$s</string>
     <string name="emulators_absent_short">Pas installé</string>
     <string name="consoles_pick_title">Tes consoles</string>

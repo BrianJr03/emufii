@@ -130,8 +130,14 @@ android {
         // 43: PPSSPP private sessions configure themselves through the
         // emulator's supported per-game INI. A one-time SAF grant is scoped to
         // the memory stick; public play restores the four values Emufii borrowed.
-        versionCode = 43
-        versionName = "1.12.5"
+        // 45: ARMSX2 receives its network and memory-card settings through the
+        // native per-game INI before boot. ISO and CHD games carry PCSX2's ELF
+        // XOR in the library cache, so PS2 sessions launch in one tap without
+        // accessibility navigation; the old driver remains only as a codec
+        // fallback. 44 was the integration build installed on the device and
+        // was never represented by this dev checkout.
+        versionCode = 45
+        versionName = "1.12.7"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -262,6 +268,7 @@ dependencies {
     implementation(libs.haze.materials)
     implementation(libs.wireguard.tunnel)
     implementation(libs.xz)
+    implementation(libs.aircompressor)
     testImplementation(libs.junit)
     // `org.json` is a stub on the unit-test classpath: every call throws
     // "not mocked". The real implementation is tiny and dependency-free, and

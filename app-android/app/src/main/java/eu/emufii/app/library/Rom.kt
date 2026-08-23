@@ -16,6 +16,8 @@ data class Rom(
      * no colour worth borrowing, see [IconAccent].
      */
     val accentArgb: Int? = null,
+    /** ARMSX2's eight-digit boot-ELF XOR, computed once while scanning a PS2 disc. */
+    val ps2ElfCrc: String? = null,
     /**
      * When the file arrived in the library, in milliseconds, being the
      * last-modified date the document provider reports.

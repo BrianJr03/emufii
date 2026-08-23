@@ -443,10 +443,10 @@
     <string name="settings_ps2_fact_bios">BIOS</string>
     <string name="settings_ps2_fact_console">Console</string>
     <string name="settings_ps2_status_failed">Preparation failed</string>
-    <string name="settings_ps2_status_not_assigned">Card ready, not in Slot 1 yet</string>
+    <string name="settings_ps2_status_not_assigned">The prepared card must be checked again</string>
     <string name="settings_ps2_status_no_folder">Point Emufii at ARMSX2\'s folder to start</string>
     <string name="settings_ps2_status_todo">Still to prepare</string>
-    <string name="settings_ps2_profile_body">Choose ARMSX2\'s custom data folder. Emufii detects the global card and BIOS, then prepares a card carrying a DHCP profile compatible with its NVM and assigns it to slot 1: a clone of your card when that card is an image, backed up before being copied, a new card when it is a folder memory card. No game save is removed and the BIOS menu is not needed.</string>
+    <string name="settings_ps2_profile_body">Choose ARMSX2\'s custom data folder. Emufii detects the card and BIOS, then prepares a verified card carrying the network profile: a backed-up clone when possible, or a new card with saves copied from a folder card. At launch, Emufii assigns it only to the selected game. ARMSX2 does not need to be navigated and no save is removed.</string>
     <string name="settings_ps2_profile_created">Clone: %1$s · source: %2$s</string>
     <string name="settings_ps2_profile_new_card">new card</string>
     <string name="settings_ps2_profile_identity">BIOS: %1$s · i.Link: %2$s</string>
@@ -455,7 +455,7 @@
     <string name="settings_ps2_profile_opening">Opening ARMSX2\'s global memory-card manager…</string>
     <string name="settings_ps2_profile_preserving">Preserving the original card in slot 2…</string>
     <string name="settings_ps2_profile_assigning">Assigning slot 1 and verifying it…</string>
-    <string name="settings_ps2_profile_done">PS2 profile is ready in global slot 1.</string>
+    <string name="settings_ps2_profile_done">PS2 profile is ready for automatic per-game launch.</string>
     <string name="settings_ps2_profile_accessibility">Enable automatic filling: Emufii needs it to assign the card through ARMSX2\'s real settings.</string>
     <string name="settings_ps2_profile_no_armsx2">ARMSX2 is not installed.</string>
     <string name="settings_ps2_profile_bad_folder">This is not the root of ARMSX2\'s custom folder: the memcards subfolder is missing.</string>
@@ -479,11 +479,13 @@
     <string name="hint_ps2_lan_only">Only games that shipped with a LAN or System Link mode work here, around sixty in all. If the game asks you to sign in to a server, it was an online game, and Emufii cannot help with it.</string>
     <string name="hint_ps2_profile_choose_folder">Choose the ARMSX2 folder</string>
     <string name="hint_ps2_profile_redo">Set it up again</string>
-    <string name="hint_ps2_profile_button">Prepare and assign automatically</string>
+    <string name="hint_ps2_profile_button">Prepare automatically</string>
     <string name="hint_ps2_profile_change_folder">Change ARMSX2 folder</string>
     <string name="hint_ps2_pad">With the network adapter attached, some games stop responding to the controller entirely. If that happens, turn DEV9 Ethernet off in ARMSX2.</string>
-    <string name="hint_ps2_automated">Emufii turns DEV9 on, sets ARMSX2 to local mode, and fills in the address, port and room code.</string>
+    <string name="hint_ps2_automated">When you launch, Emufii configures DEV9, Local Link, the room and the network card for this game, then opens it directly. No ARMSX2 navigation is needed.</string>
     <string name="hint_ps2_manual">In ARMSX2, Settings then Network: local mode, and enter %1$s.</string>
+    <string name="session_ps2_fallback_assigning">This image does not expose a readable boot CRC. Emufii opened ARMSX2 only to assign the prepared card. Return here afterward and press setup again for the network fields.</string>
+    <string name="session_ps2_fallback_accessibility">This image does not expose a readable boot CRC, so it needs the legacy ARMSX2 fallback. Enable automatic filling in Emufii settings, then try again.</string>
     <string name="emulators_version_short">v%1$s</string>
     <string name="emulators_absent_short">Not installed</string>
     <string name="consoles_pick_title">Your consoles</string>

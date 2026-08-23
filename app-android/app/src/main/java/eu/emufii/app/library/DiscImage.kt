@@ -366,10 +366,32 @@ object DiscImage {
  */
 class DiscImageReader(private val context: Context) {
 
+    data class Info(
+        val console: Console,
+        val gameId: String?,
+        val ps2Identity: Ps2DiscIdentity? = null,
+    )
+
+    private val memory = HashMap<String, Info>()
+
     /** Console and game id in one read, for the library's enrichment pass. */
-    fun read(uri: Uri): Pair<Console, String?>? {
+    fun read(uri: Uri, modified: Long = 0L, size: Long = 0L): Info? {
+        memory[uri.toString()]?.let {
+            if (modified > 0L || size > 0L) remember(uri, modified, size, it)
+            return it
+        }
+        if (modified > 0L || size > 0L) {
+            cached(uri, modified, size)?.let {
+                memory[uri.toString()] = it
+                return it
+            }
+        }
         val head = head(uri) ?: return null
-        if (isChd(head)) return chdSector(uri)?.let { DiscImage.fromSector(it) }
+        if (isChd(head)) {
+            val info = chdInfo(uri) ?: return null
+            remember(uri, modified, size, info)
+            return info
+        }
         val console = DiscImage.identify(head) ?: return null
         // The PS2 asks the disc a second question, and the answer is worth the
         // extra read: the volume identifier it used to be given is not a serial
@@ -379,9 +401,13 @@ class DiscImageReader(private val context: Context) {
         // nothing, so a disc that used to be identified badly does not become a
         // disc that is not identified at all.
         if (console == Console.PS2) {
-            ps2Serial(uri)?.let { return console to it }
+            val identity = ps2Identity(uri)
+            identity?.let { Log.i("DiscImage", "PS2 ${it.serial} ELF CRC ${it.elfCrc}") }
+            val info = Info(console, identity?.serial ?: DiscImage.gameId(head), identity)
+            remember(uri, modified, size, info)
+            return info
         }
-        return console to DiscImage.gameId(head)
+        return Info(console, DiscImage.gameId(head)).also { memory[uri.toString()] = it }
     }
 
     /**
@@ -395,15 +421,15 @@ class DiscImageReader(private val context: Context) {
      * and the sector it already reads for identification carries the volume
      * identifier, which stays the answer there.
      */
-    private fun ps2Serial(uri: Uri): String? = runCatching {
+    private fun ps2Identity(uri: Uri): Ps2DiscIdentity? = runCatching {
         context.contentResolver.openFileDescriptor(uri, "r")?.use { descriptor ->
             FileInputStream(descriptor.fileDescriptor).use { stream ->
                 val channel = stream.channel
-                DiscImage.ps2Serial { offset, into ->
+                Ps2DiscIdentityReader.read { offset, into, count ->
                     channel.position(offset)
                     var done = 0
-                    while (done < into.size) {
-                        val n = stream.read(into, done, into.size - done)
+                    while (done < count) {
+                        val n = stream.read(into, done, count - done)
                         if (n <= 0) break
                         done += n
                     }
@@ -413,7 +439,7 @@ class DiscImageReader(private val context: Context) {
         }
     }.onFailure { Log.w("DiscImage", "SYSTEM.CNF illisible $uri", it) }.getOrNull()
 
-    fun identify(uri: Uri): Console? = read(uri)?.first
+    fun identify(uri: Uri): Console? = read(uri)?.console
 
     /**
      * A CHD announces itself in its first eight bytes, so nothing here depends
@@ -431,11 +457,11 @@ class DiscImageReader(private val context: Context) {
      * will not give one answers null, and the file keeps the console its
      * extension gave it.
      */
-    private fun chdSector(uri: Uri): ByteArray? = runCatching {
+    private fun chdInfo(uri: Uri): Info? = runCatching {
         context.contentResolver.openFileDescriptor(uri, "r")?.use { descriptor ->
             FileInputStream(descriptor.fileDescriptor).use { stream ->
                 val channel = stream.channel
-                ChdImage.readSector(object : ChdImage.Source {
+                val reader = ChdImage.open(object : ChdImage.Source {
                     override fun read(offset: Long, into: ByteArray, count: Int): Int {
                         channel.position(offset)
                         var done = 0
@@ -446,10 +472,38 @@ class DiscImageReader(private val context: Context) {
                         }
                         return done
                     }
-                })
+                }) ?: return null
+                val sector = reader.readDiscSector(ChdImage.PVD_SECTOR) ?: return null
+                val (console, fallbackId) = DiscImage.fromSector(sector) ?: return null
+                val identity = if (console == Console.PS2) {
+                    Ps2DiscIdentityReader.read(reader)
+                } else null
+                identity?.let { Log.i("DiscImage", "PS2 CHD ${it.serial} ELF CRC ${it.elfCrc}") }
+                Info(console, identity?.serial ?: fallbackId, identity)
             }
         }
     }.onFailure { Log.w("DiscImage", "CHD illisible $uri", it) }.getOrNull()
+
+    private fun remember(uri: Uri, modified: Long, size: Long, info: Info) {
+        memory[uri.toString()] = info
+        val identity = info.ps2Identity ?: return
+        if (modified <= 0L && size <= 0L) return
+        context.getSharedPreferences(IDENTITY_PREFS, Context.MODE_PRIVATE).edit()
+            .putString(uri.toString(), listOf(modified, size, identity.serial, identity.elfCrc).joinToString("|"))
+            .apply()
+    }
+
+    private fun cached(uri: Uri, modified: Long, size: Long): Info? {
+        val parts = context.getSharedPreferences(IDENTITY_PREFS, Context.MODE_PRIVATE)
+            .getString(uri.toString(), null)?.split('|') ?: return null
+        if (parts.size != 4 || parts[0].toLongOrNull() != modified || parts[1].toLongOrNull() != size) {
+            return null
+        }
+        val serial = parts[2].takeIf { it.isNotBlank() } ?: return null
+        val crc = parts[3].takeIf { it.matches(Regex("^[0-9A-F]{8}$")) } ?: return null
+        val identity = Ps2DiscIdentity(serial, crc)
+        return Info(Console.PS2, serial, identity)
+    }
 
     /**
      * We read as far as the volume descriptor, not just the header.
@@ -480,4 +534,8 @@ class DiscImageReader(private val context: Context) {
             }
         }
     }.onFailure { Log.w("DiscImage", "cannot read $uri", it) }.getOrNull()
+
+    private companion object {
+        const val IDENTITY_PREFS = "ps2_disc_identity"
+    }
 }

@@ -8,6 +8,9 @@ import eu.emufii.app.azahar.LaunchResult
 import eu.emufii.app.azahar.NetplayAutomation
 import eu.emufii.app.azahar.NetplayPlan
 import eu.emufii.app.azahar.PlanStore
+import eu.emufii.app.session.RomRef
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * Opens ARMSX2 with the Local Link autofill armed.
@@ -111,6 +114,35 @@ class Ps2Launcher(private val context: Context) {
         val pkg = installedPackage() ?: return LaunchResult.NotInstalled
         val intent = viewIntent(pkg, rom).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
         return runCatching {
+            Ps2ProvisioningAutomation.clear(Ps2ProvisioningStore(context))
+            context.startActivity(intent)
+            LaunchResult.Success
+        }.getOrElse { LaunchResult.Error(it.message ?: "Unknown launch error") }
+    }
+
+    /**
+     * Writes ARMSX2's native per-game layer and boots the ROM in one operation.
+     * No accessibility plan is armed: the emulator reads this file after its
+     * private global preferences and before DEV9 initialises.
+     */
+    suspend fun launchPrivateGame(rom: RomRef, plan: NetplayPlan): LaunchResult {
+        val pkg = installedPackage() ?: return LaunchResult.NotInstalled
+        when (val configured = withContext(Dispatchers.IO) {
+            Ps2GameSettings.apply(context, rom, plan)
+        }) {
+            is Ps2GameSettings.Outcome.Success -> Unit
+            Ps2GameSettings.Outcome.MissingFolderGrant ->
+                return LaunchResult.Error("ARMSX2 folder access is missing")
+            Ps2GameSettings.Outcome.MissingPreparedCard ->
+                return LaunchResult.Error("the prepared PS2 network card is missing")
+            Ps2GameSettings.Outcome.UnknownDiscIdentity ->
+                return LaunchResult.Error("the PS2 boot ELF CRC is unavailable")
+            is Ps2GameSettings.Outcome.WriteFailed ->
+                return LaunchResult.Error(configured.detail)
+        }
+        val intent = viewIntent(pkg, rom.uri).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
+        return runCatching {
+            NetplayAutomation.clear(PlanStore(context))
             Ps2ProvisioningAutomation.clear(Ps2ProvisioningStore(context))
             context.startActivity(intent)
             LaunchResult.Success

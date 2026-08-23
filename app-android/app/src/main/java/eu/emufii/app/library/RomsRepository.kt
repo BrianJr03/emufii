@@ -175,7 +175,8 @@ class RomsRepository(private val context: Context) {
         val uri: Uri,
         val name: String,
         val console: Console,
-        val addedAt: Long
+        val addedAt: Long,
+        val size: Long,
     )
 
     /**
@@ -212,7 +213,8 @@ class RomsRepository(private val context: Context) {
                 // provider exposes no creation date. Asked for in the same query
                 // as the rest, it costs nothing, where fetching it afterwards
                 // would be one round trip per file.
-                DocumentsContract.Document.COLUMN_LAST_MODIFIED
+                DocumentsContract.Document.COLUMN_LAST_MODIFIED,
+                DocumentsContract.Document.COLUMN_SIZE,
             )
 
             // A folder we can't read shouldn't abort the whole scan, some
@@ -263,7 +265,8 @@ class RomsRepository(private val context: Context) {
                         // Null on some providers, hence the guarded read:
                         // `getLong` on a null column returns 0, but only if it
                         // does not throw first.
-                        addedAt = if (it.isNull(3)) 0L else it.getLong(3)
+                        addedAt = if (it.isNull(3)) 0L else it.getLong(3),
+                        size = if (it.isNull(4)) 0L else it.getLong(4),
                     )
                 }
             }
@@ -482,11 +485,15 @@ class RomsRepository(private val context: Context) {
             displayName = displayNameFromFilename(name),
             console = console
         )
-        val (detected, gameId) = discImages.read(uri) ?: return fallback
+        val info = discImages.read(uri, addedAt, size) ?: return fallback
         // The console read back wins: it is the same read that served the scan,
         // and it can tell a GameCube RVZ from a Wii RVZ where the extension
         // cannot.
-        return fallback.copy(console = detected, productCode = gameId)
+        return fallback.copy(
+            console = info.console,
+            productCode = info.gameId,
+            ps2ElfCrc = info.ps2Identity?.elfCrc,
+        )
     }
 
     private fun Candidate.toSwitchRom(): Rom {

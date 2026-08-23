@@ -8,7 +8,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
-/** Durable state of the generated card and of its verified global assignment. */
+/** Durable state of the generated card used by ARMSX2 per-game settings. */
 object Ps2NetworkProfile {
 
     /**
@@ -49,6 +49,7 @@ object Ps2NetworkProfile {
         prefs(context).edit {
             putString(KEY_ROOT, uri.toString())
             putBoolean(KEY_READY, false)
+            putBoolean(KEY_ASSIGNED, false)
         }
         return true
     }
@@ -75,7 +76,11 @@ object Ps2NetworkProfile {
         prefs(context).edit {
             putString(KEY_ROOT, prepared.rootUri)
             putString(KEY_RECEIPT, json.toString())
-            putBoolean(KEY_READY, false)
+            // Publishing and reading the card back is the complete preparation.
+            // It no longer needs a second accessibility pass to occupy global
+            // Slot 1; each launch assigns it only to the selected game.
+            putBoolean(KEY_READY, true)
+            putBoolean(KEY_ASSIGNED, false)
         }
     }
 
@@ -99,19 +104,29 @@ object Ps2NetworkProfile {
                 savesLeftBehind = json.optInt("saves_left", 0),
                 slot2AlreadyPreserved = json.optBoolean("slot2_preserved", false),
                 sourceCardForSlot2 = json.optNullableString("source_for_slot2"),
-                assigned = prefs(context).getBoolean(KEY_READY, false),
+                assigned = if (prefs(context).contains(KEY_ASSIGNED)) {
+                    prefs(context).getBoolean(KEY_ASSIGNED, false)
+                } else {
+                    // Before version 45 KEY_READY meant that accessibility had
+                    // observed the global Slot 1 assignment. Preserve that
+                    // evidence across the preference migration.
+                    prefs(context).getBoolean(KEY_READY, false)
+                },
             )
         }.getOrNull()
     }
 
-    /** Called only after the driver observes the target card's `✓ Slot 1` chip. */
+    /** Legacy accessibility completion, retained for an in-flight old setup. */
     fun markAssigned(context: Context, cardName: String, cardSha256: String): Boolean {
         val receipt = receipt(context) ?: return false
         if (receipt.cardName != cardName || !receipt.cardSha256.equals(cardSha256, ignoreCase = true)) {
             return false
         }
         verified = null
-        prefs(context).edit { putBoolean(KEY_READY, true) }
+        prefs(context).edit {
+            putBoolean(KEY_READY, true)
+            putBoolean(KEY_ASSIGNED, true)
+        }
         return true
     }
 
@@ -130,7 +145,7 @@ object Ps2NetworkProfile {
     fun isReady(context: Context): Boolean {
         if (!prefs(context).getBoolean(KEY_READY, false)) return false
         val receipt = receipt(context) ?: return false
-        return Ps2Armsx2Folder.isStillValid(
+        return Ps2Armsx2Folder.isPreparedCardValid(
             context,
             receipt.rootUri.toUri(),
             receipt.cardName,
@@ -156,7 +171,10 @@ object Ps2NetworkProfile {
 
     fun clearReady(context: Context) {
         verified = null
-        prefs(context).edit { putBoolean(KEY_READY, false) }
+        prefs(context).edit {
+            putBoolean(KEY_READY, false)
+            putBoolean(KEY_ASSIGNED, false)
+        }
     }
 
     private fun JSONObject.optNullableString(key: String): String? =
@@ -168,4 +186,5 @@ object Ps2NetworkProfile {
     private const val KEY_ROOT = "armsx2_root"
     private const val KEY_RECEIPT = "prepared_receipt"
     private const val KEY_READY = "assigned_global_slot1"
+    private const val KEY_ASSIGNED = "legacy_global_slot1_assigned"
 }

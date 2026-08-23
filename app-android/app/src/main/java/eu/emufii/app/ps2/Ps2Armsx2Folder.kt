@@ -87,9 +87,26 @@ object Ps2Armsx2Folder {
         if (!loaded.settings.slot1Enabled ||
             !loaded.settings.slot1Filename.equals(cardName, ignoreCase = true)
         ) return false
+        isPreparedCardValid(context, rootUri, cardName, expectedConsoleIdHex)
+    }.getOrDefault(false)
+
+    /**
+     * The generated card still exists and still carries the profile for this
+     * BIOS. It no longer has to be the global Slot 1: EmuFii names it in the
+     * per-game settings file immediately before ARMSX2 boots the selected game.
+     */
+    fun isPreparedCardValid(
+        context: Context,
+        rootUri: Uri,
+        cardName: String,
+        expectedConsoleIdHex: String,
+    ): Boolean = runCatching {
+        val root = DocumentFile.fromTreeUri(context, rootUri)?.takeIf { it.isDirectory }
+            ?: return false
         val card = root.child("memcards")?.child(cardName)?.takeIf { it.isFile } ?: return false
         val onCard = Ps2CardPatch.recoverConsoleId(readBytes(context, card)) ?: return false
         if (!onCard.toHex().equals(expectedConsoleIdHex, ignoreCase = true)) return false
+        val loaded = loadSettings(context, root)
         val identity = resolveIdentity(context, root, loaded.biosSetting) as? IdentityResult.Found ?: return false
         identity.consoleId.toHex().equals(expectedConsoleIdHex, ignoreCase = true)
     }.getOrDefault(false)

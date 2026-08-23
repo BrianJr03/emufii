@@ -22,6 +22,14 @@ la bibliothèque est une dépendance Maven ordinaire.
 
 AndroidX et Jetpack Compose, Coil, Haze — toutes sous **Apache License 2.0**.
 
+## Décompression CHD
+
+Aircompressor (`io.airlift:aircompressor`), sous **Apache License 2.0**, fournit
+le décodeur Zstandard pur Java des CHD PS2. XZ for Java (`org.tukaani:xz`) est
+dans le domaine public et fournit leur décodeur LZMA. Emufii ne décompresse que
+les hunks nécessaires à `SYSTEM.CNF` et à l'ELF de démarrage ; aucune image de
+jeu n'est extraite ni redistribuée.
+
 ## Rounded M+ (M PLUS Rounded 1c)
 
 Sous **SIL Open Font License 1.1**. Le texte de la licence voyage avec l'APK :

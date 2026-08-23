@@ -95,6 +95,7 @@ private fun Rom.toRef() =
         titleIdHex = titleIdHex,
         filename = filename,
         productCode = productCode,
+        ps2ElfCrc = ps2ElfCrc,
     )
 
 /**

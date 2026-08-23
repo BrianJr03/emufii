@@ -4,6 +4,7 @@ import java.io.File
 import java.io.RandomAccessFile
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Test
 
@@ -91,6 +92,28 @@ class ChdImageTest {
     }
 
     @Test
+    fun `the sparse FLAC hunk used by DVD CHDs decodes as zero`() {
+        // Hunk 6 from Midnight Club 3 Remix. libchdr decodes this exact frame to
+        // 4096 zero bytes, and 36 ELF hunks SELF-reference it.
+        val frame = byteArrayOf(
+            0x4C, 0xFF.toByte(), 0xF8.toByte(), 0xA9.toByte(), 0x18, 0x00, 0x07,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x76, 0x46,
+        )
+        val decoded = requireNotNull(ChdImage.flacSilence(frame, 4096))
+        assertEquals(4096, decoded.size)
+        assertTrue(decoded.all { it == 0.toByte() })
+    }
+
+    @Test
+    fun `a nonzero FLAC constant is refused rather than invented`() {
+        val frame = byteArrayOf(
+            0x4C, 0xFF.toByte(), 0xF8.toByte(), 0xA9.toByte(), 0x18, 0x00, 0x07,
+            0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x76, 0x46,
+        )
+        assertNull(ChdImage.flacSilence(frame, 4096))
+    }
+
+    @Test
     fun `the sector rule reads a raw CD sector at its user data offset`() {
         // A PS2 CD is pressed MODE2, so its descriptor sits 24 bytes into the
         // raw sector; measured on the real Unreal Tournament file. A reader that
@@ -141,6 +164,27 @@ class ChdImageTest {
             "le secteur 16 du disque reel n'a pas ete decode"
         }
         assertEquals(Console.PS2, requireNotNull(DiscImage.fromSector(sector)).first)
+    }
+
+    @Test
+    fun `a real PS2 CHD yields ARMSX2 serial and ELF CRC`() {
+        val path = System.getenv("EMUFII_CHD_PS2")
+        val serial = System.getenv("EMUFII_CHD_PS2_SERIAL")
+        val crc = System.getenv("EMUFII_CHD_PS2_CRC")
+        assumeTrue(path != null && File(path).exists() && serial != null && crc != null)
+        val reader = requireNotNull(ChdImage.open(fileSource(path!!))) {
+            "le CHD reel n'a pas ete ouvert"
+        }
+        assertEquals(
+            serial,
+            DiscImage.ps2Serial { offset, into -> reader.read(offset, into, into.size) },
+        )
+        val boot = requireNotNull(Ps2DiscIdentityReader.locateBoot(reader)) {
+            "SYSTEM.CNF est lisible, mais son ELF BOOT2 est introuvable"
+        }
+        assertEquals(serial, boot.serial)
+        val actual = Ps2DiscIdentityReader.read(reader)
+        assertEquals(Ps2DiscIdentity(serial!!, crc!!), actual)
     }
 
     @Test

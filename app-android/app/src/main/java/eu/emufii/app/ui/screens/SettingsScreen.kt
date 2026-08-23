@@ -495,8 +495,6 @@ fun SettingsScreen(
                     Ps2ProfileDetail(
                         ready = ps2ProfileReady,
                         profileName = name.ifBlank { Profile.DEFAULT_NAME },
-                        automationEnabled = autofillOn,
-                        onOpenAccessibility = { autofillLauncher.openAccessibilitySettings() },
                         onReadyChanged = { ps2ProfileReady = it },
                     )
                 }
@@ -826,13 +824,10 @@ private fun PpssppConfigDetail(
 private fun Ps2ProfileDetail(
     ready: Boolean,
     profileName: String,
-    automationEnabled: Boolean,
-    onOpenAccessibility: () -> Unit,
     onReadyChanged: (Boolean) -> Unit,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val progress by Ps2ProvisioningAutomation.progress.collectAsState()
     var rootUri by remember { mutableStateOf(Ps2NetworkProfile.rootUri(context)) }
     var receipt by remember { mutableStateOf(Ps2NetworkProfile.receipt(context)) }
     var busy by remember { mutableStateOf(false) }
@@ -851,23 +846,7 @@ private fun Ps2ProfileDetail(
                 is Ps2Armsx2Folder.Outcome.Success -> {
                     Ps2NetworkProfile.recordPrepared(context, outcome.prepared)
                     receipt = Ps2NetworkProfile.receipt(context)
-                    if (!automationEnabled) {
-                        error = context.getString(R.string.settings_ps2_profile_accessibility)
-                        onOpenAccessibility()
-                    } else {
-                        when (val launched = Ps2Launcher(context).openForProvisioning(
-                            Ps2ProvisioningPlan(
-                                outcome.prepared.cardName,
-                                outcome.prepared.cardSha256,
-                                outcome.prepared.sourceCardForSlot2,
-                            )
-                        )) {
-                            LaunchResult.Success -> Unit
-                            LaunchResult.NotInstalled -> error = context.getString(R.string.settings_ps2_profile_no_armsx2)
-                            is LaunchResult.Error -> error = launched.message
-                            is LaunchResult.NoNetplayUi -> error = context.getString(R.string.settings_ps2_profile_no_armsx2)
-                        }
-                    }
+                    onReadyChanged(true)
                 }
                 Ps2Armsx2Folder.Outcome.NotArmsx2Folder ->
                     error = context.getString(R.string.settings_ps2_profile_bad_folder)
@@ -904,31 +883,6 @@ private fun Ps2ProfileDetail(
                 receipt = null
                 prepare(uri)
             } else error = context.getString(R.string.settings_ps2_profile_no_write)
-        }
-    }
-
-    LaunchedEffect(progress) {
-        when (val state = progress) {
-            is Ps2ProvisioningProgress.Done -> {
-                receipt = Ps2NetworkProfile.receipt(context)
-                onReadyChanged(true)
-            }
-            is Ps2ProvisioningProgress.Failed -> error = state.reason
-            // Waiting on ARMSX2 to open is the one state that can last forever
-            // when the accessibility service has gone silent, and a spinner
-            // with no end is the worst thing this section can show. Give the
-            // driver its second, then say what happened.
-            // See Ps2ProvisioningAutomation.neverStarted.
-            Ps2ProvisioningProgress.OpeningArmsx2 -> {
-                delay(SILENCE_CHECK_MS)
-                if (Ps2ProvisioningAutomation.neverStarted()) {
-                    Ps2ProvisioningAutomation.fail(
-                        context.getString(R.string.netplay_automation_silent),
-                        Ps2ProvisioningStore(context),
-                    )
-                }
-            }
-            else -> Unit
         }
     }
 
@@ -983,13 +937,6 @@ private fun Ps2ProfileDetail(
     // coloured sentences — what is being done, what was made, what is ready,
     // what went wrong — is the same fact at different moments, so it is the
     // same object here.
-    val step = when (progress) {
-        Ps2ProvisioningProgress.OpeningArmsx2,
-        Ps2ProvisioningProgress.OpeningMemoryCards -> R.string.settings_ps2_profile_opening
-        Ps2ProvisioningProgress.AssigningSlot2 -> R.string.settings_ps2_profile_preserving
-        Ps2ProvisioningProgress.AssigningSlot1 -> R.string.settings_ps2_profile_assigning
-        else -> null
-    }
     val current = receipt
     val facts = buildList {
         if (current != null) {
@@ -1045,9 +992,9 @@ private fun Ps2ProfileDetail(
     }
 
     when {
-        busy || step != null -> DetailStatus(
+        busy -> DetailStatus(
             tone = DetailTone.BUSY,
-            headline = stringResource(step ?: R.string.settings_ps2_profile_preparing),
+            headline = stringResource(R.string.settings_ps2_profile_preparing),
             facts = facts,
         )
         error != null -> DetailStatus(

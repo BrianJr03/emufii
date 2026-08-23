@@ -1,5 +1,6 @@
 package eu.emufii.app.library
 
+import io.airlift.compress.zstd.ZstdDecompressor
 import java.io.ByteArrayInputStream
 import java.util.zip.Inflater
 import org.tukaani.xz.LZMAInputStream
@@ -87,7 +88,19 @@ object ChdImage {
      * it is "the bytes did not say", which leaves the file exactly where its
      * extension put it.
      */
-    fun readSector(source: Source, sectorIndex: Int = PVD_SECTOR): ByteArray? {
+    fun readSector(source: Source, sectorIndex: Int = PVD_SECTOR): ByteArray? =
+        open(source)?.readDiscSector(sectorIndex)
+
+    /**
+     * Opens one v5 CHD as a reusable ISO9660 reader.
+     *
+     * The old one-sector path decoded the Huffman map again for every seek. A
+     * boot ELF spans hundreds of seeks in a DVD CHD, so that approach turns a
+     * few megabytes into gigabytes of repeated map work. This parses the map
+     * once and keeps only the most recent decoded hunk, which is enough for the
+     * sequential reads performed by [Ps2DiscIdentityReader].
+     */
+    fun open(source: Source): Reader? {
         val header = ByteArray(HEADER_V5_BYTES)
         if (source.read(0, header, header.size) < header.size) return null
         if (String(header, 0, 8, Charsets.ISO_8859_1) != MAGIC) return null
@@ -105,26 +118,15 @@ object ChdImage {
         val compressors = (0 until 4).map {
             String(header, OFF_COMPRESSORS + 4 * it, 4, Charsets.ISO_8859_1)
         }
-
-        // A raw CD hunk interleaves sector and subcode; anything else is a flat
-        // run of bytes. That is the only thing that changes where a sector sits.
         val rawCd = unitBytes == CD_FRAME_BYTES
-        val sectorBytes = if (rawCd) CD_SECTOR_BYTES else unitBytes
-        val logicalOffset = sectorIndex.toLong() * unitBytes
-        if (logicalOffset + unitBytes > logicalBytes) return null
-        val hunkIndex = (logicalOffset / hunkBytes).toInt()
-        val withinHunk = (logicalOffset % hunkBytes).toInt()
-
         val totalHunks = ((logicalBytes + hunkBytes - 1) / hunkBytes).toInt()
-        val entry = mapEntry(source, mapOffset, totalHunks, hunkIndex, hunkBytes) ?: return null
-        val hunk = hunkPayload(source, entry, compressors, hunkBytes, rawCd) ?: return null
-
-        // In a CD hunk the decoded payload is the sectors alone, subcode stripped
-        // out, so the frame stride is 2352 rather than 2448.
-        val at = if (rawCd) withinHunk / CD_FRAME_BYTES * CD_SECTOR_BYTES else withinHunk
-        if (at + sectorBytes > hunk.size) return null
-        return hunk.copyOfRange(at, at + sectorBytes)
+        if (totalHunks <= 0 || totalHunks > MAX_HUNKS) return null
+        val entries = mapEntries(source, mapOffset, totalHunks, hunkBytes) ?: return null
+        return Reader(source, compressors, entries, logicalBytes, hunkBytes, unitBytes, rawCd)
     }
+
+    /** A bounded number well beyond a dual-layer DVD with 4 KiB hunks. */
+    private const val MAX_HUNKS = 4 * 1024 * 1024
 
     /**
      * The Dreamcast, excluded before a single byte is decompressed.
@@ -150,7 +152,17 @@ object ChdImage {
     /** Enough to walk a disc's tracks; a bound, so a cyclic chain cannot hang. */
     private const val MAX_METADATA_ENTRIES = 64
 
-    private class Entry(val type: Int, val offset: Long, val length: Int)
+    internal data class Entry(val type: Int, val offset: Long, val length: Int)
+    internal class Entries(
+        private val types: ByteArray,
+        private val offsets: LongArray,
+        private val lengths: IntArray,
+    ) {
+        val size: Int get() = types.size
+        fun getOrNull(index: Int): Entry? = if (index in types.indices) {
+            Entry(types[index].toInt() and 0xFF, offsets[index], lengths[index])
+        } else null
+    }
 
     /**
      * The map entry for one hunk, decoded from a Huffman-compressed stream.
@@ -161,14 +173,12 @@ object ChdImage {
      * yields offsets that look plausible and decompress to nothing. That mistake
      * cost an afternoon; the loop below runs to [totalHunks] deliberately.
      */
-    private fun mapEntry(
+    private fun mapEntries(
         source: Source,
         mapOffset: Long,
         totalHunks: Int,
-        want: Int,
         hunkBytes: Int
-    ): Entry? {
-        if (want < 0 || want >= totalHunks) return null
+    ): Entries? {
         val head = ByteArray(16)
         if (source.read(mapOffset, head, head.size) < head.size) return null
         val mapBytes = beInt(head, 0)
@@ -211,9 +221,11 @@ object ChdImage {
             }
         }
 
+        val offsets = LongArray(totalHunks)
+        val lengths = IntArray(totalHunks)
         var current = firstOffset
         var lastSelf = 0L
-        for (i in 0..want) {
+        for (i in 0 until totalHunks) {
             val type = types[i].toInt()
             var offset = current
             var length = 0
@@ -240,14 +252,15 @@ object ChdImage {
                     lastSelf++
                     offset = lastSelf
                 }
-                // A parent CHD is a delta against another file, which Emufii
-                // never has to hand: there is nothing to read, and saying so is
-                // better than reading the wrong bytes.
-                else -> return null
+                // Parent references remain in the table. A standalone reader
+                // cannot resolve them, but another hunk may still be readable;
+                // refusing the entire CHD here would throw useful data away.
+                else -> Unit
             }
-            if (i == want) return Entry(type, offset, length)
+            offsets[i] = offset
+            lengths[i] = length
         }
-        return null
+        return Entries(types, offsets, lengths)
     }
 
     /** A bound on the map: 64 MB covers a dual-layer disc many times over. */
@@ -262,22 +275,38 @@ object ChdImage {
      */
     private fun hunkPayload(
         source: Source,
+        entries: Entries,
+        index: Int,
         entry: Entry,
         compressors: List<String>,
         hunkBytes: Int,
-        rawCd: Boolean
+        rawCd: Boolean,
+        depth: Int = 0,
     ): ByteArray? {
-        // Self-referenced and uncompressed hunks are not what a disc's sector 16
-        // is stored as on any file measured, and guessing at them would mean
-        // reading bytes whose meaning has not been checked.
-        if (entry.type !in TYPE_BASE_0..3) return null
-        val codec = compressors.getOrNull(entry.type) ?: return null
-        if (entry.length <= 0 || entry.length > MAX_HUNK_BYTES) return null
-        val raw = ByteArray(entry.length)
-        if (source.read(entry.offset, raw, entry.length) < entry.length) return null
+        if (depth > MAX_SELF_DEPTH) return null
+        if (entry.type == TYPE_SELF || entry.type == TYPE_SELF_0 || entry.type == TYPE_SELF_1) {
+            val referenced = entry.offset.toInt()
+            if (referenced !in 0 until entries.size || referenced == index) return null
+            return hunkPayload(
+                source,
+                entries,
+                referenced,
+                entries.getOrNull(referenced) ?: return null,
+                compressors,
+                hunkBytes,
+                rawCd,
+                depth + 1,
+            )
+        }
+        if (entry.type == TYPE_PARENT) return null
+
+        val storedLength = if (entry.type == TYPE_NONE) hunkBytes else entry.length
+        if (storedLength <= 0 || storedLength > MAX_HUNK_BYTES) return null
+        val raw = ByteArray(storedLength)
+        if (source.read(entry.offset, raw, storedLength) < storedLength) return null
 
         val frames = hunkBytes / CD_FRAME_BYTES
-        return when (codec) {
+        val decoded = if (entry.type == TYPE_NONE) raw else when (val codec = compressors.getOrNull(entry.type)) {
             "cdlz", "cdzl" -> {
                 if (!rawCd || frames <= 0) return null
                 // The CD codecs put a header first: one ECC bit per frame,
@@ -299,12 +328,141 @@ object ChdImage {
             }
             "zlib" -> inflate(raw, 0, raw.size, hunkBytes)
             "lzma" -> lzma(raw, 0, raw.size, hunkBytes)
+            "zstd" -> zstd(raw, hunkBytes)
+            // DVD CHDs commonly keep one canonical all-zero hunk in FLAC and
+            // SELF-reference it throughout sparse files. Decoding arbitrary
+            // audio is unnecessary for an ELF reader; recognising FLAC's
+            // constant-zero subframes is enough to resolve those references,
+            // and anything else cleanly falls back instead of being guessed.
+            "flac" -> flacSilence(raw, hunkBytes)
             // `cdfl` is FLAC, which only ever holds CD audio, and `huff` is
             // CHD's own Huffman codec. Neither has been seen on a data sector,
-            // and neither is worth decoding blind.
+            // so an image using one for its ELF falls back to the accessibility
+            // path instead of producing a guessed CRC.
             else -> null
         }
+        decoded ?: return null
+        return if (rawCd && decoded.size == hunkBytes) stripSubcode(decoded, frames) else decoded
     }
+
+    private const val MAX_SELF_DEPTH = 64
+
+    /** TYPE_NONE stores complete 2448-byte frames; expose only their 2352-byte sectors. */
+    private fun stripSubcode(framesBytes: ByteArray, frames: Int): ByteArray? {
+        if (frames <= 0 || frames * CD_FRAME_BYTES > framesBytes.size) return null
+        return ByteArray(frames * CD_SECTOR_BYTES).also { out ->
+            for (frame in 0 until frames) {
+                framesBytes.copyInto(
+                    out,
+                    frame * CD_SECTOR_BYTES,
+                    frame * CD_FRAME_BYTES,
+                    frame * CD_FRAME_BYTES + CD_SECTOR_BYTES,
+                )
+            }
+        }
+    }
+
+    /** Random-access ISO view backed by one parsed CHD map. */
+    class Reader internal constructor(
+        private val source: Source,
+        private val compressors: List<String>,
+        private val entries: Entries,
+        private val logicalBytes: Long,
+        private val hunkBytes: Int,
+        private val unitBytes: Int,
+        private val rawCd: Boolean,
+    ) : Ps2DiscIdentityReader.Reader {
+        private var cachedIndex = -1
+        private var cachedHunk: ByteArray? = null
+        private var isoUserOffset: Int? = null
+
+        /** The complete disc sector, useful for the cheap console sniff. */
+        fun readDiscSector(sectorIndex: Int): ByteArray? {
+            if (sectorIndex < 0) return null
+            if (!rawCd) {
+                if (unitBytes <= 0) return null
+                val bytes = ByteArray(unitBytes)
+                return bytes.takeIf { readFlat(sectorIndex.toLong() * unitBytes, it, it.size) == it.size }
+            }
+            val logicalOffset = sectorIndex.toLong() * unitBytes
+            if (logicalOffset + unitBytes > logicalBytes) return null
+            val hunkIndex = (logicalOffset / hunkBytes).toInt()
+            val within = (logicalOffset % hunkBytes).toInt()
+            val frame = within / CD_FRAME_BYTES
+            val hunk = hunk(hunkIndex) ?: return null
+            val at = frame * CD_SECTOR_BYTES
+            if (at + CD_SECTOR_BYTES > hunk.size) return null
+            return hunk.copyOfRange(at, at + CD_SECTOR_BYTES)
+        }
+
+        /**
+         * Reads the 2048-byte ISO user-data stream, hiding raw CD headers and
+         * subcode. PS2 CDs on the bench are MODE2 (offset 24); MODE1 (16) and
+         * already-cooked sectors are detected as well from the PVD signature.
+         */
+        override fun read(offset: Long, into: ByteArray, count: Int): Int {
+            if (offset < 0 || count < 0 || count > into.size) return 0
+            if (!rawCd) return readFlat(offset, into, count)
+            val userOffset = isoUserOffset ?: detectIsoUserOffset()?.also { isoUserOffset = it }
+                ?: return 0
+            var done = 0
+            while (done < count) {
+                val isoAt = offset + done
+                val sectorIndex = isoAt / ISO_SECTOR_BYTES
+                val within = (isoAt % ISO_SECTOR_BYTES).toInt()
+                val sector = readDiscSector(sectorIndex.toInt()) ?: break
+                val copied = minOf(count - done, ISO_SECTOR_BYTES - within)
+                if (userOffset + within + copied > sector.size) break
+                sector.copyInto(into, done, userOffset + within, userOffset + within + copied)
+                done += copied
+            }
+            return done
+        }
+
+        private fun detectIsoUserOffset(): Int? {
+            val pvd = readDiscSector(PVD_SECTOR) ?: return null
+            return intArrayOf(0, 16, 24).firstOrNull { at ->
+                at + 6 <= pvd.size && String(pvd, at + 1, 5, Charsets.ISO_8859_1) == "CD001"
+            }
+        }
+
+        private fun readFlat(offset: Long, into: ByteArray, count: Int): Int {
+            if (offset < 0 || offset >= logicalBytes) return 0
+            var done = 0
+            val allowed = minOf(count.toLong(), logicalBytes - offset).toInt()
+            while (done < allowed) {
+                val at = offset + done
+                val index = (at / hunkBytes).toInt()
+                val within = (at % hunkBytes).toInt()
+                val payload = hunk(index) ?: break
+                val copied = minOf(allowed - done, payload.size - within)
+                if (copied <= 0) break
+                payload.copyInto(into, done, within, within + copied)
+                done += copied
+            }
+            return done
+        }
+
+        private fun hunk(index: Int): ByteArray? {
+            if (index == cachedIndex) return cachedHunk
+            val entry = entries.getOrNull(index) ?: return null
+            val decoded = hunkPayload(
+                source,
+                entries,
+                index,
+                entry,
+                compressors,
+                hunkBytes,
+                rawCd,
+            )
+            cachedIndex = index
+            cachedHunk = decoded
+            return decoded
+        }
+
+    }
+
+    private const val ISO_SECTOR_BYTES = 2048
 
     /** A hunk is bounded by the format itself; this guards a corrupt length. */
     private const val MAX_HUNK_BYTES = 4 * 1024 * 1024
@@ -326,6 +484,56 @@ object ChdImage {
                 inflater.end()
             }
         }.getOrNull()
+
+    private fun zstd(src: ByteArray, outSize: Int): ByteArray? = runCatching {
+        val out = ByteArray(outSize)
+        val written = ZstdDecompressor().decompress(src, 0, src.size, out, 0, out.size)
+        if (written == outSize) out else null
+    }.getOrNull()
+
+    /** Decodes a CHD FLAC frame only when every channel is the constant zero. */
+    internal fun flacSilence(src: ByteArray, outSize: Int): ByteArray? {
+        // CHD prefixes the headerless frame with output endianness. Zero is the
+        // same in either order, but an unknown marker is not a frame we own.
+        if (src.size < 10 || (src[0].toInt() != 'L'.code && src[0].toInt() != 'B'.code)) return null
+        if (src[1].toInt() and 0xFF != 0xFF || src[2].toInt() and 0xFE != 0xF8) return null
+        val blockCode = (src[3].toInt() ushr 4) and 0x0F
+        val rateCode = src[3].toInt() and 0x0F
+        val assignment = (src[4].toInt() ushr 4) and 0x0F
+        val channels = if (assignment <= 7) assignment + 1 else if (assignment <= 10) 2 else return null
+
+        var at = 5
+        val firstNumber = src.getOrNull(at)?.toInt()?.and(0xFF) ?: return null
+        val numberBytes = when {
+            firstNumber and 0x80 == 0 -> 1
+            firstNumber and 0xE0 == 0xC0 -> 2
+            firstNumber and 0xF0 == 0xE0 -> 3
+            firstNumber and 0xF8 == 0xF0 -> 4
+            firstNumber and 0xFC == 0xF8 -> 5
+            firstNumber and 0xFE == 0xFC -> 6
+            firstNumber == 0xFE -> 7
+            else -> return null
+        }
+        at += numberBytes
+        at += when (blockCode) { 6 -> 1; 7 -> 2; else -> 0 }
+        at += when (rateCode) { 12 -> 1; 13, 14 -> 2; else -> 0 }
+        at++ // header CRC-8
+        if (at >= src.size - 2) return null
+
+        val bits = BitReader(src.copyOfRange(at, src.size - 2)) // frame CRC-16 is last
+        repeat(channels) {
+            if (bits.read(1) != 0 || bits.read(6) != 0) return null // constant subframe
+            val wasted = bits.read(1) ?: return null
+            var sampleBits = 16
+            if (wasted != 0) {
+                var wastedBits = 1
+                while (bits.read(1) == 0) wastedBits++
+                sampleBits -= wastedBits
+            }
+            if (sampleBits <= 0 || bits.read(sampleBits) != 0) return null
+        }
+        return ByteArray(outSize)
+    }
 
     /**
      * Raw LZMA, with the properties CHD leaves implicit.
