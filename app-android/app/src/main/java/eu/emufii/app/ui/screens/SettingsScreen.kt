@@ -107,6 +107,8 @@ import eu.emufii.app.ps2.Ps2ProvisioningAutomation
 import eu.emufii.app.ps2.Ps2ProvisioningPlan
 import eu.emufii.app.ps2.Ps2ProvisioningProgress
 import eu.emufii.app.ps2.Ps2ProvisioningStore
+import eu.emufii.app.psp.PpssppConfigResult
+import eu.emufii.app.psp.PpssppConfigStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -187,6 +189,8 @@ fun SettingsScreen(
     var themePanel by remember { mutableStateOf(false) }
     val artworkKey by settingsStore.steamGridDbKey.collectAsState()
     val context = LocalContext.current
+    val ppssppConfig = remember(context) { PpssppConfigStore(context) }
+    var ppssppConfigReady by remember { mutableStateOf(ppssppConfig.isReady()) }
     // Le joueur l'a-t-il importee dans ARMSX2 ? Rien ici ne peut le verifier,
     // et c'est ce drapeau qui autorise une session PS2.
     // Drawn from the cheap answer, confirmed off the main thread just after:
@@ -465,6 +469,21 @@ fun SettingsScreen(
                     )
                 }
                 SettingsRow(
+                    label = stringResource(R.string.settings_row_ppsspp_config),
+                    value = stringResource(
+                        if (ppssppConfigReady) R.string.settings_value_ppsspp_config_on
+                        else R.string.settings_value_ppsspp_config_off
+                    ),
+                    expanded = open == SettingsRowId.PPSSPP_CONFIG,
+                    onToggle = { toggle(SettingsRowId.PPSSPP_CONFIG) }
+                ) {
+                    PpssppConfigDetail(
+                        store = ppssppConfig,
+                        ready = ppssppConfigReady,
+                        onReadyChanged = { ppssppConfigReady = it },
+                    )
+                }
+                SettingsRow(
                     label = stringResource(R.string.settings_row_ps2_profile),
                     value = stringResource(
                         if (ps2ProfileReady) R.string.settings_value_ps2_profile_on
@@ -734,7 +753,72 @@ private val COCOON_DEFAULT_FOLDER: Uri = DocumentsContract.buildDocumentUri(
 )
 
 private enum class SettingsRowId {
-    IDENTITY, FOLDER, CONSOLES, KEYS, ARTWORK, HIDDEN, PS2_PROFILE, LANGUAGE, THEME, AUTOFILL, ABOUT
+    IDENTITY, FOLDER, CONSOLES, KEYS, ARTWORK, HIDDEN, PPSSPP_CONFIG, PS2_PROFILE,
+    LANGUAGE, THEME, AUTOFILL, ABOUT
+}
+
+@Composable
+private fun PpssppConfigDetail(
+    store: PpssppConfigStore,
+    ready: Boolean,
+    onReadyChanged: (Boolean) -> Unit,
+) {
+    var rootUri by remember { mutableStateOf(store.rootUri()) }
+    var error by remember { mutableStateOf<Int?>(null) }
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        if (uri != null) {
+            error = when (store.configureRoot(uri)) {
+                PpssppConfigResult.Success -> {
+                    rootUri = uri
+                    onReadyChanged(true)
+                    null
+                }
+                PpssppConfigResult.PermissionMissing -> R.string.ppsspp_config_permission_missing
+                PpssppConfigResult.InvalidRoot -> R.string.ppsspp_config_invalid_root
+                PpssppConfigResult.ActiveOverrides -> R.string.ppsspp_config_active_overrides
+                PpssppConfigResult.NotConfigured -> R.string.ppsspp_config_not_configured
+                PpssppConfigResult.UnknownDiscId -> R.string.ppsspp_config_unknown_game
+                is PpssppConfigResult.Failure -> R.string.ppsspp_config_write_failed
+            }
+            if (error != null) onReadyChanged(store.isReady())
+        }
+    }
+
+    DetailNote(stringResource(R.string.settings_ppsspp_config_body))
+    rootUri?.let {
+        DetailStatus(
+            headline = stringResource(
+                if (ready) R.string.settings_ppsspp_config_ready
+                else R.string.settings_ppsspp_config_not_ready
+            ),
+            tone = if (ready) DetailTone.GOOD else DetailTone.WARN,
+        )
+        store.rootLabel()?.let { label ->
+            Text(
+                label,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+    error?.let { message ->
+        DetailStatus(tone = DetailTone.BAD, headline = stringResource(message))
+    }
+    DetailActions {
+        if (ready) {
+            GhostButton(
+                label = stringResource(R.string.settings_ppsspp_config_change),
+                onClick = { picker.launch(rootUri) },
+                fillWidth = true,
+            )
+        } else {
+            PrimaryButton(
+                label = stringResource(R.string.settings_ppsspp_config_choose),
+                onClick = { picker.launch(rootUri) },
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
 }
 
 /** A section: a heading, then its rows inside a single card. */

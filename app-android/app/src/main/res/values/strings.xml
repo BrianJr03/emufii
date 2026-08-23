@@ -45,9 +45,9 @@
     <string name="psp_online_title">Jouer en ligne</string>
     <string name="psp_online_what_body">Tu joues avec des inconnus, sur un serveur public tenu par des tiers. Emufii ne crée aucune session et ne monte aucun tunnel : elle ouvre PPSSPP, et c\'est lui qui te connecte.</string>
     <string name="psp_online_steps_title">À faire, une fois pour toutes</string>
-    <string name="psp_online_step_1">Ouvre PPSSPP avec le bouton ci-dessous, puis va dans Paramètres → Réseau.</string>
+    <string name="psp_online_step_1">Quitte d’abord tout jeu PSP en cours jusqu’au menu PPSSPP. Utilise ensuite le bouton ci-dessous, puis va dans Paramètres → Réseau.</string>
     <string name="psp_online_step_2">Active le réseau, et choisis un serveur public dans la liste que PPSSPP tient à jour.</string>
-    <string name="psp_online_step_3">Laisse « Essayez d\'utiliser le relais de paquets » sur Automatique : c’est ce que veulent les serveurs publics. Repasse-le sur Désactivé si tu reviens jouer entre amis.</string>
+    <string name="psp_online_step_3">Laisse « Essayez d\'utiliser le relais de paquets » sur Automatique : c’est ce que veulent les serveurs publics. Emufii remet automatiquement les valeurs de session privée pour ce jeu quand il le faut.</string>
     <string name="psp_online_step_4">Reviens ici et lance le jeu, puis prends son mode ad hoc.</string>
     <string name="psp_online_open_settings">1. Ouvrir PPSSPP pour paramétrer le jeu en ligne</string>
     <string name="psp_online_open_again">1. Rouvrir PPSSPP pour le paramétrage</string>
@@ -113,6 +113,12 @@
     <string name="duration_hours">%1$d h</string>
     <string name="session_launching">Lancement de %1$s…</string>
     <string name="err_generic">Erreur : %1$s</string>
+    <string name="ppsspp_config_not_configured">Choisis d’abord le dossier de la Memory Stick PPSSPP dans les réglages d’Emufii.</string>
+    <string name="ppsspp_config_permission_missing">Android ne laisse plus Emufii lire et écrire la Memory Stick PPSSPP. Choisis à nouveau le dossier dans les réglages.</string>
+    <string name="ppsspp_config_invalid_root">Ce n’est pas la racine de la Memory Stick PPSSPP. Choisis le dossier qui contient PSP/SYSTEM/ppsspp.ini.</string>
+    <string name="ppsspp_config_unknown_game">Emufii ne trouve pas le DISC_ID PSP de ce dump. Garde l’identifiant, par exemple ULUS10277, dans le nom d’un jeu compressé, ou utilise un dump ISO/PBP.</string>
+    <string name="ppsspp_config_active_overrides">Lance les jeux concernés en mode public avant de changer le dossier PPSSPP, afin qu’Emufii restaure leurs réglages réseau d’origine.</string>
+    <string name="ppsspp_config_write_failed">Impossible d’écrire puis de vérifier la configuration du jeu PPSSPP.</string>
 
     <!-- Per-emulator hints -->
     <string name="hint_azahar_title">Dans Azahar</string>
@@ -127,6 +133,9 @@
     <string name="hint_missing_rom_body">Tu es bien dans la session et sur le même réseau, mais Emufii n\'a pas trouvé ce jeu chez toi. Ajoute-le à ton dossier de ROMs, relance un scan, puis reviens.</string>
     <string name="hint_psp_title">Dans PPSSPP, une fois pour toutes</string>
     <string name="hint_psp_body">PPSSPP ne se laisse pas piloter par Emufii : il dessine sa propre interface. Ces quatre réglages sont donc à faire à la main, mais une seule fois, jamais à refaire.</string>
+    <string name="hint_psp_automated">Emufii appliquera les quatre valeurs réseau de la session privée à ce jeu juste avant de le lancer. Tout le reste, y compris ton pseudo, reste inchangé.</string>
+    <string name="hint_psp_automatic_ready">Le paramétrage automatique PPSSPP est prêt — lance le jeu.</string>
+    <string name="hint_psp_exit_before_switch">Avant de passer d’une session privée au jeu public, ou l’inverse, quitte le jeu en cours jusqu’au menu de PPSSPP. Sinon PPSSPP peut réécrire en quittant les anciennes valeurs gardées en mémoire.</string>
     <string name="hint_psp_step1">Réseau → Activer le réseau/WLAN</string>
     <string name="hint_psp_step2">Réseau → Adresse du serveur ad hoc → Ajouter un serveur → colle %1$s</string>
     <string name="hint_psp_step2b">Juste en dessous : « Essayez d\'utiliser le relais de paquets » sur Désactivé</string>
@@ -429,6 +438,14 @@
     <!-- PS2: ARMSX2's LAN, which has nothing to do with its online play -->
     <string name="launch_ps2_profile_missing">Il manque le profil réseau PS2. Ouvre les réglages d\'Emufii, ligne « Profil réseau PS2 » : sans lui, aucun jeu LAN de PS2 n\'ouvre son menu local.</string>
     <string name="settings_row_ps2_profile">Profil réseau PS2</string>
+    <string name="settings_row_ppsspp_config">Paramétrage automatique PPSSPP</string>
+    <string name="settings_value_ppsspp_config_on">Prêt</string>
+    <string name="settings_value_ppsspp_config_off">À faire</string>
+    <string name="settings_ppsspp_config_body">Choisis une fois la racine de la Memory Stick PPSSPP — le dossier qui contient PSP/SYSTEM/ppsspp.ini. Android ne donne accès qu’à ce dossier. Avant une session privée, Emufii écrit les réglages réseau par jeu reconnus par PPSSPP ; le lancement public restaure les valeurs présentes auparavant. Quitte un jeu PSP en cours jusqu’au menu PPSSPP avant de changer de mode.</string>
+    <string name="settings_ppsspp_config_ready">Le paramétrage automatique des sessions privées est prêt.</string>
+    <string name="settings_ppsspp_config_not_ready">Le dossier mémorisé est indisponible ou n’est plus accessible en écriture.</string>
+    <string name="settings_ppsspp_config_choose">Choisir le dossier PPSSPP</string>
+    <string name="settings_ppsspp_config_change">Changer le dossier PPSSPP</string>
     <string name="settings_value_ps2_profile_on">Prêt</string>
     <string name="settings_value_ps2_profile_off">À faire</string>
     <string name="settings_ps2_fact_card">Carte</string>

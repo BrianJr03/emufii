@@ -43,9 +43,9 @@
     <string name="psp_online_title">Play online</string>
     <string name="psp_online_what_body">You play with strangers, on a public server run by third parties. Emufii creates no session and brings up no tunnel: it opens PPSSPP, and PPSSPP is what connects you.</string>
     <string name="psp_online_steps_title">To do, once and for all</string>
-    <string name="psp_online_step_1">Open PPSSPP with the button below, then go to Settings → Networking.</string>
+    <string name="psp_online_step_1">First exit any running PSP game to PPSSPP’s menu. Then use the button below and go to Settings → Networking.</string>
     <string name="psp_online_step_2">Turn networking on, and pick a public server from the list PPSSPP keeps up to date.</string>
-    <string name="psp_online_step_3">Leave “Try to use the server’s packet relay” on Automatic: that is what public servers want. Set it back to Disabled if you come back to play with friends.</string>
+    <string name="psp_online_step_3">Leave “Try to use the server’s packet relay” on Automatic: that is what public servers want. Emufii switches this game back to private-session values automatically when needed.</string>
     <string name="psp_online_step_4">Come back here and launch the game, then take its ad hoc mode.</string>
     <string name="psp_online_open_settings">1. Open PPSSPP to set up online play</string>
     <string name="psp_online_open_again">1. Reopen PPSSPP for setup</string>
@@ -111,6 +111,12 @@
     <string name="duration_hours">%1$d h</string>
     <string name="session_launching">Starting %1$s…</string>
     <string name="err_generic">Error: %1$s</string>
+    <string name="ppsspp_config_not_configured">Choose PPSSPP’s memory-stick folder in Emufii Settings first.</string>
+    <string name="ppsspp_config_permission_missing">Android no longer grants Emufii read and write access to PPSSPP’s memory stick. Choose the folder again in Settings.</string>
+    <string name="ppsspp_config_invalid_root">This is not PPSSPP’s memory-stick root. Choose the folder that contains PSP/SYSTEM/ppsspp.ini.</string>
+    <string name="ppsspp_config_unknown_game">Emufii cannot find this dump’s PSP DISC_ID. Keep the ID, such as ULUS10277, in a compressed game’s filename or use an ISO/PBP dump.</string>
+    <string name="ppsspp_config_active_overrides">Launch affected games in public mode before changing PPSSPP’s folder, so Emufii can restore their original network settings.</string>
+    <string name="ppsspp_config_write_failed">PPSSPP’s game configuration could not be written and verified.</string>
 
     <!-- Per-emulator hints -->
     <string name="hint_azahar_title">In Azahar</string>
@@ -125,6 +131,9 @@
     <string name="hint_missing_rom_body">You\'re in the session and on the same network, but Emufii couldn\'t find this game on your device. Add it to your ROMs folder, rescan, then come back.</string>
     <string name="hint_psp_title">In PPSSPP, once and for all</string>
     <string name="hint_psp_body">PPSSPP cannot be driven by Emufii: it draws its own interface. These four settings are yours to make, once, and never again.</string>
+    <string name="hint_psp_automated">Emufii will apply PPSSPP’s four private-session network values for this game immediately before launching it. Everything else, including your nickname, stays yours.</string>
+    <string name="hint_psp_automatic_ready">Automatic PPSSPP setup is ready — launch the game.</string>
+    <string name="hint_psp_exit_before_switch">Before switching between a private session and public play, exit the running game to PPSSPP’s menu. PPSSPP can otherwise save the old in-memory values over the new ones.</string>
     <string name="hint_psp_step1">Networking → Enable networking/WLAN</string>
     <string name="hint_psp_step2">Networking → Ad hoc server address → Add server → paste %1$s</string>
     <string name="hint_psp_step2b">Just below it: “Try to use the server’s packet relay” set to Disabled</string>
@@ -419,6 +428,14 @@
     <string name="session_dolphin_lobby_opened">Back to the Dolphin lobby</string>
     <string name="launch_ps2_profile_missing">The PS2 network profile is missing. Open Emufii\'s settings, "PS2 network profile": without it, no PS2 LAN game will open its local menu.</string>
     <string name="settings_row_ps2_profile">PS2 network profile</string>
+    <string name="settings_row_ppsspp_config">PPSSPP automatic setup</string>
+    <string name="settings_value_ppsspp_config_on">Ready</string>
+    <string name="settings_value_ppsspp_config_off">To do</string>
+    <string name="settings_ppsspp_config_body">Choose PPSSPP’s memory-stick root once — the folder containing PSP/SYSTEM/ppsspp.ini. Android grants access only to that folder. Before a private session, Emufii writes PPSSPP’s supported per-game network settings; public launch restores the values that were there before. Exit a running PSP game to PPSSPP’s menu before switching modes.</string>
+    <string name="settings_ppsspp_config_ready">Automatic private-session setup is ready.</string>
+    <string name="settings_ppsspp_config_not_ready">The saved folder is unavailable or no longer writable.</string>
+    <string name="settings_ppsspp_config_choose">Choose PPSSPP folder</string>
+    <string name="settings_ppsspp_config_change">Change PPSSPP folder</string>
     <string name="settings_value_ps2_profile_on">Ready</string>
     <string name="settings_value_ps2_profile_off">To do</string>
     <string name="settings_ps2_fact_card">Card</string>

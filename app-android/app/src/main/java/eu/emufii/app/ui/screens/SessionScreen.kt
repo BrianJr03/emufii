@@ -91,6 +91,7 @@ import eu.emufii.app.ps2.Ps2Target
 import eu.emufii.app.eden.EdenLauncher
 import eu.emufii.app.netplay.NetplayNames
 import eu.emufii.app.psp.HOST_SENTINEL
+import eu.emufii.app.psp.PpssppConfigStore
 import eu.emufii.app.psp.PpssppLauncher
 import eu.emufii.app.library.Backend
 import eu.emufii.app.network.CoordinatorClient
@@ -138,6 +139,14 @@ fun SessionScreen(
     val azahar = remember { AzaharLauncher(context) }
     val eden = remember { EdenLauncher(context) }
     val ppsspp = remember { PpssppLauncher(context) }
+    val pspAutomatic = remember(session.code, session.rom) {
+        val rom = session.rom
+        rom != null && PpssppConfigStore(context).canApply(
+            rom.productCode,
+            rom.filename,
+            rom.displayName,
+        )
+    }
     var status by remember { mutableStateOf<String?>(null) }
     var members by remember { mutableStateOf<List<Member>>(emptyList()) }
     // Our own name in the list for *this* session, see `Heartbeat.memberHandle`.
@@ -158,13 +167,7 @@ fun SessionScreen(
      */
     var netplayDone by remember(session.code) { mutableStateOf(false) }
 
-    /**
-     * PPSSPP has been opened at least once for its manual setup.
-     *
-     * Says nothing about the settings themselves, Emufii can neither read nor
-     * write them, only that the player went there. It is a marker, not a
-     * guarantee, and the button label is careful not to claim otherwise.
-     */
+    /** PPSSPP was opened for the manual fallback used when automatic setup is unavailable. */
     var pspOpened by remember(session.code) { mutableStateOf(false) }
     val netplayProgress by NetplayAutomation.progress.collectAsState()
     LaunchedEffect(netplayProgress) {
@@ -490,7 +493,7 @@ fun SessionScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         if (offline) OfflineCard()
-                        if (session.backend == Backend.PPSSPP) PspHintCard()
+                        if (session.backend == Backend.PPSSPP) PspHintCard(pspAutomatic)
                         EmulatorHintCard(
                             session = session,
                             automationOn = automationOn,
@@ -513,7 +516,7 @@ fun SessionScreen(
                             modifier = Modifier.padEntry()
                         )
                     }
-                    if (session.backend == Backend.PPSSPP) {
+                    if (session.backend == Backend.PPSSPP && !pspAutomatic) {
                         PspSetupButton(
                             pspOpened = pspOpened,
                             onClick = {
@@ -530,7 +533,7 @@ fun SessionScreen(
                         // Last resort: when no step precedes it, this is the
                         // first button on the page.
                         modifier = if (session.backend.hasNetplay ||
-                                       session.backend == Backend.PPSSPP) Modifier
+                                       (session.backend == Backend.PPSSPP && !pspAutomatic)) Modifier
                                    else Modifier.padEntry()
                     )
                     status?.let { StatusLine(it) }
@@ -559,7 +562,7 @@ fun SessionScreen(
             // starts the game, meant showing it after the moment it was useful.
             // The other consoles keep their card at the end of the screen: they
             // have nothing to set up before playing.
-            if (session.backend == Backend.PPSSPP) PspHintCard()
+            if (session.backend == Backend.PPSSPP) PspHintCard(pspAutomatic)
 
             // Above the member list, because that list is the thing that has
             // gone stale: whoever is shown there was here the last time we
@@ -618,7 +621,7 @@ fun SessionScreen(
             // opens the emulator, which is all Emufii can do, and says so
             // plainly in its label rather than implying an automatic setup like
             // Azahar's.
-            if (session.backend == Backend.PPSSPP) {
+            if (session.backend == Backend.PPSSPP && !pspAutomatic) {
                 PspSetupButton(
                     pspOpened = pspOpened,
                     onClick = { status = openPpssppForSetup(context, ppsspp) { pspOpened = true } },
@@ -631,7 +634,7 @@ fun SessionScreen(
                 netplayPrepared = netplayPrepared,
                 onClick = { status = session.launch(context, azahar, eden, ppsspp) },
                 modifier = if (session.backend.hasNetplay ||
-                               session.backend == Backend.PPSSPP) Modifier
+                               (session.backend == Backend.PPSSPP && !pspAutomatic)) Modifier
                            else Modifier.padEntry()
             )
 
@@ -1536,12 +1539,14 @@ private fun OfflineCard() {
  * button stays, for whoever comes back later.
  */
 @Composable
-private fun PspHintCard() {
+private fun PspHintCard(automatic: Boolean) {
     val context = LocalContext.current
     var copied by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        copyToClipboard(context, "Emufii", HOST_SENTINEL)
-        copied = true
+    LaunchedEffect(automatic) {
+        if (!automatic) {
+            copyToClipboard(context, "Emufii", HOST_SENTINEL)
+            copied = true
+        }
     }
     SoftCard {
         Column(
@@ -1550,45 +1555,66 @@ private fun PspHintCard() {
         ) {
             SectionHeader(stringResource(R.string.hint_psp_title))
             Text(
-                stringResource(R.string.hint_psp_body),
+                stringResource(
+                    if (automatic) R.string.hint_psp_automated
+                    else R.string.hint_psp_body
+                ),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Text(
-                HOST_SENTINEL,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
-            for (step in listOf(
-                stringResource(R.string.hint_psp_step1),
-                stringResource(R.string.hint_psp_step2, HOST_SENTINEL),
-                stringResource(R.string.hint_psp_step2b),
-                stringResource(R.string.hint_psp_step3),
-                stringResource(R.string.hint_psp_step4)
-            )) {
-                Text("· " + step, style = MaterialTheme.typography.bodyMedium)
-            }
-            Text(
-                stringResource(R.string.hint_psp_relay_why),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                stringResource(R.string.hint_psp_why),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            if (copied) {
+            if (automatic) {
                 Text(
-                    stringResource(R.string.hint_psp_copied),
+                    stringResource(R.string.hint_psp_automatic_ready),
                     style = MaterialTheme.typography.bodySmall,
                     color = AccentGreen
                 )
+                Text(
+                    stringResource(R.string.hint_psp_step4),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
+                Text(
+                    HOST_SENTINEL,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                for (step in listOf(
+                    stringResource(R.string.hint_psp_step1),
+                    stringResource(R.string.hint_psp_step2, HOST_SENTINEL),
+                    stringResource(R.string.hint_psp_step2b),
+                    stringResource(R.string.hint_psp_step3),
+                    stringResource(R.string.hint_psp_step4)
+                )) {
+                    Text("· " + step, style = MaterialTheme.typography.bodyMedium)
+                }
+                Text(
+                    stringResource(R.string.hint_psp_relay_why),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    stringResource(R.string.hint_psp_why),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                if (copied) {
+                    Text(
+                        stringResource(R.string.hint_psp_copied),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = AccentGreen
+                    )
+                }
+                GhostButton(
+                    label = stringResource(R.string.hint_psp_copy),
+                    onClick = { copyToClipboard(context, "Emufii", HOST_SENTINEL) }
+                )
             }
-            GhostButton(
-                label = stringResource(R.string.hint_psp_copy),
-                onClick = { copyToClipboard(context, "Emufii", HOST_SENTINEL) }
+            Text(
+                stringResource(R.string.hint_psp_exit_before_switch),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
             )
 
             // At the end of the card, not in the middle: it is the longest
@@ -1704,7 +1730,7 @@ private fun Session.launch(
             plan = null,
             automationOn = azahar.isNetplayAutomationEnabled()
         ) to "Eden"
-        Backend.PPSSPP -> ppsspp.launchGame(rom.uri) to "PPSSPP"
+        Backend.PPSSPP -> ppsspp.launchPrivateGame(rom) to "PPSSPP"
         // Not a launch: a return. The game is picked and started in the Dolphin
         // room, not here, and Dolphin cannot be handed a game from outside
         // anyway. What this button has to do is bring the player back to where

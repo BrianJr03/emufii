@@ -14,7 +14,11 @@ data class RomRef(
      * for a dump the library could not identify, and then no comparison is
      * possible, see the join flow, which lets those through.
      */
-    val titleIdHex: String? = null
+    val titleIdHex: String? = null,
+    /** Original name, retained because compressed PSP dumps often carry DISC_ID only here. */
+    val filename: String? = null,
+    /** PSP DISC_ID is stored as `PSP-ULUS10277`; other consoles keep their own product code. */
+    val productCode: String? = null,
 )
 
 data class Session(
