@@ -139,11 +139,7 @@ enum class Backend {
      */
     EDEN,
 
-    /**
-     * PSP ad hoc, through PPSSPP. Nothing to drive in the emulator, which draws
-     * its own interface, invisible to accessibility, and nothing to drive anyway:
-     * the player set the address once, and it does not change.
-     */
+    /** PSP ad hoc through PPSSPP's per-game INI on a user-granted memory stick. */
     PPSSPP,
 
     /**

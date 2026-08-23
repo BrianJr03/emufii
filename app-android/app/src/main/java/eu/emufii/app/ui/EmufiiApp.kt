@@ -88,7 +88,14 @@ private sealed interface Screen {
 }
 
 private fun Rom.toRef() =
-    RomRef(uri = uri, displayName = displayName, console = console, titleIdHex = titleIdHex)
+    RomRef(
+        uri = uri,
+        displayName = displayName,
+        console = console,
+        titleIdHex = titleIdHex,
+        filename = filename,
+        productCode = productCode,
+    )
 
 /**
  * The splash screen's token, at process scope.

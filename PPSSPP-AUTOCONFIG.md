@@ -1,77 +1,119 @@
-# PSP multiplayer: the manual step, and how to remove it
+# PSP multiplayer auto-configuration
 
-This is an open working problem, not a finished design. It lives on `dev`
-because nothing here is ready for `main`.
+## Result
 
-## What works today
+Stock PPSSPP can be configured by Emufii without root, accessibility, a fork,
+or access to PPSSPP's private app data.
 
-PSP multiplayer works. Two remote players, two devices, two different homes,
-proven on WipEout Pulse and Tekken. The link comes up and the games play.
+PPSSPP supports a per-game INI in its memory stick:
 
-## The rough edge
+```
+PSP/SYSTEM/<DISC_ID>_ppsspp.ini
+```
 
-**PPSSPP cannot be automated.** It draws its interface with its own renderer,
-so there is not a single Android view in it, and Emufii's accessibility service
-— which configures Azahar, Eden, Dolphin and ARMSX2 — has nothing to hold on
-to.
+It reads that file when the game boots, including when PPSSPP is already open
+at its menu. Emufii receives one persistent Android Storage Access Framework
+grant to the memory-stick root, merges four settings, then launches the ROM by
+the same `ACTION_VIEW content://` intent it already used.
 
-So the player configures PPSSPP by hand before every first launch: an address
-to type into the network settings, and one setting to change. The PSP session
-screen carries a "manual setup (required)" button that says so, and turns green
-once done.
+Implemented values:
 
-Two things people get wrong, worth knowing before you start:
+```ini
+[Network]
+EnableWlan = True
+EnableAdhocServer = True
+proAdhocServer = 10.66.1.1
+AdhocServerRelayMode = 2
+```
 
-- **Packet relay is a three-state choice** (`Automatic` / `Enabled` /
-  `Disabled`), not a checkbox, and it defaults to `Automatic`. Public servers
-  are happy with `Automatic`; PPSSPP's own help asks for `Disabled` over LAN or
-  VPN, which is our case.
-- **PPSSPP keeps its own live directory of public ad-hoc servers**
-  (`metadata.ppsspp.org/adhoc-servers.json`). That is a different feature with
-  its own screen. Do not confuse the two.
+`2` is PPSSPP's `AlwaysOff` packet-relay mode. Emufii's VPN/relay transports
+the peer-to-peer packets itself; PPSSPP's public-server packet relay must not
+be placed in the path as well.
 
-## The lead: PPSSPP's per-game config is writable
+Emufii does not touch nickname, MAC address, port offset, UPnP, DNS, graphics,
+controls, or any other setting.
 
-Measured on PPSSPP **v1.20.4**, and this is the part worth building on. It was
-scouted and proven; **none of it is implemented**.
+## Device proof
 
-- **The per-game ini is read when the ISO is opened**, not when PPSSPP starts
-  (`PSP/SYSTEM/<SERIAL>_ppsspp.ini`, see `Core/Util/PathUtil.cpp:164`). So the
-  emulator does not have to be stopped or restarted for a change to take.
-  Proven with a visible witness: an FPS overlay written by our file appeared on
-  screen.
-- **PPSSPP's memstick is on shared storage today** (`/sdcard/PPSSPP`), which is
-  what makes this reachable at all. This is the fact that expired an earlier
-  "impossible, verified" verdict — what changed was the memstick location, not
-  Android.
-- **A game is launched by intent**, extra `org.ppsspp.ppsspp.Args`, with the
-  ROM's `content://` URI (`PpssppActivity.java:166`). PPSSPP is
-  `singleInstance`, so the intent only starts a game when PPSSPP is closed; the
-  per-game ini applies either way.
-- It needs **one persistent SAF grant** on the PPSSPP folder, the same shape as
-  the ROM folder grant. Validate the pick by checking `PSP/SYSTEM/ppsspp.ini`
-  exists.
+Validated on 2026-08-23 with:
 
-## Dead ends, please do not repeat them
+- AYN Thor, Android 13 / API 33
+- PPSSPP free v1.20.4 (`versionCode 120040000`)
+- memory-stick root `Internal storage/ROMs/psp`
+- game `Castlevania: The Dracula X Chronicles`, `ULUS10277`, CHD
 
-- **`--appendconfig=/sdcard/…` does not work.** PPSSPP holds no storage
-  permission of its own and reaches its folders only through persistent SAF
-  grants, so a plain path is unreadable to it.
-- **`--appendconfig=content://…` does not work in 1.20.4 either.** A real
-  command-line parser landed in `Core/CmdLine.cpp` after that release, so this
-  is worth retrying on 1.21 and later — but it is not a 1.20.4 answer.
-- **If a player's memstick is on internal storage, this whole path is closed**
-  for them. The manual fallback has to stay, whatever gets built.
+The device trace showed PPSSPP opening
+`PSP/SYSTEM/ULUS10277_ppsspp.ini` through
+`com.android.externalstorage.documents`. PPSSPP's live Networking screen then
+showed WLAN enabled, server `10.66.1.1`, packet relay `No`, and the built-in ad
+hoc server enabled. The test file was removed afterward and the global
+`ppsspp.ini` SHA-256 returned to its original value.
 
-## Why it is worth doing
+The memory-stick path is not universal. Emufii validates the picked tree by
+locating `PSP/SYSTEM/ppsspp.ini`; it never assumes `/sdcard/PPSSPP` or the ROM
+library directory.
 
-If the per-game ini is written by Emufii, then the host address for a session
-can be carried by `proAdhocServer` directly, per game and per session. The
-manual step disappears for everyone whose memstick is on shared storage, and
-the fixed address the player types today stops being necessary.
+## Safe ownership and restoration
 
-## Scope
+Before the first private launch of a game, Emufii records the presence and
+original value of only those four keys in private app storage. It then performs
+a line-preserving merge into the game's existing file.
 
-Everything above is about PPSSPP and about Android. Emufii's session server and
-its relay are not part of this repository and are not part of this problem: what
-is needed here is the client side writing a config file and launching a game.
+Before public-server settings or public launch, Emufii restores those four
+original states. It merges the restoration into the file as it exists then, so
+graphics, controls, and other settings changed during private play survive. If
+Emufii created an otherwise empty file, the file is removed after restoration.
+
+Changing the configured memory-stick root is refused while restorations are
+pending: a backup must never be applied to a different PPSSPP tree.
+
+## DISC_ID coverage and fallback
+
+PPSSPP names the file from the game's `DISC_ID`, for example `ULUS10277`.
+
+- ISO and PBP: Emufii already reads `PARAM.SFO` and stores `PSP-<DISC_ID>` in
+  `Rom.productCode`.
+- CHD and CSO: Emufii accepts the conventional four-letter/five-digit ID in the
+  filename, such as `[ULUS10277]`.
+- No trustworthy ID: the established manual setup remains available. Emufii
+  never guesses a config filename and never blocks the game from launching.
+
+`RomRef` now retains both `productCode` and the original filename so session
+launches have the same identity evidence as the library.
+
+## Android permission model
+
+The normal Emufii ROM-library grant stays read-only. Automatic PPSSPP setup has
+its own narrower `ACTION_OPEN_DOCUMENT_TREE` grant, persisted with both read
+and write flags. The user selects the folder containing `PSP/SYSTEM/ppsspp.ini`
+once in Settings.
+
+This separation is intentional: making the entire multi-console ROM library
+writable would grant much more authority than editing PPSSPP's small config
+directory requires.
+
+## `--appendconfig` finding
+
+The earlier note that PPSSPP 1.20.4 cannot read
+`--appendconfig=content://...` was incorrect. It was retested successfully on
+the Thor when the URI was inside a tree for which PPSSPP already held a
+persistent grant.
+
+It is still not the production route:
+
+- PPSSPP only parses command-line options on a cold activity start; its
+  `onNewIntent()` path forwards the whole string as a game shortcut.
+- `Config::LoadAppendedConfig()` immediately calls `Save()`, persisting the
+  appended values into global `ppsspp.ini`.
+- A later per-game config can override the appended values during game boot.
+
+Direct per-game configuration is hot-loadable from PPSSPP's menu, scoped to one
+game, and does not alter the user's global public-server choice.
+
+## Operational limit
+
+Do not switch a game's private/public mode while that same game is still
+running. PPSSPP holds its per-game settings in memory and saves them when it
+leaves the game, which can overwrite a file changed underneath it. Exit the
+running game to PPSSPP's menu first. This was already required to reach the
+network settings and is now stated explicitly in the UI.

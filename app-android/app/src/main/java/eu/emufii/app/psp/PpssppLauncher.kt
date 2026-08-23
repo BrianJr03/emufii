@@ -3,7 +3,10 @@ package eu.emufii.app.psp
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import eu.emufii.app.R
 import eu.emufii.app.azahar.LaunchResult
+import eu.emufii.app.library.Rom
+import eu.emufii.app.session.RomRef
 
 /**
  * The address the player sets once inside PPSSPP.
@@ -17,23 +20,18 @@ const val HOST_SENTINEL = "10.66.1.1"
 /**
  * Starting a PSP game in PPSSPP.
  *
- * Far shorter than the other launchers, and the scout explains why
- * (`docs/PHASE1_SCOUT_PPSSPP.md`): there is nothing to drive in PPSSPP. It draws
- * its own interface on an opaque surface, the accessibility service sees neither
- * field nor button nor text in it, and its configuration lives in private
- * storage no other application can write.
- *
- * This is not a gap to be filled: it is what decided the entire PSP
- * architecture. Rather than entering the host's address every game, the player
- * sets the sentinel address once and for all, and the relay translates it
- * towards the current session's host. So Emufii has one gesture to make here:
- * open the game.
+ * PPSSPP's interface is an opaque native surface, so accessibility cannot drive
+ * it. Its memory stick can, however, live in a user-granted SAF tree. Emufii
+ * writes PPSSPP's supported per-game INI immediately before opening the ROM;
+ * PPSSPP reads that file during boot, even when its menu is already running.
  *
  * PPSSPP accepts `VIEW` with `content://`, verified against the system on the
  * device, so a SAF uri from the library is enough, with no copy and no storage
  * permission.
  */
 class PpssppLauncher(private val context: Context) {
+
+    private val config = PpssppConfigStore(context)
 
     fun installedPackage(): String? = PpssppPackage.candidates.firstOrNull { pkg ->
         runCatching { context.packageManager.getPackageInfo(pkg, 0) }.isSuccess
@@ -70,6 +68,61 @@ class PpssppLauncher(private val context: Context) {
             context.startActivity(intent)
             LaunchResult.Success
         }.getOrElse { LaunchResult.Error(it.message ?: "Unknown launch error") }
+    }
+
+    fun launchPrivateGame(rom: RomRef): LaunchResult {
+        if (installedPackage() == null) return LaunchResult.NotInstalled
+        return when (val prepared = config.applyPrivate(
+            rom.productCode,
+            rom.filename,
+            rom.displayName,
+        )) {
+            PpssppConfigResult.Success,
+            // Preserve the established manual path. The session screen shows
+            // its instructions whenever canApply() is false, so an old setup or
+            // an unidentifiable compressed dump remains playable.
+            PpssppConfigResult.NotConfigured,
+            PpssppConfigResult.PermissionMissing,
+            PpssppConfigResult.InvalidRoot,
+            PpssppConfigResult.UnknownDiscId -> launchGame(rom.uri)
+            else -> prepared.asLaunchError() ?: launchGame(rom.uri)
+        }
+    }
+
+    fun launchPublicGame(rom: Rom): LaunchResult {
+        if (installedPackage() == null) return LaunchResult.NotInstalled
+        restorePublic(rom)?.let { return it }
+        return launchGame(rom.uri)
+    }
+
+    /** Restore before showing settings, otherwise PPSSPP displays Emufii's private values. */
+    fun openPublicSettings(rom: Rom): LaunchResult {
+        if (installedPackage() == null) return LaunchResult.NotInstalled
+        restorePublic(rom)?.let { return it }
+        return openApp()
+    }
+
+    private fun restorePublic(rom: Rom): LaunchResult.Error? =
+        config.restorePublic(rom.productCode, rom.filename, rom.displayName).asLaunchError()
+
+    private fun PpssppConfigResult.asLaunchError(): LaunchResult.Error? = when (this) {
+        PpssppConfigResult.Success -> null
+        PpssppConfigResult.NotConfigured -> LaunchResult.Error(
+            context.getString(R.string.ppsspp_config_not_configured),
+        )
+        PpssppConfigResult.PermissionMissing -> LaunchResult.Error(
+            context.getString(R.string.ppsspp_config_permission_missing),
+        )
+        PpssppConfigResult.InvalidRoot -> LaunchResult.Error(
+            context.getString(R.string.ppsspp_config_invalid_root),
+        )
+        PpssppConfigResult.UnknownDiscId -> LaunchResult.Error(
+            context.getString(R.string.ppsspp_config_unknown_game),
+        )
+        PpssppConfigResult.ActiveOverrides -> LaunchResult.Error(
+            context.getString(R.string.ppsspp_config_active_overrides),
+        )
+        is PpssppConfigResult.Failure -> LaunchResult.Error(detail)
     }
 }
 

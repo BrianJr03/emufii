@@ -60,10 +60,9 @@ import eu.emufii.app.ui.theme.AccentGreen
  * back, and the next button is where they left it.
  *
  * Emufii creates no session and brings up no tunnel, this mode does not go
- * through it. Nor can it set PPSSPP up on the player's behalf: it can neither
- * write its `ppsspp.ini` nor drive its interface, which is an opaque surface. So
- * it opens the right doors in the right order and says what to do behind them.
- * The full reasoning is in `docs/PHASE1_SCOUT_PPSSPP_ONLINE.md`.
+ * through it. Before opening PPSSPP it restores the four network values saved
+ * before private-session play; the player remains in charge of choosing the
+ * third-party public server in PPSSPP's own interface.
  *
  * The two buttons are two moments, not two ways of doing the same thing:
  * PPSSPP's network settings cannot be reached from a running game, so opening
@@ -80,10 +79,8 @@ fun PspOnlineScreen(
     val ppsspp = remember { PpssppLauncher(context) }
     var status by remember { mutableStateOf<String?>(null) }
 
-    // "The emulator has been opened", not "the settings are right": Emufii sees
-    // nothing of what happens inside PPSSPP. The green therefore says what it
-    // knows, and the button stays pressable again, since people often go back
-    // into the settings a second time.
+    // "The emulator has been opened", not "the public server is right": Emufii
+    // restores its own borrowed values but does not choose a third-party server.
     var opened by remember(rom.uri) { mutableStateOf(false) }
 
     fun report(result: LaunchResult, onSuccess: () -> Unit = {}) {
@@ -197,7 +194,7 @@ fun PspOnlineScreen(
                         }
 
                         Button(
-                            onClick = { report(ppsspp.openApp()) { opened = true } },
+                            onClick = { report(ppsspp.openPublicSettings(rom)) { opened = true } },
                             shape = ActionShape,
                             colors = if (opened) ButtonDefaults.buttonColors(containerColor = AccentGreen)
                                      else ButtonDefaults.buttonColors(),
@@ -214,7 +211,7 @@ fun PspOnlineScreen(
                         }
 
                         Button(
-                            onClick = { report(ppsspp.launchGame(rom.uri)) },
+                            onClick = { report(ppsspp.launchPublicGame(rom)) },
                             // Greyed out until the emulator has been opened
                             // once: launching the game first means arriving in an
                             // ad hoc lobby still pointing at the previous game's
