@@ -1,6 +1,7 @@
 package eu.emufii.app.ui.screens
 
 import android.content.Intent
+import android.provider.DocumentsContract
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
@@ -81,6 +82,7 @@ import androidx.compose.ui.unit.sp
 import eu.emufii.app.library.HiddenRoms
 import eu.emufii.app.BuildConfig
 import eu.emufii.app.R
+import eu.emufii.app.artwork.CocoonMedia
 import eu.emufii.app.azahar.AzaharLauncher
 import eu.emufii.app.azahar.LaunchResult
 import eu.emufii.app.library.ConsoleKeysStore
@@ -110,6 +112,12 @@ import kotlinx.coroutines.withContext
 import eu.emufii.app.ui.theme.CardShape
 import eu.emufii.app.ui.components.Avatar
 import eu.emufii.app.ui.components.EmufiiScaffold
+import eu.emufii.app.ui.components.DetailActions
+import eu.emufii.app.ui.components.DetailFact
+import eu.emufii.app.ui.components.DetailNote
+import eu.emufii.app.ui.components.DetailStatus
+import eu.emufii.app.ui.components.DetailTone
+import eu.emufii.app.ui.components.PrimaryButton
 import eu.emufii.app.ui.components.GhostButton
 import eu.emufii.app.ui.components.PadTextField
 import eu.emufii.app.ui.components.SectionHeader
@@ -710,6 +718,17 @@ private val DANGER = ShellRed
  * portrait and landscape, and an index would have opened the wrong row when the
  * device was turned.
  */
+/**
+ * Where Cocoon keeps itself, as a starting point for the picker.
+ *
+ * A guess, and only a guess: the player may have moved it, and the picker will
+ * simply open at its usual place if this folder does not exist.
+ */
+private val COCOON_DEFAULT_FOLDER: Uri = DocumentsContract.buildDocumentUri(
+    "com.android.externalstorage.documents",
+    "primary:Cocoonv2"
+)
+
 private enum class SettingsRowId {
     IDENTITY, FOLDER, CONSOLES, KEYS, ARTWORK, HIDDEN, PS2_PROFILE, LANGUAGE, THEME, AUTOFILL, ABOUT
 }
@@ -813,89 +832,134 @@ private fun Ps2ProfileDetail(
         }
     }
 
-    Text(
-        stringResource(R.string.settings_ps2_profile_body),
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurface
-    )
-    GhostButton(
-        label = stringResource(
-            if (rootUri == null) R.string.hint_ps2_profile_choose_folder
-            else R.string.hint_ps2_profile_button
-        ),
-        onClick = {
-            val uri = rootUri
-            if (uri == null) folderPicker.launch(null) else prepare(uri)
-        },
-        fillWidth = true
-    )
-    if (rootUri != null) {
-        GhostButton(
-            label = stringResource(R.string.hint_ps2_profile_change_folder),
-            onClick = { folderPicker.launch(rootUri) },
-            fillWidth = true,
-        )
-    }
-    if (busy) {
-        Text(
-            stringResource(R.string.settings_ps2_profile_preparing),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.primary
-        )
-    }
-    val currentReceipt = receipt
-    if (currentReceipt != null) {
-        Text(
-            stringResource(
-                R.string.settings_ps2_profile_created,
-                currentReceipt.cardName,
-                currentReceipt.sourceCardName ?: stringResource(R.string.settings_ps2_profile_new_card),
-            ),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-        Text(
-            stringResource(
-                R.string.settings_ps2_profile_identity,
-                currentReceipt.biosName ?: stringResource(R.string.settings_ps2_profile_default_bios),
-                currentReceipt.consoleIdHex,
-            ),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        if (currentReceipt.gameOverrideCount > 0) {
-            Text(
-                pluralStringResource(
-                    R.plurals.settings_ps2_profile_overrides,
-                    currentReceipt.gameOverrideCount,
-                    currentReceipt.gameOverrideCount,
+    // The explanation earns its place only while it still teaches. Once the
+    // card is prepared and assigned, what the player came to check is the
+    // state, and four lines of method above it are in the way.
+    if (!ready) DetailNote(stringResource(R.string.settings_ps2_profile_body))
+
+    DetailActions {
+        // Filled, and the only filled thing here: of the two actions this is
+        // the one that does the work. As peer pills they read as a choice
+        // between equals, which sent people to the folder picker they had
+        // already been through.
+        //
+        // Once it is done, the accent goes away rather than the label turning
+        // into a boast. A button is named for what it does; one reading
+        // "profile installed" that still reruns the whole preparation is
+        // lying, and one that does nothing is not a button. So the work
+        // demotes to an ordinary errand — do it again — and the recess below
+        // is what says it is installed. The section stops asking for anything,
+        // which is the change the eye is looking for.
+        if (ready) {
+            GhostButton(
+                label = stringResource(R.string.hint_ps2_profile_redo),
+                onClick = { rootUri?.let { prepare(it) } },
+                fillWidth = true
+            )
+        } else {
+            PrimaryButton(
+                label = stringResource(
+                    if (rootUri == null) R.string.hint_ps2_profile_choose_folder
+                    else R.string.hint_ps2_profile_button
                 ),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error,
+                onClick = {
+                    val uri = rootUri
+                    if (uri == null) folderPicker.launch(null) else prepare(uri)
+                },
+                enabled = !busy,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+        if (rootUri != null) {
+            GhostButton(
+                label = stringResource(R.string.hint_ps2_profile_change_folder),
+                onClick = { folderPicker.launch(rootUri) },
+                fillWidth = true,
             )
         }
     }
-    val progressText = when (progress) {
+
+    // One recess, one state. Everything the section used to say in a stack of
+    // coloured sentences — what is being done, what was made, what is ready,
+    // what went wrong — is the same fact at different moments, so it is the
+    // same object here.
+    val step = when (progress) {
         Ps2ProvisioningProgress.OpeningArmsx2,
         Ps2ProvisioningProgress.OpeningMemoryCards -> R.string.settings_ps2_profile_opening
         Ps2ProvisioningProgress.AssigningSlot2 -> R.string.settings_ps2_profile_preserving
         Ps2ProvisioningProgress.AssigningSlot1 -> R.string.settings_ps2_profile_assigning
-        is Ps2ProvisioningProgress.Done -> R.string.settings_ps2_profile_done
         else -> null
     }
-    progressText?.let {
-        Text(stringResource(it), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+    val current = receipt
+    val facts = buildList {
+        if (current != null) {
+            add(
+                DetailFact(
+                    stringResource(R.string.settings_ps2_fact_card),
+                    current.cardName
+                )
+            )
+            add(
+                DetailFact(
+                    stringResource(R.string.settings_ps2_fact_source),
+                    current.sourceCardName
+                        ?: stringResource(R.string.settings_ps2_profile_new_card)
+                )
+            )
+            add(
+                DetailFact(
+                    stringResource(R.string.settings_ps2_fact_bios),
+                    current.biosName ?: stringResource(R.string.settings_ps2_profile_default_bios)
+                )
+            )
+            add(DetailFact(stringResource(R.string.settings_ps2_fact_console), current.consoleIdHex))
+        }
     }
-    if (ready) {
-        Text(
-            stringResource(R.string.settings_ps2_profile_done),
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.primary,
+    val caveat = when {
+        error != null -> error
+        current != null && current.gameOverrideCount > 0 -> pluralStringResource(
+            R.plurals.settings_ps2_profile_overrides,
+            current.gameOverrideCount,
+            current.gameOverrideCount,
         )
+        else -> null
     }
-    error?.let {
-        Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+
+    when {
+        busy || step != null -> DetailStatus(
+            tone = DetailTone.BUSY,
+            headline = stringResource(step ?: R.string.settings_ps2_profile_preparing),
+            facts = facts,
+        )
+        error != null -> DetailStatus(
+            tone = DetailTone.BAD,
+            headline = stringResource(R.string.settings_ps2_status_failed),
+            facts = facts,
+            caveat = error,
+        )
+        // Ready stays green even with a caveat under it. The tone answers the
+        // headline, not the footnote: an amber bead over the words "is ready"
+        // makes the player read the sentence twice to find out which of the two
+        // is lying.
+        ready -> DetailStatus(
+            tone = DetailTone.GOOD,
+            headline = stringResource(R.string.settings_ps2_profile_done),
+            facts = facts,
+            caveat = caveat,
+        )
+        current != null -> DetailStatus(
+            tone = DetailTone.WARN,
+            headline = stringResource(R.string.settings_ps2_status_not_assigned),
+            facts = facts,
+            caveat = caveat,
+        )
+        else -> DetailStatus(
+            tone = DetailTone.WARN,
+            headline = stringResource(
+                if (rootUri == null) R.string.settings_ps2_status_no_folder
+                else R.string.settings_ps2_status_todo
+            ),
+        )
     }
 }
 
@@ -910,11 +974,7 @@ private fun Ps2ProfileDetail(
  */
 @Composable
 private fun HiddenRomsDetail(count: Int, onRestore: () -> Unit) {
-    Text(
-        stringResource(R.string.settings_hidden_body),
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurface
-    )
+    DetailNote(stringResource(R.string.settings_hidden_body))
     if (count > 0) {
         GhostButton(
             label = stringResource(R.string.settings_hidden_restore),
@@ -1289,41 +1349,54 @@ private fun FolderDetail(
     onPickFolder: () -> Unit,
     onRescan: () -> Unit
 ) {
-    Text(
-        stringResource(R.string.settings_library_note),
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
-    )
-    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        GhostButton(
-            label = stringResource(
-                if (folder == null) R.string.lib_choose_folder
-                else R.string.settings_library_change
-            ),
-            onClick = onPickFolder
-        )
-        // Nothing to walk until a folder is picked, and picking one scans on
-        // its own.
-        if (folder != null) {
-            GhostButton(
-                label = stringResource(R.string.settings_library_rescan),
-                onClick = onRescan
+    DetailNote(stringResource(R.string.settings_library_note))
+
+    DetailActions {
+        // Filled only while there is no folder, because that is the only moment
+        // this screen has a single thing to do. Once a library exists, picking
+        // another folder and rescanning are two ordinary errands, and neither
+        // deserves the accent.
+        if (folder == null) {
+            PrimaryButton(
+                label = stringResource(R.string.lib_choose_folder),
+                onClick = onPickFolder,
+                modifier = Modifier.fillMaxWidth()
             )
+        } else {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                GhostButton(
+                    label = stringResource(R.string.settings_library_change),
+                    onClick = onPickFolder
+                )
+                // Nothing to walk until a folder is picked, and picking one
+                // scans on its own.
+                GhostButton(
+                    label = stringResource(R.string.settings_library_rescan),
+                    onClick = onRescan
+                )
+            }
         }
     }
+
     // A scan of a real library takes seconds; without a word here the buttons
     // look like they did nothing.
     when {
-        scanning -> Text(
-            stringResource(R.string.lib_scanning),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.primary
+        scanning -> DetailStatus(
+            tone = DetailTone.BUSY,
+            headline = stringResource(R.string.lib_scanning),
+            facts = folder?.let { listOf(DetailFact(stringResource(R.string.settings_library_fact_folder), it)) }.orEmpty()
         )
 
-        count != null -> Text(
-            pluralStringResource(R.plurals.settings_library_found, count, count),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+        folder == null -> DetailStatus(
+            tone = DetailTone.WARN,
+            headline = stringResource(R.string.lib_no_folder_title)
+        )
+
+        else -> DetailStatus(
+            tone = DetailTone.GOOD,
+            headline = count?.let { pluralStringResource(R.plurals.settings_library_found, it, it) }
+                ?: stringResource(R.string.settings_library_ready),
+            facts = listOf(DetailFact(stringResource(R.string.settings_library_fact_folder), folder))
         )
     }
 }
@@ -1345,20 +1418,37 @@ private fun FolderDetail(
  */
 @Composable
 private fun AutofillDetail(enabled: Boolean, onOpen: () -> Unit) {
-    Text(
-        stringResource(if (enabled) R.string.settings_autofill_on else R.string.settings_autofill_off),
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurface
-    )
-    Text(
-        stringResource(R.string.settings_autofill_note),
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
-    )
-    GhostButton(
-        label = stringResource(R.string.settings_autofill_open),
-        onClick = onOpen,
-        fillWidth = true
+    DetailNote(stringResource(R.string.settings_autofill_note))
+
+    DetailActions {
+        // Filled while it is off: an update can take the permission away, and
+        // then this is the one thing standing between the player and automatic
+        // setup. Granted, it is an errand, and errands are ghosts.
+        if (enabled) {
+            GhostButton(
+                label = stringResource(R.string.settings_autofill_open),
+                onClick = onOpen,
+                fillWidth = true
+            )
+        } else {
+            PrimaryButton(
+                label = stringResource(R.string.settings_autofill_open),
+                onClick = onOpen,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
+
+    // The headline names the state in four words; the sentence that used to
+    // stand here says what being off *costs*, which is a caveat and only worth
+    // reading when it applies.
+    DetailStatus(
+        tone = if (enabled) DetailTone.GOOD else DetailTone.WARN,
+        headline = stringResource(
+            if (enabled) R.string.settings_autofill_state_on
+            else R.string.settings_autofill_state_off
+        ),
+        caveat = if (enabled) null else stringResource(R.string.settings_autofill_off)
     )
 }
 
@@ -1376,34 +1466,45 @@ private fun KeysDetail(
     onPick: () -> Unit,
     onForget: () -> Unit
 ) {
-    Text(
-        stringResource(if (hasKeys) R.string.settings_keys_ok else R.string.settings_keys_none),
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurface
-    )
-    Text(
-        stringResource(R.string.settings_keys_note),
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
-    )
-    if (rejected) {
-        Text(
-            stringResource(R.string.settings_keys_bad),
-            style = MaterialTheme.typography.bodySmall,
-            color = DANGER
-        )
-    }
-    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        GhostButton(
-            label = stringResource(
-                if (hasKeys) R.string.settings_keys_replace else R.string.settings_keys_pick
-            ),
-            onClick = onPick
-        )
+    DetailNote(stringResource(R.string.settings_keys_note))
+
+    DetailActions {
         if (hasKeys) {
-            GhostButton(label = stringResource(R.string.settings_keys_forget), onClick = onForget)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                GhostButton(
+                    label = stringResource(R.string.settings_keys_replace),
+                    onClick = onPick
+                )
+                GhostButton(
+                    label = stringResource(R.string.settings_keys_forget),
+                    onClick = onForget
+                )
+            }
+        } else {
+            PrimaryButton(
+                label = stringResource(R.string.settings_keys_pick),
+                onClick = onPick,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
+
+    // A rejected file is a caveat on the state, not a state of its own: the
+    // player still has whatever they had before, and saying so in the same
+    // recess keeps the two facts from contradicting each other on screen.
+    DetailStatus(
+        tone = if (hasKeys) DetailTone.GOOD else DetailTone.WARN,
+        headline = stringResource(
+            if (hasKeys) R.string.settings_keys_state_ok else R.string.settings_keys_state_none
+        ),
+        facts = listOf(
+            DetailFact(
+                stringResource(R.string.settings_keys_fact_effect),
+                stringResource(if (hasKeys) R.string.settings_keys_ok else R.string.settings_keys_none)
+            )
+        ),
+        caveat = if (rejected) stringResource(R.string.settings_keys_bad) else null
+    )
 }
 
 /**
@@ -1417,23 +1518,96 @@ private fun KeysDetail(
  */
 @Composable
 private fun ArtworkDetail(key: String, onKeyChange: (String) -> Unit) {
-    SteamGridDbMark()
-    Text(
-        stringResource(R.string.settings_artwork_body),
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
+    val context = LocalContext.current
+    val settingsStore = remember(context) { SettingsStore.get(context) }
+    val cocoon by settingsStore.cocoonFolder.collectAsState()
+
+    val cocoonPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
+    ) { uri ->
+        if (uri != null) {
+            // Read only. We look at Cocoon's pictures and never touch them, so
+            // asking for write access would be asking for something we have no
+            // use for.
+            val granted = runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+                true
+            }.getOrDefault(false)
+            if (granted) {
+                settingsStore.setCocoonFolder(uri.toString())
+                CocoonMedia.forget()
+            }
+        }
+    }
+
+    // Two sources, and they are not peers: Cocoon is artwork already on the
+    // device, chosen for these very files; the catalogue is a guess made from a
+    // filename. So the section says which one is in force, and offers the other
+    // as what it is — a fallback for whatever the first does not cover.
+    DetailNote(stringResource(R.string.settings_cocoon_body))
+
+    DetailActions {
+        if (cocoon.isBlank()) {
+            PrimaryButton(
+                label = stringResource(R.string.settings_cocoon_choose),
+                // Opened straight on Cocoon's own folder rather than wherever
+                // the picker last was. Navigating a file picker to a folder you
+                // did not choose the name of is exactly the kind of small task
+                // people abandon.
+                onClick = { cocoonPicker.launch(COCOON_DEFAULT_FOLDER) },
+                modifier = Modifier.fillMaxWidth()
+            )
+        } else {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                GhostButton(
+                    label = stringResource(R.string.settings_cocoon_change),
+                    onClick = { cocoonPicker.launch(COCOON_DEFAULT_FOLDER) }
+                )
+                GhostButton(
+                    label = stringResource(R.string.settings_cocoon_forget),
+                    onClick = {
+                        settingsStore.setCocoonFolder("")
+                        CocoonMedia.forget()
+                    }
+                )
+            }
+        }
+    }
+
+    DetailStatus(
+        tone = if (cocoon.isNotBlank() || key.isNotBlank()) DetailTone.GOOD else DetailTone.WARN,
+        headline = stringResource(
+            when {
+                cocoon.isNotBlank() -> R.string.settings_artwork_status_cocoon
+                key.isNotBlank() -> R.string.settings_artwork_status_catalogue
+                else -> R.string.settings_artwork_status_none
+            }
+        ),
+        facts = listOf(
+            DetailFact(
+                stringResource(R.string.settings_artwork_fact_fallback),
+                stringResource(
+                    if (key.isNotBlank()) R.string.settings_artwork_fallback_on
+                    else R.string.settings_artwork_fallback_off
+                )
+            )
+        )
     )
+
+    // The key lives under the state it explains: it is the fallback's setting,
+    // and it was reading as the section's main business.
+    SteamGridDbMark()
+    DetailNote(stringResource(R.string.settings_artwork_body))
     PadTextField(
         value = key,
         onValueChange = onKeyChange,
         label = stringResource(R.string.settings_artwork_field),
         modifier = Modifier.fillMaxWidth()
     )
-    Text(
-        stringResource(R.string.settings_artwork_where),
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
-    )
+    DetailNote(stringResource(R.string.settings_artwork_where))
 }
 
 private val AppLanguage.labelRes: Int

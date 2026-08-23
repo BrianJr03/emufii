@@ -54,10 +54,16 @@ val LocalAccent = staticCompositionLocalOf { AccentCuts(TrayCyan, TrayCyanDeep, 
  * than by scaling the channels is what keeps the hue: scaling drains a light
  * colour to near-black before it ever reaches the ratio.
  *
- * Two hues are deliberately absent. Coral lands on `{colors.shell-red}`, which
- * means error and destruction, and green lands on [AccentGreen], which means
- * connected: an accent that reads as a reserved meaning takes that meaning away
- * from both.
+ * Green is deliberately absent: it lands on [AccentGreen], which means
+ * connected, and an accent that reads as a reserved meaning takes that meaning
+ * away from both.
+ *
+ * Red was absent for the same reason and is now offered anyway, on the user's
+ * call (2026-08-23). It is worth knowing what that costs: the cursor then wears
+ * very nearly the colour `{colors.shell-red}` spends on errors and destructive
+ * confirmations, so on that accent "this is where you are" and "this will
+ * delete something" stop being told apart by hue alone. The red chosen here
+ * sits at a cooler hue than the shell red to keep some daylight between them.
  */
 @Composable
 fun accentCuts(accent: AppAccent): AccentCuts = when (accent) {
@@ -66,6 +72,13 @@ fun accentCuts(accent: AppAccent): AccentCuts = when (accent) {
     AppAccent.AMBER -> AccentCuts(Color(0xFFF0A62B), Color(0xFFA2690B), Color(0xFF583906))
     AppAccent.VIOLET -> AccentCuts(Color(0xFFA183F0), Color(0xFF8058EB), Color(0xFF290E71))
     AppAccent.ROSE -> AccentCuts(Color(0xFFF072B6), Color(0xFFDD1782), Color(0xFF5C0A36))
+    AppAccent.YELLOW -> AccentCuts(Color(0xFFF2CE1B), Color(0xFF887308), Color(0xFF5F5005))
+    AppAccent.RED -> AccentCuts(Color(0xFFF04747), Color(0xFFE71313), Color(0xFF2D0404))
+    // White's ink is the app's own dark ink rather than the grey the ratio
+    // rule would stop at. The rule sets a floor, not a target: mid-grey on
+    // white clears 5:1 and still reads as a disabled label, where the ink used
+    // everywhere else clears 14:1 and reads as writing.
+    AppAccent.WHITE -> AccentCuts(Color(0xFFFFFFFF), Color(0xFF757575), Color(0xFF1B2430))
 }
 
 /**

@@ -9,8 +9,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.net.toUri
 import eu.emufii.app.library.Rom
 import eu.emufii.app.settings.SettingsStore
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * What a tile has to paint itself with.
@@ -39,12 +42,37 @@ fun rememberTileArt(rom: Rom): State<TileArt> {
     val store = remember(context) { ArtworkStore(context.applicationContext) }
     val settings = remember(context) { SettingsStore.get(context) }
     val apiKey by settings.steamGridDbKey.collectAsState()
+    val cocoon by settings.cocoonFolder.collectAsState()
     val revision by ArtworkStore.revision.collectAsState()
     val state = remember(rom.uri) { mutableStateOf(TileArt(null, rom.iconFile)) }
 
-    // Restarted if the player enters their key while the grid is already on
-    // screen: the tiles then fill in without their having to go back.
-    LaunchedEffect(rom.uri, apiKey, revision) {
+    // Restarted if the player enters their key, or points us at Cocoon, while
+    // the grid is already on screen: the tiles then fill in without their
+    // having to go back.
+    LaunchedEffect(rom.uri, apiKey, cocoon, revision) {
+        // Cocoon comes before the catalogue, and only the player's own explicit
+        // choice comes before Cocoon — which `iconUrl` already honours.
+        //
+        // The order is the whole feature: this artwork sits on the device, was
+        // downloaded for this exact file, and in places was re-cropped by hand.
+        // Preferring a fresh guess from a catalogue over a picture someone
+        // already chose would be getting it backwards.
+        if (store.chosenFor(rom) == null) {
+            val local = withContext(Dispatchers.IO) {
+                runCatching {
+                    CocoonMedia.uriFor(
+                        context,
+                        cocoon.takeIf { it.isNotBlank() }?.toUri(),
+                        rom,
+                        CocoonMedia.Kind.ICON
+                    )
+                }.getOrNull()
+            }
+            if (local != null) {
+                state.value = TileArt(local.toString(), rom.iconFile)
+                return@LaunchedEffect
+            }
+        }
         val url = store.iconUrl(rom, apiKey) ?: return@LaunchedEffect
         state.value = TileArt(url, rom.iconFile)
     }

@@ -76,7 +76,7 @@ enum class AppTheme {
  * with the wallpaper has no identity.
  */
 enum class AppAccent {
-    CYAN, SYSTEM, AMBER, VIOLET, ROSE;
+    CYAN, SYSTEM, AMBER, YELLOW, RED, ROSE, VIOLET, WHITE;
 
     companion object {
         fun fromName(name: String?): AppAccent =
@@ -120,6 +120,23 @@ class SettingsStore private constructor(context: Context) {
      */
     private val _steamGridDbKey = MutableStateFlow(prefs.getString(KEY_SGDB, "").orEmpty())
     val steamGridDbKey: StateFlow<String> = _steamGridDbKey.asStateFlow()
+
+    /**
+     * The Cocoon folder, when the player has one.
+     *
+     * Cocoon Shell has already downloaded artwork for these very files, and
+     * often the player has re-cropped some of it. Pointing Emufii at that folder
+     * makes their library look here exactly as it looks there, with no key, no
+     * network and no waiting. Empty when they do not use Cocoon, which changes
+     * nothing else.
+     */
+    private val _cocoonFolder = MutableStateFlow(prefs.getString(KEY_COCOON, "").orEmpty())
+    val cocoonFolder: StateFlow<String> = _cocoonFolder.asStateFlow()
+
+    fun setCocoonFolder(uri: String) {
+        _cocoonFolder.value = uri
+        prefs.edit { putString(KEY_COCOON, uri) }
+    }
 
     /**
      * The library's layout and order.
@@ -269,6 +286,7 @@ class SettingsStore private constructor(context: Context) {
         private const val KEY_ACCENT = "accent"
         private const val KEY_ONBOARDING_DONE = "onboarding_done"
         private const val KEY_SGDB = "steamgriddb_key"
+        private const val KEY_COCOON = "cocoon_folder"
         private const val KEY_LAYOUT = "library_layout"
         private const val KEY_SORT = "library_sort"
         private const val KEY_HIDDEN_CONSOLES = "hidden_consoles"

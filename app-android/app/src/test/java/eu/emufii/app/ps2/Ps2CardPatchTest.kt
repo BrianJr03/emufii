@@ -2,6 +2,7 @@ package eu.emufii.app.ps2
 
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -188,6 +189,31 @@ class Ps2CardPatchTest {
     fun `the default console id is recovered from a card this app wrote`() {
         val card = Ps2MemoryCard.generate("Emufii", epochSecond = epoch)
         assertArrayEquals(Ps2NetcnfConfig.ARMSX2_CONSOLE_ID, Ps2CardPatch.recoverConsoleId(card))
+    }
+
+    /**
+     * The regression that cost a player their PS2 games between two launches.
+     *
+     * Emufii used to hold on to the card's checksum and call the setup gone the
+     * moment it changed. A memory card changes constantly — that is what it is
+     * for. Here the card gains a save the size of a real one after preparation,
+     * exactly as an evening of play would leave it, and the profile must still
+     * be found, and still name the same console.
+     */
+    @Test
+    fun `a game save added after preparation does not lose the profile`() {
+        val prepared = Ps2MemoryCard.generate("Emufii", consoleId = benchId, epochSecond = epoch)
+        // Copied first: `addSave` writes into the array it is given, where
+        // `inject` hands back a clone. Comparing the two without this compares
+        // an array against itself and proves nothing.
+        val played = Ps2CardPatch.addSave(
+            prepared.copyOf(),
+            "BASLUS-21355MC3",
+            listOf("icon.sys" to ByteArray(964) { 7 }, "mc3.dat" to ByteArray(140_000) { 3 }),
+            epochSecond = epoch
+        )
+        assertFalse(prepared.contentEquals(played))
+        assertArrayEquals(benchId, Ps2CardPatch.recoverConsoleId(played))
     }
 
     @Test

@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -105,17 +106,37 @@ fun ThemeDialog(
             modifier = Modifier.padding(top = 6.dp)
         )
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            AppAccent.entries.forEach { option ->
-                AccentBead(
-                    cuts = accentCuts(option),
-                    selected = option == accent,
-                    onClick = { onAccent(option) }
-                )
+        // The same four columns as the theme swatches above, and that is the
+        // whole point of laying it out by hand.
+        //
+        // Eight beads do not fit across the panel, so they wrap; left to
+        // themselves they wrapped seven plus an orphan, hard against the left
+        // edge, under a row of swatches that spans the full width. Two rows of
+        // four, each bead centred in its quarter, puts every bead on a column
+        // the eye has already learned one section higher, and lets the caption
+        // underneath sit centred on something rather than beside it.
+        AppAccent.entries.chunked(4).forEach { row ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                row.forEach { option ->
+                    Box(
+                        modifier = Modifier.weight(1f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        AccentBead(
+                            cuts = accentCuts(option),
+                            selected = option == accent,
+                            onClick = { onAccent(option) }
+                        )
+                    }
+                }
+                // A last row with fewer beads keeps its columns instead of
+                // spreading: the grid has to survive a ninth accent being added
+                // one day, and a half-row that re-centres itself looks like a
+                // different layout.
+                repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
             }
         }
 
@@ -349,4 +370,7 @@ internal val AppAccent.labelRes: Int
         AppAccent.AMBER -> R.string.settings_accent_amber
         AppAccent.VIOLET -> R.string.settings_accent_violet
         AppAccent.ROSE -> R.string.settings_accent_rose
+        AppAccent.YELLOW -> R.string.settings_accent_yellow
+        AppAccent.RED -> R.string.settings_accent_red
+        AppAccent.WHITE -> R.string.settings_accent_white
     }

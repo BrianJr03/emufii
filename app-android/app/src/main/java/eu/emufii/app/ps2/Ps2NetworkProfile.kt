@@ -99,7 +99,6 @@ object Ps2NetworkProfile {
             context,
             receipt.rootUri.toUri(),
             receipt.cardName,
-            receipt.cardSha256,
             receipt.consoleIdHex,
         )
     }

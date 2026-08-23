@@ -47,11 +47,32 @@ object Ps2Armsx2Folder {
     }
 
     /** Re-check the public mirror so a later manual slot change revokes readiness. */
+    /**
+     * Is the prepared card still the one in Slot 1, and does it still carry our
+     * profile?
+     *
+     * **This deliberately does not compare the card byte for byte.** It did, and
+     * that was wrong in a way that only shows up in use: a memory card is a live
+     * disk. The moment a game saves — or ARMSX2 merely mounts it — its bytes
+     * change, the checksum stops matching, and the player is told their setup is
+     * gone while their card sits there, perfectly good, in the right slot. It
+     * cost a player their PS2 games between two launches of the app.
+     *
+     * What actually has to hold is narrower and survives normal play:
+     *
+     *  - Slot 1 is still enabled and still names this card;
+     *  - the card is still there;
+     *  - the network configuration is still on it, and reading it back yields
+     *    the console id it was written for. That last part is the real proof:
+     *    the save is encrypted per console, so recovering the right id from it
+     *    means both that our profile is present and that it belongs here.
+     *
+     * New saves alongside it are none of our business, which is the point.
+     */
     fun isStillValid(
         context: Context,
         rootUri: Uri,
         cardName: String,
-        expectedSha256: String,
         expectedConsoleIdHex: String,
     ): Boolean = runCatching {
         val root = DocumentFile.fromTreeUri(context, rootUri)?.takeIf { it.isDirectory }
@@ -61,7 +82,8 @@ object Ps2Armsx2Folder {
             !loaded.settings.slot1Filename.equals(cardName, ignoreCase = true)
         ) return false
         val card = root.child("memcards")?.child(cardName)?.takeIf { it.isFile } ?: return false
-        if (!sha256(context, card).equals(expectedSha256, ignoreCase = true)) return false
+        val onCard = Ps2CardPatch.recoverConsoleId(readBytes(context, card)) ?: return false
+        if (!onCard.toHex().equals(expectedConsoleIdHex, ignoreCase = true)) return false
         val identity = resolveIdentity(context, root, loaded.biosSetting) as? IdentityResult.Found ?: return false
         identity.consoleId.toHex().equals(expectedConsoleIdHex, ignoreCase = true)
     }.getOrDefault(false)
