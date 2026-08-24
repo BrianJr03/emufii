@@ -65,7 +65,7 @@ sealed interface AddFriendResult {
  * The consequence to be honest about: this list does not follow the user to a
  * new phone.
  */
-class FriendStore(context: Context) {
+class FriendStore private constructor(context: Context) {
 
     private val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
@@ -129,11 +129,30 @@ class FriendStore(context: Context) {
 
     fun clear() = persist(emptyList())
 
-    private companion object {
-        const val PREFS = "emufii_friends"
-        const val KEY_LIST = "list"
-        const val FIELD_CODE = "code"
-        const val FIELD_NAME = "name"
-        const val FIELD_ADDED_AT = "added_at"
+    companion object {
+        /**
+         * One instance for the process, and it was a bug that made it so.
+         *
+         * The list lives in shared preferences, which every instance sees; the
+         * `StateFlow` in front of it does not. A second store built by the
+         * presence watcher wrote a friend's freshly learnt name to disk, and the
+         * screen went on showing the code until the app was restarted, because
+         * its own flow had never heard about it. Measured on the Thor, 24 August:
+         * the notification said "Testeur" while the list still said
+         * `EMVF-11TE-ST0S`.
+         */
+        @Volatile
+        private var instance: FriendStore? = null
+
+        fun get(context: Context): FriendStore =
+            instance ?: synchronized(this) {
+                instance ?: FriendStore(context.applicationContext).also { instance = it }
+            }
+
+        private const val PREFS = "emufii_friends"
+        private const val KEY_LIST = "list"
+        private const val FIELD_CODE = "code"
+        private const val FIELD_NAME = "name"
+        private const val FIELD_ADDED_AT = "added_at"
     }
 }

@@ -44,22 +44,12 @@ import eu.emufii.app.ui.CONFIRM_KEYS
 import eu.emufii.app.ui.controlRing
 
 /**
- * A text field that waits to be asked before opening.
+ * A text field that waits to be asked before opening: **the field is not a step
+ * in the traversal, its frame is**. A field taking focus opens the keyboard, so
+ * merely passing over one used to swallow the screen.
  *
- * The flaw is Compose's and not ours: an `OutlinedTextField` that takes focus
- * opens the soft keyboard. With a gamepad, where focus moves by traversing the
- * screen, merely *passing over* a field was enough for the keyboard to spring
- * up, cover the page and capture the directions; you were no longer traversing
- * a settings screen, you were falling into it.
- *
- * Here the field is not a step in the traversal: its frame is. The frame
- * announces itself with the usual green ring, and A, or a finger, goes into the
- * field. B comes back out and returns focus to the frame, so you carry on from
- * where you were instead of dropping back to the start of the screen.
- *
- * `canFocus` is denied to the field while not editing, and that is what really
- * keeps it out of the traversal: merely making it non-clickable would have left
- * it catching focus from a direction.
+ * `canFocus` is denied while not editing — non-clickable is not enough.
+ * pourquoi : docs/decisions/coquille-ecrans.md § Un champ de texte ne doit pas être un arrêt du curseur
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -102,15 +92,9 @@ fun PadTextField(
         runCatching { frame.requestFocus() }
     }
 
-    // The keyboard swallows the first B, and the `BackHandler` above never sees
-    // it, measured on the Thor: one press closed the keyboard while leaving the
-    // field open and ringless, and a second was needed to get out. So it is the
-    // keyboard's disappearance, and not the key, that ends the edit; the
-    // `BackHandler` stays for the case where the keyboard is not there (a gamepad
-    // with a physical keyboard, a hidden IME).
-    //
-    // [opened] exists because the keyboard is not visible yet at the instant we
-    // enter the field: without it, the edit would close as soon as it opened.
+    // The keyboard's disappearance ends the edit, not the key: the keyboard
+    // swallows the first B. [opened] covers the instant before it is visible.
+    // pourquoi : docs/decisions/coquille-ecrans.md § C'est la disparition du clavier qui termine l'édition, pas la touche
     val imeVisible = WindowInsets.isImeVisible
     var opened by remember { mutableStateOf(false) }
     LaunchedEffect(editing, imeVisible) {
@@ -127,29 +111,10 @@ fun PadTextField(
     Column(modifier = modifier) {
         Box(
             modifier = Modifier
-                // The ring *is* the field's outline while the cursor is here,
-                // and that is the only arrangement that holds.
-                //
-                // Two earlier tries both failed on the Thor, and measuring them
-                // is what settled it. Drawing the ring on the same bounds put its
-                // stroke on top of the field's own outline, two lines slightly
-                // out of register. Insetting the field and widening the ring's
-                // radius to match was meant to make them concentric, and did not:
-                // measured at 4x, the gap was 4 dp at the sides and 11 dp at the
-                // top, because `OutlinedTextField` does not fill the frame it is
-                // given. No radius makes two curves parallel when the space
-                // between them is not even to begin with.
-                //
-                // So the field's own border goes transparent under the cursor and
-                // the ring takes its place, on the field's exact bounds and
-                // shape. One outline at a time: there is nothing left to align.
-                //
-                // Before the `focusable`, and the order is everything. The ring
-                // reads focus through `onFocusEvent`, which only sees the nodes
-                // below it in the chain: placed after, it never saw the frame's
-                // focus and stayed dark while the cursor was very much there, the
-                // field scrolling to the centre of the screen without displaying
-                // anything, which reads as a vanished cursor.
+                // The ring *is* the field's outline here: one outline at a
+                // time, so there is nothing left to align. Placed BEFORE the
+                // `focusable`, or it never sees the frame's focus.
+                // pourquoi : docs/decisions/coquille-ecrans.md § L'anneau *est* le contour du champ, et c'est le seul arrangement qui tienne
                 .controlRing(shape, enabled = !editing)
                 .focusRequester(frame)
                 .focusable(interactionSource = interaction)
@@ -198,19 +163,9 @@ fun PadTextField(
                     .onFocusChanged { if (editing && !it.isFocused) editing = false }
             )
 
-            // The finger did not reach the frame, and that is what stopped the
-            // keyboard opening on touch. Reported on the onboarding screen, it is
-            // true everywhere this field is used.
-            //
-            // The detection sat on the frame, below the field. But Compose tests
-            // the children first, and `BasicTextField` installs its own pointer
-            // handler to place the caret: it consumed the tap, then requested a
-            // focus that `canFocus = false` refused. The gesture therefore
-            // vanished between the two, with nothing moving on screen.
-            //
-            // This surface is drawn after the field, hence touched before it. It
-            // only exists outside editing: once inside, the field has to get the
-            // taps back so its caret can be placed.
+            // Drawn after the field, hence touched before it: Compose tests
+            // children first, and the field consumed taps it then refused.
+            // pourquoi : docs/decisions/coquille-ecrans.md § Le doigt n'atteignait pas le cadre
             if (!editing) {
                 Box(
                     modifier = Modifier

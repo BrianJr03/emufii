@@ -12,33 +12,23 @@ import eu.emufii.app.netplay.NetplayLabels
 
 /**
  * Fills Dolphin's Netplay Setup screen with the address Emufii already knows.
- *
- * Separate from the Azahar/Eden walk on purpose, see [DolphinTarget] for why
- * the two cannot share a code path. The accessibility service owns the events
- * and hands them here; this class touches none of the other backends' state, so
- * a Dolphin build that changes shape cannot break a 3DS or a Switch session.
- *
- * Best-effort, like its sibling: when the screen stops reading the way it did on
- * 2606-302, it stops and says what to type rather than clicking at random.
+ * Separate from the Azahar/Eden walk on purpose, so a Dolphin change cannot
+ * break a 3DS or Switch session. Best-effort, like its sibling.
+ * pourquoi : docs/decisions/pilotes-emulateurs.md § Lire un formulaire Compose sans un seul identifiant
  */
 class DolphinNetplayDriver(
     private val context: Context,
     /**
      * Called once the flow is over. True when the room was actually joined or
-     * opened, the service clears its stored plan either way, and only brings
-     * Emufii back to the front on a success.
+     * opened; the plan is cleared either way.
      */
     private val onFinished: (success: Boolean) -> Unit
 ) {
 
     /**
-     * Resolved labels, per string name.
-     *
-     * [NetplayLabels.of] costs about thirty string lookups: it resolves the same
-     * resource in every locale Dolphin might be running in, because there is no
-     * way to ask which one it is actually using. Six labels, re-read on each of
-     * the six re-looks per screen, would be a thousand lookups to fill one form.
-     * They cannot change while the emulator runs, so they are read once.
+     * Resolved labels, read once: each costs ~30 lookups across every locale
+     * Dolphin might run in, and they cannot change while it runs.
+     * pourquoi : docs/decisions/pilotes-emulateurs.md § Les libellés sont résolus une fois
      */
     private val labels = HashMap<String, List<String>>()
 
@@ -74,26 +64,15 @@ class DolphinNetplayDriver(
         // Work backwards, furthest-along screen first, so we never re-open
         // something we have already left.
 
-        // 4. The lobby is open: the connection succeeded and all that is left is
-        //    to say what we are playing.
-        //
-        //    Comes before everything else because it is the last screen; the form
+        // 4. The lobby is open. FIRST because it is the last screen: the form
         //    is behind us and must not be touched again.
+        //    pourquoi : docs/decisions/pilotes-emulateurs.md § L'ordre des écrans, et les deux pièges qu'il évite
         val gameField = DolphinScreen.fieldFor(nodes, labelsFor(pkg, DolphinTarget.LABEL_GAME))
         if (gameField != null) return settleLobby(gameField, plan)
 
-        // 3b. The game list is open, and we are the ones who opened it.
-        //
-        //     Distinct from the connection-type list, which is recognised by its
-        //     two known entries; this one holds nothing but game titles, which
-        //     only the plan makes recognisable.
-        //
-        //     `lobbyClicks > 0` is not a detail: without it this step fires on
-        //     Dolphin's start-up grid, which has no more of a text field than the
-        //     lobby list does and shows the same titles. The driver then launched
-        //     the game on the very first pass, instead of opening netplay. The
-        //     lobby list, on the other hand, only exists because [settleLobby]
-        //     has just clicked the field.
+        // 3b. The game list, and `lobbyClicks > 0` is NOT a detail: without it
+        //     this fires on Dolphin's start-up grid and launches the game.
+        //     pourquoi : docs/decisions/pilotes-emulateurs.md § L'ordre des écrans, et les deux pièges qu'il évite
         val wantedGame = plan.preferredGame
         if (wantedGame != null && lobbyClicks > 0 && nodes.none { it.isField }) {
             DolphinScreen.looseOption(nodes, wantedGame)?.let {
@@ -102,15 +81,9 @@ class DolphinNetplayDriver(
             }
         }
 
-        // 3. The connection-type dropdown is open, we opened it, so take
-        //    Direct connection.
-        //
-        //    Traversal would route the session through Dolphin's own STUN server
-        //    at stun.dolphin-emu.org, which is the one thing this app exists to
-        //    make unnecessary: both players are already on the same WireGuard
-        //    network and the host answers at a plain address. It would also take
-        //    the port field away, that field only exists in direct mode, so
-        //    there would be nothing left to point anywhere.
+        // 3. Direct connection, never Traversal: it would route through
+        //    Dolphin's STUN server and remove the port field entirely.
+        //    pourquoi : docs/decisions/pilotes-emulateurs.md § L'ordre des écrans, et les deux pièges qu'il évite
         if (DolphinScreen.isDropdownOpen(nodes, direct, traversal)) {
             val option = DolphinScreen.option(nodes, direct)
             if (option == null) {
@@ -127,26 +100,17 @@ class DolphinNetplayDriver(
             return fillForm(nodes, pkg, plan, direct)
         }
 
-        // Below here we are walking the player towards a screen they did not ask
-        // for, so it is capped: an armed plan that never arrives must not keep
-        // re-opening the overflow menu under the player's thumb.
-        // Reaching the ceiling is *the* moment this driver gives up silently: it
-        // clicked, the screen did not change as expected, and it hands back
-        // without telling the player anything. That is exactly the instant to
-        // photograph; any earlier and we would capture the grid before the menu
-        // opened, which proves nothing.
+        // Capped below here: we are walking the player towards a screen they
+        // did not ask for. The ceiling is the moment to photograph.
+        // pourquoi : docs/decisions/pilotes-emulateurs.md § Le plafond de navigation est le moment à photographier
         if (navClicks >= MAX_NAV_CLICKS) {
             DolphinTreeDump.capture(context, pkg, nodes, "plafond de $MAX_NAV_CLICKS clics de navigation atteint")
             return false
         }
 
-        // 1. The overflow menu is open → take its Netplay row.
-        //
-        //    By text, not by id. The menu resource names the item `menu_netplay`,
-        //    but appcompat renders every row's title into a view that carries
-        //    `id/title`, so the item id never reaches the accessibility tree and
-        //    looking it up matched nothing, silently. The rows are only told
-        //    apart by their text, exactly like Azahar's settings cards.
+        // 1. Netplay row, by TEXT not by id: appcompat renders titles into a
+        //    view carrying `id/title`, so the item id never reaches the tree.
+        //    pourquoi : docs/decisions/pilotes-emulateurs.md § Le bouton de débordement se trouve par sa forme
         DolphinScreen.option(nodes, labelsFor(pkg, DolphinTarget.LABEL_MENU_NETPLAY))?.let {
             Log.d(TAG, "opening netplay from the grid menu")
             NetplayAutomation.report(NetplayProgress.OpeningMenu)
@@ -168,12 +132,9 @@ class DolphinNetplayDriver(
     }
 
     /**
-     * The lobby is reached: we set the game there, then hand back.
-     *
-     * We never click "Start". Starting the game is the host's decision, not
-     * ours: the guest may not be ready, and a game started under the player's
-     * thumb is exactly the kind of initiative this driver forbids itself
-     * everywhere else.
+     * The lobby is reached: set the game, then hand back. **Never click
+     * "Start"** — that is the host's decision, not ours.
+     * pourquoi : docs/decisions/pilotes-emulateurs.md § L'ordre des écrans, et les deux pièges qu'il évite
      */
     private fun settleLobby(gameField: Node, plan: NetplayPlan): Boolean {
         val wanted = plan.preferredGame
@@ -239,11 +200,9 @@ class DolphinNetplayDriver(
             return tab.live.click()
         }
 
-        // Connection type next, before anything is typed. Switching it rebuilds
-        // the form, the port field appears and disappears with it, and a value
-        // written into a field that is about to be recreated is lost. It is also
-        // a single shared setting behind the two tabs, so it is set once for
-        // both roles, not once per side.
+        // Connection type BEFORE anything is typed: switching it rebuilds the
+        // form. One shared setting behind both tabs, so set once.
+        // pourquoi : docs/decisions/pilotes-emulateurs.md § L'ordre des écrans, et les deux pièges qu'il évite
         val typeField = DolphinScreen.fieldFor(
             nodes,
             labelsFor(pkg, DolphinTarget.LABEL_CONNECTION_TYPE)
@@ -300,14 +259,9 @@ class DolphinNetplayDriver(
             giveUp(plan, R.string.netplay_fields_filled)
             return true
         }
-        // And above all no `Done` here.
-        //
-        // A validated form is no longer the end of the route: the lobby opens
-        // behind it, and the game still has to be set there. But `report(Done)`
-        // clears the plan, that being its whole purpose, so declaring victory
-        // here would disarm the driver just before the screen it still has to
-        // handle, and the game selector would stay on the device's last choice.
-        // [settleLobby] is what concludes, once the lobby has been seen.
+        // And above all NO `Done` here: it clears the plan, which would disarm
+        // the driver just before the lobby it still has to handle.
+        // pourquoi : docs/decisions/pilotes-emulateurs.md § L'ordre des écrans, et les deux pièges qu'il évite
         Log.d(TAG, "formulaire validé, en attente du salon")
         return true
     }
@@ -389,12 +343,9 @@ class DolphinNetplayDriver(
     }
 
     /**
-     * Types [value] into the field.
-     *
-     * Not named `setText`: `AccessibilityNodeInfo` has a member of that name,
-     * and in Kotlin a member always beats an extension, which is how the
-     * Azahar side spent months calling the platform setter, and throwing, on
-     * every single field.
+     * Types [value] into the field. **Not named `setText`** — a member beats an
+     * extension in Kotlin, which cost the Azahar side months.
+     * pourquoi : docs/decisions/pilotes-emulateurs.md § `typeText` et non `setText` : un an de test vert qui ne prouvait rien
      */
     private fun AccessibilityNodeInfo.fillText(value: String): Boolean {
         val args = Bundle().apply {

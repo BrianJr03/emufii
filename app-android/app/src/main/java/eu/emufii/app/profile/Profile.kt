@@ -12,17 +12,10 @@ import java.io.File
 import kotlin.math.abs
 
 /**
- * Who you are to the other players.
- *
- * [id] is a stable random identifier, not derived from anything about the
- * device: it's what the coordinator counts presence by, so it has to survive a
- * rename but must not identify the person beyond this app.
- *
- * It doubles as the friend code you hand out (see [FriendCode]), which is why
- * it is short enough to read aloud. That is deliberate: with the code carrying
- * the identity, adding a friend needs no server-side directory. It also means
- * the id is public by design, it always was, in practice, since it travels
- * with every session as the host or member id.
+ * Who you are to the other players. [id] is a stable random identifier that
+ * doubles as the friend code, and is therefore **public by design** — which is
+ * what lets adding a friend need no server-side directory.
+ * pourquoi : docs/decisions/identite-et-dumps.md § Le code d'ami *est* l'identité, et il est public par conception
  */
 data class Profile(
     val id: String,
@@ -37,44 +30,27 @@ data class Profile(
 
     companion object {
         /**
-         * The pseudo of someone who never picked one. Stored as-is and sent over
-         * the wire, so it stays a fixed sentinel rather than a resource: it is
-         * what [isNamed] compares against, and it is already persisted on
-         * devices. Translating it happens at the point of display, see
-         * [playerDisplayName], which also gets the other player's placeholder
-         * name read in *your* language.
+         * The pseudo of someone who never picked one: a **fixed sentinel**,
+         * never a resource, translated only at the point of display.
+         * pourquoi : docs/decisions/identite-et-dumps.md § Le pseudo est contraint là où il est saisi
          */
         const val DEFAULT_NAME = "Joueur"
         const val MAX_NAME_LENGTH = 20
 
         /**
-         * Azahar's netplay form rejects a pseudo shorter than this, "Invalid
-         * address or name is too short!", and Emufii sends the profile name
-         * straight into it. Enforced where the name is *entered*, so the value
-         * on disk is always usable, rather than patched at the point of use.
-         *
-         * Observed on the device, not read from a constant: the validator lives
-         * in Azahar's DEX and its message doesn't carry the number. [DEFAULT_NAME]
-         * clears it, so a profile that was never named stays valid.
+         * Azahar's netplay form rejects a pseudo shorter than this. Enforced
+         * where the name is *entered*, and **observed on the device** — the
+         * validator lives in Azahar's DEX and its message omits the number.
+         * pourquoi : docs/decisions/identite-et-dumps.md § Le pseudo est contraint là où il est saisi
          */
         const val MIN_NAME_LENGTH = 4
     }
 }
 
 /**
- * Local store. There is no account and no server-side profile: the pseudo
- * travels with each session as a plain string, and the picture never leaves the
- * device.
- *
- * Other players are therefore drawn with [avatarPaletteFor], initials on a
- * colour derived from their name, rather than a picture we'd have to host,
- * moderate and pay for. Uploading real avatars is a product decision, not a
- * missing feature.
- *
- * The identity is durable but device-bound: it lives here and nowhere else, so
- * a reinstall is a new person to your friends. Restoring one across devices
- * would take a recovery secret and somewhere to put it, which is exactly the
- * hosted account this design avoids.
+ * Local store: no account, no server-side profile, and the picture never leaves
+ * the device. Durable but **device-bound** — a reinstall is a new person.
+ * pourquoi : docs/decisions/identite-et-dumps.md § Le code d'ami *est* l'identité, et il est public par conception
  */
 class ProfileStore(context: Context) {
 
@@ -100,11 +76,9 @@ class ProfileStore(context: Context) {
     }
 
     /**
-     * A name below [Profile.MIN_NAME_LENGTH] is stored as [Profile.DEFAULT_NAME]
-     * rather than as typed. The UI refuses it first, with an error the user can
-     * act on; this is the backstop that keeps the invariant true for callers
-     * that don't go through a form, nothing downstream should have to wonder
-     * whether the stored pseudo is one the emulator will accept.
+     * The backstop for callers that do not go through a form: nothing
+     * downstream should wonder whether the stored pseudo is acceptable.
+     * pourquoi : docs/decisions/identite-et-dumps.md § Le pseudo est contraint là où il est saisi
      */
     fun setName(name: String) {
         val trimmed = name.trim()
@@ -115,15 +89,9 @@ class ProfileStore(context: Context) {
     }
 
     /**
-     * Copies the picked image into our own storage, downscaled.
-     *
-     * Two reasons not to keep the original. The SAF grant from the picker isn't
-     * persisted, so holding the Uri would leave a broken avatar after a
-     * restart. And a modern phone photo is 50 megapixels, decoding one whole
-     * to draw a 40dp circle is how an app gets killed for memory.
-     *
-     * [BitmapFactory.Options.inSampleSize] means the full image is never
-     * decoded in the first place: the decoder subsamples as it reads.
+     * Copies the picked image into our own storage, downscaled: the picker's
+     * SAF grant is not persisted, and a phone photo is 50 megapixels.
+     * pourquoi : docs/decisions/identite-et-dumps.md § L'avatar est recopié, jamais référencé
      */
     fun setAvatar(source: Uri): Result<Unit> = runCatching {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
@@ -162,13 +130,9 @@ class ProfileStore(context: Context) {
     }
 
     /**
-     * Erase this identity and start over with a fresh one.
-     *
-     * The new code is unrelated to the old, so anyone who kept the previous one
-     * can no longer see you, which is the point, and the only way out if a
-     * code ends up somewhere you did not intend. It also cuts you off from your
-     * own friends list, so the caller is expected to clear that too and to ask
-     * first.
+     * Erase this identity and start over. The new code is unrelated, which is
+     * the point — and it also cuts you off from your own friends list.
+     * pourquoi : docs/decisions/identite-et-dumps.md § Le code d'ami *est* l'identité, et il est public par conception
      */
     fun reset() {
         avatarTarget.delete()

@@ -23,7 +23,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -48,7 +47,6 @@ import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import eu.emufii.app.R
 import eu.emufii.app.profile.playerDisplayName
-import eu.emufii.app.network.CoordinatorClient
 import eu.emufii.app.profile.AddFriendResult
 import eu.emufii.app.profile.Friend
 import eu.emufii.app.profile.FriendStatus
@@ -67,28 +65,30 @@ import eu.emufii.app.ui.components.padEntry
 import eu.emufii.app.ui.copyToClipboard
 import eu.emufii.app.ui.theme.LocalEmufiiDarkTheme
 import eu.emufii.app.ui.theme.ShellRed
-import kotlinx.coroutines.delay
 
 /**
  * Your friends, and what they're playing.
  *
- * Like the finder, this polls: the answer is a handful of rows and it only
- * matters while the screen is up. Unlike the finder, it asks about specific
- * codes, there is no browsing here, because the coordinator holds no list of
- * who knows whom. Everything social about this feature lives on the device.
+ * The screen draws, it no longer asks: presence is polled once for the whole
+ * app by [eu.emufii.app.notify.FriendWatcher], because a friend appearing is
+ * worth knowing about from the library too, and because two pollers would have
+ * announced the same arrival twice.
+ *
+ * There is no browsing here, only specific codes, because the coordinator holds
+ * no list of who knows whom. Everything social about this feature lives on the
+ * device.
  */
 @Composable
 fun FriendsScreen(
     profile: Profile,
     friendStore: FriendStore,
-    client: CoordinatorClient,
+    statuses: Map<String, FriendStatus>,
     onJoin: (code: String, romTitleId: String?, romTitle: String?) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val friends by friendStore.friends.collectAsState()
-    var statuses by remember { mutableStateOf<Map<String, FriendStatus>>(emptyMap()) }
     var input by remember { mutableStateOf("") }
     var addError by remember { mutableStateOf<String?>(null) }
     var pendingRemoval by remember { mutableStateOf<Friend?>(null) }
@@ -96,31 +96,6 @@ fun FriendsScreen(
     val invalidMessage = stringResource(R.string.friends_error_invalid)
     val duplicateMessage = stringResource(R.string.friends_error_duplicate)
     val selfMessage = stringResource(R.string.friends_error_self)
-
-    // Keyed on the codes themselves: adding or removing a friend restarts the
-    // poll straight away, so a new row isn't stuck on "offline" for a full
-    // cycle while the answer is already known.
-    val codes = friends.map { it.code }
-    LaunchedEffect(codes) {
-        while (true) {
-            client.friendStatuses(codes).onSuccess { fresh ->
-                statuses = codes.associateWith { code ->
-                    fresh[code]?.let { p ->
-                        FriendStatus(
-                            online = true,
-                            sessionCode = p.sessionCode,
-                            romTitle = p.romTitle,
-                            romTitleId = p.romTitleId,
-                            players = p.players,
-                            ready = p.ready
-                        )
-                    } ?: FriendStatus.Offline
-                }
-                friendStore.noteNames(fresh.mapNotNull { (c, p) -> p.name?.let { c to it } }.toMap())
-            }
-            delay(REFRESH_MS)
-        }
-    }
 
     val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
@@ -537,4 +512,3 @@ private fun EmptyFriends(compact: Boolean = false) {
 
 private val DANGER = ShellRed
 
-private const val REFRESH_MS = 5000L

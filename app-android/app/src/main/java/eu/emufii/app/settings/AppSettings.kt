@@ -12,10 +12,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * Which language the app speaks.
- *
- * [SYSTEM] means "whatever the phone is set to", which is the right default:
- * an app that ignores the system language is an app that argues with its user.
+ * Which language the app speaks. [SYSTEM] is the right default.
+ * pourquoi : docs/decisions/reglages-et-consoles.md § Suivre le téléphone est le bon défaut, sauf pour l'accent
  */
 enum class AppLanguage(val tag: String?) {
     SYSTEM(null),
@@ -28,19 +26,9 @@ enum class AppLanguage(val tag: String?) {
 }
 
 /**
- * Light or dark, or whatever the phone says.
- *
- * [SYSTEM] stays the default for the same reason as the language: an app that
- * ignores the phone's setting argues with its user. The others exist because
- * the phone's setting is often a schedule, and someone reading in bed should not
- * have to change it device-wide to get a dark game library.
- *
- * [OLED] is a dark, not a third universe. The handheld screens we target are
- * OLED: a black pixel there is a pixel switched off, so the dark theme's bluish
- * background draws power where it could cost nothing, and leaves a grey halo in
- * the dark. It changes only the background and the cards' fill; everything that
- * reads [isDark] goes on seeing dark, which avoids rejudging 44 components for a
- * setting that only talks about brightness.
+ * Light or dark, or whatever the phone says. [OLED] is a *dark*, not a third
+ * universe: everything reading [isDark] goes on seeing dark.
+ * pourquoi : docs/decisions/reglages-et-consoles.md § L'OLED est un sombre, pas un troisième univers
  */
 enum class AppTheme {
     SYSTEM, LIGHT, DARK, OLED;
@@ -62,18 +50,9 @@ enum class AppTheme {
 }
 
 /**
- * Which colour the accent is.
- *
- * The world's rule is that there is exactly *one* accent, spent on the cursor
- * and on the main action, and that every other colour on screen comes from the
- * box art. This setting does not touch that rule: it says which hue plays the
- * part, not how many are on screen at once.
- *
- * [SYSTEM] follows the colour Android extracted from the wallpaper, the way the
- * language and the theme follow the phone. It is not the default, though, and
- * that is the one place this setting departs from the other two: the cursor's
- * cyan is the app's own signature, and a handheld menu that changes identity
- * with the wallpaper has no identity.
+ * Which colour the accent is — which hue plays the part, never how many are on
+ * screen. [SYSTEM] exists but is deliberately **not** the default.
+ * pourquoi : docs/decisions/reglages-et-consoles.md § Suivre le téléphone est le bon défaut, sauf pour l'accent
  */
 enum class AppAccent {
     CYAN, SYSTEM, AMBER, YELLOW, RED, ROSE, VIOLET, WHITE;
@@ -85,14 +64,9 @@ enum class AppAccent {
 }
 
 /**
- * App-wide preferences. Small on purpose, a settings screen full of switches
- * nobody asked for is worse than no settings screen.
- *
- * The language is applied through the platform's per-app language API rather
- * than by juggling a `Configuration` ourselves. minSdk is 33, so it is simply
- * there: Android remembers the choice across launches, shows it in the system
- * app settings alongside every other app, and recreates the activity so the new
- * strings take effect immediately.
+ * App-wide preferences. Small on purpose. The language goes through the
+ * platform's per-app API, never a hand-juggled `Configuration`.
+ * pourquoi : docs/decisions/reglages-et-consoles.md § La langue passe par la plateforme, le thème ne peut pas
  */
 class SettingsStore private constructor(context: Context) {
 
@@ -109,26 +83,17 @@ class SettingsStore private constructor(context: Context) {
     val accent: StateFlow<AppAccent> = _accent.asStateFlow()
 
     /**
-     * The player's SteamGridDB key, which unlocks high-resolution game icons.
-     * Empty until they have given one: the library then keeps the ROMs' icons,
-     * which are 32 or 48 pixels a side.
-     *
-     * Every player brings their own, and that is the point of this setting. A key
-     * frozen into the APK would be the same for everybody: extractable by opening
-     * the package, and it would be the author's account carrying the quota and
-     * the abuse of the entire installed base.
+     * The player's SteamGridDB key. Every player brings their own — a key frozen
+     * into the APK is extractable and carries the whole fleet's quota.
+     * pourquoi : docs/decisions/reglages-et-consoles.md § Chaque joueur apporte sa propre clé
      */
     private val _steamGridDbKey = MutableStateFlow(prefs.getString(KEY_SGDB, "").orEmpty())
     val steamGridDbKey: StateFlow<String> = _steamGridDbKey.asStateFlow()
 
     /**
-     * The Cocoon folder, when the player has one.
-     *
-     * Cocoon Shell has already downloaded artwork for these very files, and
-     * often the player has re-cropped some of it. Pointing Emufii at that folder
-     * makes their library look here exactly as it looks there, with no key, no
-     * network and no waiting. Empty when they do not use Cocoon, which changes
-     * nothing else.
+     * The Cocoon folder, when the player has one: their library then looks here
+     * exactly as it looks there, with no key and no network.
+     * pourquoi : docs/decisions/reglages-et-consoles.md § Chaque joueur apporte sa propre clé
      */
     private val _cocoonFolder = MutableStateFlow(prefs.getString(KEY_COCOON, "").orEmpty())
     val cocoonFolder: StateFlow<String> = _cocoonFolder.asStateFlow()
@@ -139,13 +104,9 @@ class SettingsStore private constructor(context: Context) {
     }
 
     /**
-     * The library's layout and order.
-     *
-     * Kept here rather than in the screen: this is a choice made once and
-     * expected to still be there, and losing it on every return from a session
-     * screen would be taken for a bug. An unknown value, a setting written by a
-     * newer version and then downgraded, falls back to the default instead of
-     * bringing the launch down.
+     * The library's layout and order, kept here rather than in the screen. An
+     * unknown value falls back to the default instead of failing the launch.
+     * pourquoi : docs/decisions/reglages-et-consoles.md § Ce qui est stocké, c'est ce qui est refusé
      */
     private val _libraryLayout = MutableStateFlow(
         LibraryLayout.entries.firstOrNull { it.name == prefs.getString(KEY_LAYOUT, null) }
@@ -170,18 +131,9 @@ class SettingsStore private constructor(context: Context) {
     }
 
     /**
-     * The consoles the player asked *not* to see in the library.
-     *
-     * Stored as what is hidden, never as what is shown, and that is the load
-     * bearing choice. A library holding only 3DS dumps would, under the other
-     * shape, have five consoles ticked off at install time and would silently
-     * hide a console added in a later version: the stored set would simply not
-     * mention it. Recording refusals means anything new arrives visible, which
-     * is the only default that cannot lose a game.
-     *
-     * A name that no enum answers to is dropped on read. That happens after a
-     * downgrade, or if a console is ever retired, and the game reappearing is a
-     * far better failure than a grid quietly missing a machine.
+     * The consoles the player asked *not* to see. **Stored as what is hidden,
+     * never as what is shown** — the only default that cannot lose a game.
+     * pourquoi : docs/decisions/reglages-et-consoles.md § Ce qui est stocké, c'est ce qui est refusé
      */
     private val _hiddenConsoles = MutableStateFlow(readHiddenConsoles())
     val hiddenConsoles: StateFlow<Set<Console>> = _hiddenConsoles.asStateFlow()
@@ -202,18 +154,9 @@ class SettingsStore private constructor(context: Context) {
     }
 
     /**
-     * Whether the second display, when the device has one, carries the panel.
-     *
-     * On by default: a player whose handheld has a rear screen bought it to be
-     * used, and a feature nobody finds in a settings page is a feature nobody
-     * has. It is a switch and not a silent behaviour because the panel is
-     * always lit while a session runs, and someone playing in the dark or
-     * counting battery is entitled to turn it off.
-     *
-     * The setting is stored on every device, including those with no second
-     * display: it costs one boolean, and it means a player who moves their
-     * profile to a handheld that has one arrives with their choice intact
-     * rather than with a default they never made.
+     * Whether the second display carries the panel. On by default, stored even
+     * on devices that have no second display.
+     * pourquoi : docs/decisions/reglages-et-consoles.md § Les défauts « activé », et pourquoi ce sont quand même des interrupteurs
      */
     private val _secondScreen = MutableStateFlow(prefs.getBoolean(KEY_SECOND_SCREEN, true))
     val secondScreen: StateFlow<Boolean> = _secondScreen.asStateFlow()
@@ -223,6 +166,32 @@ class SettingsStore private constructor(context: Context) {
         _secondScreen.value = enabled
     }
 
+    /**
+     * Whether a friend's arrival may reach the system shade. On by default: a
+     * friends list nobody is told about is an address book.
+     * pourquoi : docs/decisions/reglages-et-consoles.md § Les défauts « activé », et pourquoi ce sont quand même des interrupteurs
+     */
+    private val _notifyFriends = MutableStateFlow(prefs.getBoolean(KEY_NOTIFY_FRIENDS, true))
+    val notifyFriends: StateFlow<Boolean> = _notifyFriends.asStateFlow()
+
+    fun setNotifyFriends(enabled: Boolean) {
+        prefs.edit { putBoolean(KEY_NOTIFY_FRIENDS, enabled) }
+        _notifyFriends.value = enabled
+    }
+
+    /**
+     * Whether a new version announces itself outside the app. On by default:
+     * Emufii is sideloaded and no store speaks for it.
+     * pourquoi : docs/decisions/reglages-et-consoles.md § Les défauts « activé », et pourquoi ce sont quand même des interrupteurs
+     */
+    private val _notifyUpdates = MutableStateFlow(prefs.getBoolean(KEY_NOTIFY_UPDATES, true))
+    val notifyUpdates: StateFlow<Boolean> = _notifyUpdates.asStateFlow()
+
+    fun setNotifyUpdates(enabled: Boolean) {
+        prefs.edit { putBoolean(KEY_NOTIFY_UPDATES, enabled) }
+        _notifyUpdates.value = enabled
+    }
+
     fun setSteamGridDbKey(key: String) {
         val cleaned = key.trim()
         prefs.edit { putString(KEY_SGDB, cleaned) }
@@ -230,11 +199,9 @@ class SettingsStore private constructor(context: Context) {
     }
 
     /**
-     * Unlike the language, no platform API owns this, Android has no per-app
-     * dark mode below API 31's `setApplicationNightMode`, and even that only
-     * covers the two forced values. So the choice lives here and the theme reads
-     * it, which also means switching is instant instead of recreating the
-     * activity the way a language change does.
+     * Unlike the language, no platform API owns this, so the choice lives here
+     * and the theme reads it — which also makes switching instant.
+     * pourquoi : docs/decisions/reglages-et-consoles.md § La langue passe par la plateforme, le thème ne peut pas
      */
     fun setTheme(theme: AppTheme) {
         prefs.edit { putString(KEY_THEME, theme.name) }
@@ -258,10 +225,8 @@ class SettingsStore private constructor(context: Context) {
     }
 
     /**
-     * Whether the first-run walkthrough has been completed. Kept here rather
-     * than in the library store because it is about the app's state, not the
-     * ROM folder's, a user who clears their folder should not be walked through
-     * onboarding again.
+     * Whether the first-run walkthrough has been completed. Here and not in the
+     * library store: clearing a ROM folder must not replay onboarding.
      */
     var onboardingDone: Boolean
         get() = prefs.getBoolean(KEY_ONBOARDING_DONE, false)
@@ -280,19 +245,10 @@ class SettingsStore private constructor(context: Context) {
 
     companion object {
         /**
-         * The one store for the process, because every flow here is held in
-         * memory and a second instance would not see the first one's writes.
-         *
-         * Built per screen until 2026-08-19, and the bug that came of it is the
-         * quiet kind: consoles switched off during the onboarding came back the
-         * moment the library appeared. The library had built its own store while
-         * the onboarding was still up, seeded it from disk before anything was
-         * written, and nothing ever told it otherwise. On disk the choice was
-         * right the whole time, so it survived a restart, which is what makes
-         * this sort of thing read as random.
-         *
-         * SharedPreferences is already process-wide and thread-safe; what is not
-         * shareable is the `StateFlow` in front of it. So there is one.
+         * The ONE store for the process: `SharedPreferences` is already shared,
+         * the `StateFlow` in front of it is not. Building one per screen made
+         * onboarding choices silently revert.
+         * pourquoi : docs/decisions/reglages-et-consoles.md § Un seul magasin pour le processus
          */
         @Volatile
         private var instance: SettingsStore? = null
@@ -313,5 +269,7 @@ class SettingsStore private constructor(context: Context) {
         private const val KEY_SORT = "library_sort"
         private const val KEY_HIDDEN_CONSOLES = "hidden_consoles"
         private const val KEY_SECOND_SCREEN = "second_screen"
+        private const val KEY_NOTIFY_FRIENDS = "notify_friends"
+        private const val KEY_NOTIFY_UPDATES = "notify_updates"
     }
 }

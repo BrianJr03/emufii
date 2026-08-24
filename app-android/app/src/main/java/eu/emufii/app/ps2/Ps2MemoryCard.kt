@@ -9,56 +9,13 @@ import java.time.ZoneOffset
 /**
  * Builds a PlayStation 2 memory card image, from nothing but format constants.
  *
- * What the emulator checks about a card image is almost nothing: ARMSX2 opens
- * the file, derives the geometry from its size, and otherwise passes pages
- * through to the guest verbatim, 512 bytes of data plus 16 spare bytes each
- * (`pcsx2/SIO/Memcard/MemoryCardFile.cpp`, `MemoryCardProtocol.cpp`). Every
- * judgement — magic string, FAT sanity, directory modes, ECC — is made by the
- * emulated console against bytes the image carries literally. So a generated
- * card is held to what the BIOS itself writes, and the layout below is modeled
- * on one it did write: the card the PS2 formatted through ARMSX2 on 2026-08-20
- * and Midnight Club 3's network utility then filled, byte for byte, before the
- * same measurements went into these constants.
+ * The emulator checks almost nothing: every judgement is made by the *emulated
+ * console* against bytes the image carries literally, so this layout is modelled
+ * on one the BIOS actually wrote and was measured byte for byte.
  *
- * The image is the standard 8 MB RAW layout: 16 384 pages of 528 bytes =
- * 8 650 752 bytes, one `BWNETCNF` save at the root, and free space erased to
- * `0xFF` — which is also why generation is cheap to keep deterministic:
- * nothing on the card depends on anything but the save's own bytes and the
- * clock.
- *
- * ### The pieces, in card order
- *
- * - Page 0 holds the superblock: `Sony PS2 Memory Card Format 1.2.0.0`, 512
- *   bytes a page, 2 pages a cluster, 16 a block, 8192 clusters, allocation
- *   from cluster 41, and the trailing constants the BIOS writes on format.
- *   There is no superblock checksum in the format — Sony's own mcman leaves
- *   `0x48`-`0x4F` as padding (ps2sdk `mcman-internal.h:308`), and no directory
- *   entry carries one either.
- * - Pages 1-15 are the rest of the reserved first block: erased data, but with
- *   ECC spares, because that is what the BIOS format leaves there. Page 1's
- *   first 8 bytes are ARMSX2's own business — it keeps a host-side checksum at
- *   file offset `0x210` — and stamps that itself, so generation leaves them
- *   erased.
- * - Cluster 8 is the indirect FAT listing the 32 FAT clusters, 9 through 40.
- *   FAT entries are little-endian u32s indexed from the allocation offset:
- *   `0x7FFFFFFF` free, `0x80000000 | next` in a chain, `0xFFFFFFFF` the last
- *   cluster of one.
- * - From cluster 41: the root directory (`.`, `..`, `BWNETCNF`), the save's
- *   own directory, then the file data, allocated in that order so a file's
- *   clusters stay contiguous the way the console's first-fit allocator leaves
- *   them. A directory entry is zero-padded after its name — that is how the
- *   console leaves them, and a reader walks names until their NUL — with one
- *   all-`0xFF` slot after the last entry to terminate.
- *
- * ### The save
- *
- * `BWNETCNF` carries the network configuration as mode `0x842F`; its `0x08`
- * bit marks the directory copy-protected in the BIOS browser. Inside are the
- * index, `net000.cnf`, the two encrypted halves from [Ps2NetcnfConfig], and an
- * icon pair generated here rather than shipped. There is nothing
- * Sony-copyrighted worth embedding: `icon.sys` is 964 bytes of documented
- * header fields, and the icon itself is one quad textured with an
- * RLE-compressed solid colour.
+ * Standard 8 MB RAW: 16 384 pages of 528 bytes, one `BWNETCNF` save at the root,
+ * free space erased to `0xFF`.
+ * pourquoi : docs/decisions/ps2-carte-memoire.md § Ce que l'émulateur vérifie d'une carte : presque rien
  */
 object Ps2MemoryCard {
 
@@ -83,9 +40,8 @@ object Ps2MemoryCard {
         byteArrayOf(0x77, 0x7F, 0x7F, 0x77, 0x7F, 0x7F, 0x77, 0x7F, 0x7F, 0x77, 0x7F, 0x7F, 0, 0, 0, 0)
 
     /**
-     * The files of a `BWNETCNF` save: index, plain `net000.cnf`, the two
-     * encrypted halves, and the icon pair. One list, so the generator and the
-     * clone-producing [Ps2CardPatch] injector cannot drift on what a save holds.
+     * The files of a `BWNETCNF` save. One list, so the generator and the
+     * [Ps2CardPatch] injector cannot drift on what a save holds.
      */
     internal fun saveFiles(
         saveTitle: String,
@@ -248,12 +204,9 @@ object Ps2MemoryCard {
     }
 
     /**
-     * One 512-byte directory entry: mode, length, cluster, timestamps, name.
-     *
-     * The name field is 32 bytes at `0x40`, NUL-terminated and zero-padded,
-     * and the rest of the entry is zero too — that is how the console leaves
-     * them. What terminates a directory is different: one all-`0xFF` entry
-     * after the last real one, the marker parsers stop at.
+     * One 512-byte directory entry. A directory is terminated by one all-`0xFF`
+     * entry after the last real one, never by the zero padding.
+     * pourquoi : docs/decisions/ps2-carte-memoire.md § La disposition, dans l'ordre de la carte
      */
     internal fun dirent(
         out: ByteBuffer,
@@ -281,9 +234,9 @@ object Ps2MemoryCard {
     }
 
     /**
-     * The PS2's time-of-day, eight bytes in Japan time regardless of the
-     * console's setting (Ross Ridge, "PlayStation 2 Memory Card File System"):
-     * reserved, second, minute, hour, day, month, then a little-endian year.
+     * The PS2's time-of-day: eight bytes in **Japan time**, whatever the
+     * console's setting.
+     * pourquoi : docs/decisions/ps2-carte-memoire.md § La disposition, dans l'ordre de la carte
      */
     internal fun timestamp(epochSecond: Long): ByteArray {
         val t: OffsetDateTime = OffsetDateTime.ofInstant(Instant.ofEpochSecond(epochSecond), ZoneOffset.ofHours(9))
@@ -295,11 +248,9 @@ object Ps2MemoryCard {
     }
 
     /**
-     * The 16 spare bytes of a written page: four 3-byte Hamming codes, one per
-     * 128-byte chunk, then four zeros. The algorithm is the one Sony's mcman,
-     * mymc and PCSX2 all carry (`McDataChecksum`, mcman `main.c:1221`); the
-     * emulator never verifies it, but the console can, so it is computed
-     * rather than filled.
+     * The 16 spare bytes of a written page. The emulator never verifies them,
+     * but the console can, so they are computed rather than filled.
+     * pourquoi : docs/decisions/ps2-carte-memoire.md § La disposition, dans l'ordre de la carte
      */
     internal fun spare(page: ByteArray): ByteArray {
         val out = ByteArray(16)
@@ -323,9 +274,8 @@ object Ps2MemoryCard {
     }
 
     /**
-     * The column-parity contribution of one byte: bit `n` is the odd parity of
-     * the byte masked by the `n`-th mask, for the seven bit-selection masks of
-     * the code. Bits 3 and 6 are always zero, hence the `0x77`.
+     * The column-parity contribution of one byte, over the code's seven masks.
+     * Bits 3 and 6 are always zero, hence the `0x77`.
      */
     private fun columnParity(b: Int): Int {
         var m = 0
@@ -337,10 +287,9 @@ object Ps2MemoryCard {
     }
 
     /**
-     * `icon.sys`, 964 bytes: the save's browser card. Four corner colours,
-     * three lights and an ambient one, the title, and the icon filename three
-     * times — normal, copying, deleting. The values are the format's own
-     * defaults; the title is the one personalised thing on the card.
+     * `icon.sys`, 964 bytes of documented header fields. The title is the one
+     * personalised thing on the card.
+     * pourquoi : docs/decisions/ps2-carte-memoire.md § La sauvegarde, et pourquoi rien de Sony n'y voyage
      */
     private fun iconSys(title: String): ByteArray {
         val e = ByteBuffer.allocate(964).order(ByteOrder.LITTLE_ENDIAN)
@@ -367,13 +316,9 @@ object Ps2MemoryCard {
     }
 
     /**
-     * The save icon: a single quad, textured with one colour.
-     *
-     * The format is a 20-byte header, a vertex block, a short animation
-     * section, and a 128x128 BGR555 texture — 32 768 bytes uncompressed, which
-     * is what makes Sony's own `SYS_NET.ICO` weigh 33 KB. The compressed
-     * texture option is two RLE runs of one texel, so the whole icon here is a
-     * few hundred bytes and nothing of Sony's has to travel inside the app.
+     * The save icon: a single quad textured with one colour, a few hundred
+     * bytes — so nothing of Sony's has to travel inside the app.
+     * pourquoi : docs/decisions/ps2-carte-memoire.md § La sauvegarde, et pourquoi rien de Sony n'y voyage
      */
     private fun icon(): ByteArray {
         val vertices = ByteBuffer.allocate(6 * 24).order(ByteOrder.LITTLE_ENDIAN)

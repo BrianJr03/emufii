@@ -21,18 +21,9 @@ import androidx.compose.ui.unit.dp
 /**
  * The material every raised thing in this app is made of. See [Direction].
  *
- * A moulded plate is four things, always in this order, and the order is the
- * whole trick:
- *
- * 1. a shadow with a real vertical offset — light comes from above the tray, so
- *    a plate casts *below* itself. A zero-offset halo is decoration, not depth,
- *    and it is what the glass world used to draw;
- * 2. a fill that is lighter at the top than at the bottom, which is what a
- *    curved plastic face does under that light;
- * 3. a hairline edge, the moulding's own contour;
- * 4. a lit bevel one hairline inside it, along the top.
- *
- * Take one away and the plate flattens into a rectangle of colour.
+ * Four things, always in this order: an offset shadow, a top-lighter fill, a
+ * hairline edge, a lit bevel. **Take one away and the plate flattens.**
+ * pourquoi : docs/decisions/direction-visuelle.md § Une plaque moulée est quatre choses, dans cet ordre
  */
 
 /** How deep the lit edge of a moulding runs, whatever the object's size. */
@@ -44,15 +35,9 @@ fun plateBrush(dark: Boolean, oled: Boolean): Brush =
     Brush.verticalGradient(plateColors(dark, oled))
 
 /**
- * The plate's two colours, before they are made into a gradient.
- *
- * Exposed because a caller sometimes has to build the gradient itself: a
- * settings row fills opaquely with the slice of its card's face that belongs to
- * it, which means the same colours over shifted bounds. Taking the list rather
- * than copying the values is what keeps the two from drifting apart.
- *
- * Barely a gradient on the light theme: white plastic under a diffuse light has
- * a very short falloff, and any more reads as a grey smear.
+ * The plate's two colours, exposed so a caller can build the gradient over
+ * shifted bounds rather than copying the values and drifting.
+ * pourquoi : docs/decisions/direction-visuelle.md § Le biseau ne fait que le tiers supérieur, et sa profondeur est fixe
  */
 fun plateColors(dark: Boolean, oled: Boolean): List<Color> = when {
     oled -> listOf(PlateOled, PlateOledLow)
@@ -65,11 +50,9 @@ fun edgeColor(dark: Boolean, oled: Boolean): Color =
     if (oled) EdgeOled else if (dark) EdgeDark else EdgeLight
 
 /**
- * A moulded plate: shadow, face, edge, bevel.
- *
- * [lift] is how far off the tray it sits — 0.dp for something flush, 10.dp for a
- * tile the cursor has picked up. The shadow's offset follows it, because a plate
- * that rises without its shadow moving reads as growing, not lifting.
+ * A moulded plate: shadow, face, edge, bevel. The shadow's offset follows
+ * [lift], or the plate reads as growing rather than lifting.
+ * pourquoi : docs/decisions/direction-visuelle.md § Une plaque moulée est quatre choses, dans cet ordre
  */
 @Composable
 fun Modifier.plate(
@@ -79,12 +62,9 @@ fun Modifier.plate(
     lift: Dp = 4.dp,
     bevel: Boolean = true,
     /**
-     * True while the control is held down.
-     *
-     * A moulded button that never travels is a picture of a button. Pressed, the
-     * plate loses its lift and its lit edge and takes a shade of the tray's
-     * shadow: the same three parts that made it stand proud, taken away, which
-     * is what "pushed in" is made of.
+     * True while the control is held down: the plate loses its lift and its lit
+     * edge. A moulded button that never travels is a picture of a button.
+     * pourquoi : docs/decisions/direction-visuelle.md § Une plaque moulée est quatre choses, dans cet ordre
      */
     pressed: Boolean = false
 ): Modifier {
@@ -111,21 +91,18 @@ fun Modifier.plate(
 }
 
 /**
- * The lit top edge of a moulding, drawn inside the plate.
- *
- * Only along the top third: a highlight that runs all the way round is a stroke,
- * and a stroke is what the outline already is. Drawn over the content on
- * purpose — it is one hairline, and it belongs to the surface, not under it.
+ * The lit top edge of a moulding, along the **top third only** — all the way
+ * round it would just be a second stroke. Drawn over the content.
+ * pourquoi : docs/decisions/direction-visuelle.md § Le biseau ne fait que le tiers supérieur, et sa profondeur est fixe
  */
 @Composable
 fun Modifier.bevel(shape: Shape, dark: Boolean): Modifier {
     val color = if (dark) BevelDark else BevelLight
     return this.drawWithContent {
         drawContent()
-        // A fixed depth, never a fraction of the height. Proportional, a tall
-        // settings panel got half its face washed pale — the moulding's lit
-        // edge is a property of the edge, and an edge does not get deeper
-        // because the object is bigger.
+        // A FIXED depth, never a fraction of the height: an edge does not get
+        // deeper because the object is bigger.
+        // pourquoi : docs/decisions/direction-visuelle.md § Le biseau ne fait que le tiers supérieur, et sa profondeur est fixe
         val h = BEVEL_DEPTH.toPx().coerceAtMost(size.height)
         drawRect(
             brush = Brush.verticalGradient(
@@ -143,12 +120,9 @@ fun Modifier.bevel(shape: Shape, dark: Boolean): Modifier {
 }
 
 /**
- * The tray's engraved grid.
- *
- * The ground of a console menu is never a flat fill: it carries a fine repeating
- * texture that gives the eye a scale reference, so the plates read as objects of
- * a size rather than shapes on a plane. Two hairline families, one dark one
- * light, a millimetre apart — that is an engraving, not a checkerboard.
+ * The tray's engraved grid: a scale reference, so plates read as objects of a
+ * size. Two hairline families a millimetre apart — an engraving, not a board.
+ * pourquoi : docs/decisions/direction-visuelle.md § Le plateau est gravé, et un creux s'éclaire à l'envers
  */
 fun androidx.compose.ui.graphics.drawscope.DrawScope.engravedGrid(
     step: Float,
@@ -180,13 +154,9 @@ fun tilePlateBrush(dark: Boolean, oled: Boolean): Brush = when {
 }
 
 /**
- * The moulding's contour, drawn *over* whatever fills the shape.
- *
- * [plate] puts its edge in the modifier chain, which draws it before the
- * content: fine for a panel, whose content is inset, useless on a tile whose
- * artwork covers the whole face. Here the rim is drawn after the content, plus
- * the single lit hairline along the top, so a tile with a photograph in it still
- * has a moulded edge catching the tray light.
+ * The moulding's contour, drawn *over* whatever fills the shape — [plate] draws
+ * its edge before the content, which a full-bleed artwork would cover.
+ * pourquoi : docs/decisions/direction-visuelle.md § Le biseau ne fait que le tiers supérieur, et sa profondeur est fixe
  */
 @Composable
 fun Modifier.moldedRim(shape: Shape, dark: Boolean, oled: Boolean): Modifier {
@@ -211,12 +181,9 @@ fun Modifier.moldedRim(shape: Shape, dark: Boolean, oled: Boolean): Modifier {
 }
 
 /**
- * An empty socket in the tray: a recess, not a plate.
- *
- * The inverse lighting of everything else — dark at the top where a plate is
- * lit — which is the whole reason a hole reads as a hole. The grid's empty
- * slots use it, and they are what keeps the tray rectangular when the library
- * does not fill the last row.
+ * An empty socket: a recess, not a plate, lit **inversely** — dark at the top
+ * where a plate is lit, which is why a hole reads as a hole.
+ * pourquoi : docs/decisions/direction-visuelle.md § Le plateau est gravé, et un creux s'éclaire à l'envers
  */
 @Composable
 fun Modifier.socket(shape: Shape, dark: Boolean): Modifier = this

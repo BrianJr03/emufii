@@ -8,26 +8,13 @@ import org.tukaani.xz.LZMAInputStream
 /**
  * Reading just enough of a CHD to know which console pressed the disc.
  *
- * `.chd` is the one container where the extension settles nothing: the PSP, the
- * PS2 and the Dreamcast all ship in it, and on this machine two of the three are
- * sitting in neighbouring folders. Unlike an `.iso`, the bytes that would answer
- * the question are compressed, so nothing can be read straight off the front of
- * the file. This decodes the container far enough to hand back one disc sector,
- * and no further: no full extraction, no temporary file, a few hundred kilobytes
- * read per candidate.
+ * `.chd` is the one container where the extension settles nothing, and its
+ * bytes are compressed. This decodes far enough to hand back **one disc
+ * sector** and no further — which then goes through the same descriptor rule as
+ * a plain `.iso`, so the console is settled in one place for every format.
  *
- * Everything below was measured on two real files, never taken from a wiki:
- * a Dreamcast `Phantasy Star Online Ver. 2` and a PS2 `Unreal Tournament`.
- * Both are v5, both `cdlz/cdzl/cdfl`, both `hunkbytes 19584` over
- * `unitbytes 2448`. The PS2 one yields, at sector 16 offset 24, exactly:
- *
- * ```
- * CD001   system id 'PLAYSTATION'   volume id 'UT'
- * ```
- *
- * which is the same descriptor [DiscImage] already reads on a plain `.iso`, and
- * the reason this file stops at the sector rather than deciding anything: the
- * console is settled in one place for every disc format, not two.
+ * Everything here was measured on two real files, never taken from a wiki.
+ * pourquoi : docs/decisions/identite-disques.md § On s'arrête au secteur, on ne décide rien
  */
 object ChdImage {
 
@@ -52,13 +39,9 @@ object ChdImage {
     const val PVD_SECTOR = 16
 
     /**
-     * Metadata tags, read from the chain that starts right after the header.
-     *
-     * `CHGD`/`CHGT` are the GD-ROM ones, and they are the whole reason this
-     * check exists: a Dreamcast disc is the false positive to avoid, it is
-     * `unitbytes 2448` exactly like a PS2 CD, and only the tag tells them apart.
-     * Measured: the Dreamcast file carries `CHGD "TRACK:1 TYPE:MODE1_RAW …"`
-     * where the PS2 one carries `CHT2 "TRACK:1 TYPE:MODE2_RAW …"`.
+     * Metadata tags. `CHGD`/`CHGT` are the GD-ROM ones: a Dreamcast disc is
+     * `unitbytes 2448` exactly like a PS2 CD, and **only the tag separates them**.
+     * pourquoi : docs/decisions/identite-disques.md § La Dreamcast est écartée avant qu'un octet soit décompressé
      */
     private const val TAG_GDROM_TRACK = "CHGD"
     private const val TAG_GDROM_OLD = "CHGT"
@@ -80,25 +63,17 @@ object ChdImage {
     }
 
     /**
-     * One disc sector, or null when this file cannot answer.
-     *
-     * Null is the ordinary answer for a GD-ROM, for a codec we do not decode,
-     * for a CHD older than v5 and for anything truncated. Every one of them
-     * means the same thing to the caller, and it is never "this is not a PS2":
-     * it is "the bytes did not say", which leaves the file exactly where its
-     * extension put it.
+     * One disc sector, or null when this file cannot answer. Null never means
+     * "this is not a PS2" — it means "the bytes did not say".
+     * pourquoi : docs/decisions/identite-disques.md § On s'arrête au secteur, on ne décide rien
      */
     fun readSector(source: Source, sectorIndex: Int = PVD_SECTOR): ByteArray? =
         open(source)?.readDiscSector(sectorIndex)
 
     /**
-     * Opens one v5 CHD as a reusable ISO9660 reader.
-     *
-     * The old one-sector path decoded the Huffman map again for every seek. A
-     * boot ELF spans hundreds of seeks in a DVD CHD, so that approach turns a
-     * few megabytes into gigabytes of repeated map work. This parses the map
-     * once and keeps only the most recent decoded hunk, which is enough for the
-     * sequential reads performed by [Ps2DiscIdentityReader].
+     * Opens one v5 CHD as a reusable reader: the map is parsed **once**, or
+     * hundreds of seeks turn a few megabytes into gigabytes of repeated work.
+     * pourquoi : docs/decisions/identite-disques.md § Un lecteur réutilisable, sinon le travail explose
      */
     fun open(source: Source): Reader? {
         val header = ByteArray(HEADER_V5_BYTES)
@@ -129,11 +104,9 @@ object ChdImage {
     private const val MAX_HUNKS = 4 * 1024 * 1024
 
     /**
-     * The Dreamcast, excluded before a single byte is decompressed.
-     *
-     * The metadata chain sits at `0x7c` on both files measured, that is, right
-     * behind the header, so this costs one short read and settles the console
-     * this project must never claim.
+     * The Dreamcast, excluded before a single byte is decompressed: one short
+     * read of the metadata chain.
+     * pourquoi : docs/decisions/identite-disques.md § La Dreamcast est écartée avant qu'un octet soit décompressé
      */
     private fun isGdRom(source: Source, metaOffset: Long): Boolean {
         var offset = metaOffset
@@ -165,13 +138,10 @@ object ChdImage {
     }
 
     /**
-     * The map entry for one hunk, decoded from a Huffman-compressed stream.
-     *
-     * Two full passes, and the first one cannot be cut short: the types of
-     * *every* hunk are decoded before the first length is written, so stopping
-     * at the hunk we want reads lengths out of the middle of the type stream and
-     * yields offsets that look plausible and decompress to nothing. That mistake
-     * cost an afternoon; the loop below runs to [totalHunks] deliberately.
+     * The map entry for one hunk. **The first pass cannot be cut short**: every
+     * hunk's type is decoded before the first length is written, so stopping
+     * early reads lengths out of the type stream. The loop runs to the end.
+     * pourquoi : docs/decisions/identite-disques.md § Deux pièges de décodage qui ont coûté cher
      */
     private fun mapEntries(
         source: Source,
@@ -267,11 +237,8 @@ object ChdImage {
     private const val MAX_MAP_BYTES = 64 * 1024 * 1024
 
     /**
-     * The bytes of one hunk, decompressed.
-     *
-     * For a raw CD the payload returned is the sectors only: the codec keeps
-     * sector data and subcode in two separately compressed blocks, and the
-     * subcode carries nothing that names a console.
+     * The bytes of one hunk, decompressed. For a raw CD, the sectors only.
+     * pourquoi : docs/decisions/identite-disques.md § Ce qui est décodé, et ce qui ne l'est pas
      */
     private fun hunkPayload(
         source: Source,
@@ -329,11 +296,9 @@ object ChdImage {
             "zlib" -> inflate(raw, 0, raw.size, hunkBytes)
             "lzma" -> lzma(raw, 0, raw.size, hunkBytes)
             "zstd" -> zstd(raw, hunkBytes)
-            // DVD CHDs commonly keep one canonical all-zero hunk in FLAC and
-            // SELF-reference it throughout sparse files. Decoding arbitrary
-            // audio is unnecessary for an ELF reader; recognising FLAC's
-            // constant-zero subframes is enough to resolve those references,
-            // and anything else cleanly falls back instead of being guessed.
+            // Only FLAC's constant-zero subframes, which is what sparse DVD
+            // CHDs self-reference. Anything else falls back, never guesses.
+            // pourquoi : docs/decisions/identite-disques.md § Ce qui est décodé, et ce qui ne l'est pas
             "flac" -> flacSilence(raw, hunkBytes)
             // `cdfl` is FLAC, which only ever holds CD audio, and `huff` is
             // CHD's own Huffman codec. Neither has been seen on a data sector,
@@ -397,8 +362,8 @@ object ChdImage {
 
         /**
          * Reads the 2048-byte ISO user-data stream, hiding raw CD headers and
-         * subcode. PS2 CDs on the bench are MODE2 (offset 24); MODE1 (16) and
-         * already-cooked sectors are detected as well from the PVD signature.
+         * subcode. MODE2 (24), MODE1 (16) and cooked sectors all detected.
+         * pourquoi : docs/decisions/identite-disques.md § Ce qui est décodé, et ce qui ne l'est pas
          */
         override fun read(offset: Long, into: ByteArray, count: Int): Int {
             if (offset < 0 || count < 0 || count > into.size) return 0
@@ -536,12 +501,9 @@ object ChdImage {
     }
 
     /**
-     * Raw LZMA, with the properties CHD leaves implicit.
-     *
-     * The stream carries no header: MAME compresses with `lc=3, lp=0, pb=2`,
-     * which packs into the single properties byte 0x5D, and a dictionary
-     * normalised up to the next power of two. Verified against the real PS2
-     * file, where the sector block decodes to exactly 18816 bytes.
+     * Raw LZMA, with the properties CHD leaves implicit: `lc=3, lp=0, pb=2`,
+     * i.e. the properties byte 0x5D. Verified against the real PS2 file.
+     * pourquoi : docs/decisions/identite-disques.md § Ce qui est décodé, et ce qui ne l'est pas
      */
     private fun lzma(src: ByteArray, at: Int, count: Int, outSize: Int): ByteArray? =
         runCatching {
@@ -591,14 +553,10 @@ object ChdImage {
     }
 
     /**
-     * MAME's canonical Huffman, with its run-length coded tree.
-     *
-     * Two details here are not guessable and were taken from `huffman.cpp`
-     * rather than reconstructed: the repeat count comes from a *third* read of
-     * the stream, and what gets repeated is the length just read, not zero.
-     * Getting either wrong still produces a tree, just not one whose code
-     * lengths sum to 1 — which is why [importTreeRle] checks exactly that
-     * before returning, and refuses the file otherwise.
+     * MAME's canonical Huffman. Two details are **not guessable** and come from
+     * `huffman.cpp`: the repeat count is a *third* read, and what repeats is
+     * the length just read, not zero. The sum-to-1 check catches both.
+     * pourquoi : docs/decisions/identite-disques.md § Deux pièges de décodage qui ont coûté cher
      */
     private class Huffman(private val numCodes: Int, private val maxBits: Int) {
         private val lengths = IntArray(numCodes)

@@ -1,6 +1,7 @@
 package eu.emufii.app.ui.screens
 
 import android.content.Intent
+import android.provider.Settings
 import android.provider.DocumentsContract
 import android.net.Uri
 import android.widget.Toast
@@ -115,6 +116,7 @@ import kotlinx.coroutines.withContext
 import eu.emufii.app.ui.theme.CardShape
 import eu.emufii.app.ui.components.Avatar
 import eu.emufii.app.ui.components.EmufiiScaffold
+import eu.emufii.app.notify.Notifications
 import eu.emufii.app.secondscreen.rememberPresentationDisplay
 import eu.emufii.app.ui.components.DetailActions
 import eu.emufii.app.ui.components.DetailFact
@@ -137,29 +139,11 @@ import eu.emufii.app.wg.WgKeys
 import eu.emufii.app.ui.theme.ShellRed
 
 /**
- * The settings, as four sections of rows that unfold.
+ * The settings, as four sections of rows that unfold: what it is on the left,
+ * where it stands on the right, the explanation only once asked for.
  *
- * This screen was called "Profile" and carried eight cards of equal weight: the
- * nickname, the ROM folder, the console keys, the artwork key, the language, the
- * theme, the about box and the reset. Each laid out a heading, a paragraph of
- * explanation and its buttons, all the time, whether you had come to see it or
- * not. On the Thor the library card took up a whole screen for three lines, the
- * two columns ended up staggered, and finding a setting meant searching a wall
- * of text.
- *
- * Here every setting is a row: what it is on the left, where it stands on the
- * right. The explanatory text and the buttons only exist once the row is open,
- * that is, at the precise moment they were asked for. The value shown on the
- * right is what replaces the paragraph: "Set", "ROMS", "French" already answer
- * the question you came to ask.
- *
- * One row open at a time. Two unfolded sections rebuild exactly the screen we
- * just took apart, and on a handheld the page would go back to scrolling at the
- * first setting touched.
- *
- * The name is saved as it is typed rather than behind a button: there is
- * nothing to validate or send, storage is local, and a button that only means
- * "yes, really" is a button nobody needs.
+ * **One row open at a time**, or this rebuilds the wall of text it replaced.
+ * pourquoi : docs/decisions/reglages-ecran.md § Ce que cet écran remplace
  */
 @Composable
 fun SettingsScreen(
@@ -200,14 +184,9 @@ fun SettingsScreen(
     LaunchedEffect(Unit) { ps2ProfileReady = Ps2NetworkProfile.verifyReady(context) }
     var hiddenCount by remember { mutableStateOf(HiddenRoms(context).count()) }
 
-    // Whether Emufii's accessibility service is on, re-read while this screen is
-    // up rather than once.
-    //
-    // Leaving for Android's settings is a trip out of the app, not a dialog with
-    // a result: the answer only exists on the way back. Polled like the
-    // onboarding step does, which is cheaper than pulling in a lifecycle observer
-    // for one boolean, and it is what makes the row turn green under the
-    // player's eyes when they return.
+    // Re-read while this screen is up, not once: the answer only exists on the
+    // way back from Android's own settings.
+    // pourquoi : docs/decisions/reglages-ecran.md § Les lignes d'état, et ce que personne ne devinerait
     val hiddenConsoles by settingsStore.hiddenConsoles.collectAsState()
     val autofillLauncher = remember { AzaharLauncher(context) }
     var autofillOn by remember { mutableStateOf(autofillLauncher.isNetplayAutomationEnabled()) }
@@ -440,14 +419,9 @@ fun SettingsScreen(
                         )
                     }
                 }
-                // Not an unfolding row: this one opens the panel.
-                //
-                // The look of the app is not a detail of a settings line. It was
-                // nine labelled choices stacked inside the card, pushing
-                // everything below them off the screen, and asking the reader to
-                // picture what each name looked like. Its value still names both
-                // halves of the choice, so the row says where things stand
-                // without being opened.
+                // Not an unfolding row: this one opens a panel. Its value still
+                // names both halves of the choice.
+                // pourquoi : docs/decisions/reglages-ecran.md § Le thème ouvre un panneau, il ne se déplie pas
                 SettingsRow(
                     label = stringResource(R.string.settings_theme),
                     value = stringResource(theme.labelRes) + " · " +
@@ -474,6 +448,24 @@ fun SettingsScreen(
                 // panel. A row that appears and disappears with the hardware
                 // teaches nobody the feature exists, and the state line below
                 // says plainly when there is nothing to drive.
+                val notifyFriends by settingsStore.notifyFriends.collectAsState()
+                val notifyUpdates by settingsStore.notifyUpdates.collectAsState()
+                SettingsRow(
+                    label = stringResource(R.string.settings_notifications),
+                    value = stringResource(
+                        if (notifyFriends || notifyUpdates) R.string.settings_value_autofill_on
+                        else R.string.settings_value_autofill_off
+                    ),
+                    expanded = open == SettingsRowId.NOTIFICATIONS,
+                    onToggle = { toggle(SettingsRowId.NOTIFICATIONS) }
+                ) {
+                    NotificationsDetail(
+                        friends = notifyFriends,
+                        updates = notifyUpdates,
+                        onSetFriends = settingsStore::setNotifyFriends,
+                        onSetUpdates = settingsStore::setNotifyUpdates,
+                    )
+                }
                 SettingsRow(
                     label = stringResource(R.string.settings_second_screen),
                     value = stringResource(
@@ -564,19 +556,9 @@ fun SettingsScreen(
         }
 
         /**
-         * A single column, centred and bounded in width.
-         *
-         * Two columns looked like the right answer to a wide screen, and they
-         * are not: four sections of different lengths never split evenly, so one
-         * ends up shorter than the other and leaves a three-hundred-pixel hole
-         * that nothing fills. The problem is not the pairing, it is structural,
-         * and a row that unfolds changes height, which reopens the hole on every
-         * opening even when the balance was right at rest.
-         *
-         * Bounded, because a single column stretched over 1920 px puts the label
-         * and its value at opposite edges of the screen, and the pair stops
-         * being readable. Centred, because a bounded block pinned left would
-         * leave the very emptiness we just removed, merely moved.
+         * A single column, centred and bounded. Two columns cannot work here:
+         * unequal sections leave a hole that unfolding reopens every time.
+         * pourquoi : docs/decisions/reglages-ecran.md § Une seule colonne, bornée et centrée
          */
         Column(
             modifier = Modifier
@@ -646,10 +628,7 @@ fun SettingsScreen(
 
 /**
  * The width past which a settings row stops reading as one thing.
- *
- * The label is on the left, its value on the right: stretched across a handheld
- * screen in landscape, the two sit at opposite edges and the eye no longer pairs
- * them.
+ * pourquoi : docs/decisions/reglages-ecran.md § Les trois constantes de forme d'une rangée
  */
 private val SETTINGS_MAX_WIDTH = 620.dp
 
@@ -661,20 +640,15 @@ private val SETTINGS_MAX_WIDTH = 620.dp
 private const val EXPAND_SETTLE_MS = 220L
 
 /**
- * A row's corner radius, and therefore its ring's, being the same shape, since
- * the cursor traces the row's outline.
- *
- * Small: at 52 dp tall, a large radius gives a capsule sitting inside a card
- * with far sharper corners.
+ * A row's corner radius, and therefore its ring's. Small on purpose.
+ * pourquoi : docs/decisions/reglages-ecran.md § Les trois constantes de forme d'une rangée
  */
 private val ROW_CORNER = 12.dp
 
 /**
- * How far a row is inset from the edge of its card.
- *
- * This is the width of a settings row: the separators draw it, and the ring has
- * to land on it. One constant for both, otherwise they drift apart at the first
- * adjustment.
+ * How far a row is inset from its card. One constant for the separators and the
+ * ring alike, or they drift apart at the first adjustment.
+ * pourquoi : docs/decisions/reglages-ecran.md § Les trois constantes de forme d'une rangée
  */
 private val ROW_INSET = 18.dp
 
@@ -700,29 +674,17 @@ private val ROW_SHAPE = RoundedCornerShape(14.dp)
 private data class CardBounds(val top: Float, val height: Float)
 
 /**
- * The card the caller is drawing inside.
- *
- * Anything focusable laid on a card has to fill itself opaquely — see
- * [cardSliceFill] — and the only fill that does not show is the card's own
- * gradient, taken at the right offset. Root coordinates rather than a parent's,
- * because the things that need this are at different depths: a row is a direct
- * child of the card, a choice inside an unfolded detail is three levels down.
+ * The card the caller is drawing inside. **Root** coordinates, not a parent's:
+ * the things that need this sit at different depths.
+ * pourquoi : docs/decisions/reglages-ecran.md § Le remplissage opaque existe pour le curseur, pas pour le look
  */
 private val LocalCardBounds = compositionLocalOf { CardBounds(0f, 0f) }
 
 /**
  * An opaque fill that is, pixel for pixel, what the card was already painting
- * here — plus [tint] laid over it.
- *
- * It exists for the cursor, not for the look. The glow is a drop shadow of the
- * control's outline, and a shadow cast by a layer that is not opaque is drawn
- * *through* it: a focused row filled with a wash of the accent, bright along its
- * rounded edges and hollow in the middle. Nothing cuts a shadow out of its own
- * outline; the only thing that hides it is opaque content on top.
- *
- * A flat colour would have done that job and broken another: each row would
- * freeze the gradient at its own top, and a five-row card would become five
- * bands. Slicing the card's gradient costs the same and shows nothing.
+ * here. **It exists for the cursor, not for the look**: a glow is a shadow, and
+ * it draws through anything that is not opaque. A flat colour would band.
+ * pourquoi : docs/decisions/reglages-ecran.md § Le remplissage opaque existe pour le curseur, pas pour le look
  */
 @Composable
 private fun Modifier.cardSliceFill(shape: Shape, tint: Color = Color.Transparent): Modifier {
@@ -753,18 +715,11 @@ private fun Modifier.cardSliceFill(shape: Shape, tint: Color = Color.Transparent
 private val DANGER = ShellRed
 
 /**
- * What identifies an unfoldable row.
- *
- * An enum and not the row's index: the order of the sections rearranges between
- * portrait and landscape, and an index would have opened the wrong row when the
- * device was turned.
+ * What identifies an unfoldable row: an enum, **never** the row's index, which
+ * rearranges between portrait and landscape.
+ * pourquoi : docs/decisions/reglages-ecran.md § Deux pièges de focus, et leurs contournements
  */
-/**
- * Where Cocoon keeps itself, as a starting point for the picker.
- *
- * A guess, and only a guess: the player may have moved it, and the picker will
- * simply open at its usual place if this folder does not exist.
- */
+/** Where Cocoon usually keeps itself: a guess, and only a guess. */
 private val COCOON_DEFAULT_FOLDER: Uri = DocumentsContract.buildDocumentUri(
     "com.android.externalstorage.documents",
     "primary:Cocoonv2"
@@ -772,19 +727,82 @@ private val COCOON_DEFAULT_FOLDER: Uri = DocumentsContract.buildDocumentUri(
 
 private enum class SettingsRowId {
     IDENTITY, FOLDER, CONSOLES, KEYS, ARTWORK, HIDDEN, PPSSPP_CONFIG, PS2_PROFILE,
-    LANGUAGE, THEME, AUTOFILL, SECOND_SCREEN, ABOUT
+    LANGUAGE, THEME, AUTOFILL, NOTIFICATIONS, SECOND_SCREEN, ABOUT
 }
 
 /**
- * The second screen's section: what it does, one switch, and whether there is
- * anything to switch on.
- *
- * The state line is the part that earns its place. Without it the row is a
- * promise a player cannot check: they turn it on, nothing happens, and they
- * cannot tell whether the feature is broken or their device simply has one
- * screen. Naming the panel it found, or saying that it found none, answers that
- * before they go looking.
+ * The second screen's section. The **state line** is what earns its place:
+ * without it, the row is a promise the player cannot check.
+ * pourquoi : docs/decisions/reglages-ecran.md § Les lignes d'état, et ce que personne ne devinerait
  */
+/**
+ * The notifications section. Its state line carries what nobody would guess:
+ * sideloaded, there is no push service, so an alert can be a quarter of an hour
+ * late and that is normal.
+ * pourquoi : docs/decisions/reglages-ecran.md § Les lignes d'état, et ce que personne ne devinerait
+ */
+@Composable
+private fun NotificationsDetail(
+    friends: Boolean,
+    updates: Boolean,
+    onSetFriends: (Boolean) -> Unit,
+    onSetUpdates: (Boolean) -> Unit,
+) {
+    val context = LocalContext.current
+    DetailNote(stringResource(R.string.settings_notifications_note))
+    DetailActions {
+        GhostButton(
+            label = stringResource(
+                if (friends) R.string.settings_notify_friends_off
+                else R.string.settings_notify_friends_on
+            ),
+            onClick = { onSetFriends(!friends) }
+        )
+        GhostButton(
+            label = stringResource(
+                if (updates) R.string.settings_notify_updates_off
+                else R.string.settings_notify_updates_on
+            ),
+            onClick = { onSetUpdates(!updates) }
+        )
+    }
+    // Asked at composition rather than remembered: the player can leave for the
+    // Android settings and come back, and a cached answer would still show the
+    // refusal they just lifted.
+    val allowed = Notifications.allowed(context)
+    if (!allowed) {
+        // The one case where a switch in here cannot help: Android is refusing,
+        // and the fix is three taps away in a screen nobody finds by chance.
+        DetailActions {
+            GhostButton(
+                label = stringResource(R.string.settings_notify_open_android),
+                onClick = {
+                    runCatching {
+                        context.startActivity(
+                            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                                .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                        )
+                    }
+                }
+            )
+        }
+    }
+    DetailStatus(
+        tone = when {
+            !allowed -> DetailTone.WARN
+            friends || updates -> DetailTone.GOOD
+            else -> DetailTone.BUSY
+        },
+        headline = stringResource(
+            when {
+                !allowed -> R.string.settings_notify_blocked
+                friends || updates -> R.string.settings_notify_watching
+                else -> R.string.settings_notify_silent
+            }
+        ),
+    )
+}
+
 @Composable
 private fun SecondScreenDetail(
     enabled: Boolean,
@@ -949,18 +967,9 @@ private fun Ps2ProfileDetail(
     if (!ready) DetailNote(stringResource(R.string.settings_ps2_profile_body))
 
     DetailActions {
-        // Filled, and the only filled thing here: of the two actions this is
-        // the one that does the work. As peer pills they read as a choice
-        // between equals, which sent people to the folder picker they had
-        // already been through.
-        //
-        // Once it is done, the accent goes away rather than the label turning
-        // into a boast. A button is named for what it does; one reading
-        // "profile installed" that still reruns the whole preparation is
-        // lying, and one that does nothing is not a button. So the work
-        // demotes to an ordinary errand — do it again — and the recess below
-        // is what says it is installed. The section stops asking for anything,
-        // which is the change the eye is looking for.
+        // The only filled button: the one that does the work. Once done, the
+        // accent leaves rather than the label turning into a boast.
+        // pourquoi : docs/decisions/reglages-ecran.md § Un bouton est nommé pour ce qu'il fait
         if (ready) {
             GhostButton(
                 label = stringResource(R.string.hint_ps2_profile_redo),
@@ -1087,13 +1096,9 @@ private fun Ps2ProfileDetail(
 }
 
 /**
- * The way back from a game removed in a long-press menu.
- *
- * Restoring is all-or-nothing on purpose. A list of removed games would need
- * their titles and icons, which are read from files this screen never scans, so
- * it would show paths — and a player who removed three regional copies of one
- * game gains nothing from picking among three identical lines. Bringing them all
- * back costs one more removal to redo, and it always works.
+ * The way back from a game removed in a long-press menu. All-or-nothing on
+ * purpose: a per-game list could only show paths.
+ * pourquoi : docs/decisions/reglages-ecran.md § Restaurer les jeux retirés est tout ou rien
  */
 @Composable
 private fun HiddenRomsDetail(count: Int, onRestore: () -> Unit) {
@@ -1143,13 +1148,9 @@ private fun SettingsSection(title: String, content: @Composable () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         SectionHeader(title, modifier = Modifier.padding(start = 4.dp))
         SoftCard {
-            // No padding at all. A row takes up the whole card, edge to edge:
-            // that is what you see, and leaving even a few dp around it produced
-            // a white band between the cursor and the edge, at which point the
-            // cursor was the size of nothing. In exchange every row takes the
-            // exact shape of the space it occupies, card corners included; the
-            // ring's stroke is drawn inside its bounds, so clipping the card
-            // does not shave it.
+            // NO padding: a row takes the whole card, edge to edge, and takes
+            // the exact shape of the space it occupies.
+            // pourquoi : docs/decisions/reglages-ecran.md § Une rangée occupe toute la carte, bord à bord
             CompositionLocalProvider(LocalCardBounds provides bounds) {
                 Column(
                     modifier = Modifier
@@ -1169,13 +1170,9 @@ private fun SettingsSection(title: String, content: @Composable () -> Unit) {
 
 
 /**
- * A settings row: what it is, where it stands, and the detail underneath when
- * asked for.
- *
- * The value on the right does the work the paragraphs used to do: "Set",
- * "French", "ROMS" answer the question without anything being opened. It fades
- * to grey so as not to compete with the label, which stays the thing the eye
- * scans.
+ * A settings row: what it is, where it stands, and the detail when asked for.
+ * The value on the right does the work the paragraphs used to do.
+ * pourquoi : docs/decisions/reglages-ecran.md § Ce que cet écran remplace
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -1185,53 +1182,33 @@ private fun SettingsRow(
     expanded: Boolean,
     onToggle: () -> Unit,
     /**
-     * True for the first row on the page: it becomes the "down" destination from
-     * the header.
-     *
-     * A flag rather than a modifier passed in from outside: this row's
-     * `Modifier` applies to the column holding the row *and* its detail, and a
-     * `FocusRequester` placed there targets a node that is not focusable, so the
-     * request fails silently. The clickable row is what must carry it, and that
-     * is private.
+     * True for the first row on the page. A **flag**, not a modifier from
+     * outside: placed on the column, a `FocusRequester` fails silently.
+     * pourquoi : docs/decisions/reglages-ecran.md § Deux pièges de focus, et leurs contournements
      */
     entry: Boolean = false,
     leading: (@Composable () -> Unit)? = null,
     /**
-     * False on the first row of a section.
-     *
-     * The separator is drawn above and not below: an unfolded row pushes its
-     * detail downwards, and a line placed after it would end up separating the
-     * detail from the next row instead of separating two rows. Above, it stays
-     * where it means something.
+     * False on the first row of a section. The separator is drawn **above**, or
+     * an unfolded row's detail ends up on the wrong side of it.
+     * pourquoi : docs/decisions/reglages-ecran.md § Une rangée occupe toute la carte, bord à bord
      */
     divider: Boolean = true,
     /**
-     * True for the last row in a card.
-     *
-     * Used for drawing, not for logic: together with [divider] it says which of
-     * the row's corners are the card's, and therefore what shape the cursor has
-     * to take.
+     * True for the last row in a card. For drawing, not logic: it says which
+     * corners are the card's, and so what shape the cursor takes.
      */
     last: Boolean = false,
     /**
-     * Null for a row that leads somewhere instead of unfolding — the theme,
-     * which opens its own panel. Its chevron then never turns, which is the
-     * difference being drawn: a turned chevron says "it is below", a still one
-     * says "it is elsewhere".
+     * Null for a row that leads somewhere instead of unfolding: its chevron
+     * never turns, which is how the screen says "it is elsewhere".
+     * pourquoi : docs/decisions/reglages-ecran.md § Deux pièges de focus, et leurs contournements
      */
     detail: (@Composable () -> Unit)? = null
 ) {
-    // The shape of the space this row occupies in the card. A middle row is a
-    // plain rectangle; the end ones inherit the card's corners. That is what the
-    // ring encloses.
-    //
-    // Open, it rounds off everywhere. Closed, a row is a slice: it only takes
-    // rounding from the card corners it touches. Open, it detaches from the
-    // stack, it becomes the header of what it has just revealed, and a sharp
-    // corner reads there as a cut, at the top against the previous row as much
-    // as at the bottom against its own detail. Both ends therefore follow the
-    // same rule, each on its side, and morph rather than snap: otherwise the
-    // shape jumps at the precise moment the content is unrolling.
+    // The shape of the space this row occupies. Open, it rounds off everywhere
+    // and **morphs rather than snaps**, or the shape jumps mid-unroll.
+    // pourquoi : docs/decisions/reglages-ecran.md § Une rangée occupe toute la carte, bord à bord
     val top by animateDpAsState(
         targetValue = if (!divider || expanded) CARD_CORNER else 0.dp,
         animationSpec = tween(CORNER_MS),
@@ -1258,14 +1235,9 @@ private fun SettingsRow(
     // other screens.
     val interaction = remember { MutableInteractionSource() }
 
-    // Unfolding brings the detail on screen. The cursor stays on the row:
-    // nothing moves as far as focus is concerned, so automatic scrolling has no
-    // reason to fire, and the content just asked for opened below the fold. So
-    // we ask for it explicitly, and on the whole column, row *and* detail,
-    // otherwise we only bring in the row, which was already visible.
-    //
-    // After the opening animation, not during: the column still measures its
-    // previous height at the moment the state changes.
+    // Asked for explicitly, on the whole column (row *and* detail), and AFTER
+    // the animation: focus does not move, so nothing scrolls on its own.
+    // pourquoi : docs/decisions/reglages-ecran.md § Deux pièges de focus, et leurs contournements
     val reveal = remember { BringIntoViewRequester() }
     LaunchedEffect(expanded) {
         if (expanded) {
@@ -1293,12 +1265,9 @@ private fun SettingsRow(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier
                 .fillMaxWidth()
-                // No inset here. The row the eye sees runs from one edge of the
-                // card to the other; the ring has to enclose *that*. Shrinking
-                // it by [ROW_INSET] to line the outline up with the separators
-                // enclosed a box smaller than the row, and the stroke ran
-                // through the middle of the label. The inset belongs to the
-                // text, so it moved inside, further down.
+                // NO inset here: the ring must enclose the row the eye sees.
+                // The inset belongs to the text, and lives further down.
+                // pourquoi : docs/decisions/reglages-ecran.md § Une rangée occupe toute la carte, bord à bord
                 .controlRing(shape)
                 // Opaque, so the cursor's glow stays outside it. Only the rows
                 // with rounded corners — the first and last of every card —
@@ -1458,11 +1427,9 @@ private fun IdentityDetail(
 }
 
 /**
- * Where the ROMs are, and the button to walk them again.
- *
- * These two buttons used to be pills in the library dock, permanently in front
- * of someone who had picked their folder months earlier. Plumbing you set once
- * belongs in the settings.
+ * Where the ROMs are, and the button to walk them again. Plumbing you set once
+ * belongs in the settings, not in the library dock.
+ * pourquoi : docs/decisions/reglages-ecran.md § Ce que les réglages disent de ce qu'Emufii ne fait pas
  */
 @Composable
 private fun FolderDetail(
@@ -1525,19 +1492,10 @@ private fun FolderDetail(
 }
 
 /**
- * The autofill, and the one reason this row exists: Android can switch it off.
- *
- * An accessibility service is not a permission the app holds; it is a system
- * setting the player granted, and the system drops it on its own. An update, a
- * restore onto a new device, a battery optimiser: the service goes quiet and
- * nothing in Emufii says so. The session screen used to carry the way back, as a
- * button that only appeared once the automation was already off, at the bottom
- * of a card nobody scrolls to.
- *
- * It belongs here instead. A switch you flick once in the life of the app is
- * plumbing, and plumbing lives in the settings, next to the ROM folder and the
- * keys. The row shows the state whether it is on or off, which is what makes it
- * findable *before* something is wrong rather than after.
+ * The autofill, and the one reason this row exists: **Android can switch it
+ * off** on its own. The row shows the state either way, which is what makes it
+ * findable *before* something is wrong.
+ * pourquoi : docs/decisions/reglages-ecran.md § Le remplissage automatique a sa rangée parce qu'Android peut l'éteindre
  */
 @Composable
 private fun AutofillDetail(enabled: Boolean, onOpen: () -> Unit) {
@@ -1576,11 +1534,9 @@ private fun AutofillDetail(enabled: Boolean, onOpen: () -> Unit) {
 }
 
 /**
- * Where the player's console keys come from.
- *
- * Deliberately says what Emufii does *not* do, supply keys, download any, send
- * the file anywhere, because asking for a key file with no explanation is how an
- * app gets uninstalled.
+ * Where the player's console keys come from. Deliberately says what Emufii does
+ * *not* do: asking for a key file with no explanation gets an app uninstalled.
+ * pourquoi : docs/decisions/reglages-ecran.md § Ce que les réglages disent de ce qu'Emufii ne fait pas
  */
 @Composable
 private fun KeysDetail(
@@ -1631,13 +1587,9 @@ private fun KeysDetail(
 }
 
 /**
- * The player's SteamGridDB key, which replaces the tiny ROM icons with real game
- * artwork.
- *
- * The field is in the clear and not masked: this is not a password, it only
- * opens a catalogue of public images, read-only. Masking it would mostly get in
- * the way of spotting a typo, which is the one likely incident, a wrong key says
- * nothing, it simply brings nothing back.
+ * The player's SteamGridDB key. **In the clear, not masked**: it is not a
+ * password, and masking would only hide the typo that is the likely incident.
+ * pourquoi : docs/decisions/reglages-ecran.md § Ce que les réglages disent de ce qu'Emufii ne fait pas
  */
 @Composable
 private fun ArtworkDetail(key: String, onKeyChange: (String) -> Unit) {

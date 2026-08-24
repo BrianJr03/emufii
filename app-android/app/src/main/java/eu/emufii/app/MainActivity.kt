@@ -5,6 +5,8 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import eu.emufii.app.notify.AppForeground
+import eu.emufii.app.notify.Notifications
 import eu.emufii.app.secondscreen.SecondScreenHost
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.ActivityResult
@@ -40,6 +42,31 @@ val LocalEnsureVpnPermission =
     compositionLocalOf { EnsureVpnPermission { granted, _ -> granted() } }
 
 class MainActivity : ComponentActivity() {
+
+    /**
+     * Whether anyone is looking, which is what decides where an alert lands: a
+     * card inside the app, or a notification in the shade.
+     *
+     * Read on resume and pause rather than on start and stop: an activity that
+     * is started but not resumed is behind the emulator the player just
+     * launched, and an alert drawn there would be seen by nobody.
+     */
+    override fun onResume() {
+        super.onResume()
+        AppForeground.set(true)
+        Notifications.PendingOpen.offer(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        Notifications.PendingOpen.offer(intent)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        AppForeground.set(false)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

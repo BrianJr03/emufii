@@ -26,35 +26,14 @@ import kotlinx.coroutines.launch
 import java.io.ByteArrayInputStream
 
 /**
- * The session tunnel, carried by a foreground service.
+ * The session tunnel, carried by a **foreground** service.
  *
- * ## Why this class exists at all
- *
- * `GoBackend` already ships a `VpnService`, so on the face of it Emufii needs none.
- * But it starts it like this, read in the library's source before writing a line:
- *
- * ```java
- * context.startService(new Intent(context, VpnService.class));
- * ```
- *
- * `startService`, and `startForeground` is never called anywhere in the library.
- * The tunnel would therefore live in a background service, which Android is free
- * to kill the moment Emufii leaves the foreground, which is precisely when the
- * player switches to the emulator to actually play. This app has already paid that
- * exact bill once, on `DolphinLanService`: without the foreground, the LAN segment
- * dropped.
- *
- * `GoBackend` is `final`, so it cannot be subclassed. `GoBackend.VpnService` is
- * not, and the `onCreate()` it inherits completes a static future that
- * `GoBackend` consults before starting anything of its own. So: subclass it,
- * declare the subclass in the manifest, and start it ourselves in the foreground.
- * `GoBackend` then finds the future already completed, skips its own
- * `startService`, and works through our instance.
- *
- * That hangs on an internal detail of the library, which is why the service owns
- * the tunnel's lifecycle rather than the manager: doing the `setState` from inside
- * `onStartCommand` makes the ordering, `onCreate`, then `startForeground`, then
- * `setState`, a property of the code rather than a hope about timing.
+ * `GoBackend` ships its own `VpnService` but starts it with `startService` and
+ * never calls `startForeground`, so the tunnel would die exactly when the player
+ * switches to the emulator. Hence subclassing `GoBackend.VpnService` and
+ * starting it ourselves. The service owns the tunnel's lifecycle so the ordering
+ * is a property of the code rather than a hope about timing.
+ * pourquoi : docs/decisions/tunnel-wireguard.md § Pourquoi Emufii a son propre `VpnService`
  */
 class EmufiiWgService : GoBackend.VpnService() {
 
@@ -90,34 +69,17 @@ class EmufiiWgService : GoBackend.VpnService() {
     private var scope: CoroutineScope? = null
 
     /**
-     * Keeps the Wi-Fi radio from falling asleep for the duration of the session.
-     *
-     * Measured between two remote Thors, through the relay: 25 % loss at one ping
-     * per second, 0 % at three pings per second, and jitter from 46 to 369 ms.
-     * That is the signature of Wi-Fi power saving; sparse traffic lets the radio
-     * doze, and rare packets pay the wait or get lost.
-     *
-     * This is no comfort detail here: the Switch's LDN, which Eden's upstream
-     * describes as "extremely sensitive to latency and loss", does its handshake
-     * with precisely those rare packets. A game that connects then gives up after
-     * seven seconds, twice in a row, is exactly what a handshake losing one packet
-     * in four produces.
-     *
-     * `WIFI_MODE_FULL_LOW_LATENCY` does two things more than the old `HIGH_PERF`:
-     * it turns power saving off and asks the driver to favour latency over
-     * throughput. It only acts while the screen is on and the app is in the
-     * foreground, which during a game describes the emulator and not us; the lock
-     * is therefore held, and the system applies it when it can.
+     * Keeps the Wi-Fi radio awake for the session. Measured: 25 % loss at one
+     * ping/s, 0 % at three, jitter 46→369 ms — and the Switch's LDN handshake is
+     * made of exactly those rare packets.
+     * pourquoi : docs/decisions/tunnel-wireguard.md § Le verrou Wi-Fi n'est pas un détail de confort
      */
     private var wifiLock: WifiManager.WifiLock? = null
 
     /**
-     * The library reports handshake progress through this.
-     *
-     * `Tunnel.State` only distinguishes up from down, so `Online` here means the
-     * interface exists, not that another player has joined, and not that a
-     * handshake has landed. The app confirms real reachability by pinging the
-     * relay, which is what its address is returned for.
+     * The library reports handshake progress here. `Online` means the interface
+     * exists — not that a player joined, nor that a handshake landed.
+     * pourquoi : docs/decisions/tunnel-wireguard.md § « En ligne » veut dire moins qu'on ne croit
      */
     private inner class SessionTunnel(val code: String, val ip: String) : Tunnel {
         override fun getName(): String = TUNNEL_NAME
@@ -224,14 +186,9 @@ class EmufiiWgService : GoBackend.VpnService() {
     }
 
     /**
-     * The user swiped Emufii out of recents: bring the session tunnel down.
-     *
-     * Same reasoning as the WFC service. A foreground service survives its task
-     * being dismissed by design, so without this the tunnel, and the VPN key in
-     * the status bar, outlived the app with nothing left on screen to stop it.
-     *
-     * [stopTunnel] rather than a bare [stopSelf], so the peer is torn down in
-     * order; it calls `stopSelf` itself once the backend has settled.
+     * Swiped out of recents: bring the tunnel down. A foreground service
+     * survives task dismissal by design, so the VPN key outlived the app.
+     * pourquoi : docs/decisions/tunnel-wireguard.md § Pourquoi Emufii a son propre `VpnService`
      */
     override fun onTaskRemoved(rootIntent: Intent?) {
         Log.d(TAG, "Emufii swiped away, taking the session tunnel down")
@@ -246,10 +203,9 @@ class EmufiiWgService : GoBackend.VpnService() {
         scope = null
         tunnel = null
         backend = null
-        // The library's own onDestroy turns the tunnel off and resets the static
-        // future that lets GoBackend find this service. Skipping it would leave a
-        // future pointing at a dead instance, and the next tunnel would never come
-        // up.
+        // Never skip the library's onDestroy: it resets the static future that
+        // lets GoBackend find this service.
+        // pourquoi : docs/decisions/tunnel-wireguard.md § Pourquoi Emufii a son propre `VpnService`
         super.onDestroy()
         _state.value = WgState.Idle
     }

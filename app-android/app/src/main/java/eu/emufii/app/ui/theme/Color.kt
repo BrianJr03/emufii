@@ -5,19 +5,13 @@ import androidx.compose.ui.graphics.Color
 /**
  * The HOME MENU palette. See [Direction].
  *
- * Three grounds, one accent, and nothing else has a hue. A handheld's menu is a
- * tray of coloured objects on a neutral shell: every colour in this file that
- * isn't [TrayCyan] is a grey with a few degrees of blue in it, because the box
- * art has to be the only thing shouting.
+ * Three grounds, one accent, and nothing else has a hue.
+ * pourquoi : docs/decisions/direction-visuelle.md § Trois sols, un accent, et rien d'autre n'a de teinte
  */
 
 // ---------------------------------------------------------------- the shell
 
-/**
- * Daylight. A cool silver, not white: the plates are white, and a white shell
- * would leave them nothing to sit on. Sampled dark enough that a plate's
- * hairline is legible without an outline being drawn twice.
- */
+/** Daylight. A cool silver, not white: the plates are white. */
 val ShellLight = Color(0xFFDCE1E9)
 val ShellLightLow = Color(0xFFC9D0DB)
 
@@ -42,13 +36,10 @@ val PlateOled = Color(0xFF15181F)
 val PlateOledLow = Color(0xFF0B0D11)
 
 /**
- * The moulded edge: a hairline a shade darker than the plate on light, a shade
- * lighter on dark. It is what makes a plate an object rather than a fill, and it
- * is the only separator left on OLED, where a shadow draws nothing.
+ * The moulded edge, and the only separator left on OLED where a shadow draws
+ * nothing. Do not lighten it back: at 0x1F the contour vanished at a glance.
+ * pourquoi : docs/decisions/direction-visuelle.md § Trois sols, un accent, et rien d'autre n'a de teinte
  */
-// Deepened on 2026-08-22: at 0x1F the contour was gone at glance distance and a
-// white plate read as a flat card carried by its shadow alone. A moulding has an
-// edge you can see without looking for it.
 val EdgeLight = Color(0x3D0B1220)
 val EdgeDark = Color(0x1FFFFFFF)
 val EdgeOled = Color(0x33FFFFFF)
@@ -67,9 +58,8 @@ val InkDarkTextMuted = Color(0xFF95A0B1)
 // --------------------------------------------------------------- the cursor
 
 /**
- * Tray cyan: the cursor, the primary action, the current selection. Nothing
- * else. Spending it on decoration is what would make "where am I?" a question
- * again, and on a handheld the cursor is permanently somewhere.
+ * Tray cyan: the cursor, the primary action, the current selection. Nothing else.
+ * pourquoi : docs/decisions/direction-visuelle.md § Le cyan est dépensé sur le curseur, et sur rien d'autre
  */
 val TrayCyan = Color(0xFF14B4E4)
 val TrayCyanSoft = Color(0x3314B4E4)
@@ -78,28 +68,16 @@ val TrayCyanSoft = Color(0x3314B4E4)
 val TrayCyanInk = Color(0xFF04384B)
 
 /**
- * The filled-button cyan, and the reason there are two.
- *
- * [TrayCyan] is a light: at 4.7:1 against black it is perfect for a cursor
- * glowing on a dark tray, and hopeless as a background for white text — 2.2:1,
- * which is unreadable and not arguable. So the light theme fills its primary
- * button with this deeper cut (4.6:1 under white) and keeps the bright one for
- * the cursor. The dark theme has no such problem: there the bright cyan carries
- * [TrayCyanInk] on top, at 8:1.
+ * The filled-button cyan: [TrayCyan] under white text measures 2.2:1, this cut
+ * 4.6:1.
+ * pourquoi : docs/decisions/direction-visuelle.md § Le cyan est dépensé sur le curseur, et sur rien d'autre
  */
 val TrayCyanDeep = Color(0xFF0A7899)
 
-/**
- * Warning red, borrowed from the shell of the console this world comes from.
- * Errors and destructive confirmations only; it appears perhaps twice in the
- * whole app, which is why it reads when it does.
- */
+/** Warning red. Errors and destructive confirmations only, nothing else. */
 val ShellRed = Color(0xFFE0452F)
 
-/**
- * Legacy alias. The green ring is gone — the cursor is cyan now, one accent for
- * one meaning — but several screens still name this colour for a "ready" state.
- */
+/** Legacy alias: the green ring is gone, but screens still name it for "ready". */
 val AccentGreen = Color(0xFF3ECF9A)
 val Accent = TrayCyan
 val AccentSoft = TrayCyanSoft

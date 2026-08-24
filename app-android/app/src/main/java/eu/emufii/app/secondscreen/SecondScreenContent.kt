@@ -85,18 +85,8 @@ import eu.emufii.app.ui.wallpaper.TrayBackdrop
 /**
  * What the second panel draws, whoever is holding the window.
  *
- * The same tray as the front screen, never a second style: the engraved ground,
- * the moulded plates, the one accent, as the direction contract pins them
- * (`ui/theme/Direction.kt`). A panel with its own look would read as another
- * app running on the back of the machine.
- *
- * Read at arm's length, off-axis, under the player's hands. So one object leads
- * each face and everything else labels it, and the panel never holds more than
- * a glance's worth. It has no cursor and no controls: it reports.
- *
- * Colour follows the product principle rather than the chrome — the box art is
- * the only thing on the browsing face allowed to be loud, and it even lends its
- * own extracted tone to the shadow it casts.
+ * It has no cursor and no controls: it reports.
+ * pourquoi : docs/decisions/second-ecran.md § Le panneau n'a pas de style à lui
  */
 @Composable
 fun SecondScreenContent(model: SecondScreenModel) {
@@ -125,19 +115,9 @@ fun SecondScreenContent(model: SecondScreenModel) {
                     .weight(1f)
                     .padding(start = 36.dp, end = 36.dp, top = 10.dp)
             ) {
-                // Crossfaded, and it is not decoration.
-                //
-                // Without it the panel *cuts*: a cursor moving along a shelf
-                // replaces a whole face per keypress, and text appearing at
-                // full contrast in one frame reads as a flash out of the corner
-                // of the eye — which is exactly where this screen is. A fade
-                // also gives a picture that has not arrived yet the two hundred
-                // milliseconds it needs, so a fast pass over the grid stops
-                // looking like something loading over and over.
-                //
-                // Keyed on the game rather than on the model so the badge or
-                // the catalogue arriving a moment later fills in silently,
-                // instead of dissolving a face into the same face.
+                // Keyed on the game's identity, not on the model: late facts
+                // must fill in without dissolving a face into itself.
+                // pourquoi : docs/decisions/second-ecran.md § Le fondu entre deux faces n'est pas une décoration
                 Crossfade(
                     targetState = faceKey(model),
                     animationSpec = tween(220),
@@ -149,17 +129,9 @@ fun SecondScreenContent(model: SecondScreenModel) {
                     val shown = remember(key) { model }
                     when (shown) {
                         is SecondScreenModel.Idle -> Idle()
-                        // Read live rather than frozen, and it is the one
-                        // branch that must be. Every console shares the key
-                        // "console", so `shown` — remembered *on the key* —
-                        // would stay on whichever console was first shown and
-                        // the card would never change its text. Since the key
-                        // does not change between two consoles, no fade is
-                        // running here, so there is no outgoing face to
-                        // protect. The frozen value is still the fallback: on
-                        // the way out, when the model has already become
-                        // another face, it is what keeps this one intact for
-                        // the length of the fade.
+                        // Live, not frozen: every console shares one key, so
+                        // the remembered value would never change its text.
+                        // pourquoi : docs/decisions/second-ecran.md § La console se lit en direct, les autres faces sont gelées
                         is SecondScreenModel.ConsoleFolder -> ConsoleCard(
                             (model as? SecondScreenModel.ConsoleFolder)?.console
                                 ?: shown.console
@@ -181,13 +153,8 @@ fun SecondScreenContent(model: SecondScreenModel) {
 }
 
 /**
- * What counts as a different face, for the fade.
- *
- * A game arrives on the panel before what is known about it does: the
- * compatibility badge and the catalogue entry are published a moment later,
- * against the same ROM. Fading on the whole model would dissolve a face into an
- * almost identical one every time, which looks like a stutter; fading on
- * *identity* lets the late facts fill in where they are.
+ * What counts as a different face, for the fade: identity, not content.
+ * pourquoi : docs/decisions/second-ecran.md § Le fondu entre deux faces n'est pas une décoration
  */
 private fun faceKey(model: SecondScreenModel): String = when (model) {
     is SecondScreenModel.Idle -> "idle"
@@ -201,11 +168,7 @@ private fun faceKey(model: SecondScreenModel): String = when (model) {
 
 /**
  * The band across the top: are we reachable, and is there any news.
- *
- * Two facts that belong to the app rather than to the game under the cursor, so
- * they keep their own strip and never move: the state of the machine on the
- * left, where a status light lives on every appliance the player owns, and
- * whatever just happened on the right, where there is room for a sentence.
+ * pourquoi : docs/decisions/second-ecran.md § La lumière de service a sa propre couleur
  */
 @Composable
 private fun PanelHeader(modifier: Modifier = Modifier) {
@@ -220,16 +183,10 @@ private fun PanelHeader(modifier: Modifier = Modifier) {
 }
 
 /**
- * The service light.
+ * The service light: a lit dot and two words.
  *
- * A lit dot and two words, and nothing else: this is the one piece of chrome on
- * the panel and it has to be readable without being read — the colour answers
- * the question from across the room, the words only confirm it.
- *
- * Its own colour, not the app accent. The accent means "this is where you are"
- * everywhere else in Emufii, and a status light that borrowed it would make the
- * cursor mean two things. Green and red are what a socket, a router and a
- * console charger already say.
+ * Its own colour, never the app accent.
+ * pourquoi : docs/decisions/second-ecran.md § La lumière de service a sa propre couleur
  */
 @Composable
 private fun VpsMark() {
@@ -286,16 +243,9 @@ private fun VpsMark() {
 }
 
 /**
- * Where the news comes out.
- *
- * A friend online, a version published: the front screen still says both, and a
- * player with one screen loses nothing. What this adds is the case the front
- * screen cannot serve — the emulator owns it — where the alternative is a
- * notification shade pulled over a running game.
- *
- * It arrives from above and leaves on its own, because nobody can dismiss it:
- * this window takes no touch by design. Anything that had to be acknowledged
- * here would stay forever.
+ * Where the news comes out. It leaves on its own: nothing here can be
+ * dismissed, so anything needing acknowledgement would stay forever.
+ * pourquoi : docs/decisions/second-ecran.md § Les nouvelles arrivent d'en haut et repartent seules
  */
 @Composable
 private fun NoteStrip(modifier: Modifier = Modifier) {
@@ -361,13 +311,8 @@ private fun Idle() {
             // screen.
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        // The version, and this is the one screen where it belongs without
-        // being asked for. It is the answer to the question the panel is
-        // actually asked when nothing is running — "which build is this
-        // handheld on?" — and answering it here saves walking into the
-        // settings to find out. Set a step smaller and a step dimmer than the
-        // name, so it reads as a footnote to it rather than a second line of
-        // equal weight.
+        // A step smaller and dimmer than the name: a footnote to it.
+        // pourquoi : docs/decisions/second-ecran.md § La version s'affiche sur la face au repos
         Text(
             stringResource(R.string.panel_idle_version, BuildConfig.VERSION_NAME),
             style = MaterialTheme.typography.labelLarge,
@@ -378,43 +323,18 @@ private fun Idle() {
 
 /**
  * The cursor is on a console's folder: what playing together means on that
- * machine, in a frame, in the middle of the panel.
- *
- * One plate and nothing else on the screen. This is the only face of the panel
- * that is *read* rather than glanced at, so it gets the shape a thing to be
- * read has here — a raised plate with room around it — instead of being laid
- * out like the browsing face, whose job is to put a box and a badge side by
- * side.
- *
- * The machine's name leads, because the player is looking at a shelf of folders
- * and the first thing the panel owes them is which one the cursor is on. Then
- * two lines, then a warning if that console has one. Nothing else fits, and
- * nothing else belongs: the front screen keeps every explanation it had, and a
- * player without a panel is not missing a word of it.
+ * machine. The machine's name leads, then two lines, then a warning if it has
+ * one.
+ * pourquoi : docs/decisions/second-ecran.md § La fiche console : ce qu'elle dit, et ce qu'elle ne dit pas
  */
 @Composable
 private fun ConsoleCard(console: Console) {
     val dark = LocalEmufiiDarkTheme.current
     val oled = LocalEmufiiOledTheme.current
 
-    // The plate is one object that stays, and it grows and shrinks as the
-    // cursor walks the shelf.
-    //
-    // Three earlier tries each broke something: a card sized to its own text
-    // jumped from console to console, a card stretched to the full height was
-    // two thirds empty, and a card pinned to the top sat under the header. All
-    // three were attempts to stop a *cut* — the panel replacing one card with a
-    // differently sized one between two frames.
-    //
-    // What was missing is that the change itself can be shown. Here the frame
-    // is never replaced: it is the same plate throughout, centred, and its size
-    // is animated towards whatever the next console needs while the words
-    // crossfade inside it. Nothing snaps, nothing is padded out to a common
-    // size, and the card is only ever as large as it has to be.
-    //
-    // Centred, so a card that grows opens from its middle in both directions —
-    // growing downward alone would drag the eye, and the panel is read out of
-    // the corner of it.
+    // One plate that stays and is resized, never replaced. Centred, so it
+    // opens from its middle in both directions.
+    // pourquoi : docs/decisions/second-ecran.md § La fiche console est une plaque qui grandit, pas une plaque qu'on remplace
     AnimatedContent(
         targetState = console,
         transitionSpec = {
@@ -455,10 +375,8 @@ private fun ConsoleCard(console: Console) {
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // A bar rather than a triangle with an exclamation mark in
-                    // it. The panel draws its own symbols, and one of the two
-                    // things it must never do is shout: this is a thing to know
-                    // before starting, not an error that has happened.
+                    // A bar, never a warning triangle: this panel does not shout.
+                    // pourquoi : docs/decisions/second-ecran.md § Le panneau ne crie pas
                     Box(
                         modifier = Modifier
                             .width(3.dp)
@@ -478,17 +396,10 @@ private fun ConsoleCard(console: Console) {
 }
 
 /**
- * The game, on two pages, and the second one is optional in the strongest sense.
+ * The game, on two pages, the second reached from the *front* screen.
  *
- * Page one is what a player glances at while moving a cursor: the box, the
- * machine, the title, whether it plays together, which dump this is. Page two is
- * what somebody who has stopped on a game wants — what it is about, when it came
- * out, what it looks like — and it is reached by a button on the *front* screen,
- * because this one has no cursor.
- *
- * Sliding rather than cross-fading. The button says "further down", and a page
- * that arrives from below is the same gesture the player just made; a dissolve
- * would say "replaced", which is not what happened.
+ * Sliding rather than cross-fading: the page arrives the way the player asked.
+ * pourquoi : docs/decisions/second-ecran.md § La face de survol : deux pages, la seconde vraiment optionnelle
  */
 @Composable
 private fun BrowsingPages(model: SecondScreenModel.Browsing, page: Int) {
@@ -508,12 +419,7 @@ private fun BrowsingPages(model: SecondScreenModel.Browsing, page: Int) {
 
 /**
  * The game under the cursor: its box on the left, what we know of it on the right.
- *
- * The cover is the object and gets the weight — it is the one thing the player
- * recognises before reading anything. The column beside it answers what a box
- * cannot: which machine, whether this one actually plays together, and which
- * dump is in the slot, because two copies of the same game are not the same
- * file and the player is the one who has to know it.
+ * pourquoi : docs/decisions/second-ecran.md § La face de survol : deux pages, la seconde vraiment optionnelle
  */
 @Composable
 private fun Browsing(model: SecondScreenModel.Browsing) {
@@ -524,10 +430,8 @@ private fun Browsing(model: SecondScreenModel.Browsing) {
             horizontalArrangement = Arrangement.spacedBy(30.dp),
             modifier = Modifier.fillMaxWidth().align(Alignment.Center)
         ) {
-            // The box, and the way to its other page directly under it. The
-            // control belongs to the thing it acts on: put in the middle of the
-            // panel it was a fourth object floating between two columns, and it
-            // read as a legend for the whole screen rather than for the game.
+            // The control sits under the thing it acts on, not mid-panel.
+            // pourquoi : docs/decisions/second-ecran.md § Le contrôle appartient à ce sur quoi il agit
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(14.dp),
@@ -563,10 +467,8 @@ private fun Browsing(model: SecondScreenModel.Browsing) {
                         )
                     }
                 }
-                // The dump's own line: region, revision, and the genre when the
-                // catalogue knows one. Absent halves simply are not printed —
-                // a panel that guessed "USA" from silence would be wrong for
-                // every European player whose dumper skipped the tag.
+                // Absent halves are not printed: nothing here is guessed.
+                // pourquoi : docs/decisions/second-ecran.md § La face de survol : deux pages, la seconde vraiment optionnelle
                 DumpLine(model)
             }
         }
@@ -591,24 +493,17 @@ private fun DumpLine(model: SecondScreenModel.Browsing) {
 }
 
 /**
- * The second page: what the game is, rather than which file it is.
- *
- * Everything here is editorial and everything here can be missing, so the page
- * is built from whatever exists and says so plainly when that is nothing. It
- * never claims: a synopsis in the wrong language is shown as the language it is
- * in, and a game the catalogue has never heard of gets one honest sentence
- * instead of an empty layout.
+ * The second page: what the game is, rather than which file it is. Everything
+ * here is editorial and can be missing; nothing is claimed.
+ * pourquoi : docs/decisions/second-ecran.md § La face de survol : deux pages, la seconde vraiment optionnelle
  */
 @Composable
 private fun Details(model: SecondScreenModel.Browsing) {
     val locale = panelLocale()
     val meta = model.meta
 
-    // Laid out to fit, never to scroll. Nothing on this window can be scrolled
-    // — it has no cursor and takes no touch — so anything below the fold is
-    // simply lost, and a page that ends mid-picture looks broken rather than
-    // long. The paragraph gives up its lines first, because a synopsis reads
-    // fine cut short and a picture does not.
+    // Laid out to fit, never to scroll; the paragraph yields its lines first.
+    // pourquoi : docs/decisions/second-ecran.md § Rien ne défile, donc tout doit tenir
     Column(
         verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.fillMaxSize()
@@ -697,12 +592,10 @@ private fun Details(model: SecondScreenModel.Browsing) {
 }
 
 /**
- * The language this window is drawn in.
- *
- * Read off *this* window's configuration rather than the process default: the
- * panel is a second display with its own configuration, and the player's choice
- * of language is applied per configuration. Taking `Locale.getDefault()` would
- * be right by accident and wrong the day the two disagree.
+ * The language this window is drawn in, read off *this* window's configuration
+ * rather than the process default — `Locale.getDefault()` would be right by
+ * accident.
+ * pourquoi : docs/decisions/second-ecran.md § La langue vient de la fenêtre, pas du processus
  */
 @Composable
 private fun panelLocale(): java.util.Locale {
@@ -716,8 +609,8 @@ private fun panelLocale(): java.util.Locale {
 /**
  * The stills Cocoon has already downloaded for this exact file, if any.
  *
- * Off the main thread and keyed on the ROM: the folder listing is a real
- * provider query, and it happens while a page is turning.
+ * Off the main thread: the folder listing is a real provider query, and it
+ * happens while a page is turning.
  */
 @Composable
 private fun rememberCocoonStills(rom: eu.emufii.app.library.Rom): List<Any> {
@@ -777,12 +670,7 @@ private fun Screenshots(urls: List<Any>) {
 
 /**
  * The way to the other page: an arrow on a cap, and the button that turns it.
- *
- * It is drawn as a *pressable* thing — a plate, like the legend's keycaps —
- * because that is what it is: the shoulder button on the front of the machine
- * does this. Nothing on this window is touchable, so a control that looked like
- * a target you could hit would be a lie; a cap with a letter beside it is the
- * same diagram the legend already draws in the corners.
+ * pourquoi : docs/decisions/second-ecran.md § Le contrôle appartient à ce sur quoi il agit
  */
 @Composable
 private fun PageTurn(up: Boolean, label: String, modifier: Modifier = Modifier) {
@@ -812,9 +700,8 @@ private fun PageTurn(up: Boolean, label: String, modifier: Modifier = Modifier) 
 }
 
 /**
- * The arrow, drawn rather than typed, for the reason the d-pad is: a character
- * would arrive from whatever font happens to carry it, and at 12.dp a fallback
- * face's weight and baseline both show.
+ * The arrow, drawn rather than typed.
+ * pourquoi : docs/decisions/second-ecran.md § La légende, et pourquoi les symboles sont dessinés
  */
 @Composable
 private fun ArrowGlyph(tint: Color, up: Boolean) {
@@ -842,14 +729,10 @@ private fun ArrowGlyph(tint: Color, up: Boolean) {
 }
 
 /**
- * The box, moulded onto the tray.
- *
- * Its shadow is tinted with the colour the artwork itself gave up
- * (`Rom.accentArgb`, already extracted for the front screen). That is the
- * content-colour rule taken literally: the tone is the game's, not the app's,
- * and it arrives as depth — a real offset shadow — rather than as a wash laid
- * over the chrome. Games with no extracted tone simply cast the tray's own
- * shadow, and nothing about the layout changes.
+ * The box, moulded onto the tray, its shadow tinted with the colour the artwork
+ * gave up (`Rom.accentArgb`). No extracted tone: the tray's own shadow, and
+ * nothing else changes.
+ * pourquoi : docs/decisions/second-ecran.md § La jaquette est moulée dans le plateau, et son ombre est de sa couleur
  */
 @Composable
 private fun Cover(model: SecondScreenModel.Browsing, modifier: Modifier = Modifier) {
@@ -876,17 +759,9 @@ private fun Cover(model: SecondScreenModel.Browsing, modifier: Modifier = Modifi
                 ambientColor = shadow.copy(alpha = if (dark) 0.55f else 0.30f),
                 spotColor = shadow.copy(alpha = if (dark) 0.75f else 0.42f)
             )
-            // The frame itself: a moulded plate, and the artwork sits *in* it.
-            //
-            // A rim alone was not enough here, and the arithmetic says why. The
-            // contour is a 1.5.dp stroke centred on the outline, so the clip
-            // eats its outer half and 1.73px survive, at 24% opacity, across a
-            // 452px cover — 0.38% of the width, half the presence it has on a
-            // grid tile, which is why it reads on the front screen and vanishes
-            // on this one. Scaling the stroke instead would have been a second
-            // rule for one place. A plate with the picture inset is the frame
-            // this world already owns: face, edge and lit bevel, at a size the
-            // eye can find from across a room.
+            // A plate with the picture inset, not a rim: measured, a rim
+            // survives 0.38% of the cover's width here and vanishes.
+            // pourquoi : docs/decisions/second-ecran.md § La jaquette est moulée dans le plateau, et son ombre est de sa couleur
             .plate(TileShape, dark = dark, oled = oled, lift = 0.dp)
             .padding(9.dp)
     ) {
@@ -946,12 +821,8 @@ private fun ConsoleBadge(console: Console) {
 }
 
 /**
- * A session is up, and the code is the whole point.
- *
- * It carries no label above it. The six characters in the app's accent, on the
- * one plate lifted off the tray, are already the only thing on the panel that
- * could be read out to somebody — naming them would be a costume of importance,
- * which this app does not wear.
+ * A session is up, and the code is the whole point. It carries no label.
+ * pourquoi : docs/decisions/second-ecran.md § Le code de session ne porte pas d'étiquette
  */
 @Composable
 private fun InSession(model: SecondScreenModel.InSession) {
@@ -983,10 +854,8 @@ private fun InSession(model: SecondScreenModel.InSession) {
             )
         }
 
-        // The two numbers the emulator's dialog asks for, engraved into the
-        // tray rather than plated: they are a reference to read off, not an
-        // object to reach for. Recessed side by side because they are typed
-        // together, and a player copying one at a time has to come back.
+        // Engraved, not plated: a reference to read off, not an object to reach for.
+        // pourquoi : docs/decisions/second-ecran.md § Le code de session ne porte pas d'étiquette
         if (model.hostAddress != null || model.port != null) {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 model.hostAddress?.let { Fact(stringResource(R.string.session_host_address), it) }
@@ -1032,11 +901,9 @@ private fun Fact(label: String, value: String) {
 }
 
 /**
- * The button legend, in the two bottom corners.
- *
- * Left is where you leave from, right is where you act: the arrangement of
- * every console shell the player already owns. An empty side takes no room, so
- * a face with nothing to say on the left leaves no hole.
+ * The button legend, in the two bottom corners: leave on the left, act on the
+ * right. An empty side takes no room.
+ * pourquoi : docs/decisions/second-ecran.md § La légende, et pourquoi les symboles sont dessinés
  */
 @Composable
 private fun Legend(legend: PadLegend, modifier: Modifier = Modifier) {
@@ -1068,11 +935,8 @@ private fun Cluster(hints: List<PadHint>) {
 }
 
 /**
- * One button, moulded like the machine's own.
- *
- * A plate and not a recess: this is the picture of a thing that sticks out and
- * can be pressed, and the tray's sockets are for holes. Flush, at 2.dp of lift,
- * because a legend is a diagram and must not compete with what it labels.
+ * One button, moulded like the machine's own: a plate, never a recess.
+ * pourquoi : docs/decisions/second-ecran.md § La légende, et pourquoi les symboles sont dessinés
  */
 @Composable
 private fun KeyCap(hint: PadHint) {
@@ -1088,10 +952,8 @@ private fun KeyCap(hint: PadHint) {
                 dark = dark,
                 oled = oled,
                 lift = 2.dp,
-                // A hint about holding shows a held button: the plate loses its
-                // lift and its lit edge and takes the shadow's shade, which is
-                // what "pushed in" is made of here. It is the same letter as the
-                // press above it, because it is the same button.
+                // A hint about holding shows a held button: no lift, no lit edge.
+                // pourquoi : docs/decisions/second-ecran.md § La légende, et pourquoi les symboles sont dessinés
                 pressed = hint.held
             )
     ) {
@@ -1103,29 +965,9 @@ private fun KeyCap(hint: PadHint) {
 /**
  * The letter, centred on its own ink.
  *
- * Three separate things pushed it off centre, and laying the text out could
- * only ever fix one of them.
- *
- * **Left.** `labelLarge` carries `letterSpacing = 0.1.sp`, and Compose adds that
- * space *after* the last character as well as between characters. On a
- * one-letter string the measured width is the glyph plus one trailing gap, so
- * centring the measurement leaves the ink sitting left.
- *
- * **Down.** `labelLarge` sets `lineHeight` 18.sp over `fontSize` 14.sp. Trimming
- * that leading still leaves a box running ascent to descent, while a capital
- * with no descender fills only baseline to cap height. Centring that box is not
- * centring the letter, and no amount of trimming makes the two the same.
- *
- * **Right, once the first two were fixed.** Centring on the advance width is
- * still not centring the ink: a glyph's side bearings differ, so B in this face
- * sits measurably right of its own advance centre. Measured offline against
- * `rounded_bold.ttf` at this exact size, since a second display cannot be
- * screenshotted.
- *
- * So the glyph is drawn, and placed from [android.graphics.Paint.getTextBounds],
- * the smallest rectangle enclosing the ink. Put the pen at
- * `w/2 - (left + right)/2` and the ink centre lands on the cap centre by
- * construction, on both axes, for any glyph and any type scale.
+ * Laying the text out cannot do this: the glyph is drawn and placed from
+ * [android.graphics.Paint.getTextBounds], pen at `w/2 - (left + right)/2`.
+ * pourquoi : docs/decisions/second-ecran.md § Une lettre est centrée sur son encre, pas sur sa boîte
  */
 @Composable
 private fun CapLetter(glyph: String, tint: Color) {
@@ -1157,10 +999,7 @@ private fun CapLetter(glyph: String, tint: Color) {
 
 /**
  * The d-pad, drawn rather than typed.
- *
- * Drawn because a character would arrive from whatever font happens to carry
- * it, and a cap is 26.dp wide: a fallback face's weight and baseline both show
- * at that size. The system says icons are drawn, never characters.
+ * pourquoi : docs/decisions/second-ecran.md § La légende, et pourquoi les symboles sont dessinés
  */
 @Composable
 private fun DPadGlyph(tint: Color) {

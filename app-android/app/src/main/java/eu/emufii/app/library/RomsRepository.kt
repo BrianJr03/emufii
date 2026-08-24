@@ -14,9 +14,8 @@ private const val PREFS = "emufii_library"
 private const val KEY_FOLDER_URI = "roms_folder_uri"
 
 /**
- * How deep to walk. People file ROMs as `Roms/3DS/Jeux/…`, occasionally a level
- * or two more; past this we're almost certainly somewhere we shouldn't be, and
- * every extra level costs a query per directory.
+ * How deep to walk: every extra level costs a query per directory.
+ * pourquoi : docs/decisions/scan-bibliotheque.md § La marche de l'arbre
  */
 private const val MAX_DEPTH = 6
 
@@ -27,9 +26,9 @@ private const val MAX_FILES = 5000
 private const val PROD_KEYS = "prod.keys"
 
 /**
- * The containers the PSP shares with other consoles. A file carrying one of
- * these extensions only enters the library once recognised as a PSP game; see
- * `toPspRom`.
+ * The containers the PSP shares with other consoles: one of these enters the
+ * library only once recognised as a PSP game.
+ * pourquoi : docs/decisions/scan-bibliotheque.md § Une chaîne de décision, le moins cher d'abord
  */
 class RomsRepository(private val context: Context) {
 
@@ -45,12 +44,8 @@ class RomsRepository(private val context: Context) {
 
     /**
      * The player's own console keys, found during the scan, kept only in memory.
-     *
-     * A Switch dump says nothing about itself without them, no icon, no title.
-     * Emufii never ships keys and never fetches any: it picks up a `prod.keys`
-     * that the player has already put in their own ROMs folder, which is where
-     * every Switch emulator asks them to put it anyway. Absent, Switch tiles
-     * keep their initials, exactly like an unrecognised file.
+     * Emufii never ships keys and never fetches any.
+     * pourquoi : docs/decisions/scan-bibliotheque.md § Les clés Switch : ramassées, jamais fournies
      */
     private var switchKeys: SwitchKeys? = null
 
@@ -61,10 +56,8 @@ class RomsRepository(private val context: Context) {
     fun savedFolderUri(): Uri? = prefs.getString(KEY_FOLDER_URI, null)?.let(Uri::parse)
 
     /**
-     * Something the user can recognise, not the raw tree URI. SAF hands us a
-     * document id shaped like `primary:Roms/3DS`; the volume prefix means nothing
-     * to anyone outside the framework, so only what follows it is shown. Falls
-     * back to the last URI segment for providers with an unfamiliar id format.
+     * Something the user can recognise, not the raw tree URI.
+     * pourquoi : docs/decisions/scan-bibliotheque.md § Ce que le joueur voit du dossier choisi
      */
     fun savedFolderLabel(): String? {
         val uri = savedFolderUri() ?: return null
@@ -94,15 +87,9 @@ class RomsRepository(private val context: Context) {
     }
 
     /**
-     * Last scan's result, so callers that only need to look something up don't
-     * walk the whole tree again. Joining from the session finder did exactly
-     * that, a second full walk just to match one title id.
-     *
-     * Deliberately shared across instances rather than held per repository. A
-     * repository is remembered per composition, so rotating the device made a
-     * new one and rescanned from scratch, with a 2 GB 3DS ROM in the folder
-     * that took long enough to ANR, and several rotations queued several scans
-     * at once. The cache belongs to the process, not to the screen.
+     * Last scan's result. Deliberately shared across instances: the cache
+     * belongs to the process, not to the screen.
+     * pourquoi : docs/decisions/scan-bibliotheque.md § Le cache appartient au processus, pas à l'écran
      */
     private companion object {
         @Volatile
@@ -151,18 +138,9 @@ class RomsRepository(private val context: Context) {
     }
 
     /**
-     * The player's chosen names, laid over the scanned list on the way out.
-     *
-     * Deliberately *not* baked into the cache. Renaming a game does not rescan
-     * anything — it changes one preference — so a cache holding the renamed
-     * titles was a cache nothing invalidated: the rename only appeared at the
-     * next cold start, which reads as "renaming does nothing". Keeping the
-     * cache at the titles read off the files, and applying the chosen ones on
-     * every read, also makes clearing a name give the original title straight
-     * back, where before it left the custom one in place until a rescan.
-     *
-     * The sort belongs here for the same reason: a renamed game has to move to
-     * its new place in the alphabet, not stay where its old title put it.
+     * The player's chosen names, laid over the scanned list on the way out and
+     * deliberately *not* baked into the cache. The sort belongs here too.
+     * pourquoi : docs/decisions/scan-bibliotheque.md § Les noms choisis par le joueur sont posés à la sortie, jamais dans le cache
      */
     private fun named(roms: List<Rom>): List<Rom> =
         roms.filterNot(hiddenRoms::isHidden)
@@ -178,16 +156,9 @@ class RomsRepository(private val context: Context) {
     )
 
     /**
-     * Walks the picked tree, subfolders included, people keep their ROMs
-     * sorted into `3DS/`, `GameCube/`, `Jeux/`, and a flat scan found nothing.
-     *
-     * Queries [DocumentsContract] directly rather than using `DocumentFile`:
-     * the latter issues a query per entry to answer `isFile`/`name`, which on a
-     * library of a few thousand files means a few thousand round trips. Here
-     * one query per directory returns everything needed.
-     *
-     * Breadth-first, so the shallow well-named folders are visited before the
-     * deep ones, it matters when [MAX_FILES] cuts the walk short.
+     * Walks the picked tree, subfolders included. Queries [DocumentsContract]
+     * directly, and breadth-first so shallow folders come first.
+     * pourquoi : docs/decisions/scan-bibliotheque.md § La marche de l'arbre
      */
     private fun walk(treeUri: Uri): List<Candidate> {
         val resolver = context.contentResolver
@@ -246,17 +217,9 @@ class RomsRepository(private val context: Context) {
                     val ext = name.substringAfterLast('.', "")
                     val byName = Console.forExtension(ext) ?: continue
                     val uri = DocumentsContract.buildDocumentUriUsingTree(treeUri, docId)
-                    // One chain of decision, cheapest truth first. The folder
-                    // name when it names a console: the player sorted that file
-                    // themselves. Then the extension, when it belongs to one
-                    // console. Then the bytes, for the extensions three
-                    // consoles share. A shared extension no read vouches for is
-                    // a disc Emufii does not serve (a PS1, a Dreamcast, an
-                    // unreadable provider), and it is not listed rather than
-                    // pointed at an emulator that cannot open it. The Nintendo
-                    // containers (`rvz`, `wia`) keep the extension's answer when
-                    // the read says nothing: both play on Dolphin anyway, and a
-                    // provider hiccup must not empty a library.
+                    // One chain, cheapest truth first: folder name, extension,
+                    // then bytes. Unvouched shared extensions are not listed.
+                    // pourquoi : docs/decisions/scan-bibliotheque.md § Une chaîne de décision, le moins cher d'abord
                     val extLower = ext.lowercase()
                     val folderConsole = Console.forFolder(folderName)
                     val console = when {
@@ -298,22 +261,16 @@ class RomsRepository(private val context: Context) {
     }
 
     /**
-     * 3DS and DS files get opened, because both carry their real title and icon
-     * inside, an SMDH for the 3DS, a banner for the DS, and both are cheap to
-     * reach. Disc images (GameCube, Wii) still take their *title* from the
-     * filename: `.rvz` is compressed, so no banner sits at a fixed offset. Their
-     * *identity* is another matter, an uncompressed image opens with its six
-     * character game id, and that is what the session guard compares.
+     * 3DS and DS files get opened; disc images take their *title* from the
+     * filename but their *identity* from the disc.
+     * pourquoi : docs/decisions/scan-bibliotheque.md § Ce qu'on ouvre, et ce qu'on ne peut pas ouvrir
      */
     private fun Candidate.toRom(): Rom? = readRom()?.copy(addedAt = addedAt)
 
     /**
-     * The title read out of the file, which is what gets cached.
-     *
-     * The name the player chose is laid over this later, in [named], and never
-     * here: every console has its own reading path, and applying it per path
-     * would have given a library where renaming works for the 3DS and not for
-     * the DS. One place, on the way out, for all of them.
+     * The title read out of the file, which is what gets cached — the chosen
+     * name is laid over it in [named], never here.
+     * pourquoi : docs/decisions/scan-bibliotheque.md § Les noms choisis par le joueur sont posés à la sortie, jamais dans le cache
      */
     private fun Candidate.readRom(): Rom? {
         if (console == Console.DS) return toDsRom()
@@ -321,11 +278,9 @@ class RomsRepository(private val context: Context) {
 
         if (console == Console.PSP) return toPspRom()
 
-        // The PS2 takes the same path as the Nintendo discs, and for the same
-        // reason: the title comes from the filename, but the number is read out
-        // of the disc. `SLES-50877` on TimeSplitters 2, exactly what ARMSX2
-        // displays, so a guest can recognise the host's game as their own
-        // emulator names it to them.
+        // Same path as the Nintendo discs: title from the filename, number
+        // from the disc, exactly as ARMSX2 displays it.
+        // pourquoi : docs/decisions/scan-bibliotheque.md § `productCode` et `titleIdHex` ne jouent pas le même rôle
         if (console == Console.GAMECUBE || console == Console.WII || console == Console.PS2) {
             return toDiscRom()
         }
@@ -352,19 +307,9 @@ class RomsRepository(private val context: Context) {
     }
 
     /**
-     * The PSP, with the same cache discipline as the DS and the Switch.
-     *
-     * A UMD carries its icon and its title inside its filesystem, under
-     * `PSP_GAME`: a few kilobytes to read on a disc weighing a million of them.
-     * The title comes from the `PARAM.SFO` and is markedly better than the
-     * filename, which usually drags its region and its revision along in
-     * brackets.
-     *
-     * The disc id serves as the cache key, but not as the session identity: it
-     * goes into `productCode`, as for the DS, and not into `titleIdHex`, which
-     * decides whether two players really have the same game. Two regional dumps
-     * of the same title carry two ids, and nothing yet says they refuse to play
-     * together; that would be forbidding a game on a supposition.
+     * The PSP: title and icon read from `PSP_GAME`, a few kilobytes on a disc
+     * weighing a million. Disc id is the cache key, never the session identity.
+     * pourquoi : docs/decisions/scan-bibliotheque.md § `productCode` et `titleIdHex` ne jouent pas le même rôle
      */
     private fun Candidate.toPspRom(): Rom? {
         val fallback = Rom(
@@ -389,13 +334,9 @@ class RomsRepository(private val context: Context) {
         }
 
         val data = pspReader.read(uri)
-        // `.iso` and `.chd` say nothing about the console that burned them: the
-        // PS2, the Xbox and a pile of arcade systems carry them too, and those
-        // games ended up in the grid under their filename when Emufii can do
-        // nothing with them. For these two containers the file has to prove it is
-        // a PSP game, a `PSP_GAME` in its table of contents, failing which it is
-        // not listed. `.pbp` and `.cso` stay admitted on their extension alone:
-        // they belong to the PSP and nothing else.
+        // `.iso`/`.chd` must PROVE they are PSP (a `PSP_GAME` entry); `.pbp`
+        // and `.cso` are admitted on their extension alone.
+        // pourquoi : docs/decisions/scan-bibliotheque.md § Une chaîne de décision, le moins cher d'abord
         val ambiguous = name.substringAfterLast('.', "").lowercase() in DiscImage.AMBIGUOUS_EXTENSIONS
         if (ambiguous && !data.recognised) return null
         // A homebrew can have no disc id at all while still having an icon; with
@@ -421,9 +362,9 @@ class RomsRepository(private val context: Context) {
     }
 
     /**
-     * The DS path, cached the same way as the 3DS one: the icon lands in the
-     * cache directory under the cartridge's game code, so a rescan doesn't
-     * decode every banner again.
+     * The DS path, cached like the 3DS one: the icon lands under the
+     * cartridge's game code so a rescan does not re-decode every banner.
+     * pourquoi : docs/decisions/scan-bibliotheque.md § Ce qu'on ouvre, et ce qu'on ne peut pas ouvrir
      */
     private fun Candidate.toDsRom(): Rom {
         val fallback = Rom(
@@ -466,26 +407,14 @@ class RomsRepository(private val context: Context) {
     }
 
     /**
-     * The Switch path. Same cache discipline as the DS one, and the same
-     * graceful nothing when the file won't talk, but here "won't talk" is the
-     * common case, because it means the player has no keys.
+     * The Switch path. "Won't talk" is the *common* case here: it means the
+     * player has no keys.
+     * pourquoi : docs/decisions/scan-bibliotheque.md § Les clés Switch : ramassées, jamais fournies
      */
     /**
-     * A GameCube or Wii disc image.
-     *
-     * The title comes from the filename, and that is accepted: an `.rvz` is
-     * compressed, so no banner can be read at a fixed offset, and a whole game
-     * would have to be decompressed to go and fetch its `opening.bnr`. What the
-     * file gives for almost nothing is its disc id, six characters at the front
-     * of the header, and that is what matters here: without it the session
-     * publishes nothing, and the guest is told they do not have the game they
-     * have right in front of them. That is exactly the flaw fixed for the PSP in
-     * versionCode 12.
-     *
-     * Filed under `productCode` and not `titleIdHex`, like the PSP and the DS:
-     * `sessionId` can find a game by either, but the wrong-game safeguard only
-     * refuses on a *title* id, and two regional dumps of the same game carry two
-     * disc ids while playing together perfectly well.
+     * A GameCube or Wii disc image: title from the filename, disc id from the
+     * header. Filed under `productCode`, never `titleIdHex`.
+     * pourquoi : docs/decisions/scan-bibliotheque.md § `productCode` et `titleIdHex` ne jouent pas le même rôle
      */
     private fun Candidate.toDiscRom(): Rom {
         val fallback = Rom(

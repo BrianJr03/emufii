@@ -1,11 +1,9 @@
 package eu.emufii.app.wg
 
 /**
- * Who holds the tunnel, and where it is in coming up.
- *
- * `Starting` is a state of its own on purpose: `TunnelSlot` derives Android's
- * single-VPN-slot occupancy from this, and treating a tunnel that is coming up
- * as "not yet held" is exactly the window where two tunnels collide.
+ * Who holds the tunnel, and where it is in coming up. `Starting` is a state of
+ * its own on purpose.
+ * pourquoi : docs/decisions/tunnel-wireguard.md § Android n'a qu'un créneau VPN, et Emufii a deux tunnels
  */
 sealed interface WgState {
     data object Idle : WgState
@@ -14,10 +12,9 @@ sealed interface WgState {
     data class Starting(val code: String) : WgState
 
     /**
-     * The tunnel is up. [ip] is this device's address on the session subnet.
-     *
-     * Note that "up" here means the interface exists and the handshake completed,
-     * not that another player has joined.
+     * The tunnel is up — meaning the interface exists, not that another player
+     * has joined.
+     * pourquoi : docs/decisions/tunnel-wireguard.md § « En ligne » veut dire moins qu'on ne croit
      */
     data class Online(val code: String, val ip: String) : WgState
 

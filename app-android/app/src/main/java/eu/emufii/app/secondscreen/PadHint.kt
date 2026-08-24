@@ -73,6 +73,20 @@ data class PadLegend(
         )
 
         /**
+         * On a console's folder: open it, or go back. And nothing else.
+         *
+         * The hold is missing because it genuinely does nothing there — the
+         * grid's long press asks `entry as? Entry.Game`, and a folder is not
+         * one, so the timer fires into an empty branch. Printing it would be a
+         * key the panel claims and the machine ignores, which is the one thing
+         * this legend exists not to do.
+         */
+        val FOLDER = PadLegend(
+            left = listOf(PadHint.BACK),
+            right = listOf(PadHint.CONFIRM),
+        )
+
+        /**
          * In a session, back is missing, and that is not an oversight.
          *
          * `EmufiiApp`'s `goBack` is null for `Screen.InSession`, and the press is

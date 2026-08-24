@@ -1,57 +1,23 @@
 package eu.emufii.app.ps2
 
 /**
- * The PS2's network-configuration payload, the "Your Network Configuration
- * File" (YNCF) that lives inside a `BWNETCNF` save.
+ * The PS2's network-configuration payload (YNCF), inside a `BWNETCNF` save.
  *
- * Three of the files are plain text: the save index (named `BWNETCNF`),
- * `net000.cnf`, and the shared 38-byte header of the other two. The other two,
- * `ifc000.dat` and `dev000.dat`, are that same text run through a console-locked
- * cipher: Sony's netcnf library derives a shift table from the console's 8-byte
- * i.Link ID and encodes each little-endian 16-bit word as
- * `rotl16(word, shift) xor 0xFFFF` (ps2dev/ps2sdk,
- * `iop/network/netcnf/src/netcnf.c`, encode at :775, key init at :875).
+ * Three files are plain text; `ifc000.dat` and `dev000.dat` are that same text
+ * through a console-locked cipher keyed on the 8-byte i.Link ID. **A YNCF save
+ * only reads back on the console whose ID encrypted it**, and there is no
+ * checksum to fail loudly — a mismatch decodes to word soup.
  *
- * The key consequence, and the reason this file exists: **a YNCF save only
- * reads back on the console whose i.Link ID encrypted it.** There is no key
- * material in the file, and no checksum to fail loudly — a mismatched console
- * decodes word soup and the game reports the configuration as invalid.
- *
- * ### Which ID to encrypt for
- *
- * ARMSX2 answers the netcnf library's `sceCdRI` from the `.nvm` beside the
- * running BIOS, and both paths that produce that answer converge on one
- * constant (`pcsx2/CDVD/CDVD.cpp`):
- *
- * - no readable `.nvm` → `cdvdCreateNewNVM()` writes the dummy ID
- *   `00 AC FF FF FF FF B9 86` (CDVD.cpp:158);
- * - an `.nvm` whose i.Link area looks unprogrammed (bytes 2 and 3 both zero)
- *   → `sceCdReadILinkId` overrides the read with the same constant
- *   (CDVD.cpp:2621-2631).
- *
- * So a card encrypted for [ARMSX2_CONSOLE_ID] works on every install whose
- * NVRAM ARMSX2 generated itself — the single-`.bin` BIOS import that is the
- * normal setup. An install that imported a real console's `.nvm` alongside its
- * BIOS keeps that console's true ID and must be encrypted for it; hand the
- * bytes from [ilinkIdFromNvm] to the generator in that case. The card Emufii
- * used to ship was encrypted for one bench console's ID and worked nowhere
- * else — the defect this replaces.
- *
- * ### What the configuration says
- *
- * `type nic` + `dhcp`, nothing else. The static address a PS2 ends up with is
- * not this file's business in Emufii: ARMSX2's Local Link runs its own DHCP
- * server and hands each peer a distinct address derived from its peer id
- * (`pcsx2/DEV9/LocalLinkAdapter.cpp:167`), so the console asks for a lease and
- * is told apart from every other player by the emulator. A hand-written static
- * IP here would put every player on the same address instead.
+ * Encrypt for [ARMSX2_CONSOLE_ID] unless the install imported a real console's
+ * `.nvm`; see [ilinkIdFromNvm].
+ * pourquoi : docs/decisions/ps2-carte-memoire.md § YNCF : une sauvegarde ne se relit que sur la console qui l'a chiffrée
  */
 object Ps2NetcnfConfig {
 
     /**
-     * The two NVRAM layouts used by ARMSX2/PCSX2. Callers must select one from
-     * the BIOS they actually detected; inspecting both offsets can silently
-     * pick stale bytes left in an unrelated area of an imported `.nvm`.
+     * The two NVRAM layouts. Callers must select one from the BIOS actually
+     * detected: inspecting both can silently pick stale bytes.
+     * pourquoi : docs/decisions/ps2-carte-memoire.md § Pour quel identifiant chiffrer
      */
     enum class NvmLayout(
         internal val ilinkIdOffset: Int,
@@ -78,9 +44,9 @@ object Ps2NetcnfConfig {
     }
 
     /**
-     * The i.Link ID ARMSX2 reports for BIOSes without a real console NVRAM.
-     * Encrypting for it is what makes a generated card readable everywhere
-     * ARMSX2 manufactured its own `.nvm`.
+     * The i.Link ID ARMSX2 reports for BIOSes without a real console NVRAM —
+     * what makes a generated card readable on a normal install.
+     * pourquoi : docs/decisions/ps2-carte-memoire.md § Pour quel identifiant chiffrer
      */
     val ARMSX2_CONSOLE_ID: ByteArray =
         byteArrayOf(0x00.toByte(), 0xAC.toByte(), 0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte(), 0xB9.toByte(), 0x86.toByte())
@@ -89,17 +55,12 @@ object Ps2NetcnfConfig {
     private const val HEADER = "# <Sony Computer Entertainment Inc.>\n\n"
 
     /**
-     * `ifc000.dat` plaintext: the link half of the configuration.
-     *
-     * Byte-for-byte the text the PS2 wrote on the bench (measured 2026-08-20,
-     * recovered by decoding the shipped card): `dhcp`, no address, no nameserver.
+     * `ifc000.dat` plaintext, byte for byte what the PS2 wrote on the bench.
+     * pourquoi : docs/decisions/ps2-carte-memoire.md § Ce que la configuration dit, et ce qu'elle ne dit surtout pas
      */
     private const val IFC_PLAIN = HEADER + "type nic\ndhcp\n"
 
-    /**
-     * `dev000.dat` plaintext: the device half, naming SCE's Ethernet adaptor.
-     * Same provenance as [IFC_PLAIN].
-     */
+    /** `dev000.dat` plaintext: the device half. Same provenance as [IFC_PLAIN]. */
     private const val DEV_PLAIN =
         HEADER + "type nic\nvendor \"SCE\"\nproduct \"Ethernet (Network Adaptor)\"\nphy_config auto\n"
 
@@ -123,16 +84,16 @@ object Ps2NetcnfConfig {
         encode(DEV_PLAIN.toByteArray(Charsets.US_ASCII), consoleId)
 
     /**
-     * The console's i.Link ID out of a `.nvm`, selected by an explicit BIOS
-     * [version], or null when that exact area is absent/unprogrammed.
+     * The console's i.Link ID out of a `.nvm`, or null when that area is
+     * absent or unprogrammed.
      */
     fun ilinkIdFromNvm(nvm: ByteArray, version: BiosVersion): ByteArray? =
         ilinkIdFromNvm(nvm, version.nvmLayout)
 
     /**
-     * The ID ARMSX2 will effectively expose after `cdvdLoadNVRAM()` sanity checks.
-     * A short NVM, a blank language block, or a blank slim-region block makes
-     * ARMSX2 discard the imported contents and call `cdvdCreateNewNVM()`.
+     * The ID ARMSX2 will effectively expose after its own sanity checks, which
+     * can discard an imported NVM entirely.
+     * pourquoi : docs/decisions/ps2-carte-memoire.md § Pour quel identifiant chiffrer
      */
     fun effectiveIlinkIdFromNvm(nvm: ByteArray, version: BiosVersion): ByteArray {
         val layout = version.nvmLayout
@@ -146,10 +107,9 @@ object Ps2NetcnfConfig {
     }
 
     /**
-     * Layout-level form for callers that already resolved ARMSX2's NVM layout.
-     * ARMSX2 treats an area whose bytes 2 and 3 are both zero as unprogrammed
-     * and exposes [ARMSX2_CONSOLE_ID] instead; returning null preserves that
-     * distinction for the caller.
+     * Layout-level form. An area whose bytes 2 and 3 are both zero counts as
+     * unprogrammed, and null preserves that distinction.
+     * pourquoi : docs/decisions/ps2-carte-memoire.md § Pour quel identifiant chiffrer
      */
     fun ilinkIdFromNvm(nvm: ByteArray, layout: NvmLayout): ByteArray? {
         val offset = layout.ilinkIdOffset
@@ -162,11 +122,9 @@ object Ps2NetcnfConfig {
         offset < 0 || offset + length > size || (offset until offset + length).all { this[it].toInt() == 0 }
 
     /**
-     * YNCF encode: per little-endian 16-bit word `k`,
-     * `rotl16(word, shifts[k % 24]) xor 0xFFFF`; an odd trailing byte gets the
-     * 8-bit form. The shift table cycles with period 24 words (48 bytes), three
-     * shifts per ID byte, which is why two files encrypted under one console
-     * share their first 48 bytes whenever their plaintexts do.
+     * YNCF encode: `rotl16(word, shifts[k % 24]) xor 0xFFFF`, an odd trailing
+     * byte taking the 8-bit form. The table cycles every 24 words.
+     * pourquoi : docs/decisions/ps2-carte-memoire.md § YNCF : une sauvegarde ne se relit que sur la console qui l'a chiffrée
      */
     fun encode(plain: ByteArray, consoleId: ByteArray): ByteArray {
         require(consoleId.size == 8) { "i.Link ID is 8 bytes" }
@@ -212,13 +170,10 @@ object Ps2NetcnfConfig {
     }
 
     /**
-     * The 24 shift amounts, three per ID byte:
-     * `(b shr 5) + 1`, `((b shr 2) and 7) + 1`, `(b and 3) + 1` — each 1..8.
-     *
-     * ps2sdk's transcription initialises only seven of the eight ID bytes and
-     * lets two table slots run off the end of the array; decoding the bench
-     * card under the plain eight-byte table reproduces every word of both
-     * encrypted files, which is the reading followed here.
+     * The 24 shift amounts, three per ID byte, each 1..8. **Deliberately not
+     * ps2sdk's transcription**, which only initialises seven ID bytes; the
+     * plain eight-byte table is what reproduces the bench card exactly.
+     * pourquoi : docs/decisions/ps2-carte-memoire.md § YNCF : une sauvegarde ne se relit que sur la console qui l'a chiffrée
      */
     internal fun shifts(consoleId: ByteArray): IntArray {
         val table = IntArray(24)

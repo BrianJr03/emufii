@@ -8,20 +8,10 @@ import java.io.FileInputStream
 /**
  * Telling a GameCube or Wii disc from everything else that ends in `.iso`.
  *
- * The PSP got `.iso` first, and it is not giving it back: a UMD rip and a
- * GameCube image share the extension and nothing else. Sorting them by name
- * would be a coin toss, so this reads the first bytes instead, and reads them
- * only to promote a file. Anything this cannot positively identify stays
- * whatever [Console.forExtension] already said it was, which is why adding
- * Dolphin cannot take a single game away from PPSSPP.
- *
- * Every offset below was measured on real files sitting on this machine, not
- * copied out of a wiki:
- *
- * - a PSP rip has plain zeroes at 0x18 and 0x1C, where the two console magics
- *   live, so there is no false positive to worry about (checked on three);
- * - an RVZ carries its disc type at 0x48 and a verbatim copy of the disc header
- *   at 0x58, which is why the Wii magic turns up at 0x70 (checked on four).
+ * Reads bytes only to *promote* a file: anything not positively identified
+ * keeps whatever [Console.forExtension] said, so this can never take a game
+ * away from PPSSPP. Every offset here was measured on real files.
+ * pourquoi : docs/decisions/identite-disques.md § Lire les octets, et seulement pour promouvoir
  */
 object DiscImage {
 
@@ -37,12 +27,9 @@ object DiscImage {
     private const val GC_MAGIC_OFFSET = 0x1C
 
     /**
-     * Where a compressed image keeps its uncompressed copy of the disc header.
-     *
-     * RVZ and WIA share a container: a file header, then a `WIADisc` whose
-     * `disc_type` says which console it came off, then the first 0x80 bytes of
-     * the original disc verbatim. Both are readable without touching the
-     * compressed payload.
+     * Where a compressed image keeps its uncompressed copy of the disc header,
+     * readable without touching the compressed payload.
+     * pourquoi : docs/decisions/identite-disques.md § Les identifiants de jeu, et à quoi ils servent
      */
     private const val WIA_DISC_TYPE_OFFSET = 0x48
     private const val WIA_DISC_HEADER_OFFSET = 0x58
@@ -50,28 +37,14 @@ object DiscImage {
     private const val WIA_TYPE_WII = 2
 
     /**
-     * Which console this image belongs to, or null when the bytes don't say.
-     *
-     * Null is the ordinary answer for a PSP rip, and it is also the answer for a
-     * truncated read or a format not listed here, all three mean the same
-     * thing to the caller: leave the file where the extension put it.
+     * Which console this image belongs to, or null when the bytes don't say —
+     * which means "leave the file where the extension put it".
+     * pourquoi : docs/decisions/identite-disques.md § Lire les octets, et seulement pour promouvoir
      */
     /**
      * The ISO9660 volume descriptor, and the system identifier in it that names
-     * the console.
-     *
-     * A PS2 disc and a UMD rip are both `.iso`, and on the Thor they look alike
-     * right down to the filename. But the disc says so itself at byte `0x8008`,
-     * and this is measured on the real files on this machine:
-     *
-     * ```
-     * TimeSplitters 2 (PS2): system id 'PLAYSTATION'  volume id 'SLES_50877'
-     * WipEout Pulse  (PSP) : system id 'PSP GAME'     volume id 'SCEE'
-     * ```
-     *
-     * A CD/DVD's first data sector starts at `0x8000` (sector 16 of 2048 bytes),
-     * the type and the `CD001` signature first, then the system identifier over
-     * 32 bytes.
+     * the console — the disc says so itself at byte `0x8008`.
+     * pourquoi : docs/decisions/identite-disques.md § Le disque dit lui-même ce qu'il est, en 0x8008
      */
     private const val PVD_OFFSET = 0x8000
     private const val PVD_MAGIC_OFFSET = PVD_OFFSET + 1
@@ -105,23 +78,15 @@ object DiscImage {
     }
 
     /**
-     * Promotion to the PS2, and only when the disc says so.
-     *
-     * A PS1 disc carries the same `PLAYSTATION` at this offset, so this alone
-     * does not settle the console: the reader then requires a `BOOT2` entry in
-     * `SYSTEM.CNF` ([Ps2DiscIdentityReader]), which a PS2 disc has and a PS1
-     * disc does not. Without it the disc is refused rather than mislabelled —
-     * a PS1 CHD was once listed as a "PS2" game from outside any PS2 folder.
+     * Promotion to the PS2, and only when the disc says so: a PS1 disc carries
+     * the same `PLAYSTATION`, so a `BOOT2` entry is required as well.
+     * pourquoi : docs/decisions/identite-disques.md § `PLAYSTATION` ne suffit pas : il faut `BOOT2`
      */
     private fun playstation(head: ByteArray): Console? = playstationAt(head, PVD_OFFSET)
 
     /**
-     * The same rule, applied wherever the descriptor happens to start.
-     *
-     * On an `.iso` it starts at `0x8000`; on a sector lifted out of a CHD it
-     * starts at 0, 16 or 24 depending on how the disc was pressed. One rule, one
-     * place, so a PS2 recognised through a compressed container is recognised on
-     * exactly the same evidence as one read off a plain file.
+     * The same rule, wherever the descriptor starts: one rule, one place.
+     * pourquoi : docs/decisions/identite-disques.md § Le disque dit lui-même ce qu'il est, en 0x8008
      */
     private fun playstationAt(bytes: ByteArray, base: Int): Console? {
         if (base + PVD_ID_LENGTH * 2 + 8 > bytes.size) return null
@@ -137,24 +102,16 @@ object DiscImage {
     }
 
     /**
-     * Where the volume descriptor sits inside one raw disc sector.
-     *
-     * A 2048-byte sector is user data already. A raw CD sector carries 16 bytes
-     * of sync and header before it (MODE1) or 24 (MODE2 FORM1), and the PS2
-     * pressing measured here is MODE2, so both have to be tried. Measured on the
-     * real file: `CD001` lands at 24, and the descriptor then reads
-     * `system id 'PLAYSTATION'`.
+     * Where the volume descriptor sits inside one raw disc sector: 0, 16
+     * (MODE1) or 24 (MODE2 FORM1), so all three must be tried.
+     * pourquoi : docs/decisions/identite-disques.md § Le disque dit lui-même ce qu'il est, en 0x8008
      */
     private val SECTOR_USER_DATA_OFFSETS = intArrayOf(0, 16, 24)
 
     /**
-     * Console and game id from a single disc sector, or null when it says
-     * nothing.
-     *
-     * This is the entry point for containers that have to be decompressed
-     * before anything can be read, [ChdImage] today. It deliberately answers
-     * only for a PlayStation disc: the Nintendo magics live in the first bytes
-     * of a file, not in a sector, and a GameCube image is not ISO9660 at all.
+     * Console and game id from a single disc sector: the entry point for
+     * containers that must be decompressed. PlayStation discs only.
+     * pourquoi : docs/decisions/identite-disques.md § Quelles extensions valent la peine d'être ouvertes
      */
     fun fromSector(sector: ByteArray): Pair<Console, String?>? {
         for (base in SECTOR_USER_DATA_OFFSETS) {
@@ -165,28 +122,12 @@ object DiscImage {
     }
 
     /**
-     * The PS2 disc's real serial, read from `SYSTEM.CNF`.
+     * The PS2 disc's real serial, read from `SYSTEM.CNF` — never the volume
+     * identifier, which only two of the bench's eight discs filled in.
      *
-     * The volume identifier was used for this and it was the wrong field.
-     * Measured on the eight PS2 discs of the bench, **two carried a serial**:
-     * `SLES_50877` and `SCED_53990`. The rest said `MC3REMIX`, `FINAL_FANTASY_X`,
-     * `1_01`, or nothing at all — publishers write what they like there, and
-     * nothing obliges them to write the disc's number.
-     *
-     * The serial that every PS2 tool actually uses is the boot file named in
-     * `SYSTEM.CNF` at the root of the disc:
-     *
-     *     BOOT2 = cdrom0:\SLES_537.17;1
-     *
-     * That is what PCSX2 keys its own database on, so it is also the only thing
-     * that can match ours. Reaching it means walking ISO9660 — read the primary
-     * descriptor, follow its root directory record, find the file — which is a
-     * few hundred bytes of reading and the reason this takes a random-access
-     * [reader] rather than the prefix everything else here works from.
-     *
-     * Answers null on anything it cannot follow, and the caller then keeps the
-     * volume identifier: a disc that used to be identified badly must not become
-     * a disc that is not identified at all.
+     * Null on anything it cannot follow, and the caller then keeps the volume
+     * identifier: badly identified must not become unidentified.
+     * pourquoi : docs/decisions/identite-disques.md § Le serial PS2 est dans `SYSTEM.CNF`, pas dans l'identifiant de volume
      */
     fun ps2Serial(reader: (Long, ByteArray) -> Int): String? = runCatching {
         val pvd = ByteArray(SECTOR)
@@ -230,12 +171,9 @@ object DiscImage {
     }.getOrNull()
 
     /**
-     * `cdrom0:\SLES_537.17;1` reduced to `SLES-53717`.
-     *
-     * The dot inside the number is a filename convention, not part of the
-     * serial, and the underscore is how a serial is spelled on a filesystem that
-     * has no hyphen. Both are undone here so the result is the serial as it is
-     * written everywhere else — on the box, in PCSX2's index, in our database.
+     * `cdrom0:\SLES_537.17;1` reduced to `SLES-53717`, the way the serial is
+     * written on the box and in PCSX2's index.
+     * pourquoi : docs/decisions/identite-disques.md § Le serial PS2 est dans `SYSTEM.CNF`, pas dans l'identifiant de volume
      */
     fun bootSerial(cnf: String): String? {
         val line = cnf.lineSequence().firstOrNull { it.trimStart().startsWith("BOOT2", true) }
@@ -258,12 +196,9 @@ object DiscImage {
 
     private const val SECTOR = 2048
     /**
-     * Where the root directory's record sits *inside* the descriptor.
-     *
-     * Relative, not absolute: the descriptor has already been read into a buffer
-     * of its own by then. It was `PVD_OFFSET + 156` at first, which indexed 32 kB
-     * into a 2 kB array — caught by the walk test, which would otherwise have
-     * been the badge silently never appearing on a PS2 game.
+     * Where the root directory's record sits *inside* the descriptor —
+     * relative, not absolute; an absolute offset indexed 32 kB into 2 kB.
+     * pourquoi : docs/decisions/identite-disques.md § Le serial PS2 est dans `SYSTEM.CNF`, pas dans l'identifiant de volume
      */
     private const val ROOT_RECORD_OFFSET = 156
     /** A root directory bigger than this is not a disc we are reading right. */
@@ -290,11 +225,9 @@ object DiscImage {
     }
 
     /**
-     * RVZ and WIA, which state their console outright.
-     *
-     * The embedded header is checked as well, and it is not redundant: it is
-     * what proves the file is what its `disc_type` claims, and it is the answer
-     * on a container whose type field is one this build has never seen.
+     * RVZ and WIA, which state their console outright. The embedded header is
+     * checked too, and is not redundant: it proves the claim.
+     * pourquoi : docs/decisions/identite-disques.md § Les identifiants de jeu, et à quoi ils servent
      */
     private fun compressed(head: ByteArray): Console? =
         when (beInt(head, WIA_DISC_TYPE_OFFSET)) {
@@ -304,23 +237,13 @@ object DiscImage {
         }
 
     /**
-     * The six-character game id stamped at the very start of a disc header.
-     *
-     * `RMGP01`, `GALE01`, the identity Dolphin itself sorts games by, and the
-     * only thing here that lets a guest recognise the host's game as one they
-     * own. A disc image has no SMDH and no banner at a fixed offset (an RVZ is
-     * compressed), so the *title* still comes from the filename; this is the
-     * part that does not depend on how someone named their file.
-     *
-     * Read at the same base the console was: 0 on a raw image, 0x58 inside a
-     * compressed container.
+     * The six-character game id (`RMGP01`), the identity Dolphin sorts by. Read
+     * at the same base as the console: 0 raw, 0x58 inside a container.
+     * pourquoi : docs/decisions/identite-disques.md § Les identifiants de jeu, et à quoi ils servent
      */
     fun gameId(head: ByteArray): String? {
-        // The PS2 puts its number where the disc files it, not at the start of
-        // the file: the volume identifier. Measured `SLES_50877` on
-        // TimeSplitters 2, where ARMSX2 displays `SLES-50877`; it is the same
-        // number bar the separator, so the guest will recognise the host's game as
-        // their own emulator names it to them.
+        // The PS2 files its number where the disc does, not at the start.
+        // pourquoi : docs/decisions/identite-disques.md § Les identifiants de jeu, et à quoi ils servent
         if (playstation(head) == Console.PS2) return volumeId(head, PVD_VOLUME_ID_OFFSET)
         val base = if (head.size >= 3 &&
             String(head, 0, 3, Charsets.ISO_8859_1).let { it == "RVZ" || it == "WIA" }
@@ -342,43 +265,24 @@ object DiscImage {
     }
 
     /**
-     * Extensions worth opening to ask the question.
-     *
-     * `.iso` because the PSP owns it and only the bytes can settle it. The
-     * Dolphin-only ones are here too, because they still have to say *which* of
-     * the two consoles they are.
-     *
-     * `.chd` is here since 2026-08-20, and it is the one that needed real work:
-     * the PSP, the PS2 and the Dreamcast all ship in it, and the bytes that
-     * answer the question are compressed. [ChdImage] decodes just enough of the
-     * container to hand back one sector, which then goes through the same
-     * descriptor rule as everything else. A Dreamcast disc is refused before any
-     * of that, on its GD-ROM metadata tag.
-     *
-     * Deliberately absent: `.gcz`. It says GameCube or Wii in a sub-type field
-     * this project has no sample to check, and guessing would risk moving
-     * somebody's game to an emulator that cannot open it, which is worse than
-     * not listing a format.
+     * Extensions worth opening to ask the question. Deliberately absent:
+     * `.gcz`, whose sub-type field this project has no sample to check.
+     * pourquoi : docs/decisions/identite-disques.md § Quelles extensions valent la peine d'être ouvertes
      */
     val SNIFFED_EXTENSIONS = setOf("iso", "gcm", "rvz", "wia", "wbfs", "chd")
 
     /**
-     * The extensions three consoles share at once (PSP, PS2, GameCube/Wii for
-     * `iso`; PSP, PS2, Dreamcast for `chd`). The extension settles nothing
-     * there: only the bytes do, and a file nobody recognises is not listed —
-     * it would point at an emulator that cannot open it.
+     * The extensions three consoles share at once. There, only the bytes
+     * settle it, and an unrecognised file is not listed at all.
+     * pourquoi : docs/decisions/identite-disques.md § Quelles extensions valent la peine d'être ouvertes
      */
     val AMBIGUOUS_EXTENSIONS = setOf("iso", "chd")
 }
 
 /**
- * Opens a candidate far enough to ask [DiscImage.identify] the question.
- *
- * One read of [DiscImage.HEADER_BYTES] bytes per ambiguous file, during a scan
- * that already opens every 3DS and DS file for its icon. A provider that
- * refuses the read answers null, which the scan reads as "keep the extension's
- * guess", the same as a PSP rip, and the reason a failure here is invisible
- * rather than destructive.
+ * Opens a candidate far enough to ask [DiscImage.identify] the question. A
+ * refused read answers null, which is why a failure here is invisible.
+ * pourquoi : docs/decisions/identite-disques.md § Le coût de tout ceci, et pourquoi il est invisible en cas d'échec
  */
 class DiscImageReader(private val context: Context) {
 
@@ -409,13 +313,9 @@ class DiscImageReader(private val context: Context) {
             return info
         }
         val console = DiscImage.identify(head) ?: return null
-        // The PS2 asks the disc a second question, and the answer is worth the
-        // extra read: the volume identifier it used to be given is not a serial
-        // on most discs — six of the bench's eight said `MC3REMIX`,
-        // `FINAL_FANTASY_X`, `1_01` or nothing. `SYSTEM.CNF` is where the serial
-        // really lives. It falls back to the volume identifier rather than to
-        // nothing, so a disc that used to be identified badly does not become a
-        // disc that is not identified at all.
+        // A second question, worth the extra read; falls back to the volume
+        // identifier rather than to nothing.
+        // pourquoi : docs/decisions/identite-disques.md § Le serial PS2 est dans `SYSTEM.CNF`, pas dans l'identifiant de volume
         if (console == Console.PS2) {
             val identity = ps2Identity(uri) ?: return null
             Log.i("DiscImage", "PS2 ${identity.serial} ELF CRC ${identity.elfCrc}")
@@ -427,15 +327,9 @@ class DiscImageReader(private val context: Context) {
     }
 
     /**
-     * Walks the ISO for its boot file, over a channel.
-     *
-     * A channel and not the forward stream the rest of this class uses: the root
-     * directory sits wherever the disc was mastered, several hundred megabytes
-     * in on a dual-layer game, and reading up to it would mean reading the game.
-     *
-     * Only for a plain image. A CHD would have to decompress a hunk per seek,
-     * and the sector it already reads for identification carries the volume
-     * identifier, which stays the answer there.
+     * Walks the ISO for its boot file, over a channel — reading forwards to the
+     * root directory would mean reading the game. Plain images only.
+     * pourquoi : docs/decisions/identite-disques.md § Une marche ISO demande un canal, et ne vaut pas pour le CHD
      */
     private fun ps2Identity(uri: Uri): Ps2DiscIdentity? = runCatching {
         context.contentResolver.openFileDescriptor(uri, "r")?.use { descriptor ->
@@ -457,21 +351,14 @@ class DiscImageReader(private val context: Context) {
 
     fun identify(uri: Uri): Console? = read(uri)?.console
 
-    /**
-     * A CHD announces itself in its first eight bytes, so nothing here depends
-     * on the file being *named* `.chd`.
-     */
+    /** A CHD announces itself in its first eight bytes, whatever its name. */
     private fun isChd(head: ByteArray): Boolean =
         head.size >= 8 && String(head, 0, 8, Charsets.ISO_8859_1) == "MComprHD"
 
     /**
-     * One sector out of a CHD, which needs seeking rather than a prefix.
-     *
-     * The hunk map sits near the end of the file, so this is the one format that
-     * cannot be answered by reading forwards; hence a file descriptor and a
-     * channel rather than the plain stream used everywhere else. A provider that
-     * will not give one answers null, and the file keeps the console its
-     * extension gave it.
+     * One sector out of a CHD: its hunk map sits near the end of the file, so
+     * this is the one format that cannot be answered by reading forwards.
+     * pourquoi : docs/decisions/identite-disques.md § Une marche ISO demande un canal, et ne vaut pas pour le CHD
      */
     private fun chdInfo(uri: Uri): Info? = runCatching {
         context.contentResolver.openFileDescriptor(uri, "r")?.use { descriptor ->
@@ -525,17 +412,10 @@ class DiscImageReader(private val context: Context) {
     }
 
     /**
-     * We read as far as the volume descriptor, not just the header.
-     *
-     * The GameCube and Wii magics fit inside the first 0x80 bytes; the PS2 can
-     * only be recognised at `0x8000`, where ISO9660 begins. Hence a 32 KB read per
-     * sniffed file, sequential, once, during the library's enrichment pass.
-     *
-     * The array returned is truncated to what was actually read. That is the
-     * delicate point: a 32 KB array whose tail was unread zeroes would have
-     * `identify()` examining bytes that do not come from the file. A file shorter
-     * than [DiscImage.HEADER_BYTES] is not a disc image at all and returns
-     * nothing.
+     * Reads as far as the volume descriptor: the PS2 is only recognisable at
+     * `0x8000`. **Truncated to what was actually read** — an untruncated tail of
+     * zeroes would have `identify()` examining bytes not from the file.
+     * pourquoi : docs/decisions/identite-disques.md § Le coût de tout ceci, et pourquoi il est invisible en cas d'échec
      */
     private fun head(uri: Uri): ByteArray? = runCatching {
         context.contentResolver.openInputStream(uri)?.use { stream ->

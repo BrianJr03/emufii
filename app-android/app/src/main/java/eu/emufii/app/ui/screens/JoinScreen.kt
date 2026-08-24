@@ -68,18 +68,10 @@ import eu.emufii.app.ui.theme.EdgeLight
 private const val CODE_LENGTH = 6
 
 /**
- * Entering the code you were given.
- *
- * This used to be a full-width `OutlinedTextField` with its label and its helper
- * text, centred in a column, a form where there is only one thing to type, and
- * whose field spanned the screen's 784 dp for six characters.
- *
- * Six boxes instead. We know in advance how many are needed, so we may as well
- * show it: progress is visible without reading, the current box carries the
- * accent, and the code is displayed at the size you read it at arm's length. The
- * input field still exists, invisible, under the boxes, because it is what
- * brings the keyboard, the selection and pasting without our having to rewrite
- * them.
+ * Entering the code you were given, as six boxes rather than a form. The real
+ * input field still exists, invisible, under them — it is what brings the
+ * keyboard, the selection and pasting for free.
+ * pourquoi : docs/decisions/coquille-ecrans.md § Six cases plutôt qu'un champ
  */
 @Composable
 fun JoinScreen(
@@ -93,19 +85,9 @@ fun JoinScreen(
     val focus = remember { FocusRequester() }
     val complete = code.length == CODE_LENGTH
 
-    // The IME key closes the keyboard, and stops there.
-    //
-    // `ImeAction` only draws the key; without a `KeyboardActions` to answer it,
-    // pressing it did nothing at all — the IME stayed up over the screen and the
-    // back button was the only way out, on a screen whose whole job is to take
-    // six characters. What it must not do is start the session: the screen
-    // already has a Join button for that, and a keyboard key that launches
-    // straight from the last character takes the decision out of the player's
-    // hands, with no chance to reread the code.
-    //
-    // Dismissing also matters for the Join button itself: the code can be
-    // complete while the IME is still up, and a session would then start under a
-    // keyboard nobody closed.
+    // The IME key closes the keyboard and stops there. `ImeAction` only draws
+    // the key; and it must NOT start the session.
+    // pourquoi : docs/decisions/coquille-ecrans.md § La touche du clavier ferme le clavier, et s'arrête là
     val keyboard = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
     val dismissKeyboard = {
@@ -113,15 +95,9 @@ fun JoinScreen(
         focusManager.clearFocus()
     }
 
-    // No automatic keyboard, and that is deliberate.
-    //
-    // In landscape on this machine the IME opens fullscreen (extract mode) and
-    // covers everything: you arrived on a bare text editor, having never seen the
-    // six boxes or the name of the game. The keyboard comes when the boxes are
-    // touched, that is, once you have decided to type.
-    //
-    // Fullscreen itself is not ours to control, the IME decides that on a short
-    // screen, but being subjected to it without having seen the screen is.
+    // No automatic keyboard: in landscape the IME opens fullscreen and would
+    // cover the screen before it had ever been seen.
+    // pourquoi : docs/decisions/coquille-ecrans.md § Pas de clavier automatique, et le bloc est centré sur l'écran
 
     EmufiiScaffold(
         title = stringResource(R.string.join_title),
@@ -129,13 +105,9 @@ fun JoinScreen(
         onBack = onBack,
         contentScrolls = false
     ) { _ ->
-        // Centred on the screen, not under the header.
-        //
-        // Reserving `topPadding` centred the whole thing within what was left
-        // below the title: 90 px too low. Nothing here reaches the header, the
-        // block being 212 dp of the device's 468, so there is no room to reserve
-        // for it. The same margin difference as on the PSP online screen (32
-        // against 12) makes up for the title's visual weight in the corner.
+        // Centred on the screen, not under the header: reserving the top
+        // padding put the block 90 px too low, and nothing here reaches it.
+        // pourquoi : docs/decisions/coquille-ecrans.md § Pas de clavier automatique, et le bloc est centré sur l'écran
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -175,12 +147,9 @@ fun JoinScreen(
                         capitalization = KeyboardCapitalization.Characters,
                         keyboardType = KeyboardType.Ascii,
                         imeAction = ImeAction.Done,
-                        // No autocorrect, and that is not about spelling: it is
-                        // what stops the keyboard opening a *composing region*
-                        // on the field. The field's own caret and text are both
-                        // transparent, so the pale block sitting in the lit
-                        // socket was the keyboard's composing highlight, drawn
-                        // over a code that has nothing to correct.
+                        // No autocorrect — not about spelling: it stops the
+                        // keyboard opening a *composing region* on the field.
+                        // pourquoi : docs/decisions/coquille-ecrans.md § Six cases plutôt qu'un champ
                         autoCorrectEnabled = false
                     ),
                     keyboardActions = KeyboardActions(onDone = { dismissKeyboard() }),
@@ -235,12 +204,9 @@ fun JoinScreen(
 }
 
 /**
- * One socket in the code strip, empty or filled, lit when it is its turn.
- *
- * A recess rather than a plate: a code is typed *into* something. The lit one
- * carries the cursor's own ring, the same object the tiles wear, so "where am
- * I" has one answer everywhere in the app instead of a coloured border here and
- * a glow there.
+ * One socket in the code strip: a recess rather than a plate, since a code is
+ * typed *into* something. The lit one wears the cursor's own ring.
+ * pourquoi : docs/decisions/coquille-ecrans.md § Six cases plutôt qu'un champ
  */
 @Composable
 private fun CodeSlot(char: Char?, active: Boolean) {

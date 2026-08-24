@@ -19,16 +19,10 @@ import eu.emufii.app.profile.Profile
 val COORDINATOR_BASE_URL: String = BuildConfig.COORDINATOR_BASE_URL
 
 /**
- * A freshly created session, and the secret proving we are its host.
- *
- * The subnet is the session's own /24; this device's address on it comes from
- * [CoordinatorClient.claimAddress], because it depends on the WireGuard key the
- * device presents.
- *
- * The code itself is public, the finder publishes it. Without the token the
- * routes that modify a session demanded nothing: anyone could rewrite an unknown
- * game's host address, close it, or kick a player out. It is returned here only,
- * at creation, and never leaves the device.
+ * A freshly created session, and the secret proving we are its host. The code
+ * is public (the finder publishes it), so the token is what authorises.
+ * Returned here only, at creation, and it never leaves the device.
+ * pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § Un jeton, parce que le code de session est public
  */
 data class CreatedSession(
     val code: String,
@@ -39,13 +33,9 @@ data class CreatedSession(
 )
 
 /**
- * Why a call to the coordinator failed.
- *
- * The distinction matters to the player, not just to the log: a code that
- * doesn't exist is their mistake to fix, while a coordinator that can't be
- * reached is ours. Collapsing the two, which is what a bare `getOrNull()` used
- * to do, told someone whose network was down that their friend's session
- * didn't exist.
+ * Why a call to the coordinator failed. The distinction is the player's, not
+ * the log's: a missing code is theirs to fix, an unreachable server is ours.
+ * pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § Distinguer « ça n'existe pas » de « je n'ai pas pu demander »
  */
 sealed class CoordinatorError(message: String) : Exception(message) {
     /** 404: no such session, or one whose TTL has passed and been purged. */
@@ -63,15 +53,9 @@ data class Member(val id: String, val name: String, val forSeconds: Int)
 /**
  * What a heartbeat returns: who is there, and the means to remove oneself.
  *
- * [memberHandle] is the name this session gives us in its own list.
- *
- * The coordinator no longer publishes friend codes there, since reading them was
- * enough to follow anyone, so the identifier found in `members` is no longer
- * ours. This is the one to compare against in order to recognise ourselves.
- *
- * [memberToken] arrives on the first heartbeat only, the one that registers us;
- * afterwards the field is absent, deliberately. Handing it back to whoever asks
- * again amounted to handing it to whoever knows an identifier.
+ * [memberHandle] is how this session lists us — compare against it, not against
+ * a friend code. [memberToken] arrives on the FIRST heartbeat only.
+ * pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § Un jeton, parce que le code de session est public
  */
 data class Heartbeat(
     val players: Int,
@@ -80,17 +64,10 @@ data class Heartbeat(
 )
 
 /**
- * The Eden room the coordinator holds for this session, on the VPS.
- *
- * It changes the shape of a Switch game: instead of one player hosting on their
- * phone and the other reaching them through the tunnel, both join the same public
- * room. The "one player must be reachable" link, the most fragile in the chain
- * and the only one depending on the host's device, disappears. Proven on
- * 2026-08-05 before being written: `docs/PHASE1_SCOUT_EDEN_ROOM_VPS.md`.
- *
- * Null for every other console, and null too when the coordinator has no room to
- * offer, where the app falls back on hosting by a player, which has not gone
- * away.
+ * The Eden room the coordinator holds for this session, on the VPS: both
+ * players join it, so nobody hosts on a phone. Null elsewhere, and null when
+ * none is offered — the app then falls back on hosting by a player.
+ * pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § Le salon Eden sur le VPS change la forme d'une partie Switch
  */
 data class RoomRef(val host: String, val port: Int, val password: String)
 
@@ -104,21 +81,18 @@ data class RemoteSession(
     val hostName: String?,
     val room: RoomRef?,
     /**
-     * Has the host opened its room in the emulator yet?
-     *
-     * True by default when the field is missing, and the direction is what
-     * matters: the absence comes from an older coordinator, which knows nothing
-     * of this question. The opposite default would have blocked every guest until
-     * deployment, and a sequencing setting that prevents play is worse than the
-     * ordering it fixes.
+     * Has the host opened its room yet? **True** by default when the field is
+     * missing: the opposite would block every guest until deployment.
+     * pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § Les défauts d'un champ absent sont choisis dans un sens précis
      */
     val hostReady: Boolean,
     val members: List<Member>
 )
 
 /**
- * A friend the coordinator currently sees. Absence from a reply means offline,
- * so this type has no "online" flag: having one at all is the signal.
+ * A friend the coordinator currently sees. No "online" flag: being present at
+ * all is the signal.
+ * pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § Les défauts d'un champ absent sont choisis dans un sens précis
  */
 data class FriendPresence(
     val name: String?,
@@ -149,19 +123,15 @@ class CoordinatorClient(private val baseUrl: String = COORDINATOR_BASE_URL) {
         hostName: String? = null,
         hostId: String? = null,
         /**
-         * The console, when it decides whether a room goes up on the VPS.
-         *
-         * The coordinator does not guess it: it sees a title and a titleId,
-         * which the 3DS and the Switch write the same way. So it is the app's
-         * job to say, and saying nothing means "no room".
+         * The console, sent explicitly: the coordinator sees only a title and a
+         * titleId, which 3DS and Switch write the same way.
+         * pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § Les défauts d'un champ absent sont choisis dans un sens précis
          */
         console: String? = null,
         /**
-         * A private session does not appear in the finder: its code is needed.
-         *
-         * Sent only when true. The coordinator treats absence as "public", so
-         * keeping quiet about the default avoids making behaviour depend on a
-         * field the app might one day forget.
+         * A private session does not appear in the finder. Sent only when true;
+         * absence means public.
+         * pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § Les défauts d'un champ absent sont choisis dans un sens précis
          */
         private: Boolean = false
     ): Result<CreatedSession> = request(
@@ -203,10 +173,9 @@ class CoordinatorClient(private val baseUrl: String = COORDINATOR_BASE_URL) {
     ).map { }
 
     /**
-     * States that the host's room exists, or no longer does.
-     *
-     * Only the host may say so, the session token is what authorises it, and only
-     * the host has the answer: the coordinator cannot see inside the emulator.
+     * States that the host's room exists, or no longer does. Only the host may
+     * say so, and only the host has the answer.
+     * pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § Un jeton, parce que le code de session est public
      */
     suspend fun setHostReady(
         code: String,
@@ -259,13 +228,8 @@ class CoordinatorClient(private val baseUrl: String = COORDINATOR_BASE_URL) {
         }
 
     /**
-     * The session heartbeat: announcing, and going on announcing, that we are
-     * here. The coordinator drops members that fall silent, so the call repeats
-     * for as long as the session lasts.
-     *
-     * It also reports what identifies this player, see [Heartbeat]: the token
-     * allowing self-removal, on the first call only, and the handle the session
-     * will list us under, every time.
+     * The session heartbeat: the coordinator drops members that fall silent, so
+     * this repeats for as long as the session lasts. See [Heartbeat].
      */
     suspend fun heartbeat(code: String, id: String, name: String): Result<Heartbeat> = request(
         path = "/sessions/$code/members",
@@ -292,12 +256,9 @@ class CoordinatorClient(private val baseUrl: String = COORDINATOR_BASE_URL) {
             .map { }
 
     /**
-     * Say we're here, so friends holding our code can see it.
-     *
-     * Only needed outside a session: [heartbeat] already reports presence, and
-     * says which game we're in while doing it. Passing `inSession = false` on
-     * the way out clears that straight away rather than leaving friends looking
-     * at a game that ended.
+     * Say we're here, so friends holding our code can see it. Only needed
+     * outside a session, where [heartbeat] already does it.
+     * pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § La présence hors session, et pourquoi elle s'éteint dedans
      */
     suspend fun announcePresence(
         id: String,
@@ -314,11 +275,9 @@ class CoordinatorClient(private val baseUrl: String = COORDINATOR_BASE_URL) {
     ).map { }
 
     /**
-     * Ask which of these friends are online, and what they're playing.
-     *
-     * Only the codes we send can come back, there is no listing endpoint and
-     * no directory behind this. Friends who are offline are simply absent from
-     * the reply.
+     * Ask which of these friends are online. Only the codes we send can come
+     * back: there is no listing route and no directory behind this.
+     * pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § Les défauts d'un champ absent sont choisis dans un sens précis
      */
     suspend fun friendStatuses(codes: List<String>): Result<Map<String, FriendPresence>> {
         if (codes.isEmpty()) return Result.success(emptyMap())
@@ -342,15 +301,9 @@ class CoordinatorClient(private val baseUrl: String = COORDINATOR_BASE_URL) {
     }
 
     /**
-     * Claims this device's address on a session, presenting the WireGuard public key
-     * the tunnel will use.
-     *
-     * Idempotent on the key server-side, so a retry after a dropped reply lands
-     * on the same address rather than burning a second one and leaving the relay
-     * routing to a peer nobody is behind.
-     *
-     * [profileId] lets the coordinator recognise the host claiming its own address
-     * and publish `host_ip` itself, so the app never has to report it back.
+     * Claims this device's address, presenting the WireGuard public key.
+     * Idempotent on the key, so a retry lands on the same address.
+     * pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § Réclamer une adresse est idempotent sur la clé
      */
     suspend fun claimAddress(
         code: String,
@@ -372,11 +325,9 @@ class CoordinatorClient(private val baseUrl: String = COORDINATOR_BASE_URL) {
             ?: error("le coordinator n'a pas de relais configuré")
         WgTunnelInfo(
             address = json.getString("ip"),
-            // Absent on a guest, and absent too from a coordinator older than
-            // 2026-08-03: in both cases the interface has one address, which is
-            // exactly the old behaviour. `isNull` covers both at once and avoids
-            // the `optString` trap, which returns the string "null" on a JSON
-            // null.
+            // `isNull`, never `optString`: the latter returns the string
+            // "null" on a JSON null.
+            // pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § Réclamer une adresse est idempotent sur la clé
             hairpinAddress = if (json.isNull("hairpin_ip")) null
             else json.optString("hairpin_ip").takeIf { it.isNotBlank() },
             subnet = json.getString("subnet"),
@@ -443,10 +394,9 @@ class CoordinatorClient(private val baseUrl: String = COORDINATOR_BASE_URL) {
         if (has(key) && !isNull(key)) getString(key) else null
 
     /**
-     * The room, or null, including against a coordinator that knows of none.
-     *
-     * An incomplete room counts as no room: all three fields are needed to dial,
-     * and falling back on hosting by a player beats aiming at a guessed port.
+     * The room, or null. An **incomplete** room counts as no room: all three
+     * fields are needed to dial.
+     * pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § Le salon Eden sur le VPS change la forme d'une partie Switch
      */
     private fun JSONObject.roomOrNull(): RoomRef? {
         val r = optJSONObject("room") ?: return null

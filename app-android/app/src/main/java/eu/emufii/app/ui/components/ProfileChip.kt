@@ -45,32 +45,18 @@ import eu.emufii.app.ui.theme.PlateDark
 import eu.emufii.app.ui.theme.PlateLight
 
 /**
- * Both buttons in the home screen's top bar are 46 across, a 40 avatar in 3 of
- * padding, so the friends one has to match or the pair reads as misaligned.
+ * The top bar's buttons all share one size, or the row reads as misaligned.
+ * pourquoi : docs/decisions/direction-visuelle.md § Les pastilles de la barre du haut sont une famille
  */
 private val CHIP_SIZE = 46.dp
 
 /**
  * The floating pill the top-bar buttons are cut from.
  *
- * A borderless circle with a low, soft shadow: it reads as an object above the
- * wallpaper rather than a widget drawn on it, which is the whole point of the
- * app's visual direction.
- *
- * The dark fill is deliberately lighter than it looks like it should be. The
- * earlier value sat a hair off the wallpaper's own colour, and a shadow does
- * nothing on a dark backdrop, so the pill was invisible. That went unnoticed
- * while the profile avatar was the only thing in one, because a bright circle
- * filling the pill needs no pill. It shows immediately behind a glyph.
- *
- * No Material indication, and a press animation instead. `Surface(onClick)`
- * brings a ripple whose state layer also covers *focus*, and Android hands
- * focus to the first focusable view the moment a keyboard or a game pad is
- * attached, always, on a handheld like the Thor. The result was a flat 10%
- * wash sitting permanently on this chip, which reads as "disabled" rather than
- * "selected". The profile chip had it too, hidden all along under its avatar.
- * The scale-on-press below is the feedback the dock and the tiles already use,
- * and the chips stay focusable, so a d-pad still reaches them.
+ * The dark fill is deliberately lighter than it looks like it should be, and
+ * there is **no Material indication** here: its state layer also covers focus,
+ * which a gamepad grants permanently, leaving a "disabled"-looking wash.
+ * pourquoi : docs/decisions/direction-visuelle.md § Pas d'indication Material : une animation de pression
  */
 @Composable
 fun TopBarChip(
@@ -110,12 +96,9 @@ fun TopBarChip(
 }
 
 /**
- * The profile as it appears in the top bar. Opens the profile and settings page.
- *
- * Just the avatar. It used to carry a "pick a nickname" nudge beside it while
- * the profile was unnamed, which made the chip change width depending on state
- * and put a permanent chore on the home screen for something a session works
- * fine without. The settings page is where a nickname gets chosen anyway.
+ * The profile in the top bar: **just the avatar**, never a nudge that would
+ * change the chip's width with its state.
+ * pourquoi : docs/decisions/direction-visuelle.md § Les pastilles de la barre du haut sont une famille
  */
 @Composable
 fun ProfileChip(
@@ -137,13 +120,9 @@ fun ProfileChip(
 }
 
 /**
- * Friends, straight from the home screen.
- *
- * They used to be reachable only through the profile page, two taps in and
- * filed under settings, which is the wrong shelf: seeing who is online and
- * joining them is something you do *instead* of browsing the library, not a
- * preference you adjust. So it sits beside the profile, same shape, same
- * weight.
+ * Friends, straight from the home screen: seeing who is online is something you
+ * do *instead* of browsing, not a preference you adjust.
+ * pourquoi : docs/decisions/direction-visuelle.md § Les pastilles de la barre du haut sont une famille
  */
 @Composable
 fun FriendsChip(
@@ -151,38 +130,17 @@ fun FriendsChip(
     modifier: Modifier = Modifier
 ) {
     TopBarChip(onClick = onClick, modifier = modifier) {
-        // Not a pictogram of people. Two avatars, stacked.
-        //
-        // The chip started as the 👥 emoji, which arrived with the system font's
-        // own palette next to a chip whose only other occupant is a photo or two
-        // initials in the app's colours, half a two-button bar coming from
-        // somewhere else, and redrawn by every Android version besides. Drawing
-        // the same pictogram by hand fixed the palette and kept the problem: a
-        // little figure of a person is still a symbol pasted onto a bar that
-        // otherwise contains no symbols at all.
-        //
-        // This app already says "other players" a specific way, `AvatarStack`,
-        // overlapping discs with a ring cut between them, on the session screen
-        // and the presence card. Saying it again here costs nothing and makes
-        // the pair read as one family of shapes: you on the right, the others on
-        // the left.
+        // Not a pictogram of people: two avatars stacked, the way the app
+        // already says "other players" everywhere else.
+        // pourquoi : docs/decisions/direction-visuelle.md § Les glyphes disent « d'autres joueurs » comme le reste de l'app
         FriendsAvatars()
     }
 }
 
 /**
- * Open games, in the same family of pills as the friends and the profile.
- *
- * This used to be a solid blue pill floating alone at the bottom of the screen.
- * It did say it led somewhere, but it said so in a language nothing else spoke,
- * and it scrolled over the cover art. Here it joins the two buttons that are,
- * like it, navigation: all three now have the same shape, the same size and the
- * same relief.
- *
- * Two linked screens, not two people. The friends chip already carries two
- * overlapping discs, which are people. A session is two consoles talking to each
- * other, and that is what the glyph draws. The distinction is carried by the
- * shape (discs against rectangles), not by a decorative detail.
+ * Open games, in the same family of pills as friends and profile — all three
+ * are navigation. Two linked *screens*, not two people: discs are people here.
+ * pourquoi : docs/decisions/direction-visuelle.md § Les glyphes disent « d'autres joueurs » comme le reste de l'app
  */
 @Composable
 fun SessionsChip(
@@ -230,27 +188,18 @@ fun SessionsChip(
 }
 
 /**
- * Two blank avatars, overlapped the way [AvatarStack] overlaps real ones.
- *
- * Blank on purpose. Filling them with the first two friends was considered and
- * dropped: the state everyone sees on a fresh install is the empty one, so the
- * icon would mostly be this anyway, with a branch to maintain and an appearance
- * that changes under the user.
- *
- * The ring is the chip's own fill rather than plain white, so the gap between
- * the discs stays a gap in either theme, the same reasoning `AvatarStack` uses
- * when it rings against the page background.
+ * Two **blank** avatars, overlapped like [AvatarStack]. Filling them with real
+ * friends was dropped: the empty state is what most installs show.
+ * pourquoi : docs/decisions/direction-visuelle.md § Les glyphes disent « d'autres joueurs » comme le reste de l'app
  */
 @Composable
 private fun FriendsAvatars(modifier: Modifier = Modifier) {
     val dark = LocalEmufiiDarkTheme.current
     val ring = if (dark) PlateDark else PlateLight
 
-    // Placed by offset from the centre, not by corner alignment. Aligned to
-    // TopEnd and BottomStart they only met at a diagonal, two discs touching,
-    // with the pair sitting off-centre in a round chip. The overlap is the whole
-    // point of the shape: it is what makes two circles read as two people rather
-    // than as a diagram.
+    // By offset from the centre, never corner alignment: the overlap is the
+    // whole point of the shape.
+    // pourquoi : docs/decisions/direction-visuelle.md § Les glyphes disent « d'autres joueurs » comme le reste de l'app
     Box(modifier = modifier.size(34.dp), contentAlignment = Alignment.Center) {
         // Behind: muted, up and to the right. Cooler and lower-contrast so the
         // two read as depth rather than as two things of equal weight.
@@ -260,13 +209,8 @@ private fun FriendsAvatars(modifier: Modifier = Modifier) {
             ring = ring,
             modifier = Modifier.offset(x = 6.dp, y = (-4).dp)
         )
-        // In front: the accent in force, down and to the left.
-        //
-        // It said "the app's accent" and was a hardcoded iOS blue — a leftover
-        // of the glass world that never followed the cyan either, and therefore
-        // the last thing on the tray whose colour answered to nothing. Now it
-        // is the accent, which is also what makes this pill visibly change with
-        // the setting.
+        // In front: the accent **in force**, not a hardcoded colour.
+        // pourquoi : docs/decisions/direction-visuelle.md § Les glyphes disent « d'autres joueurs » comme le reste de l'app
         val accent = LocalAccent.current
         Disc(
             colors = listOf(accent.bright, accent.deep),

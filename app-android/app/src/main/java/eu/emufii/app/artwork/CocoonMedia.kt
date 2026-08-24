@@ -32,6 +32,12 @@ object CocoonMedia {
 
         /** The title, drawn, on transparency. */
         LOGO("logo"),
+
+        /** A frame of the game being played. What the panel's second page wants. */
+        SCREENSHOT_GAMEPLAY("screenshot_gameplay"),
+
+        /** The title screen, which is the other still Cocoon files. */
+        SCREENSHOT_TITLE("screenshot_title"),
     }
 
     /**
@@ -80,6 +86,25 @@ object CocoonMedia {
     /** A filename without its extension: the name Cocoon files artwork under. */
     private fun baseOf(filename: String): String =
         filename.substringBeforeLast('.', filename)
+
+    /**
+     * The stills for this game, gameplay first, or an empty list.
+     *
+     * Read off the device and nothing else. The served catalogue can carry
+     * screenshot links, and does for games Cocoon has never seen, but a picture
+     * that is already on the card beats one that needs a network — this panel is
+     * looked at on a handheld, often on a train, and it is the same argument
+     * that puts Cocoon's own artwork before the catalogue's on the front screen.
+     *
+     * Gameplay before the title screen because they answer different questions,
+     * and the second page is asking what the game *is*: a title screen is a logo
+     * the player has already seen on the cover next to it.
+     */
+    fun stillsFor(context: Context, root: Uri?, rom: Rom): List<Uri> =
+        listOfNotNull(
+            uriFor(context, root, rom, Kind.SCREENSHOT_GAMEPLAY),
+            uriFor(context, root, rom, Kind.SCREENSHOT_TITLE),
+        )
 
     private fun buildIndex(context: Context, root: Uri, console: String, kind: Kind): Map<String, Uri> {
         val folder = runCatching {

@@ -21,16 +21,12 @@ import eu.emufii.app.settings.SettingsStore
 import eu.emufii.app.ui.theme.EmufiiTheme
 
 /**
- * Mounts the second screen while there is a reason to light it.
+ * Mounts the second screen while there is a reason to light it: a
+ * [Presentation], the first of the two hosts the scout named.
  *
- * This is the first of the two hosts the scout named
- * (`docs/PHASE1_SCOUT_THOR_SCREEN2.md`): a [Presentation], which is a dialog
- * bound to the activity, costing no permission and dying with it.
- *
- * Bound to the activity's *lifetime*, which is not the same thing as its being
- * in front, and that difference was a real defect: leaving Emufii for the home
- * screen left the rear panel lit on a process that merely happened to still be
- * alive. What decides now is [secondScreenWanted].
+ * Bound to the activity's *lifetime*, which is not the same as its being in
+ * front — hence [secondScreenWanted] deciding rather than the binding.
+ * pourquoi : docs/decisions/second-ecran.md § Le panneau ne s'allume que s'il a une raison
  */
 @Composable
 fun SecondScreenHost(enabled: Boolean) {
@@ -67,20 +63,9 @@ fun SecondScreenHost(enabled: Boolean) {
 }
 
 /**
- * Whether the rear panel has anything to be lit for.
- *
- * Two answers, and the second one is the whole point of the feature:
- *
- * - Emufii in front: the panel mirrors what the player is doing, so it follows
- *   the app and goes down when they leave it. A panel still glowing on the back
- *   of a handheld whose owner has gone to their home screen is exactly the kind
- *   of thing that gets a feature switched off for good.
- * - A session running: it stays lit even though Emufii is behind the emulator,
- *   because that is when it earns its place. The code on the back of the console
- *   is what the other player reads, and it is needed precisely when the front
- *   screen has been given over to the game.
- *
- * Pure, so the rule can be read and tested without a second display.
+ * Whether the rear panel has anything to be lit for: Emufii in front, or a
+ * session running. Pure, so the rule is testable without a second display.
+ * pourquoi : docs/decisions/second-ecran.md § Le panneau ne s'allume que s'il a une raison
  */
 fun secondScreenWanted(
     enabled: Boolean,
@@ -89,11 +74,9 @@ fun secondScreenWanted(
 ): Boolean = enabled && (foreground || model is SecondScreenModel.InSession)
 
 /**
- * The window itself.
- *
- * It carries its own [SecondScreenWindowOwner] rather than the activity's, for
- * the reason that class documents at length: the service host has no activity,
- * and this is the piece that would otherwise have to be written twice.
+ * The window itself. It carries its own [SecondScreenWindowOwner] rather than
+ * the activity's: the service host has no activity to borrow from.
+ * pourquoi : docs/decisions/second-ecran.md § L'état du panneau vit à portée de processus, pas dans la composition
  */
 private class EmufiiPresentation(
     context: Context,
@@ -114,20 +97,11 @@ private class EmufiiPresentation(
             addFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE)
         }
 
-        // `context` here is *not* the one handed to the constructor: that
-        // parameter is not a `val`, so it is not in scope in a member function,
-        // and the name resolves instead to the inherited [Dialog.getContext] —
-        // the display context [Presentation] builds for itself. This compiles
-        // without a word, which is why it went unnoticed.
-        //
-        // That display context is the right one for everything except language.
-        // It is built by `createDisplayContext`, which starts again from the
-        // *display's* configuration and so drops the per-app locale: the app
-        // set to English kept a panel in French, the system language, because
-        // the panel was reading a different set of resources from the front
-        // screen. Keep the display's configuration, which is what makes the
-        // window size and theme itself correctly, and put only the locales
-        // back.
+        // WARNING: `context` here is NOT the constructor parameter — a
+        // non-`val` parameter is out of scope in a member function, so the name
+        // resolves to the inherited `Dialog.getContext()`, which drops the
+        // per-app locale. Keep its configuration, put only the locales back.
+        // pourquoi : docs/decisions/second-ecran.md § La fenêtre : le contexte n'est pas celui qu'on croit
         val view = ComposeView(context.withAppLocales()).apply {
             setContent { SecondScreenSurface() }
         }
@@ -140,16 +114,10 @@ private class EmufiiPresentation(
 }
 
 /**
- * The same context, speaking the language the player chose for Emufii.
- *
- * The per-app locale is the platform's, set through [LocaleManager], so it is
- * read back from the platform rather than from the settings store: a change
- * made in Android's own settings screen counts too, and the store is not told
- * about those.
- *
- * Empty means the player never chose, and then the system language is the right
- * answer and the context is already correct — so it is handed back untouched
- * rather than pinned to whatever it resolves to today.
+ * The same context, speaking the language the player chose. Read back from
+ * [LocaleManager], so a change made in Android's own settings counts too;
+ * empty is handed back untouched rather than pinned to today's answer.
+ * pourquoi : docs/decisions/second-ecran.md § La langue vient de la fenêtre, pas du processus
  */
 private fun Context.withAppLocales(): Context {
     val locales = getSystemService(LocaleManager::class.java)
@@ -161,13 +129,9 @@ private fun Context.withAppLocales(): Context {
 }
 
 /**
- * The themed root, shared by every host.
- *
- * The theme is read from the store rather than inherited from the caller's
- * composition on purpose: the service host has no enclosing composition to
- * inherit from, and a panel that ignored the player's dark or OLED choice while
- * the front screen honoured it would look like a bug in the app rather than a
- * second window.
+ * The themed root, shared by every host. The theme is read from the store, not
+ * inherited: the service host has no enclosing composition.
+ * pourquoi : docs/decisions/second-ecran.md § L'état du panneau vit à portée de processus, pas dans la composition
  */
 @Composable
 private fun SecondScreenSurface() {

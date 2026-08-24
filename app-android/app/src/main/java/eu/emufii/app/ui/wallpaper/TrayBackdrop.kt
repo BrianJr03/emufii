@@ -134,9 +134,7 @@ fun TrayBackdrop(
  */
 private val GRID_STEP = androidx.compose.ui.unit.Dp(44f)
 
-/**
- * How long one crossing of the sheen takes, at speed 1.
- */
+/** How long one crossing of the sheen takes, at speed 1. */
 private const val CYCLE_MS = 19_000
 
 /**

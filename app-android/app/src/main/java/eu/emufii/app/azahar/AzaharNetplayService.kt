@@ -23,26 +23,13 @@ import android.view.accessibility.AccessibilityNodeInfo
 
 /**
  * Drives the netplay dialog of Azahar *and* Eden so the user doesn't have to
- * retype an IP that Emufii already knows.
+ * retype an IP that Emufii already knows. Which emulators: [NetplayTarget].
  *
- * The class keeps its Azahar name even though it now serves both. Renaming it
- * would change the ComponentName, and the ComponentName is what Android stores
- * when the user switches the service on: a rename would silently turn the
- * automation off for everyone who had already enabled it. An inaccurate name is
- * the cheaper of the two costs. Which emulators it accepts is [NetplayTarget].
+ * **Do not rename this class**: Android stores the ComponentName when the user
+ * enables the service, so a rename silently disables it for everyone.
  *
- * Why an accessibility service at all: neither emulator exposes IPC for netplay.
- * Azahar's manifest exports only MainActivity and EmulationActivity, and netplay
- * lives behind JNI (`netPlayCreateRoom` / `netPlayJoinRoom`) with no intent
- * extras. Writing SharedPreferences would need root or `run-as`. Driving the UI
- * is the only path that works on an unmodified, sideloaded build.
- *
- * The service is inert unless [NetplayAutomation] holds a plan: it does nothing
- * on its own, and only ever touches the Azahar package.
- *
- * It is best-effort by design. Azahar is a moving target, when a resource id
- * moves, we stop rather than click something arbitrary, and the UI falls back
- * to showing the IP for manual entry.
+ * Inert unless [NetplayAutomation] holds a plan, and best-effort by design.
+ * pourquoi : docs/decisions/pilotes-emulateurs.md § Pourquoi un service d'accessibilité, et pas autre chose
  */
 class AzaharNetplayService : AccessibilityService() {
 
@@ -50,17 +37,8 @@ class AzaharNetplayService : AccessibilityService() {
 
     /**
      * How many times this plan has been walked towards the multiplayer screen.
-     *
-     * The navigation steps, the in-game drawer entry, the settings tab, the
-     * Multiplayer card, are the only ones that fire on a screen the *player*
-     * opened for their own reasons. An armed plan that never reaches a room form
-     * therefore re-clicked Multiplayer every single time the in-game drawer
-     * appeared, which is exactly when the player is trying to reach Quit: the
-     * drawer became unusable. Reported from the Thor.
-     *
-     * A cap turns "forever" into "a couple of tries, then get out of the way".
-     * Filling a form that is already on screen stays unlimited: that one only
-     * ever fires where the player is doing what we asked.
+     * The cap is what stops an armed plan making the in-game drawer unusable.
+     * pourquoi : docs/decisions/pilotes-emulateurs.md § Un plan armé ne doit pas rendre le jeu inutilisable
      */
     private var navClicks = 0
     private var navPlan: NetplayPlan? = null
@@ -92,14 +70,9 @@ class AzaharNetplayService : AccessibilityService() {
     }
 
     /**
-     * The Dolphin side of the automation.
-     *
-     * Held here rather than folded into [step] because Dolphin's netplay screen
-     * is Compose and exposes no resource ids, nothing about it can be
-     * expressed in the id-based walk the other two share. Keeping it behind its
-     * own object means the 3DS and Switch paths cannot be reached, let alone
-     * changed, by anything Dolphin does. It also caches the emulator's labels,
-     * so it has to outlive a single event.
+     * The Dolphin side: its netplay screen is Compose and exposes no resource
+     * ids, so it cannot enter the id-based walk the other two share.
+     * pourquoi : docs/decisions/pilotes-emulateurs.md § Trois familles d'écran, trois pilotes, un seul standard
      */
     private val dolphinDriver by lazy {
         DolphinNetplayDriver(this) { success ->
@@ -109,12 +82,9 @@ class AzaharNetplayService : AccessibilityService() {
     }
 
     /**
-     * The PS2 side, third driver and third shape of screen.
-     *
-     * It is given the means to re-read the tree: entering a value in ARMSX2 means
-     * a dozen clicks in a row on its own keyboard, and the screen redraws at every
-     * key. The other two drivers do not need it, writing their fields with a
-     * single `ACTION_SET_TEXT`.
+     * The PS2 side, third driver and third shape of screen. It re-reads the
+     * tree: ARMSX2 needs a dozen keyboard clicks, redrawing at every key.
+     * pourquoi : docs/decisions/pilotes-emulateurs.md § Trois familles d'écran, trois pilotes, un seul standard
      */
     private val ps2Driver by lazy {
         Ps2NetplayDriver(
@@ -144,18 +114,10 @@ class AzaharNetplayService : AccessibilityService() {
     }
 
     /**
-     * Runs one step against whatever is on screen, and looks again shortly after.
-     *
-     * The second look is the point. Acting only on events assumes the last event
-     * of a screen arrives after that screen is usable, and Azahar's multiplayer
-     * sheet disproves it: the sheet slides in, the events all fire while its
-     * buttons are still off-screen, and then nothing else happens, so a flow
-     * that had just opened the sheet correctly sat there staring at it. Seen on
-     * the Thor, and indistinguishable from "the automation never ran".
-     *
-     * A few spaced re-reads cost nothing when there is nothing to do, [step]
-     * returns false and the chain stops, and they are the only thing that
-     * catches a view arriving late.
+     * Runs one step against what is on screen, then **looks again shortly
+     * after** — the second look is the point: a view can arrive after the last
+     * event of its own screen.
+     * pourquoi : docs/decisions/pilotes-emulateurs.md § Agir sur les événements ne suffit pas : il faut regarder à nouveau
      */
     private fun stepNow(pkg: String, looksLeft: Int = RECHECKS) {
         if (Ps2Target.owns(pkg) && Ps2ProvisioningAutomation.plan.value != null) {
@@ -163,13 +125,9 @@ class AzaharNetplayService : AccessibilityService() {
             return
         }
         val plan = NetplayAutomation.plan.value ?: return
-        // Dolphin's screen is Compose and carries no resource ids, so it cannot
-        // be walked by [step] at all, it gets its own driver, and the two never
-        // meet. See DolphinTarget. Everything above and below this line, and the
-        // whole plan/store machinery, is shared unchanged.
-        // Three families of screen, three drivers, and a single switchboard. A
-        // package none of the three knows leaves without having touched
-        // anything.
+        // Three families of screen, three drivers, one switchboard. A package
+        // none of them knows leaves without anything being touched.
+        // pourquoi : docs/decisions/pilotes-emulateurs.md § Trois familles d'écran, trois pilotes, un seul standard
         val dolphin = DolphinTarget.owns(pkg)
         val ps2 = Ps2Target.owns(pkg)
         val target = if (dolphin || ps2) null else NetplayTarget.forPackage(pkg) ?: return
@@ -194,19 +152,9 @@ class AzaharNetplayService : AccessibilityService() {
         if (advanced) lastStepAt = System.currentTimeMillis()
         pendingLook?.let { handler.removeCallbacks(it) }
         pendingLook = null
-        // A pass that made progress earns its re-read budget back.
-        //
-        // Without that, the number of looks following an event is a ceiling on
-        // the length of the route, and the PS2 goes well past it: menu, settings,
-        // tab, mode, two scrolls, then a field opened, cleared, typed letter by
-        // letter, confirmed. Azahar and Dolphin fit in three or four screens and
-        // had never run into it.
-        //
-        // The driver then stopped halfway, after a scroll, without a word: from
-        // the outside, "the automatic setup does not work". Renewing the budget
-        // does not open an endless loop, each driver having its own ceilings, and
-        // the plan is cleared as soon as it concludes, which the condition below
-        // re-reads on every round.
+        // A pass that made progress earns its re-read budget back, or the
+        // budget caps the route's length and the PS2 stops halfway, silently.
+        // pourquoi : docs/decisions/pilotes-emulateurs.md § Agir sur les événements ne suffit pas : il faut regarder à nouveau
         val looksNext = if (advanced) RECHECKS else looksLeft - 1
         if (looksNext > 0 && NetplayAutomation.plan.value != null) {
             val again = Runnable { stepNow(pkg, looksNext) }
@@ -273,17 +221,9 @@ class AzaharNetplayService : AccessibilityService() {
             NetplayAutomation.report(NetplayProgress.FillingForm)
             val wrote = ipField.fillText(plan.ip)
             root.findAnywhere(pkg, NetplayUi.IP_PORT)?.fillText(plan.port.toString())
-            // The nickname is only written when the plan carries one, that is,
-            // on Eden, and for both roles. Two players with the same nickname
-            // cannot share a room, and Eden ships the same one to everybody by
-            // default: without this, two Emufii players turn up there as the same
-            // person and the second is refused.
-            //
-            // On Azahar the plan leaves it null, and that is not an oversight:
-            // Emufii used to write the profile name in, which replaced a valid
-            // nickname with a two-letter one the form refused, "Invalid address or
-            // name is too short!", a fault blamed on a perfectly good address. The
-            // help card says where to change it.
+            // Eden only, and both roles. On Azahar the plan leaves it null, and
+            // that is NOT an oversight.
+            // pourquoi : docs/decisions/pilotes-emulateurs.md § Le pseudo n'est écrit que sur Eden
             plan.username?.let { root.findAnywhere(pkg, NetplayUi.USERNAME)?.fillText(it) }
             // The password, when the room has one, that is, when it runs on the
             // VPS. It listens there on a public port: with no password, a stranger
@@ -315,13 +255,9 @@ class AzaharNetplayService : AccessibilityService() {
                 return true
             }
 
-            // Not [findById]: the confirm button is usually *below the fold*.
-            // The form is a bottom sheet that scrolls, and on Azahar's create
-            // dialog, one field taller than join, on a landscape screen, OK
-            // starts off-screen. A visible-only lookup found nothing and Emufii
-            // fell back to "fields are filled, press OK yourself", which is the
-            // "the click doesn't take" this project had been chasing: there was
-            // never a click. Bring it into view, then press it.
+            // NOT [findById]: OK is usually below the fold, and a visible-only
+            // lookup finding nothing is the "click doesn't take" of legend.
+            // pourquoi : docs/decisions/pilotes-emulateurs.md § La visibilité est le bon filtre pour se situer, le mauvais pour agir
             val confirm = root.findAnywhere(pkg, NetplayUi.BTN_CONFIRM)
             confirm?.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SHOW_ON_SCREEN.id)
             if (confirm == null) {
@@ -332,12 +268,9 @@ class AzaharNetplayService : AccessibilityService() {
                 return true
             }
             NetplayAutomation.report(NetplayProgress.Confirming)
-            // A click that doesn't take is not a success. Eden's OK button
-            // reports itself enabled and clickable and still ignores the action
-            // - seen on a device, dialog left open, so believing our own
-            // request would tell the player everything was done while the room
-            // was never created. Say what actually happened instead: the fields
-            // are filled, the last tap is theirs.
+            // A click that doesn't take is not a success: Eden's OK reports
+            // itself enabled and clickable and still ignores the action.
+            // pourquoi : docs/decisions/pilotes-emulateurs.md § Un clic qui ne prend pas n'est pas un succès
             if (!confirm.performClick()) {
                 NetplayAutomation.report(
                     NetplayProgress.Failed(getString(R.string.azahar_fields_filled))
@@ -351,23 +284,10 @@ class AzaharNetplayService : AccessibilityService() {
             return true
         }
 
-        // 2. Multiplayer sheet is up → pick create or join.
-        //
-        // The host creates the room and everyone else joins it: a guest that
-        // creates its own room joins nothing, and a host that joins looks for a
-        // room nobody has opened yet. Logged because the two failures look
-        // identical from the outside, a dialog that fills in and then refuses,
-        // and the only way to tell them apart is to know which button was taken.
-        //
-        // The sheet is *up* when any one of its three buttons is on screen,
-        // that is what tells us where we are. Which button to press is then
-        // looked up without the visibility filter, because Azahar stacks them
-        // Lobby / Join / Create, and a bottom sheet on a landscape screen
-        // cuts off the bottom one. So the host's button was the one search
-        // could never find, while the guest's sat comfortably in view: the
-        // automation looked like it had a broken idea of who hosts, when it
-        // simply had the same visible-only lookup that already hid btn_confirm
-        // and room_name on this device. Bring it into view, then press it.
+        // 2. Multiplayer sheet is up → pick create or join. Any one visible
+        // button means "up"; the button to press is then looked up WITHOUT the
+        // visibility filter, since a landscape sheet cuts off the bottom one.
+        // pourquoi : docs/decisions/pilotes-emulateurs.md § La visibilité est le bon filtre pour se situer, le mauvais pour agir
         val sheetUp = SHEET_BUTTONS.any { root.findById(pkg, it) != null }
         if (sheetUp) {
             val modeId =
@@ -415,19 +335,10 @@ class AzaharNetplayService : AccessibilityService() {
             }
         }
 
-        // 0b. Emulator's settings hub is up → click its Multiplayer card.
-        //
-        // The rows of this list all carry the same ids, so the row is found by
-        // its text, the emulator's own, read from the emulator's resources, so
-        // it matches whatever language it runs in.
-        //
-        // Two things this has to survive, both seen on the Thor with Eden:
-        // the row can be scrolled past the bottom of the list, in which case it
-        // is in the tree but not visible; and the label can be one of two
-        // strings, because the settings hub shows a title *and* a description
-        // and only one of them is what upstream calls "multiplayer" in a given
-        // build. Failing either way looked identical from outside, the
-        // emulator opened on its game grid and nothing else happened.
+        // 0b. Settings hub is up → click its Multiplayer card. Found by TEXT
+        // (the rows share ids), read from the emulator's own resources, and the
+        // label may be either of two strings.
+        // pourquoi : docs/decisions/pilotes-emulateurs.md § Une liste qui recycle ne contient pas ce qu'on n'a pas encore vu
         val listId = (listOfNotNull(target.homeListId) + target.extraListIds)
             .firstOrNull { root.findById(pkg, it) != null }
         if (listId != null) {
@@ -455,11 +366,9 @@ class AzaharNetplayService : AccessibilityService() {
                 card.performClick()
                 return true
             }
-            // Nothing matched. The row may simply not be in the tree: a
-            // recycling list only holds what it has drawn, so a Multiplayer
-            // entry far enough down does not exist to be found until the
-            // list has been scrolled. One scroll per pass, counted like a
-            // click so it cannot loop.
+            // A recycling list only holds what it has drawn: one scroll per
+            // pass, counted like a click so it cannot loop.
+            // pourquoi : docs/decisions/pilotes-emulateurs.md § Une liste qui recycle ne contient pas ce qu'on n'a pas encore vu
             val list = root.findById(pkg, listId)
             if (list != null && list.isScrollable) {
                 navClicks++
@@ -498,25 +407,14 @@ class AzaharNetplayService : AccessibilityService() {
     }
 
     /**
-     * A node the player can currently see.
-     *
-     * Visibility is what tells "this screen is up" from "this screen exists
-     * somewhere in the hierarchy", so it gates every decision about *where we
-     * are*. It is the wrong filter for acting on a form we have already decided
-     * is up, see [findAnywhere].
+     * A node the player can currently see: the right filter for deciding
+     * *where we are*, the wrong one for acting — see [findAnywhere].
+     * pourquoi : docs/decisions/pilotes-emulateurs.md § La visibilité est le bon filtre pour se situer, le mauvais pour agir
      */
     /**
-     * Brings Emufii back to the front, the room having been joined.
-     *
-     * The player asked for a setup step, not for a trip into another app: they
-     * tapped a button in Emufii and the next thing they need is the button below
-     * it. Leaving them inside the emulator's settings meant finding their own
-     * way home before they could start the game.
-     *
-     * Delayed, because the emulator is still acting on the click we just made,
-     * coming back instantly would race its own "joined" toast. Best-effort: if
-     * the platform refuses the launch, the flow is finished either way and the
-     * player simply switches back by hand.
+     * Brings Emufii back to the front, the room having been joined. Delayed, or
+     * it races the emulator's own "joined" toast. Best-effort.
+     * pourquoi : docs/decisions/pilotes-emulateurs.md § On ramène le joueur chez lui
      */
     private fun comeBackToEmufii() {
         val home = packageManager.getLaunchIntentForPackage(packageName) ?: return
@@ -554,17 +452,10 @@ class AzaharNetplayService : AccessibilityService() {
     }
 
     /**
-     * Types [value] into the field.
-     *
-     * Deliberately not called `setText`: `AccessibilityNodeInfo` already has
-     * a member of that name, and in Kotlin a member always beats an extension.
-     * The extension was therefore never called, every fill went to the platform
-     * setter, which throws `Cannot perform this action on a sealed instance` on
-     * any node that came out of a query, i.e. all of them. The automation had
-     * been failing on its very first field since it was written; nobody saw it
-     * because Azahar's in-game menu has never run on a device (M16), and because
-     * the emulator pre-fills its own address, which for a host happens to be the
-     * right answer. A green-looking test proving nothing.
+     * Types [value] into the field. **Deliberately not called `setText`**: the
+     * platform has a member of that name, a member beats an extension in
+     * Kotlin, and the extension would never be called again.
+     * pourquoi : docs/decisions/pilotes-emulateurs.md § `typeText` et non `setText` : un an de test vert qui ne prouvait rien
      */
     private fun AccessibilityNodeInfo.fillText(value: String): Boolean {
         val args = Bundle().apply {
@@ -591,10 +482,9 @@ class AzaharNetplayService : AccessibilityService() {
         const val MAX_ANCESTOR_HOPS = 5
 
         /**
-         * Any one of these being on screen means the multiplayer sheet is up.
-         *
-         * Three rather than one because only the topmost is reliably in view,
-         * and which one that is belongs to the emulator's layout, not to us.
+         * Any one of these on screen means the sheet is up. Three rather than
+         * one because only the topmost is reliably in view.
+         * pourquoi : docs/decisions/pilotes-emulateurs.md § La visibilité est le bon filtre pour se situer, le mauvais pour agir
          */
         val SHEET_BUTTONS = listOf(
             NetplayUi.BTN_LOBBY_BROWSER,
@@ -603,9 +493,9 @@ class AzaharNetplayService : AccessibilityService() {
         )
 
         /**
-         * Tabs, cards and drawer entries we will click before concluding that
-         * the player is doing something else. Four covers the longest real path
-         * - settings tab, Multiplayer card, twice over.
+         * How many navigation clicks before concluding the player is doing
+         * something else. Four covers the longest real path.
+         * pourquoi : docs/decisions/pilotes-emulateurs.md § Un plan armé ne doit pas rendre le jeu inutilisable
          */
         const val MAX_NAV_CLICKS = 4
 

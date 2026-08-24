@@ -1,11 +1,9 @@
 package eu.emufii.app.library
 
 /**
- * What a ROM is, and what plays it.
- *
- * The grid stays one grid, a user drops a folder in and everything they own
- * shows up together. Which emulator gets launched, and what has to happen on
- * the network first, is our problem, not theirs.
+ * What a ROM is, and what plays it. The grid stays one grid: which emulator is
+ * launched, and what the network needs first, is our problem.
+ * pourquoi : docs/decisions/reglages-et-consoles.md § La grille reste une grille
  */
 enum class Console(
     val label: String,
@@ -19,9 +17,9 @@ enum class Console(
     ),
 
     /**
-     * PSP. PPSSPP's ad hoc has no room to create and no dialog to fill in: the
-     * console looks for "the ad hoc server" at an address set once and for all,
-     * and the relay translates it towards the current session's host.
+     * PSP: no room to create and no dialog to fill in, just a fixed ad hoc
+     * server address the relay translates towards the session's host.
+     * pourquoi : docs/decisions/reglages-et-consoles.md § Les quatre familles de multijoueur
      */
     PSP(
         label = "PSP",
@@ -44,14 +42,9 @@ enum class Console(
     ),
 
     /**
-     * GameCube and Wii, both played by Dolphin, and both listed here without
-     * `.iso` even though that is the commonest thing a disc image is called.
-     *
-     * The extension table is a map, one console per key: adding `.iso` here
-     * would not share it with the PSP, it would take it away, last entry wins,
-     * and every UMD rip in the library would silently start pointing at
-     * Dolphin. So these two claim only what nothing else uses, and the shared
-     * extension is settled by reading the file, in [DiscImage].
+     * GameCube and Wii, deliberately **without** `.iso`: the table is a map,
+     * one owner per key, so claiming it would take it from the PSP.
+     * pourquoi : docs/decisions/reglages-et-consoles.md § La table d'extensions est une carte : un propriétaire par clé
      */
     GAMECUBE(
         label = "GameCube",
@@ -66,18 +59,9 @@ enum class Console(
     ),
 
     /**
-     * PS2, through ARMSX2, and without a single extension of its own.
-     *
-     * That is not an oversight. On the Thor the six PS2 games and the six PSP
-     * games are all `.iso`, in two neighbouring folders, the exact collision the
-     * GameCube already ran into. The table is a map, one owner per key: claiming
-     * `.iso` here would not share it with the PSP, it would take it away, and
-     * the whole UMD library would silently point at ARMSX2.
-     *
-     * A PS2 game therefore arrives by its folder (`ps2/`), or through
-     * [DiscImage], which reads the bytes and promotes only what it has
-     * positively recognised — a `BOOT2` in `SYSTEM.CNF`, which is also what
-     * tells it apart from a PS1 disc.
+     * PS2, without a single extension of its own, and that is **not** an
+     * oversight. It arrives by its folder (`ps2/`) or by reading the bytes.
+     * pourquoi : docs/decisions/reglages-et-consoles.md § La table d'extensions est une carte : un propriétaire par clé
      */
     PS2(
         label = "PS2",
@@ -86,12 +70,9 @@ enum class Console(
     );
 
     /**
-     * The name the coordinator receives, and what decides on a room on the VPS.
-     *
-     * It cannot infer the console from what it stores, a title and a titleId,
-     * which the 3DS and the Switch write the same way. Written here in stable
-     * lowercase, never derived from [label]: a label gets retouched for the
-     * screen, and this name is a network contract.
+     * The name the coordinator receives, and what decides on a VPS room.
+     * Stable lowercase, **never derived from [label]**: this is a contract.
+     * pourquoi : docs/decisions/reglages-et-consoles.md § Le nom réseau est un contrat, jamais un libellé
      */
     val wireName: String
         get() = when (this) {
@@ -128,16 +109,10 @@ enum class Console(
         val allExtensions: Set<String> = byExtension.keys
 
         /**
-         * The console a folder name says, Cocoon-style layouts where ROMs are
-         * sorted one subfolder per console. That name is the cheapest and the
-         * most truthful answer there is: the player sorted the file themselves,
-         * where an extension can collide (`iso`, `chd`) and content sniffing
-         * costs a read.
-         *
-         * Keyed on the name normalised: lower case, separators stripped, so
-         * `PS2`, `ps_2` and `PlayStation 2` are one key. The direct folder of
-         * the file only, not its ancestors: a `ROMS/ps2/dumps/game.iso` is a
-         * PS2, a `ROMS/dumps/ps2-something.iso` is not decided by `ROMS`.
+         * The console a folder name says — the cheapest and truest answer, the
+         * player having sorted the file themselves. Normalised, and the
+         * **direct** folder only, never its ancestors.
+         * pourquoi : docs/decisions/reglages-et-consoles.md § Le nom du dossier est la réponse la moins chère et la plus vraie
          */
         private val byFolder: Map<String, Console> = mapOf(
             "ps2" to PS2,
@@ -173,9 +148,8 @@ enum class Backend {
     AZAHAR,
 
     /**
-     * Eden's rooms: the Switch's local wireless (LDN) tunnelled over an ENet
-     * room, on the same port and with the same dialog as Azahar, see
-     * docs/PHASE1_SCOUT_EDEN.md. The session network carries it unchanged.
+     * Eden's rooms: the Switch's LDN tunnelled over an ENet room, same port and
+     * dialog as Azahar (docs/PHASE1_SCOUT_EDEN.md).
      */
     EDEN,
 
@@ -183,69 +157,51 @@ enum class Backend {
     PPSSPP,
 
     /**
-     * Online play against Kaeru WFC, reached by moving DNS rather than by
-     * building a network. No session code, no tunnel between players: each
-     * console talks to the revival server. A second product in the same app,
-     * as docs/ROADMAP_CONSOLES.md puts it.
+     * Kaeru WFC, reached by **moving DNS** rather than building a network: no
+     * session code, no tunnel, each console talks to the revival server.
+     * pourquoi : docs/decisions/reglages-et-consoles.md § Les quatre familles de multijoueur
      */
     MELONDS_WFC,
 
     /**
-     * GameCube and Wii, by Dolphin's own netplay, Android-side since
-     * 2026-06-28, and nothing like the other two: its screen is Compose and
-     * carries no view ids, so it has a driver of its own. See
-     * `eu.emufii.app.dolphin.DolphinTarget`.
-     *
-     * Rooms over the session network, like Azahar and Eden, but on ENet/UDP
-     * 2626 instead of 24872, the plan has to carry that port explicitly.
+     * GameCube and Wii, by Dolphin's own netplay: Compose screen, no view ids,
+     * its own driver, and ENet/UDP **2626** rather than 24872.
+     * pourquoi : docs/decisions/reglages-et-consoles.md § Le port fait partie du plan
      */
     DOLPHIN,
 
     /**
-     * PS2, through ARMSX2's Local Link mode: the roughly 57 games shipped with a
-     * LAN or System Link mode, wired together as if they were on the same switch.
-     *
-     * A third shape of screen again, hence a driver of its own
-     * (`eu.emufii.app.ps2.Ps2Target`): real Android views, but no translatable
-     * string in the APK, so hardcoded English labels.
-     *
-     * PS2 online play does not go through this: it is played on a revival server,
-     * over DNS, with no session and no tunnel, see
-     * `docs/PHASE1_SCOUT_PS2_ARMSX2.md`. The two must not be confused on screen.
+     * PS2 via ARMSX2's **Local Link** — the ~57 games with a LAN mode. Real
+     * Android views but no translatable strings, hence hardcoded labels. PS2
+     * *online* play does not go through this at all.
+     * pourquoi : docs/decisions/reglages-et-consoles.md § Les quatre familles de multijoueur
      */
     ARMSX2,
 
     /**
-     * Recognised, launchable one day, but with no multiplayer path built yet.
-     * These ROMs still belong in the grid, leaving them out would make the
-     * library look broken to someone who owns them.
+     * Recognised, but with no multiplayer path built yet. These ROMs still
+     * belong in the grid.
+     * pourquoi : docs/decisions/reglages-et-consoles.md § Les quatre familles de multijoueur
      */
     NONE;
 
     /**
-     * True where the emulator has a netplay dialog Emufii fills in, and where the
-     * room therefore has to be joined before the game boots.
-     *
-     * WFC is out because there is no room at all, only a resolver.
+     * True where a room must be joined before the game boots. WFC is out: there
+     * is no room at all, only a resolver.
+     * pourquoi : docs/decisions/reglages-et-consoles.md § Les quatre familles de multijoueur
      */
     val hasNetplay: Boolean get() =
         this == AZAHAR || this == EDEN || this == DOLPHIN || this == ARMSX2
 
     /**
-     * The emulator's own name, for text the player reads.
-     *
-     * Not a translated string: these are product names, the same in every
-     * language, and they are what is written on the icon the player is about to
-     * see. Hardcoding "Azahar" in a label was how a Switch session came to
-     * announce "automatic Azahar setup" while it was driving Eden.
+     * The emulator's own name, **not** a translated string: product names are
+     * the same everywhere. Hardcoding one made a Switch session announce Azahar.
+     * pourquoi : docs/decisions/reglages-et-consoles.md § Le nom réseau est un contrat, jamais un libellé
      */
     /**
-     * The port this emulator's netplay listens on by default.
-     *
-     * Azahar and Eden share 24872, inherited from Citra; Dolphin listens on 2626
-     * (`DEFAULT_LISTEN_PORT`). The plan has to carry the right one, failing which
-     * the guest dials a valid address on a port where nobody answers, a failure
-     * that reads as a broken tunnel.
+     * The port this emulator's netplay listens on: 24872 for Azahar and Eden,
+     * 2626 for Dolphin. The wrong one reads as a broken tunnel.
+     * pourquoi : docs/decisions/reglages-et-consoles.md § Le port fait partie du plan
      */
     val defaultNetplayPort: Int
         get() = when (this) {

@@ -4,31 +4,17 @@ import eu.emufii.app.wfc.WfcState
 import eu.emufii.app.wg.WgState
 
 /**
- * Android runs one `VpnService` at a time, and Emufii has two: the session
- * tunnel, and the DNS tunnel that sends the DS to Kaeru. Whichever calls
- * `establish()` second wins, and the other is revoked without app or player
- * being asked.
- *
- * Not a theoretical race. Leaving the WFC screen by the system back gesture
- * keeps its tunnel up, and creating a session afterwards cuts the DS game loose
- * mid-play. It happens the other way too: the session service is `START_STICKY`
- * and foregrounded, so it outlives the activity.
- *
- * Who holds the slot is derived from the states the services already publish,
- * rather than tracked separately.
+ * Android runs one `VpnService` at a time and Emufii has two. Whichever calls
+ * `establish()` second wins, silently. Not a theoretical race. Who holds the
+ * slot is **derived** from the states the services already publish.
+ * pourquoi : docs/decisions/tunnel-wireguard.md § Android n'a qu'un créneau VPN, et Emufii a deux tunnels
  */
 enum class TunnelHolder { NONE, SESSION, WFC }
 
 /**
- * Who currently occupies Android's VPN slot.
- *
- * `Starting` counts as held: `establish()` may already have happened, and
- * treating it as free is exactly the window where two tunnels collide.
- * `Stopping` and `Error` do not, the descriptor is on its way out or never
- * opened.
- *
- * SESSION wins ties: an overlap means one is a leftover mid-teardown, and the
- * session is the one whose loss costs the player something.
+ * Who occupies Android's VPN slot. `Starting` counts as **held**; SESSION wins
+ * ties.
+ * pourquoi : docs/decisions/tunnel-wireguard.md § Android n'a qu'un créneau VPN, et Emufii a deux tunnels
  */
 fun tunnelHolder(
     session: WgState,
@@ -41,10 +27,9 @@ fun tunnelHolder(
 }
 
 /**
- * Whether [want] can take the slot without cutting anything.
- *
- * Asking for the slot you already hold is free: moving the session tunnel to
- * another game is a restart, not a conflict.
+ * Whether [want] can take the slot without cutting anything. Asking for the one
+ * you already hold is free.
+ * pourquoi : docs/decisions/tunnel-wireguard.md § Android n'a qu'un créneau VPN, et Emufii a deux tunnels
  */
 fun slotIsFree(
     session: WgState,

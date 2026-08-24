@@ -13,7 +13,14 @@
 coordinator/
 relay/
 scripts/
-docs/
+# `docs/` reste dehors — les notes de travail, les scouts, le deploiement — a
+# une exception ouverte le 2026-08-24 : `docs/decisions/` porte le *pourquoi* du
+# code publie ici, cite depuis les commentaires eux-memes. L'exclure casserait
+# chaque renvoi. Noter la forme : `docs/*` et non `docs/`, sans quoi git n'entre
+# pas dans le dossier et l'exception ne peut pas s'appliquer.
+docs/*
+!docs/decisions/
+!docs/STYLE_COMMENTAIRES.md
 CLAUDE.md
 .claude/
 .agents/

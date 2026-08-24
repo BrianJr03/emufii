@@ -12,41 +12,24 @@ import eu.emufii.app.dolphin.Node
 import eu.emufii.app.wg.WgConfig
 
 /**
- * Sets ARMSX2's Settings -> Network screen up for a Local Link game.
+ * Sets ARMSX2's Settings -> Network screen up for a Local Link game. Read by
+ * rows; the container takes the click. See [Ps2Target].
  *
- * Third driver, and third shape of screen: Azahar and Eden are read by view
- * ids, Dolphin by nesting of Compose texts, ARMSX2 by rows, label on the left,
- * value on the right, and it is the container that takes the click. See
- * [Ps2Target] for why the three do not converge.
- *
- * Two peculiarities that exist nowhere else in this project:
- *
- * 1. There is no text field at all. Opening a row brings up ARMSX2's own
- *    keyboard, and input goes in key by key. `ACTION_SET_TEXT` has nothing to
- *    aim at, and injected key events are ignored (measured).
- * 2. That keyboard has no dot key, so the guest cannot write an IPv4 address.
- *    They write a name, `emufii`, which the tunnel's DNS resolves to the relay's
- *    sentinel. See `relay/dns.js` and [WgConfig.PS2_HOST_NAME].
- *
- * Like its two elders: at the first screen it no longer recognises, it stops and
- * says what to type, rather than clicking at random.
+ * No text field anywhere (ARMSX2's own keyboard, key by key), and that keyboard
+ * has no dot key — hence the `emufii` name resolved by `relay/dns.js`.
+ * pourquoi : docs/decisions/pilotes-emulateurs.md § Deux singularités qui n'existent nulle part ailleurs
  */
 class Ps2NetplayDriver(
     private val context: Context,
     /**
-     * Re-reads the tree between two keystrokes.
-     *
-     * Essential here and nowhere else: entering a value means a dozen clicks in
-     * a row on a screen that redraws at every character. Keeping the nodes from
-     * the first sweep would mean clicking at stale positions.
+     * Re-reads the tree between two keystrokes — essential here and nowhere
+     * else: the screen redraws at every character.
+     * pourquoi : docs/decisions/pilotes-emulateurs.md § La saisie se fait en une passe
      */
     private val readTree: () -> AccessibilityNodeInfo?,
     /**
-     * The system "back" gesture.
-     *
-     * To get out of a screen we cannot read. An ARMSX2 that is already open
-     * comes back to the foreground where the player left it, and there is no
-     * path from an unknown screen to the settings other than this one.
+     * The system "back" gesture, to get out of a screen we cannot read.
+     * pourquoi : docs/decisions/pilotes-emulateurs.md § La saisie se fait en une passe
      */
     private val goBack: () -> Boolean,
     private val onFinished: (success: Boolean) -> Unit
@@ -70,21 +53,16 @@ class Ps2NetplayDriver(
     private var unknownPasses = 0
 
     /**
-     * Entries attempted on the current plan, all fields together.
-     *
-     * A ceiling, because a screen that does not read back the value just written
-     * into it would make the driver start over endlessly; that happened, and
-     * without this counter it would have rewritten the room code until the
-     * player closed the app.
+     * Entries attempted on the current plan: a ceiling, or a screen that does
+     * not read back what was written makes the driver start over endlessly.
+     * pourquoi : docs/decisions/pilotes-emulateurs.md § Deux plafonds, deux pannes évitées
      */
     private var writes = 0
 
     /**
-     * The steps already set.
-     *
-     * Needed because we go down the screen and never back up: once the DEV9
-     * toggle has been passed it is no longer in the tree, and with no memory the
-     * driver would conclude it still had to be set.
+     * The steps already set: we go down the screen and never back up, so a
+     * passed toggle leaves the tree entirely.
+     * pourquoi : docs/decisions/pilotes-emulateurs.md § L'ordre des réglages n'est pas cosmétique
      */
     private val done = HashSet<String>()
 
@@ -117,13 +95,9 @@ class Ps2NetplayDriver(
             return type(nodes, wanted)
         }
 
-        // 3. The Network screen.
-        //
-        //    Recognised by any one of its markers, and not by the DEV9 switch
-        //    alone: this screen is taller than the device, it has to be
-        //    scrolled, and an accessibility tree only contains what is actually
-        //    drawn. Hanging on the first label would have meant losing sight of
-        //    the screen at the very first scroll.
+        // 3. The Network screen, recognised by ANY of its markers: the screen
+        //    is taller than the device and the tree holds only what is drawn.
+        //    pourquoi : docs/decisions/pilotes-emulateurs.md § L'ordre des réglages n'est pas cosmétique
         val dev9 = labels.of(Ps2Target.I18n.KEY_ENABLE_DEV9, Ps2Target.LABEL_ENABLE_DEV9)
             .firstNotNullOfOrNull { Ps2Screen.label(nodes, it) }
         val onNetworkScreen = dev9 != null || NETWORK_MARKERS.any { Ps2Screen.label(nodes, it) != null }
@@ -168,18 +142,9 @@ class Ps2NetplayDriver(
             return it.live.click()
         }
 
-        // Unknown screen. We do not go back straight away.
-        //
-        // A screen mid-animation is an unknown screen: right after a click
-        // ARMSX2's tree drops to a handful of nodes while the next page is
-        // drawn. Going back at that instant undoes the click we just made, and
-        // the driver starts going round in circles, menu, settings, back,
-        // menu... up to the ceiling. Seen for real on 2026-08-17, on a tree of
-        // 18 nodes.
-        //
-        // So we only insist after [UNKNOWN_BEFORE_BACK] lost passes in a row,
-        // which leaves a transition plenty of time, and the counter goes back to
-        // zero as soon as we recognise something.
+        // Unknown screen, and we do NOT go back straight away: a screen
+        // mid-animation is an unknown screen, and going back undoes the click.
+        // pourquoi : docs/decisions/pilotes-emulateurs.md § Un écran en cours d'animation est un écran inconnu
         unknownPasses++
         if (unknownPasses < UNKNOWN_BEFORE_BACK) {
             Log.d(TAG, "écran inconnu (${nodes.size} nœuds), on laisse l'écran s'établir")
@@ -199,12 +164,9 @@ class Ps2NetplayDriver(
     private var pendingValue: String? = null
 
     /**
-     * Sets the Network screen up, one setting per pass, in the order in which
-     * they depend on each other.
-     *
-     * The order is not cosmetic: changing mode redraws the bottom half of the
-     * screen, the host's fields and the guest's are not the same, so a value
-     * written beforehand would be lost.
+     * One setting per pass, in the order in which they depend on each other —
+     * changing mode redraws the bottom half of the screen.
+     * pourquoi : docs/decisions/pilotes-emulateurs.md § L'ordre des réglages n'est pas cosmétique
      */
     private fun settleNetwork(
         nodes: List<Node>,
@@ -212,11 +174,9 @@ class Ps2NetplayDriver(
         hosting: Boolean,
         dev9Label: Node?
     ): Boolean {
-        // a. The network adapter, without which nothing that follows exists.
-        //
-        //    An absent label does not mean "no toggle" but "we have scrolled
-        //    past it", and we do not scroll back up: the order of this list
-        //    follows the order of the screen.
+        // a. The adapter, without which nothing below exists. An absent label
+        //    means "scrolled past", never "no toggle".
+        //    pourquoi : docs/decisions/pilotes-emulateurs.md § L'ordre des réglages n'est pas cosmétique
         if (dev9Label != null && STEP_DEV9 !in done) {
             val toggle = Ps2Screen.toggleFor(nodes, dev9Label.text)
             if (toggle != null && !toggle.checked) {
@@ -227,23 +187,16 @@ class Ps2NetplayDriver(
             done += STEP_DEV9
         }
 
-        // b. The mode. The three buttons are visible together, so there is no
-        //    list to open, unlike Dolphin's connection type.
-        //
-        //    The current mode cannot be read off the button: measured, none of
-        //    the three carries `selected` or `checked` in the tree. We infer it
-        //    from the fields present, the way the Dolphin driver tells its tabs
-        //    apart by the absence of the address field.
+        // b. The mode. It cannot be read off the button: measured, none of the
+        //    three carries `selected` or `checked`. Inferred from the fields.
+        //    pourquoi : docs/decisions/pilotes-emulateurs.md § L'ordre des réglages n'est pas cosmétique
         if (STEP_MODE !in done) {
             val marker = if (hosting) Ps2Target.LABEL_OWN_ADDRESS else Ps2Target.LABEL_HOST_ADDRESS
             when {
                 Ps2Screen.label(nodes, marker) != null -> done += STEP_MODE
-                // One click, never two. The marker that confirms the mode sits
-                // lower than the button: until we have scrolled it is absent
-                // from the tree, and the driver concluded it had not clicked.
-                // Seen for real on 2026-08-17, eight clicks in a row on "Host
-                // local game" before the screen moved enough to set it straight.
-                // After the click, we scroll down to find the marker.
+                // One click, never two: the confirming marker sits below the
+                // fold, and eight clicks in a row were measured before this.
+                // pourquoi : docs/decisions/pilotes-emulateurs.md § L'ordre des réglages n'est pas cosmétique
                 modeClicks > 0 -> return scroll(nodes, plan)
                 else -> {
                     val wanted =
@@ -301,17 +254,9 @@ class Ps2NetplayDriver(
     }
 
     /**
-     * Scrolls the screen down a notch, having failed to find what we were after.
-     *
-     * The Network screen is taller than the device, and an accessibility tree
-     * only contains what is drawn: a row below the fold is not in it at all.
-     * This is the same trap as Azahar's OK button in landscape, in another form;
-     * there we had to search without the visibility filter, here we have to
-     * bring the row into view.
-     *
-     * Bounded: if scrolling never brings up what we are after, we hand back and
-     * say what to set, rather than scrolling the screen forever under the
-     * player's thumb.
+     * Scrolls down a notch: a row below the fold is not in the tree at all.
+     * Bounded, or it scrolls forever under the player's thumb.
+     * pourquoi : docs/decisions/pilotes-emulateurs.md § Deux plafonds, deux pannes évitées
      */
     private fun scroll(nodes: List<Node>, plan: NetplayPlan): Boolean {
         if (scrolls >= MAX_SCROLLS) {
@@ -359,12 +304,9 @@ class Ps2NetplayDriver(
     }
 
     /**
-     * Enters a value on ARMSX2's keyboard: clear, type, confirm.
-     *
-     * All in one pass, with the tree re-read between each key. Splitting it into
-     * one pass per character would have looked safer: it would have made it
-     * depend on one accessibility event per key, when nothing guarantees ARMSX2
-     * emits one for each.
+     * Enters a value on ARMSX2's keyboard: clear, type, confirm — all in ONE
+     * pass. One pass per character would look safer and be worse.
+     * pourquoi : docs/decisions/pilotes-emulateurs.md § La saisie se fait en une passe
      */
     private fun type(first: List<Node>, value: String): Boolean {
         var nodes = first
@@ -386,12 +328,9 @@ class Ps2NetplayDriver(
     }
 
     /**
-     * The room code, cut to ARMSX2's bounds.
-     *
-     * The session code is already the two players' shared secret, and it is
-     * alphanumeric, hence typeable. Too short, and we do not invent one: better
-     * to leave ARMSX2's own, identical on both sides only if the players copy it
-     * across, than to set one the other will not have.
+     * The room code, cut to ARMSX2's bounds. Too short, and we do not invent
+     * one: a code the other player will not have is worse than none.
+     * pourquoi : docs/decisions/pilotes-emulateurs.md § La saisie se fait en une passe
      */
     internal fun roomCode(plan: NetplayPlan): String? {
         val raw = plan.password?.filter { it.isLetterOrDigit() && it.code < 128 } ?: return null
@@ -490,9 +429,9 @@ class Ps2NetplayDriver(
         const val MAX_WRITES = 6
         const val MAX_ANCESTOR_HOPS = 5
         /**
-         * The PS2 route is longer than the others: library, menu, settings, tab.
-         * Four were enough for Dolphin, not here, and a ceiling set too low
+         * The PS2 route is longer than the others, and a ceiling set too low
          * reads as "the setup does not work".
+         * pourquoi : docs/decisions/pilotes-emulateurs.md § Deux plafonds, deux pannes évitées
          */
         const val MAX_NAV_CLICKS = 8
 
