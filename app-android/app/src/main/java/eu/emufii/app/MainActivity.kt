@@ -5,6 +5,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import eu.emufii.app.secondscreen.SecondScreenHost
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.ActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -95,6 +96,14 @@ class MainActivity : ComponentActivity() {
                     isAppearanceLightNavigationBars = !dark
                 }
             }
+
+            // The second display, when the device has one, is mounted here and
+            // not inside `EmufiiApp`: it is a window of its own, a sibling of
+            // this one rather than a part of the screen being drawn, and it
+            // carries its own theme for the day a service holds it instead of
+            // an activity. See `secondscreen/SecondScreenHost.kt`.
+            val secondScreen by settings.secondScreen.collectAsState()
+            SecondScreenHost(enabled = secondScreen)
 
             EmufiiTheme(darkTheme = dark, oled = theme.isOled, accent = accent) {
                 CompositionLocalProvider(LocalEnsureVpnPermission provides ensureVpn) {

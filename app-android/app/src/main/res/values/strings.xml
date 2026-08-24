@@ -506,4 +506,15 @@
     <string name="consoles_pick_title">Tes consoles</string>
     <string name="consoles_pick_body">Voici les émulateurs qui font tourner les jeux, Emufii n\'en émule aucun. Coupe une console pour la sortir de ta bibliothèque, avec ses jeux.</string>
     <string name="consoles_pick_note">Éprouvé sur les versions affichées ici.</string>
+
+    <!-- Second screen (Thor rear panel and any presentation display) -->
+    <string name="second_screen_code_label">CODE DE SESSION</string>
+    <string name="second_screen_role_host">Vous hébergez</string>
+    <string name="second_screen_role_guest">Vous avez rejoint</string>
+    <string name="settings_second_screen">Second écran</string>
+    <string name="settings_second_screen_note">Affiche le code de session sur le panneau arrière, tant qu’Emufii est au premier plan.</string>
+    <string name="settings_second_screen_absent">Aucun second écran détecté sur cet appareil.</string>
+    <string name="pad_hint_confirm">Ouvrir</string>
+    <string name="pad_hint_back">Retour</string>
+    <string name="pad_hint_hold">Maintenir · Menu du jeu</string>
 </resources>

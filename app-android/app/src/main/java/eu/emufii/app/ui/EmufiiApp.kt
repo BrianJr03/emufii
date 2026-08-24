@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import eu.emufii.app.compat.LocalCompatDb
 import eu.emufii.app.compat.CompatCheck
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -32,6 +33,8 @@ import eu.emufii.app.profile.ProfileStore
 import eu.emufii.app.ps2.Ps2NetworkProfile
 import eu.emufii.app.settings.SettingsStore
 import eu.emufii.app.session.RomRef
+import eu.emufii.app.secondscreen.SecondScreen
+import eu.emufii.app.secondscreen.SecondScreenModel
 import eu.emufii.app.session.Session
 import eu.emufii.app.session.SessionCodes
 import eu.emufii.app.tunnel.TunnelHolder
@@ -168,6 +171,36 @@ fun EmufiiApp(settings: SettingsStore) {
     var screen by remember {
         mutableStateOf<Screen>(if (onProfilePage) Screen.ProfileAndSettings else Screen.Library)
     }
+    // What the second display is told, published from the one place that knows.
+    //
+    // It is derived from `screen` rather than pushed at each call site: a
+    // session ends in several ways, some of them failures, and a panel updated
+    // by hand would eventually be left showing a code for a session that no
+    // longer exists. Deriving it means the panel cannot disagree with the app,
+    // and it costs one effect.
+    //
+    // Published to a process-scoped holder and not down the composition, so the
+    // service host that will outlive this activity reads the same thing.
+    LaunchedEffect(screen) {
+        SecondScreen.publish(
+            (screen as? Screen.InSession)?.session?.let { active ->
+                SecondScreenModel.InSession(
+                    code = active.code,
+                    role = active.role,
+                    console = active.console,
+                    gameTitle = active.rom?.displayName,
+                    hostAddress = active.hostIp,
+                    port = active.port,
+                )
+            } ?: SecondScreenModel.Idle
+        )
+    }
+    // The panel must not survive the app that feeds it: while only the
+    // Presentation host exists it goes down with the activity anyway, but the
+    // service host will not, and a stale code left glowing on a handheld's back
+    // is exactly the failure this feature would be blamed for.
+    DisposableEffect(Unit) { onDispose { SecondScreen.clear() } }
+
     // Shown once, before anything else: the app is useless until it knows where
     // the ROMs are, and the notification is what keeps the network alive while
     // the player is inside the emulator.

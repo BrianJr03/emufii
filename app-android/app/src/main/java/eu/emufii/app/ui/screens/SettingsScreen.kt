@@ -115,6 +115,7 @@ import kotlinx.coroutines.withContext
 import eu.emufii.app.ui.theme.CardShape
 import eu.emufii.app.ui.components.Avatar
 import eu.emufii.app.ui.components.EmufiiScaffold
+import eu.emufii.app.secondscreen.rememberPresentationDisplay
 import eu.emufii.app.ui.components.DetailActions
 import eu.emufii.app.ui.components.DetailFact
 import eu.emufii.app.ui.components.DetailNote
@@ -454,6 +455,7 @@ fun SettingsScreen(
                     expanded = false,
                     onToggle = { themePanel = true }
                 )
+                val secondScreenOn by settingsStore.secondScreen.collectAsState()
                 SettingsRow(
                     label = stringResource(R.string.settings_row_autofill),
                     value = stringResource(
@@ -466,6 +468,24 @@ fun SettingsScreen(
                     AutofillDetail(
                         enabled = autofillOn,
                         onOpen = { autofillLauncher.openAccessibilitySettings() }
+                    )
+                }
+                // Listed on every device, not only on the handhelds that have a
+                // panel. A row that appears and disappears with the hardware
+                // teaches nobody the feature exists, and the state line below
+                // says plainly when there is nothing to drive.
+                SettingsRow(
+                    label = stringResource(R.string.settings_second_screen),
+                    value = stringResource(
+                        if (secondScreenOn) R.string.settings_value_autofill_on
+                        else R.string.settings_value_autofill_off
+                    ),
+                    expanded = open == SettingsRowId.SECOND_SCREEN,
+                    onToggle = { toggle(SettingsRowId.SECOND_SCREEN) }
+                ) {
+                    SecondScreenDetail(
+                        enabled = secondScreenOn,
+                        onSetEnabled = settingsStore::setSecondScreen,
                     )
                 }
                 SettingsRow(
@@ -752,7 +772,44 @@ private val COCOON_DEFAULT_FOLDER: Uri = DocumentsContract.buildDocumentUri(
 
 private enum class SettingsRowId {
     IDENTITY, FOLDER, CONSOLES, KEYS, ARTWORK, HIDDEN, PPSSPP_CONFIG, PS2_PROFILE,
-    LANGUAGE, THEME, AUTOFILL, ABOUT
+    LANGUAGE, THEME, AUTOFILL, SECOND_SCREEN, ABOUT
+}
+
+/**
+ * The second screen's section: what it does, one switch, and whether there is
+ * anything to switch on.
+ *
+ * The state line is the part that earns its place. Without it the row is a
+ * promise a player cannot check: they turn it on, nothing happens, and they
+ * cannot tell whether the feature is broken or their device simply has one
+ * screen. Naming the panel it found, or saying that it found none, answers that
+ * before they go looking.
+ */
+@Composable
+private fun SecondScreenDetail(
+    enabled: Boolean,
+    onSetEnabled: (Boolean) -> Unit,
+) {
+    val display by rememberPresentationDisplay()
+    DetailNote(stringResource(R.string.settings_second_screen_note))
+    DetailActions {
+        GhostButton(
+            label = stringResource(
+                if (enabled) R.string.settings_value_autofill_off
+                else R.string.settings_value_autofill_on
+            ),
+            onClick = { onSetEnabled(!enabled) }
+        )
+    }
+    val panel = display
+    DetailStatus(
+        tone = when {
+            panel == null -> DetailTone.WARN
+            enabled -> DetailTone.GOOD
+            else -> DetailTone.BUSY
+        },
+        headline = panel?.name ?: stringResource(R.string.settings_second_screen_absent),
+    )
 }
 
 @Composable

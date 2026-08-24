@@ -58,6 +58,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -125,6 +126,8 @@ import eu.emufii.app.ui.components.SearchField
 import eu.emufii.app.ui.components.CompatBadge
 import eu.emufii.app.library.compatKeys
 import eu.emufii.app.compat.LocalCompatDb
+import eu.emufii.app.secondscreen.SecondScreen
+import eu.emufii.app.secondscreen.SecondScreenModel
 import eu.emufii.app.ui.components.SortChip
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -368,6 +371,12 @@ fun LibraryScreen(
     // closes it before anything else.
     var searchOpen by rememberSaveable { mutableStateOf(false) }
     var query by rememberSaveable { mutableStateOf("") }
+    // The panel is its own state, not a second reading of `searchOpen`.
+    // Tying them together meant dismissing the keyboard threw the query away:
+    // the player put the panel down to see the results they had just spelled,
+    // and the results were what disappeared. Typing and reading are two halves
+    // of one search, so only the search's own close empties the field.
+    var keyboardOpen by rememberSaveable { mutableStateOf(false) }
 
     // The consoles the player asked not to see, applied once, here.
     //
@@ -406,8 +415,12 @@ fun LibraryScreen(
     // is what any file browser does, and without it entering a console was a one
     // way trip for anyone without a controller.
     BackHandler(enabled = openConsole != null) { openConsole = null }
-    // Registered after the folder's, so back closes the search first.
-    BackHandler(enabled = searchOpen) { searchOpen = false; query = "" }
+    // Registered after the folder's, so back closes the search first. And the
+    // panel before the search: back undoes one layer at a time, so a player who
+    // wanted the grid uncovered does not lose their query for asking.
+    BackHandler(enabled = searchOpen) {
+        if (keyboardOpen) keyboardOpen = false else { searchOpen = false; query = "" }
+    }
     LaunchedEffect(searchOpen) {
         if (searchOpen) runCatching { topBarLeftFocus.requestFocus() }
     }
@@ -569,6 +582,27 @@ fun LibraryScreen(
             WallpaperVeil(band = bottomInset + 14.dp, dark = dark, fromTop = false)
         }
 
+        // A tap anywhere off the panel puts it down. Nothing said so before:
+        // the keyboard had no way out but the system back, and a tap on the
+        // grid went through to a tile and opened a game mid-word.
+        //
+        // Invisible, and deliberately declared BEFORE the top bar so the search
+        // field stays above it and still answers: the field is the one thing
+        // outside the panel that must not dismiss it, since tapping it is how
+        // the panel comes back.
+        if (searchOpen && keyboardOpen) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .focusProperties { canFocus = false }
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = { keyboardOpen = false }
+                    )
+            )
+        }
+
         // OVERLAY : floating wordmark + profile (no glass rectangle wrapper)
         FloatingTopBar(
             profile = profile,
@@ -581,9 +615,13 @@ fun LibraryScreen(
             onLeaveFolder = { openConsole = null },
             searchOpen = searchOpen,
             query = query,
-            onSearchOpen = { searchOpen = true },
+            onSearchOpen = { searchOpen = true; keyboardOpen = true },
             onQueryChange = { query = it },
-            onSearchClose = { searchOpen = false; query = "" },
+            onSearchClose = { searchOpen = false; keyboardOpen = false; query = "" },
+            // Tapping the field is how the panel comes back once it has been
+            // put down. Without it, dismissing the keyboard was a one way trip
+            // and the only way back was to close the search and retype.
+            onFieldTap = { keyboardOpen = true },
             onOpenProfile = onOpenProfile,
             onOpenFriends = onOpenFriends,
             onOpenFinder = onOpenFinder,
@@ -599,31 +637,45 @@ fun LibraryScreen(
 
         // The search's keyboard, floating over the bottom of the grid and
         // never past half of it: what the player is looking for stays on
-        // screen while they spell it. It closes with the search.
+        // screen while they spell it. It goes down on a tap outside or on
+        // back, and takes nothing with it: the field, the query and the
+        // results all stay. Only closing the search itself empties them.
         // The panel rises from the bottom edge rather than appearing: a
         // keyboard that pops is a system dialog, one that slides is part of
         // the tray. The same beat as the field's swap, so the two read as
         // one gesture opening one thing.
         androidx.compose.animation.AnimatedVisibility(
-            visible = searchOpen,
-            enter = androidx.compose.animation.fadeIn(
-                androidx.compose.animation.core.tween(150)
-            ) + androidx.compose.animation.slideInVertically(
+            visible = searchOpen && keyboardOpen,
+            // Slide only, no fade, and all the way past the edge.
+            //
+            // The panel is frosted by Haze, and fading it meant animating the
+            // alpha of a blurred layer: the blur drops out while it does, so
+            // for a frame or two the flat fill underneath shows through. On
+            // top of that the old exit only travelled a third of the height,
+            // so the panel reached alpha zero while still two thirds on
+            // screen and vanished where it stood instead of leaving. A drawer
+            // that stays opaque the whole way and simply goes home has neither
+            // problem, and it is the reading this panel was already after.
+            enter = androidx.compose.animation.slideInVertically(
                 // Stiff and barely sprung: the panel comes up like a drawer
                 // pushed home, not like a ball dropped on a trampoline. The
                 // soft spring read as hesitation, and opening is the one
                 // gesture that must not hesitate.
                 animationSpec = androidx.compose.animation.core.spring(
-                    dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
+                    dampingRatio = androidx.compose.animation.core.Spring.DampingRatioLowBouncy,
                     stiffness = androidx.compose.animation.core.Spring.StiffnessMedium
                 ),
-                initialOffsetY = { it / 3 }
+                initialOffsetY = { it }
             ),
-            exit = androidx.compose.animation.fadeOut(
-                androidx.compose.animation.core.tween(120)
-            ) + androidx.compose.animation.slideOutVertically(
-                animationSpec = androidx.compose.animation.core.tween(160),
-                targetOffsetY = { it / 3 }
+            exit = androidx.compose.animation.slideOutVertically(
+                // Leaving is quicker than arriving and does not bounce: a
+                // panel the player has dismissed should be out of the way,
+                // not asking for one more look.
+                animationSpec = androidx.compose.animation.core.tween(
+                    durationMillis = 180,
+                    easing = androidx.compose.animation.core.FastOutLinearInEasing
+                ),
+                targetOffsetY = { it }
             ),
             modifier = Modifier.align(Alignment.BottomCenter)
         ) {
@@ -978,6 +1030,7 @@ private fun RomsGrid(
      */
     var cursor by rememberSaveable { mutableStateOf(0) }
     var padFocused by remember { mutableStateOf(false) }
+    PublishHovered(entries, cursor)
 
     // A rescan, or entering a folder, can shorten the list under the cursor.
     LaunchedEffect(entries.size) {
@@ -1162,6 +1215,7 @@ private fun RomsCarousel(
     val scope = rememberCoroutineScope()
     var cursor by rememberSaveable { mutableStateOf(0) }
     var padFocused by remember { mutableStateOf(false) }
+    PublishHovered(entries, cursor)
 
     LaunchedEffect(entries.size) {
         if (cursor > entries.lastIndex) cursor = entries.lastIndex.coerceAtLeast(0)
@@ -1452,6 +1506,7 @@ private fun RomsList(
     }
     var cursor by rememberSaveable { mutableStateOf(0) }
     var padFocused by remember { mutableStateOf(false) }
+    PublishHovered(entries, cursor)
 
     LaunchedEffect(entries.size) {
         if (cursor > entries.lastIndex) cursor = entries.lastIndex.coerceAtLeast(0)
@@ -1984,6 +2039,7 @@ private fun FloatingTopBar(
     onSearchOpen: () -> Unit,
     onQueryChange: (String) -> Unit,
     onSearchClose: () -> Unit,
+    onFieldTap: () -> Unit,
     onOpenProfile: () -> Unit,
     onOpenFriends: () -> Unit,
     onOpenFinder: () -> Unit,
@@ -2037,17 +2093,38 @@ private fun FloatingTopBar(
             // The swap itself is animated, and the shelf with it: the field
             // grows out of the corner the lens sat in, rather than the two
             // states cutting at a frame boundary. One gesture, one motion.
+            //
+            // The two states take turns; they do not share the shelf. Crossing
+            // them was what made closing the search flash: the field and each
+            // of the three chips draw their own `socket()`, and a recess is a
+            // translucent inset. Overlapped at partial alpha they stacked into
+            // a brighter slab for two frames, which reads as a blink and not
+            // as a swap. The outgoing one is gone before the incoming starts.
+            //
+            // Size is left to the shelf's own `animateContentSize`, which also
+            // has the breadcrumb to carry. `AnimatedContent` animates size too
+            // by default, and the two of them pulling the same node was the
+            // rest of the jitter; here it snaps and lets the shelf ease.
             androidx.compose.animation.AnimatedContent(
                 targetState = searchOpen,
                 transitionSpec = {
-                    (
-                        androidx.compose.animation.fadeIn(
-                            androidx.compose.animation.core.tween(130)
-                        ) + androidx.compose.animation.slideInHorizontally { it / 8 }
-                        ).togetherWith(
+                    androidx.compose.animation.fadeIn(
+                        androidx.compose.animation.core.tween(
+                            durationMillis = 120,
+                            delayMillis = 100,
+                            easing = androidx.compose.animation.core.LinearOutSlowInEasing
+                        )
+                    ).togetherWith(
                         androidx.compose.animation.fadeOut(
-                            androidx.compose.animation.core.tween(90)
-                        ) + androidx.compose.animation.slideOutHorizontally { -it / 8 }
+                            androidx.compose.animation.core.tween(
+                                durationMillis = 100,
+                                easing = androidx.compose.animation.core.FastOutLinearInEasing
+                            )
+                        )
+                    ).using(
+                        androidx.compose.animation.SizeTransform(clip = false) { _, _ ->
+                            androidx.compose.animation.core.snap()
+                        }
                     )
                 },
                 label = "shelf-search-swap"
@@ -2057,10 +2134,18 @@ private fun FloatingTopBar(
                         value = query,
                         onValueChange = onQueryChange,
                         onClose = onSearchClose,
+                        onTap = onFieldTap,
                         modifier = Modifier.focusRequester(topBarLeftFocus)
                     )
                 } else {
-                    androidx.compose.foundation.layout.Row {
+                    // The same 10.dp the right-hand shelf sets between its own
+                    // chips. This Row carried no arrangement at all, so the
+                    // three pills sat touching while their opposite numbers
+                    // across the bar breathed: one shelf, two rhythms.
+                    androidx.compose.foundation.layout.Row(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         SearchChip(onClick = onSearchOpen)
                         LayoutChip(
                             current = layout,
@@ -2507,4 +2592,34 @@ private fun EmptyState(
             Text(cta, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
         }
     }
+}
+
+/**
+ * Tells the second display which game the cursor is on.
+ *
+ * One place, called by all three cursor owners: the grid, the carousel and the
+ * list each keep their own index, and duplicating the mapping is how the two
+ * screens would eventually disagree about what is selected. They are
+ * alternatives, so exactly one is composed at a time.
+ *
+ * On the way out it hands the panel back to its resting face rather than
+ * leaving the last game glowing on the back of the machine after the player has
+ * gone somewhere else. Whatever screen follows publishes its own state right
+ * after, so the pair converges without either knowing about the other.
+ */
+@Composable
+private fun PublishHovered(entries: List<Entry>, cursor: Int) {
+    val hovered = (entries.getOrNull(cursor) as? Entry.Game)?.rom
+    val db = LocalCompatDb.current
+    LaunchedEffect(hovered, db) {
+        SecondScreen.publish(
+            hovered?.let { rom ->
+                SecondScreenModel.Browsing(
+                    rom = rom,
+                    rating = db.ratingFor(rom.compatKeys())?.rating,
+                )
+            } ?: SecondScreenModel.Idle
+        )
+    }
+    DisposableEffect(Unit) { onDispose { SecondScreen.clear() } }
 }

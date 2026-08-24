@@ -201,6 +201,28 @@ class SettingsStore private constructor(context: Context) {
         _hiddenConsoles.value = next
     }
 
+    /**
+     * Whether the second display, when the device has one, carries the panel.
+     *
+     * On by default: a player whose handheld has a rear screen bought it to be
+     * used, and a feature nobody finds in a settings page is a feature nobody
+     * has. It is a switch and not a silent behaviour because the panel is
+     * always lit while a session runs, and someone playing in the dark or
+     * counting battery is entitled to turn it off.
+     *
+     * The setting is stored on every device, including those with no second
+     * display: it costs one boolean, and it means a player who moves their
+     * profile to a handheld that has one arrives with their choice intact
+     * rather than with a default they never made.
+     */
+    private val _secondScreen = MutableStateFlow(prefs.getBoolean(KEY_SECOND_SCREEN, true))
+    val secondScreen: StateFlow<Boolean> = _secondScreen.asStateFlow()
+
+    fun setSecondScreen(enabled: Boolean) {
+        prefs.edit { putBoolean(KEY_SECOND_SCREEN, enabled) }
+        _secondScreen.value = enabled
+    }
+
     fun setSteamGridDbKey(key: String) {
         val cleaned = key.trim()
         prefs.edit { putString(KEY_SGDB, cleaned) }
@@ -290,5 +312,6 @@ class SettingsStore private constructor(context: Context) {
         private const val KEY_LAYOUT = "library_layout"
         private const val KEY_SORT = "library_sort"
         private const val KEY_HIDDEN_CONSOLES = "hidden_consoles"
+        private const val KEY_SECOND_SCREEN = "second_screen"
     }
 }

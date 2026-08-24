@@ -496,4 +496,15 @@
     <string name="consoles_pick_title">Your consoles</string>
     <string name="consoles_pick_body">These are the emulators that run the games, Emufii runs none itself. Turn a console off to take it out of your library, with its games.</string>
     <string name="consoles_pick_note">Proven at the versions shown here.</string>
+
+    <!-- Second screen (Thor rear panel and any presentation display) -->
+    <string name="second_screen_code_label">SESSION CODE</string>
+    <string name="second_screen_role_host">You are hosting</string>
+    <string name="second_screen_role_guest">You joined</string>
+    <string name="settings_second_screen">Second screen</string>
+    <string name="settings_second_screen_note">Shows the session code on the rear panel, while Emufii is in the foreground.</string>
+    <string name="settings_second_screen_absent">No second screen detected on this device.</string>
+    <string name="pad_hint_confirm">Open</string>
+    <string name="pad_hint_back">Back</string>
+    <string name="pad_hint_hold">Hold · Game menu</string>
 </resources>
