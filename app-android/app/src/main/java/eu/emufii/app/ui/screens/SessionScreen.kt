@@ -104,6 +104,7 @@ import eu.emufii.app.network.Member
 import eu.emufii.app.profile.Profile
 import eu.emufii.app.profile.playerDisplayName
 import eu.emufii.app.session.Session
+import eu.emufii.app.ui.components.WarnIcon
 import eu.emufii.app.ui.components.AvatarStack
 import eu.emufii.app.ui.components.EmufiiScaffold
 import eu.emufii.app.ui.components.GhostButton
@@ -539,7 +540,7 @@ fun SessionScreen(
                                 drawContent()
                                 drawRect(
                                     brush = Brush.verticalGradient(
-                                        0.88f to Color.Black,
+                                        0.94f to Color.Black,
                                         1f to Color.Transparent
                                     ),
                                     blendMode = BlendMode.DstIn
@@ -562,6 +563,11 @@ fun SessionScreen(
                     // step is done, and a disabled button does not take focus:
                     // going down failed and the cursor went off into the left
                     // column.
+                    // The pane fades, then a real gap, then the buttons. Without
+                    // the gap the last line dissolved directly into the top of
+                    // the pill and the two read as one broken element rather
+                    // than as text that continues below the fold.
+                    Spacer(Modifier.height(2.dp))
                     if (session.backend.hasNetplay && !ps2Automatic) {
                         NetplayButton(
                             session = session,
@@ -1323,35 +1329,38 @@ private fun ConnectionCard(
  */
 @Composable
 private fun ImportantNote(text: String) {
-    // A recessed note, not a red slab with a shouted label on it.
+    // A recessed note, and its mark is drawn rather than coloured in.
     //
-    // It was `errorContainer` filled at 55 %, topped by "IMPORTANT" in tracked
-    // capitals. Two faults, and the second is the expensive one: the eyebrow is
-    // the device the craft floor bans outright, and a saturated red field the
-    // size of a paragraph took the whole pane's attention away from the two
-    // buttons that are the actual job. Red is this app's danger colour and it
-    // appears twice in the whole product — spending it on an advisory is what
-    // makes it stop meaning anything when something is really wrong.
+    // Two rounds got it here. It began as `errorContainer` filled at 55% under
+    // "IMPORTANT" in tracked capitals: an eyebrow, which the craft floor bans
+    // outright, over a saturated red field the size of a paragraph that took
+    // the pane's attention away from the buttons that are the actual job. That
+    // became a recess with a 3.dp red bar down the reading edge — better, and
+    // still two things wrong. A coloured side border past a hairline is refused
+    // on callouts, and red is this product's danger colour, spent exactly twice
+    // in the whole app; two advisories on one screen were spending it four
+    // times over, which is what makes it stop meaning anything when something
+    // is genuinely wrong.
     //
-    // So: the tray's own recess, the app's ordinary ink, and one red bar down
-    // the reading edge to say "this one matters". The words were always doing
-    // the work; they just could not be heard over the colour.
+    // So the tray's recess, the ordinary ink, and the same warning bead the
+    // library already wears on a game that half works. Drawn, not typed, not
+    // filled: it says "read this one" without claiming anything is broken.
     val dark = LocalEmufiiDarkTheme.current
     val shape = RoundedCornerShape(14.dp)
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .socket(shape, dark)
-            .padding(start = 12.dp, top = 12.dp, end = 14.dp, bottom = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(11.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .width(3.dp)
-                .heightIn(min = 20.dp)
-                .fillMaxHeight()
-                .clip(RoundedCornerShape(2.dp))
-                .background(ShellRed)
+        WarnIcon(
+            size = 17.dp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            // Aligned to the first line's ink rather than centred on the block:
+            // a mark that drifts to the middle of a three-line note reads as
+            // decoration instead of as a mark on the sentence it opens.
+            modifier = Modifier.padding(top = 2.dp)
         )
         Text(
             text,

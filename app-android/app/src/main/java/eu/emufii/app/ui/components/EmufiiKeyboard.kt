@@ -51,8 +51,12 @@ import eu.emufii.app.ui.theme.socket
  * panel is frosted by the caller. A key that goes down lights cyan, the one
  * accent, like the cursor it types for.
  *
- * Uppercase only, and that is not a budget cut: a search here is compared
- * without case, and the tiles themselves shout their titles.
+ * Case is the player's call. A search here is compared without case either
+ * way, so the shift key is about what they watch themselves type, not about
+ * what they find: a title carrying its own capitals reads back wrong when the
+ * panel shouts it. It latches like a caps lock rather than firing once,
+ * because a caps that undoes itself after one letter is the behaviour nobody
+ * can predict without watching it.
  */
 @Composable
 fun EmufiiKeyboard(
@@ -65,6 +69,9 @@ fun EmufiiKeyboard(
     // Letters, then digits: game titles are spelled in both, and the toggle
     // costs one key where a fifth row would cost a quarter of the panel.
     var digits by remember { mutableStateOf(false) }
+    // Starts latched, so the panel opens looking the way it always has and the
+    // key is a way down rather than a step the player must take first.
+    var upper by remember { mutableStateOf(true) }
 
     val keyHeight = (maxHeight - PANEL_PADDING * 2 - ROW_GAP * 3) / 4
     val rows = if (digits) DIGIT_ROWS else LETTER_ROWS
@@ -83,12 +90,19 @@ fun EmufiiKeyboard(
                 row.forEach { label ->
                     Key(
                         label = label,
+                        // Only the letters follow the latch. Digits and
+                        // punctuation have no case, and folding them would
+                        // turn the key into a control that does nothing on
+                        // half the panel.
+                        upper = upper,
+                        latched = label == SHIFT && upper,
                         onClick = {
                             when (label) {
                                 BACKSPACE -> onBackspace()
                                 SPACE -> onKey(" ")
                                 MODE -> digits = !digits
-                                else -> onKey(label)
+                                SHIFT -> upper = !upper
+                                else -> onKey(if (upper) label else label.lowercase())
                             }
                         },
                         height = keyHeight,
@@ -96,7 +110,7 @@ fun EmufiiKeyboard(
                         // rows read as one block with a rhythm, not as grids
                         // of different sizes.
                         weight = when (label) {
-                            BACKSPACE, MODE -> 1.7f
+                            BACKSPACE, MODE, SHIFT -> 1.7f
                             SPACE -> 9f
                             else -> 1f
                         }
@@ -107,23 +121,27 @@ fun EmufiiKeyboard(
     }
 }
 
-/** Labels that are characters, and three that are not. */
+/** Labels that are characters, and four that are not. */
 private const val BACKSPACE = "⌫"
 private const val SPACE = "ESPACE"
 private const val MODE = "123"
+private const val SHIFT = "⇧"
 
+// Shift sits bottom-left of the letters and backspace bottom-right, where
+// every keyboard the player has ever used puts them; `123` moves down to the
+// space row rather than fight shift for that corner.
 private val LETTER_ROWS = listOf(
     listOf("Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"),
     listOf("A", "S", "D", "F", "G", "H", "J", "K", "L"),
-    listOf(MODE, "Z", "X", "C", "V", "B", "N", "M", BACKSPACE),
-    listOf(SPACE),
+    listOf(SHIFT, "Z", "X", "C", "V", "B", "N", "M", BACKSPACE),
+    listOf(MODE, SPACE),
 )
 
 private val DIGIT_ROWS = listOf(
     listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0"),
     listOf("-", "&", "'", "É", "È", "Ê", "À", "Ç", "Û"),
-    listOf(MODE, "!", "?", ".", ",", "(", ")", BACKSPACE),
-    listOf(SPACE),
+    listOf("!", "?", ".", ",", "(", ")", ":", BACKSPACE),
+    listOf(MODE, SPACE),
 )
 
 private val ROW_GAP = 7.dp
@@ -141,6 +159,8 @@ private fun androidx.compose.foundation.layout.RowScope.Key(
     onClick: () -> Unit,
     height: Dp,
     weight: Float,
+    upper: Boolean = true,
+    latched: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val dark = LocalEmufiiDarkTheme.current
@@ -154,7 +174,10 @@ private fun androidx.compose.foundation.layout.RowScope.Key(
             .weight(weight)
             .height(height)
             .socket(shape, dark)
-            .drawBehind { if (pressed) drawPressed() }
+            // A latched shift stays lit: the panel already shows its own case
+            // in the letters, and the key that caused it should not be the one
+            // thing on screen with no state.
+            .drawBehind { if (pressed || latched) drawPressed() }
             .clickable(interactionSource = interaction, indication = null, onClick = onClick)
     ) {
         when (label) {
@@ -169,8 +192,9 @@ private fun androidx.compose.foundation.layout.RowScope.Key(
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+            SHIFT -> ShiftGlyph(latched)
             else -> Text(
-                label,
+                if (upper) label else label.lowercase(),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface
@@ -185,6 +209,42 @@ private fun DrawScope.drawPressed() {
         color = TrayCyan.copy(alpha = 0.30f),
         cornerRadius = CornerRadius(16.dp.toPx(), 16.dp.toPx()),
         size = size
+    )
+}
+
+/**
+ * An upward arrow on a bar: the one glyph every keyboard uses for case. Filled
+ * when latched, outlined when not, so the state reads without the colour.
+ */
+@Composable
+private fun ShiftGlyph(latched: Boolean) {
+    val tint = if (latched) MaterialTheme.colorScheme.onSurface
+    else MaterialTheme.colorScheme.onSurfaceVariant
+    Canvas(Modifier.size(20.dp)) { drawShift(tint, latched) }
+}
+
+private fun DrawScope.drawShift(color: androidx.compose.ui.graphics.Color, filled: Boolean) {
+    val w = size.width
+    val h = size.height
+    val head = androidx.compose.ui.graphics.Path().apply {
+        moveTo(w * 0.5f, h * 0.12f)
+        lineTo(w * 0.88f, h * 0.52f)
+        lineTo(w * 0.68f, h * 0.52f)
+        lineTo(w * 0.68f, h * 0.74f)
+        lineTo(w * 0.32f, h * 0.74f)
+        lineTo(w * 0.32f, h * 0.52f)
+        lineTo(w * 0.12f, h * 0.52f)
+        close()
+    }
+    if (filled) drawPath(head, color)
+    else drawPath(head, color, style = Stroke(width = w * 0.09f, cap = StrokeCap.Round))
+    // The bar under it: what the arrow pushes against.
+    drawLine(
+        color,
+        Offset(w * 0.32f, h * 0.90f),
+        Offset(w * 0.68f, h * 0.90f),
+        strokeWidth = w * 0.09f,
+        cap = StrokeCap.Round
     )
 }
 

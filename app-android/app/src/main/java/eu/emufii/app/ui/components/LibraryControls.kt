@@ -486,12 +486,17 @@ fun SearchChip(
  * one the console folders cannot answer, since the answer is often a console
  * the player was not looking at. Closed by its cross, by the system back, or
  * by emptying the field, and never by the grid moving under it.
+ *
+ * Tapping the field itself raises the keyboard again. The panel can be put down
+ * to read the results without ending the search, so the field has to be the way
+ * back to typing; the cross stays the only control that ends the search.
  */
 @Composable
 fun SearchField(
     value: String,
     onValueChange: (String) -> Unit,
     onClose: () -> Unit,
+    onTap: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val dark = LocalEmufiiDarkTheme.current
@@ -504,7 +509,14 @@ fun SearchField(
             .padding(horizontal = 12.dp)
     ) {
         val tint = MaterialTheme.colorScheme.onSurface
-        Canvas(Modifier.size(18.dp)) { drawLensGlyph(tint) }
+        // The lens and the text share one tap target: anywhere on the field
+        // that is not the cross brings the keyboard back.
+        val raise = Modifier.clickable(
+            interactionSource = remember { MutableInteractionSource() },
+            indication = null,
+            onClick = onTap
+        )
+        Canvas(Modifier.size(18.dp).then(raise)) { drawLensGlyph(tint) }
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
@@ -517,7 +529,7 @@ fun SearchField(
             readOnly = true,
             textStyle = MaterialTheme.typography.bodyMedium.copy(color = tint),
             cursorBrush = SolidColor(tint),
-            modifier = Modifier.width(170.dp)
+            modifier = Modifier.width(170.dp).then(raise)
         ) {
             if (value.isEmpty()) {
                 Text(
