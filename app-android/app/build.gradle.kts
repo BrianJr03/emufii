@@ -127,15 +127,12 @@ android {
         // coming, no banner, no way to notice. A published binary freezes its
         // number: rebuilding it under the same code makes the fix invisible to
         // the very people who need it most.
-        // 43: PPSSPP private sessions configure themselves through the
-        // emulator's supported per-game INI. A one-time SAF grant is scoped to
-        // the memory stick; public play restores the four values Emufii borrowed.
         // 45: ARMSX2 receives its network and memory-card settings through the
         // native per-game INI before boot. ISO and CHD games carry PCSX2's ELF
         // XOR in the library cache, so PS2 sessions launch in one tap without
         // accessibility navigation; the old driver remains only as a codec
-        // fallback. 44 was the integration build installed on the device and
-        // was never represented by this dev checkout.
+        // fallback. A PSP session is refused until the PPSSPP setup is done,
+        // mirroring the PS2 gate.
         versionCode = 45
         versionName = "1.12.7"
 

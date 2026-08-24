@@ -59,6 +59,12 @@ import eu.emufii.app.library.LibrarySort
 import eu.emufii.app.ui.theme.LocalEmufiiDarkTheme
 import eu.emufii.app.ui.theme.PlateDark
 import eu.emufii.app.ui.theme.PlateLight
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.text.selection.TextSelectionColors
+import androidx.compose.ui.graphics.SolidColor
+import eu.emufii.app.ui.theme.PillShape
+import eu.emufii.app.ui.theme.socket
 
 /**
  * The library's two settings, in the same family of pills as the profile and the
@@ -453,4 +459,107 @@ private fun DrawScope.drawCheckGlyph(color: Color) {
         lineTo(s * 0.88f, s * 0.22f)
     }
     drawPath(path, color, style = Stroke(width = s * 0.16f, cap = StrokeCap.Round))
+}
+
+/**
+ * Opens the search, leftmost of the "what am I looking at" pills.
+ *
+ * A library runs past a screenful quickly, and the console folders answer
+ * "which shelf", never "which game". The glyph is the field's own lens, so
+ * the button and what it opens read as one control in two states.
+ */
+@Composable
+fun SearchChip(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    TopBarChip(onClick = onClick, modifier = modifier) {
+        val tint = MaterialTheme.colorScheme.onSurface
+        Canvas(Modifier.size(21.dp)) { drawLensGlyph(tint) }
+    }
+}
+
+/**
+ * The search itself, in the shelf the layout and sort pills live in.
+ *
+ * Results span every console: the question "where is that game" is exactly the
+ * one the console folders cannot answer, since the answer is often a console
+ * the player was not looking at. Closed by its cross, by the system back, or
+ * by emptying the field, and never by the grid moving under it.
+ */
+@Composable
+fun SearchField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val dark = LocalEmufiiDarkTheme.current
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = modifier
+            .height(36.dp)
+            .socket(PillShape, dark)
+            .padding(horizontal = 12.dp)
+    ) {
+        val tint = MaterialTheme.colorScheme.onSurface
+        Canvas(Modifier.size(18.dp)) { drawLensGlyph(tint) }
+        BasicTextField(
+            value = value,
+            onValueChange = onValueChange,
+            singleLine = true,
+            // Read-only on purpose: the app's own keyboard does the typing.
+            // The system IME in landscape takes the whole screen in extract
+            // mode, and the grid the player is searching for goes away exactly
+            // when they need to see it. The cursor stays, so the field still
+            // shows where the next key lands.
+            readOnly = true,
+            textStyle = MaterialTheme.typography.bodyMedium.copy(color = tint),
+            cursorBrush = SolidColor(tint),
+            modifier = Modifier.width(170.dp)
+        ) {
+            if (value.isEmpty()) {
+                Text(
+                    stringResource(R.string.lib_search_hint),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            it()
+        }
+        // The cross, drawn like the lens rather than imported as an icon: the
+        // shelf carries no symbol that did not come from this file's own hand.
+        Canvas(
+            Modifier
+                .size(18.dp)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onClose
+                )
+        ) {
+            val s = size.width
+            drawLine(tint, Offset(s * 0.25f, s * 0.25f), Offset(s * 0.75f, s * 0.75f), strokeWidth = s * 0.09f, cap = StrokeCap.Round)
+            drawLine(tint, Offset(s * 0.75f, s * 0.25f), Offset(s * 0.25f, s * 0.75f), strokeWidth = s * 0.09f, cap = StrokeCap.Round)
+        }
+    }
+}
+
+/** A lens: a circle and a handle, the one glyph every search box owns. */
+private fun DrawScope.drawLensGlyph(color: Color) {
+    val s = size.width
+    drawCircle(
+        color,
+        radius = s * 0.32f,
+        center = Offset(s * 0.42f, s * 0.42f),
+        style = Stroke(width = s * 0.10f)
+    )
+    drawLine(
+        color,
+        start = Offset(s * 0.66f, s * 0.66f),
+        end = Offset(s * 0.92f, s * 0.92f),
+        strokeWidth = s * 0.12f,
+        cap = StrokeCap.Round
+    )
 }

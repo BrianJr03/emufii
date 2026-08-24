@@ -58,11 +58,11 @@ class ChdImageTest {
     }
 
     @Test
-    fun `a UMD rip in the same container is left to the PSP`() {
+    fun `a UMD rip in the same container answers for the PSP`() {
         val sector = requireNotNull(sector("psp.chd")) { "secteur illisible" }
-        // Not "identified as PSP": identified as nothing, which is what leaves
-        // the file with the console its extension gave it.
-        assertNull(DiscImage.fromSector(sector))
+        // Positively, not "as nothing": a shared `.chd` no folder spoke for
+        // needs the bytes to vouch, or it is not listed at all.
+        assertEquals(Console.PSP, requireNotNull(DiscImage.fromSector(sector)).first)
     }
 
     @Test

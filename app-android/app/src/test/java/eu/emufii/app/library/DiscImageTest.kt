@@ -133,7 +133,9 @@ class DiscImageTest {
     fun `un rip UMD reste a la PSP, meme lu jusqu'au descripteur`() {
         // The regression that matters: on the Thor, the six PS2 games and the six
         // PSP games are all `.iso`.
-        assertNull(DiscImage.identify(disc("PSP GAME", "SCEE")))
+        // The UMD rip says so itself in the descriptor, which is what settles
+        // a shared `.iso` the folder did not speak for.
+        assertEquals(Console.PSP, DiscImage.identify(disc("PSP GAME", "SCEE")))
     }
 
     @Test
@@ -166,5 +168,25 @@ class DiscImageTest {
                 ".$ext is sniffed but no console claims it, so the scan drops it first"
             }
         }
+    }
+
+    @Test
+    fun `a console folder name settles the console`() {
+        // The player sorted the file themselves: that name outranks any
+        // extension collision. Separators are ignored, case too.
+        assertEquals(Console.PS2, Console.forFolder("ps2"))
+        assertEquals(Console.PS2, Console.forFolder("PlayStation 2"))
+        assertEquals(Console.PSP, Console.forFolder("PSP"))
+        assertEquals(Console.DS, Console.forFolder("nds"))
+        assertEquals(Console.THREE_DS, Console.forFolder("n3ds"))
+        assertEquals(Console.SWITCH, Console.forFolder("Nintendo Switch"))
+        assertEquals(Console.GAMECUBE, Console.forFolder("gc"))
+
+        // Unknown folders say nothing, and a console Emufii does not serve
+        // must not steal its neighbour's name.
+        assertNull(Console.forFolder("ROMS"))
+        assertNull(Console.forFolder("dumps"))
+        assertNull(Console.forFolder("ps1"))
+        assertNull(Console.forFolder("psvita"))
     }
 }

@@ -1,11 +1,15 @@
 package eu.emufii.app.ps2
 
 import android.content.Context
+import android.provider.DocumentsContract
 import androidx.documentfile.provider.DocumentFile
 import eu.emufii.app.azahar.NetplayPlan
+import eu.emufii.app.library.DiscImageReader
 import eu.emufii.app.library.Ps2DiscIdentity
 import eu.emufii.app.session.RomRef
 import eu.emufii.app.wg.WgConfig
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /** The ARMSX2 per-game layer EmuFii can configure without private app access. */
 object Ps2GameSettings {
@@ -24,13 +28,33 @@ object Ps2GameSettings {
             Ps2NetworkProfile.receipt(context) != null
 
     /**
+     * The library scan computes the ELF CRC in the background, but a player who
+     * updates Emufii over a library last scanned by an older build holds ROM
+     * entries with no CRC, and no rescan happens until the folder changes. The
+     * direct path then silently stays the old accessibility one, measured on a
+     * real CHD library the day after the feature shipped.
+     *
+     * So the disc is read on demand, once, when the fields are empty: the
+     * in-memory cache serves every later call. Callers run off the main thread.
+     */
+    suspend fun canConfigureNow(context: Context, rom: RomRef): Boolean = withContext(Dispatchers.IO) {
+        rootAndCardPresent(context) && resolvedIdentity(context, rom) != null
+    }
+
+    private fun rootAndCardPresent(context: Context): Boolean =
+        Ps2NetworkProfile.rootUri(context) != null && Ps2NetworkProfile.receipt(context) != null
+
+    private fun resolvedIdentity(context: Context, rom: RomRef): Ps2DiscIdentity? =
+        identity(rom) ?: DiscImageReader(context).read(rom.uri)?.ps2Identity
+
+    /**
      * Merges only EmuFii's keys and leaves every graphics, speedhack and patch
      * override untouched. ARMSX2 loads this layer after its global preferences,
      * so both network and Slot 1 apply to this boot without changing any other
      * game or navigating its UI.
      */
     fun apply(context: Context, rom: RomRef, plan: NetplayPlan): Outcome = runCatching {
-        val identity = identity(rom) ?: return Outcome.UnknownDiscIdentity
+        val identity = resolvedIdentity(context, rom) ?: return Outcome.UnknownDiscIdentity
         val rootUri = Ps2NetworkProfile.rootUri(context) ?: return Outcome.MissingFolderGrant
         val receipt = Ps2NetworkProfile.receipt(context) ?: return Outcome.MissingPreparedCard
         val root = DocumentFile.fromTreeUri(context, rootUri)?.takeIf { it.isDirectory && it.canWrite() }
@@ -74,14 +98,14 @@ object Ps2GameSettings {
         // some providers acknowledge a write and then publish a short file.
         val tempName = ".emufii-${identity.serial}-${identity.elfCrc}.tmp"
         settings.child(tempName)?.delete()
-        val temp = settings.createFile("text/plain", tempName)
+        val temp = settings.createFile("application/octet-stream", tempName)
             ?: return Outcome.WriteFailed("ARMSX2 did not create the staging settings file")
         if (!writeAndVerify(context, temp, merged)) {
             temp.delete()
             return Outcome.WriteFailed("the staging settings file did not verify")
         }
 
-        val published = target ?: settings.createFile("text/plain", filename)
+        val published = target ?: createExactFile(context, settings, filename)
             ?: run {
                 temp.delete()
                 return Outcome.WriteFailed("ARMSX2 did not create $filename")
@@ -91,6 +115,41 @@ object Ps2GameSettings {
         if (!verified) return Outcome.WriteFailed("$filename did not verify after writing")
         Outcome.Success(filename)
     }.getOrElse { Outcome.WriteFailed(it.message ?: it.javaClass.simpleName) }
+
+    /**
+     * A provider may rewrite a created document's name from its MIME type:
+     * measured on the Thor, `text/plain` turned `SLES-53501_02F4B541.ini` into
+     * `SLES-53501_02F4B541.ini.txt`, ARMSX2 loaded none of it, and every launch
+     * piled one more ` (1)` copy. `application/octet-stream` leaves the name
+     * alone on that provider, and a rename catches any other that still
+     * rewrites it. A failure is returned rather than swallowed: a file whose
+     * name ARMSX2 will not read is a launch with no network.
+     */
+    private fun createExactFile(context: Context, dir: DocumentFile, filename: String): DocumentFile? {
+        val created = dir.createFile("application/octet-stream", filename) ?: return null
+        if (created.name.equals(filename, ignoreCase = true)) {
+            // Earlier runs may have left mangled names nothing will ever read.
+            dir.listFiles().forEach { stale ->
+                val name = stale.name ?: return@forEach
+                if (stale.isFile && !name.equals(filename, ignoreCase = true) &&
+                    name.startsWith(filename, ignoreCase = true)
+                ) stale.delete()
+            }
+            return created
+        }
+        val renamed = runCatching {
+            DocumentsContract.renameDocument(context.contentResolver, created.uri, filename)
+        }.getOrNull() ?: run {
+            created.delete()
+            return null
+        }
+        val exact = DocumentFile.fromSingleUri(context, renamed)
+        if (exact?.name?.equals(filename, ignoreCase = true) != true) {
+            exact?.delete()
+            return null
+        }
+        return exact
+    }
 
     internal fun identity(rom: RomRef): Ps2DiscIdentity? = identity(rom.productCode, rom.ps2ElfCrc)
 

@@ -54,6 +54,7 @@ import eu.emufii.app.library.Console
 import eu.emufii.app.network.OpenSession
 import eu.emufii.app.ps2.Ps2NetworkProfile
 import eu.emufii.app.ui.components.rememberPs2Ready
+import eu.emufii.app.ui.components.rememberPpssppReady
 import eu.emufii.app.ui.components.Avatar
 import eu.emufii.app.ui.components.EmufiiScaffold
 import eu.emufii.app.ui.components.GhostButton
@@ -214,8 +215,11 @@ private fun SessionCard(session: OpenSession, rom: Rom?, onJoin: () -> Unit) {
         ?: stringResource(R.string.finder_host)
 
     // Only knowable for a game we own: the coordinator publishes a title, not a
-    // console.
+    // console. The PSP refusal mirrors the PS2's: a guest without the memory
+    // stick grant never receives the session address in PPSSPP.
     val ps2Blocked = rom?.console == Console.PS2 && !rememberPs2Ready()
+    val pspBlocked = rom?.console == Console.PSP && !rememberPpssppReady()
+    val joinBlocked = ps2Blocked || pspBlocked
 
     // The card is the "down" destination from the header, and not the pill it
     // contains: a `GhostButton`'s modifier applies to its frame, which is not
@@ -271,19 +275,23 @@ private fun SessionCard(session: OpenSession, rom: Rom?, onJoin: () -> Unit) {
                 modifier = Modifier.defaultMinSize(minHeight = 36.dp),
                 contentAlignment = Alignment.Center
             ) {
-                if (session.ready && !ps2Blocked) {
+                if (session.ready && !joinBlocked) {
                     GhostButton(
                         label = stringResource(R.string.finder_join),
                         onClick = onJoin
                     )
-                } else if (ps2Blocked) {
+                } else if (joinBlocked) {
                     // Joining would come back with the same refusal as the
                     // launch card: a PS2 game whose memory card carries no
-                    // network profile never opens its local menu. Said on the
-                    // card, so the session does not look joinable when it is
-                    // not.
+                    // network profile never opens its local menu, a PSP game
+                    // without the memory stick grant never hears the session
+                    // address. Said on the card, so the session does not look
+                    // joinable when it is not.
                     Text(
-                        stringResource(R.string.finder_ps2_profile),
+                        stringResource(
+                            if (ps2Blocked) R.string.finder_ps2_profile
+                            else R.string.finder_ppsspp_setup
+                        ),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

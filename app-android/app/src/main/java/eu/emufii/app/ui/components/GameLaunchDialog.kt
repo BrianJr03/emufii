@@ -148,6 +148,16 @@ fun GameLaunchDialog(
     var publicMode by remember { mutableStateOf(false) }
     val online = rom.console.backend == Backend.MELONDS_WFC || publicMode
 
+    /**
+     * A PSP session leans on the per-game INI Emufii writes onto the memory
+     * stick: without the folder granted once in Settings, PPSSPP never hears
+     * the session's address and the game's ad hoc lobby stays empty. Same
+     * refusal as the PS2's, same place to settle it. The public online mode
+     * is not blocked: it goes to PPSSPP's own servers and needs no grant.
+     */
+    val pspBlocked = rom.console == Console.PSP && !online && !rememberPpssppReady()
+    val setupBlocked = ps2Blocked || pspBlocked
+
     // A beat between the press and the full-screen wait, so the card
     // acknowledges the tap instead of vanishing under it. Deliberately a fixed
     // pause and not a real measurement: the work it precedes has its own
@@ -462,6 +472,8 @@ fun GameLaunchDialog(
                         // statements, and Lint fails the build over it (SuspiciousIndentation).
                         if (ps2Blocked) {
                             Ps2ProfileMissing()
+                        } else if (pspBlocked) {
+                            PpssppSetupMissing()
                         } else {
                             PrimaryAction(
                                 label = primaryLabel,
@@ -470,7 +482,7 @@ fun GameLaunchDialog(
                                 modifier = Modifier.fillMaxWidth().focusRequester(firstAction)
                             )
                         }
-                        if (!ps2Blocked && onJoinWithCode != null && !publicMode) {
+                        if (!setupBlocked && onJoinWithCode != null && !publicMode) {
                             OutlinedButton(
                                 onClick = onJoinWithCode,
                                 enabled = !starting,
@@ -547,6 +559,8 @@ fun GameLaunchDialog(
                 // statements, and Lint fails the build over it (SuspiciousIndentation).
                 if (ps2Blocked) {
                     Ps2ProfileMissing()
+                } else if (pspBlocked) {
+                    PpssppSetupMissing()
                 } else {
                     PrimaryAction(
                         label = primaryLabel,
@@ -558,7 +572,7 @@ fun GameLaunchDialog(
 
                 // Hidden in public mode: there is no session to join, exactly as
                 // for DS online play.
-                if (!ps2Blocked && onJoinWithCode != null && !publicMode) {
+                if (!setupBlocked && onJoinWithCode != null && !publicMode) {
                     OutlinedButton(
                         onClick = onJoinWithCode,
                         enabled = !starting,
@@ -814,6 +828,21 @@ private fun ModeSegment(
 private fun Ps2ProfileMissing() {
     Text(
         stringResource(R.string.launch_ps2_profile_missing),
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.error
+    )
+}
+
+/**
+ * What replaces the launch buttons when the PPSSPP setup is missing.
+ *
+ * Same contract as [Ps2ProfileMissing]: the prerequisite, where to settle it,
+ * and nothing else.
+ */
+@Composable
+private fun PpssppSetupMissing() {
+    Text(
+        stringResource(R.string.launch_ppsspp_setup_missing),
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.error
     )

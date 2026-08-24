@@ -82,6 +82,9 @@ object DiscImage {
     /** What a PlayStation disc writes into its system identifier. */
     private const val PS_SYSTEM_ID = "PLAYSTATION"
 
+    /** And what a UMD rip writes in the same field, measured on the bench. */
+    private const val PSP_SYSTEM_ID = "PSP GAME"
+
     /** How much has to be read before an `.iso` can be asked the question. */
     const val PVD_BYTES = PVD_VOLUME_ID_OFFSET + PVD_ID_LENGTH
 
@@ -104,12 +107,11 @@ object DiscImage {
     /**
      * Promotion to the PS2, and only when the disc says so.
      *
-     * An accepted limitation, not one to discover as a fault: a PS1 disc carries
-     * the same `PLAYSTATION` at this offset. Telling them apart would mean
-     * opening `SYSTEM.CNF` in the ISO9660 tree (`BOOT2` against `BOOT`), that is,
-     * walking a directory for a console Emufii does not serve. In the meantime a
-     * PS1 `.iso` will display as "PS2", which is no worse than the current state,
-     * where it displays as "PSP", and it gets fixed the day the PS1 arrives.
+     * A PS1 disc carries the same `PLAYSTATION` at this offset, so this alone
+     * does not settle the console: the reader then requires a `BOOT2` entry in
+     * `SYSTEM.CNF` ([Ps2DiscIdentityReader]), which a PS2 disc has and a PS1
+     * disc does not. Without it the disc is refused rather than mislabelled —
+     * a PS1 CHD was once listed as a "PS2" game from outside any PS2 folder.
      */
     private fun playstation(head: ByteArray): Console? = playstationAt(head, PVD_OFFSET)
 
@@ -125,7 +127,13 @@ object DiscImage {
         if (base + PVD_ID_LENGTH * 2 + 8 > bytes.size) return null
         if (String(bytes, base + 1, 5, Charsets.ISO_8859_1) != "CD001") return null
         val system = ascii(bytes, base + 8)
-        return if (system.equals(PS_SYSTEM_ID, ignoreCase = true)) Console.PS2 else null
+        return when {
+            // The byte-level claim only. A PS1 disc says the same and is told
+            // apart by the reader, which requires BOOT2 in SYSTEM.CNF.
+            system.equals(PS_SYSTEM_ID, ignoreCase = true) -> Console.PS2
+            system.equals(PSP_SYSTEM_ID, ignoreCase = true) -> Console.PSP
+            else -> null
+        }
     }
 
     /**
@@ -353,6 +361,14 @@ object DiscImage {
      * not listing a format.
      */
     val SNIFFED_EXTENSIONS = setOf("iso", "gcm", "rvz", "wia", "wbfs", "chd")
+
+    /**
+     * The extensions three consoles share at once (PSP, PS2, GameCube/Wii for
+     * `iso`; PSP, PS2, Dreamcast for `chd`). The extension settles nothing
+     * there: only the bytes do, and a file nobody recognises is not listed —
+     * it would point at an emulator that cannot open it.
+     */
+    val AMBIGUOUS_EXTENSIONS = setOf("iso", "chd")
 }
 
 /**
@@ -401,9 +417,9 @@ class DiscImageReader(private val context: Context) {
         // nothing, so a disc that used to be identified badly does not become a
         // disc that is not identified at all.
         if (console == Console.PS2) {
-            val identity = ps2Identity(uri)
-            identity?.let { Log.i("DiscImage", "PS2 ${it.serial} ELF CRC ${it.elfCrc}") }
-            val info = Info(console, identity?.serial ?: DiscImage.gameId(head), identity)
+            val identity = ps2Identity(uri) ?: return null
+            Log.i("DiscImage", "PS2 ${identity.serial} ELF CRC ${identity.elfCrc}")
+            val info = Info(console, identity.serial, identity)
             remember(uri, modified, size, info)
             return info
         }
@@ -478,6 +494,9 @@ class DiscImageReader(private val context: Context) {
                 val identity = if (console == Console.PS2) {
                     Ps2DiscIdentityReader.read(reader)
                 } else null
+                // Same rule as the plain ISO: a PLAYSTATION descriptor without
+                // a BOOT2 in SYSTEM.CNF is a PS1 disc, and Emufii serves none.
+                if (console == Console.PS2 && identity == null) return null
                 identity?.let { Log.i("DiscImage", "PS2 CHD ${it.serial} ELF CRC ${it.elfCrc}") }
                 Info(console, identity?.serial ?: fallbackId, identity)
             }

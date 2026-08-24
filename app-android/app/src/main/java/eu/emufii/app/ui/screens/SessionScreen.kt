@@ -44,6 +44,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
@@ -150,9 +151,17 @@ fun SessionScreen(
             rom.displayName,
         )
     }
-    val ps2Automatic = remember(session.code, session.rom) {
-        val rom = session.rom
-        rom != null && session.backend == Backend.ARMSX2 && Ps2GameSettings.canConfigure(context, rom)
+    // First frame with what the library scan already knows, then the disc
+    // itself: a library last scanned by an older build carries no ELF CRC, and
+    // without this second look the direct path would stay hidden until a
+    // rescan nobody tells the player to run.
+    val ps2Automatic by produceState(
+        initialValue = session.rom != null && session.backend == Backend.ARMSX2 &&
+            Ps2GameSettings.canConfigure(context, session.rom),
+        session.code, session.rom
+    ) {
+        value = session.rom != null && session.backend == Backend.ARMSX2 &&
+            Ps2GameSettings.canConfigureNow(context, session.rom)
     }
     var status by remember { mutableStateOf<String?>(null) }
     var members by remember { mutableStateOf<List<Member>>(emptyList()) }
@@ -1820,7 +1829,7 @@ private suspend fun Session.launch(
         Backend.ARMSX2 -> {
             val launcher = Ps2Launcher(context)
             val plan = netplayPlan(profileName = null)
-            val result = if (plan != null && Ps2GameSettings.canConfigure(context, rom)) {
+            val result = if (plan != null && Ps2GameSettings.canConfigureNow(context, rom)) {
                 launcher.launchPrivateGame(rom, plan)
             } else {
                 // Unsupported CHD codec or a pre-migration profile: keep the

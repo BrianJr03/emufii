@@ -18,6 +18,9 @@
     <string name="lib_layout_carousel">Carrousel</string>
     <string name="lib_layout_list">Liste</string>
     <string name="lib_sort">Tri</string>
+    <string name="lib_search">Rechercher</string>
+    <string name="lib_search_hint">Rechercher un jeu</string>
+    <string name="lib_keyboard_space">Espace</string>
     <string name="lib_sort_name">A → Z</string>
     <string name="lib_sort_recent">Ajouté récemment</string>
     <string name="lib_sort_console">Par console</string>
@@ -170,6 +173,7 @@
     <string name="finder_join">Rejoindre</string>
     <string name="finder_starting">démarrage…</string>
     <string name="finder_ps2_profile">profil PS2 à faire</string>
+    <string name="finder_ppsspp_setup">paramétrage PPSSPP à faire</string>
     <string name="finder_nobody_yet">Personne pour l\'instant</string>
     <string name="finder_one_player">1 joueur</string>
     <string name="finder_n_players">%1$d joueurs</string>
@@ -437,6 +441,7 @@
     <string name="session_dolphin_lobby_opened">Retour au salon Dolphin</string>
     <!-- PS2: ARMSX2's LAN, which has nothing to do with its online play -->
     <string name="launch_ps2_profile_missing">Il manque le profil réseau PS2. Ouvre les réglages d\'Emufii, ligne « Profil réseau PS2 » : sans lui, aucun jeu LAN de PS2 n\'ouvre son menu local.</string>
+    <string name="launch_ppsspp_setup_missing">Il manque le paramétrage PPSSPP. Ouvre les réglages d\'Emufii, ligne « Paramétrage automatique PPSSPP » : sans lui, une session PSP ne rejoint jamais le salon ad hoc du jeu.</string>
     <string name="settings_row_ps2_profile">Profil réseau PS2</string>
     <string name="settings_row_ppsspp_config">Paramétrage automatique PPSSPP</string>
     <string name="settings_value_ppsspp_config_on">Prêt</string>

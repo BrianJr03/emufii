@@ -10,6 +10,8 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.combinedClickable
@@ -114,6 +116,12 @@ import eu.emufii.app.library.LibrarySort
 import eu.emufii.app.library.byConsole
 import eu.emufii.app.library.sortedFor
 import eu.emufii.app.ui.components.LayoutChip
+import eu.emufii.app.ui.components.SearchChip
+import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
+import eu.emufii.app.ui.components.EmufiiKeyboard
+import eu.emufii.app.ui.components.SearchField
 import eu.emufii.app.ui.components.CompatBadge
 import eu.emufii.app.library.compatKeys
 import eu.emufii.app.compat.LocalCompatDb
@@ -154,6 +162,7 @@ import eu.emufii.app.ui.theme.ArtworkShape
 import eu.emufii.app.ui.theme.moldedRim
 import eu.emufii.app.ui.theme.socket
 import eu.emufii.app.ui.theme.LocalEmufiiOledTheme
+import eu.emufii.app.ui.theme.edgeColor
 import eu.emufii.app.ui.components.ChevronLeft
 import eu.emufii.app.ui.components.FolderMark
 import eu.emufii.app.ui.theme.plate
@@ -353,6 +362,13 @@ fun LibraryScreen(
     var openConsole by remember { mutableStateOf<Console?>(null) }
     LaunchedEffect(sort) { if (sort != LibrarySort.CONSOLE) openConsole = null }
 
+    // The search sits above the folders: its question ("where is that game")
+    // crosses consoles, which is exactly what the folders cannot do. The field
+    // keeps its text while closed-with-results elsewhere in the app, and back
+    // closes it before anything else.
+    var searchOpen by rememberSaveable { mutableStateOf(false) }
+    var query by rememberSaveable { mutableStateOf("") }
+
     // The consoles the player asked not to see, applied once, here.
     //
     // Filtered at the point the grid is built rather than in the scan: the
@@ -364,8 +380,13 @@ fun LibraryScreen(
         if (hiddenConsoles.isEmpty()) roms else roms.filter { it.console !in hiddenConsoles }
     }
 
-    val entries = remember(shown, sort, openConsole) {
+    val entries = remember(shown, sort, openConsole, query) {
+        val needle = query.trim()
         when {
+            needle.isNotEmpty() ->
+                shown.filter { it.displayName.contains(needle, ignoreCase = true) }
+                    .sortedFor(LibrarySort.NAME)
+                    .map(Entry::Game)
             sort != LibrarySort.CONSOLE -> shown.sortedFor(sort).map(Entry::Game)
             openConsole != null ->
                 shown.filter { it.console == openConsole }
@@ -385,6 +406,11 @@ fun LibraryScreen(
     // is what any file browser does, and without it entering a console was a one
     // way trip for anyone without a controller.
     BackHandler(enabled = openConsole != null) { openConsole = null }
+    // Registered after the folder's, so back closes the search first.
+    BackHandler(enabled = searchOpen) { searchOpen = false; query = "" }
+    LaunchedEffect(searchOpen) {
+        if (searchOpen) runCatching { topBarLeftFocus.requestFocus() }
+    }
 
     val onEntry: (Entry) -> Unit = { entry ->
         when (entry) {
@@ -397,9 +423,10 @@ fun LibraryScreen(
     val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
     Box(modifier = Modifier.fillMaxSize()) {
+        val hazeState = rememberHazeState()
 
         // Source layer (backdrop for Haze): wallpaper + content
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.fillMaxSize().hazeSource(hazeState)) {
             TrayBackdrop(modifier = Modifier.fillMaxSize(), dark = dark)
 
             when {
@@ -552,6 +579,11 @@ fun LibraryScreen(
             openConsole = openConsole,
             openConsoleCount = entries.size,
             onLeaveFolder = { openConsole = null },
+            searchOpen = searchOpen,
+            query = query,
+            onSearchOpen = { searchOpen = true },
+            onQueryChange = { query = it },
+            onSearchClose = { searchOpen = false; query = "" },
             onOpenProfile = onOpenProfile,
             onOpenFriends = onOpenFriends,
             onOpenFinder = onOpenFinder,
@@ -564,6 +596,66 @@ fun LibraryScreen(
                 .windowInsetsPadding(WindowInsets.statusBars)
                 .padding(horizontal = 20.dp, vertical = 14.dp)
         )
+
+        // The search's keyboard, floating over the bottom of the grid and
+        // never past half of it: what the player is looking for stays on
+        // screen while they spell it. It closes with the search.
+        // The panel rises from the bottom edge rather than appearing: a
+        // keyboard that pops is a system dialog, one that slides is part of
+        // the tray. The same beat as the field's swap, so the two read as
+        // one gesture opening one thing.
+        androidx.compose.animation.AnimatedVisibility(
+            visible = searchOpen,
+            enter = androidx.compose.animation.fadeIn(
+                androidx.compose.animation.core.tween(150)
+            ) + androidx.compose.animation.slideInVertically(
+                // Stiff and barely sprung: the panel comes up like a drawer
+                // pushed home, not like a ball dropped on a trampoline. The
+                // soft spring read as hesitation, and opening is the one
+                // gesture that must not hesitate.
+                animationSpec = androidx.compose.animation.core.spring(
+                    dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
+                    stiffness = androidx.compose.animation.core.Spring.StiffnessMedium
+                ),
+                initialOffsetY = { it / 3 }
+            ),
+            exit = androidx.compose.animation.fadeOut(
+                androidx.compose.animation.core.tween(120)
+            ) + androidx.compose.animation.slideOutVertically(
+                animationSpec = androidx.compose.animation.core.tween(160),
+                targetOffsetY = { it / 3 }
+            ),
+            modifier = Modifier.align(Alignment.BottomCenter)
+        ) {
+            // Frosted, on the player's say-so: the keys float on a panel of
+            // blurred tray, and the grid stays readable through it. The
+            // keyboard itself keeps the half-screen ceiling; the panel's
+            // padding is subtracted so the keys never exceed it.
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.72f)
+                    .padding(bottom = 16.dp)
+                    .clip(RoundedCornerShape(28.dp))
+                    .hazeEffect(hazeState)
+                    .background(Color(0xFF0A1220).copy(alpha = if (dark) 0.45f else 0.28f))
+                    .border(1.dp, edgeColor(dark, LocalEmufiiOledTheme.current), RoundedCornerShape(28.dp))
+                    // The panel swallows every tap that is not on a key,
+                    // the gaps included: without this, a miss landed on the
+                    // tile behind and opened a game mid-word.
+                    .focusProperties { canFocus = false }
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = {}
+                    )
+            ) {
+                EmufiiKeyboard(
+                    onKey = { query += it },
+                    onBackspace = { if (query.isNotEmpty()) query = query.dropLast(1) },
+                    maxHeight = LocalConfiguration.current.screenHeightDp.dp / 2 - 32.dp,
+                )
+            }
+        }
 
         // OVERLAY: "a new version exists".
         update?.let { latest ->
@@ -1887,6 +1979,11 @@ private fun FloatingTopBar(
     openConsole: Console?,
     openConsoleCount: Int,
     onLeaveFolder: () -> Unit,
+    searchOpen: Boolean,
+    query: String,
+    onSearchOpen: () -> Unit,
+    onQueryChange: (String) -> Unit,
+    onSearchClose: () -> Unit,
     onOpenProfile: () -> Unit,
     onOpenFriends: () -> Unit,
     onOpenFinder: () -> Unit,
@@ -1930,20 +2027,56 @@ private fun FloatingTopBar(
             modifier = Modifier
                 .weight(1f, fill = false)
                 .socket(PillShape, shelfDark)
+                .animateContentSize()
                 .padding(SHELF_INSET)
         ) {
-            LayoutChip(
-                current = layout,
-                onPick = onPickLayout,
-                modifier = Modifier.focusRequester(topBarLeftFocus)
-            )
-            SortChip(current = sort, onPick = onPickSort)
+            // The search takes the shelf over while it is open: a field and
+            // the layout pills at once would promise two things at a time, and
+            // on a handheld the shelf does not have the width anyway. What the
+            // player was looking at comes back untouched when it closes.
+            // The swap itself is animated, and the shelf with it: the field
+            // grows out of the corner the lens sat in, rather than the two
+            // states cutting at a frame boundary. One gesture, one motion.
+            androidx.compose.animation.AnimatedContent(
+                targetState = searchOpen,
+                transitionSpec = {
+                    (
+                        androidx.compose.animation.fadeIn(
+                            androidx.compose.animation.core.tween(130)
+                        ) + androidx.compose.animation.slideInHorizontally { it / 8 }
+                        ).togetherWith(
+                        androidx.compose.animation.fadeOut(
+                            androidx.compose.animation.core.tween(90)
+                        ) + androidx.compose.animation.slideOutHorizontally { -it / 8 }
+                    )
+                },
+                label = "shelf-search-swap"
+            ) { open ->
+                if (open) {
+                    SearchField(
+                        value = query,
+                        onValueChange = onQueryChange,
+                        onClose = onSearchClose,
+                        modifier = Modifier.focusRequester(topBarLeftFocus)
+                    )
+                } else {
+                    androidx.compose.foundation.layout.Row {
+                        SearchChip(onClick = onSearchOpen)
+                        LayoutChip(
+                            current = layout,
+                            onPick = onPickLayout,
+                            modifier = Modifier.focusRequester(topBarLeftFocus)
+                        )
+                        SortChip(current = sort, onPick = onPickSort)
+                    }
+                }
+            }
             // In the same row as the settings rather than on a line of its own:
             // a full-width band for three words pushed the grid, the list and the
             // carousel down by as much, while the top bar has the room and "where
             // am I" belongs to the same family of questions as "how am I
             // looking".
-            openConsole?.let { console ->
+            if (!searchOpen) openConsole?.let { console ->
                 FolderHeader(
                     console = console,
                     count = openConsoleCount,

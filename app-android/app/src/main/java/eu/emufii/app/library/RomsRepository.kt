@@ -31,8 +31,6 @@ private const val PROD_KEYS = "prod.keys"
  * these extensions only enters the library once recognised as a PSP game; see
  * `toPspRom`.
  */
-private val AMBIGUOUS_PSP = setOf("iso", "chd")
-
 class RomsRepository(private val context: Context) {
 
     private val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -195,13 +193,15 @@ class RomsRepository(private val context: Context) {
         val resolver = context.contentResolver
         val out = mutableListOf<Candidate>()
         var keysUri: Uri? = null
-        val queue = ArrayDeque<Pair<String, Int>>()
+        // The third element is the folder's own name, "" at the root: it is
+        // what settles a file's console before any byte is read.
+        val queue = ArrayDeque<Triple<String, Int, String>>()
         val seen = mutableSetOf<String>()
 
-        queue += DocumentsContract.getTreeDocumentId(treeUri) to 0
+        queue += Triple(DocumentsContract.getTreeDocumentId(treeUri), 0, "")
 
         while (queue.isNotEmpty() && out.size < MAX_FILES) {
-            val (parentId, depth) = queue.removeFirst()
+            val (parentId, depth, folderName) = queue.removeFirst()
             if (!seen.add(parentId)) continue
 
             val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, parentId)
@@ -233,7 +233,7 @@ class RomsRepository(private val context: Context) {
                         // Skip dot-folders: emulator caches, save states and
                         // `.git` checkouts hold nothing playable and can be big.
                         if (depth + 1 <= MAX_DEPTH && !name.startsWith(".")) {
-                            queue += docId to depth + 1
+                            queue += Triple(docId, depth + 1, name)
                         }
                         continue
                     }
@@ -246,17 +246,26 @@ class RomsRepository(private val context: Context) {
                     val ext = name.substringAfterLast('.', "")
                     val byName = Console.forExtension(ext) ?: continue
                     val uri = DocumentsContract.buildDocumentUriUsingTree(treeUri, docId)
-                    // `.iso` belongs to the PSP by extension and to the
-                    // GameCube by content, and only the bytes can tell which.
-                    // The read is one header and it can only ever *move* a file
-                    // onto Dolphin: when it says nothing, a PSP rip, an
-                    // unreadable provider, a format we chose not to guess at,
-                    // the extension's answer stands, so no library that worked
-                    // yesterday changes today. See [DiscImage].
-                    val console = if (ext.lowercase() in DiscImage.SNIFFED_EXTENSIONS) {
-                        discImages.identify(uri) ?: byName
-                    } else {
-                        byName
+                    // One chain of decision, cheapest truth first. The folder
+                    // name when it names a console: the player sorted that file
+                    // themselves. Then the extension, when it belongs to one
+                    // console. Then the bytes, for the extensions three
+                    // consoles share. A shared extension no read vouches for is
+                    // a disc Emufii does not serve (a PS1, a Dreamcast, an
+                    // unreadable provider), and it is not listed rather than
+                    // pointed at an emulator that cannot open it. The Nintendo
+                    // containers (`rvz`, `wia`) keep the extension's answer when
+                    // the read says nothing: both play on Dolphin anyway, and a
+                    // provider hiccup must not empty a library.
+                    val extLower = ext.lowercase()
+                    val folderConsole = Console.forFolder(folderName)
+                    val console = when {
+                        folderConsole != null -> folderConsole
+                        extLower in DiscImage.AMBIGUOUS_EXTENSIONS ->
+                            discImages.identify(uri) ?: continue
+                        extLower in DiscImage.SNIFFED_EXTENSIONS ->
+                            discImages.identify(uri) ?: byName
+                        else -> byName
                     }
                     out += Candidate(
                         uri = uri,
@@ -387,7 +396,7 @@ class RomsRepository(private val context: Context) {
         // a PSP game, a `PSP_GAME` in its table of contents, failing which it is
         // not listed. `.pbp` and `.cso` stay admitted on their extension alone:
         // they belong to the PSP and nothing else.
-        val ambiguous = name.substringAfterLast('.', "").lowercase() in AMBIGUOUS_PSP
+        val ambiguous = name.substringAfterLast('.', "").lowercase() in DiscImage.AMBIGUOUS_EXTENSIONS
         if (ambiguous && !data.recognised) return null
         // A homebrew can have no disc id at all while still having an icon; with
         // no key it would have nowhere to be filed, so the filename stands in,

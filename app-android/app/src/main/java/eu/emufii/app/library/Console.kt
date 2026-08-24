@@ -71,11 +71,13 @@ enum class Console(
      * That is not an oversight. On the Thor the six PS2 games and the six PSP
      * games are all `.iso`, in two neighbouring folders, the exact collision the
      * GameCube already ran into. The table is a map, one owner per key: claiming
-     * `.iso` here would not share it with the PSP, it would take it away, and the
-     * whole UMD library would silently point at ARMSX2.
+     * `.iso` here would not share it with the PSP, it would take it away, and
+     * the whole UMD library would silently point at ARMSX2.
      *
-     * The PS2 therefore arrives only through [DiscImage], which reads the bytes
-     * and promotes only what it has positively recognised.
+     * A PS2 game therefore arrives by its folder (`ps2/`), or through
+     * [DiscImage], which reads the bytes and promotes only what it has
+     * positively recognised — a `BOOT2` in `SYSTEM.CNF`, which is also what
+     * tells it apart from a PS1 disc.
      */
     PS2(
         label = "PS2",
@@ -124,6 +126,44 @@ enum class Console(
 
         /** Every extension worth opening. Used to skip files fast during a scan. */
         val allExtensions: Set<String> = byExtension.keys
+
+        /**
+         * The console a folder name says, Cocoon-style layouts where ROMs are
+         * sorted one subfolder per console. That name is the cheapest and the
+         * most truthful answer there is: the player sorted the file themselves,
+         * where an extension can collide (`iso`, `chd`) and content sniffing
+         * costs a read.
+         *
+         * Keyed on the name normalised: lower case, separators stripped, so
+         * `PS2`, `ps_2` and `PlayStation 2` are one key. The direct folder of
+         * the file only, not its ancestors: a `ROMS/ps2/dumps/game.iso` is a
+         * PS2, a `ROMS/dumps/ps2-something.iso` is not decided by `ROMS`.
+         */
+        private val byFolder: Map<String, Console> = mapOf(
+            "ps2" to PS2,
+            "playstation2" to PS2,
+            "sonyps2" to PS2,
+            "sonyplaystation2" to PS2,
+            "psp" to PSP,
+            "playstationportable" to PSP,
+            "nds" to DS,
+            "ds" to DS,
+            "nintendods" to DS,
+            "3ds" to THREE_DS,
+            "n3ds" to THREE_DS,
+            "nintendo3ds" to THREE_DS,
+            "switch" to SWITCH,
+            "nintendoswitch" to SWITCH,
+            "wii" to WII,
+            "nintendowii" to WII,
+            "gc" to GAMECUBE,
+            "ngc" to GAMECUBE,
+            "gamecube" to GAMECUBE,
+            "nintendogamecube" to GAMECUBE,
+        )
+
+        fun forFolder(name: String): Console? =
+            byFolder[name.lowercase().filter { it.isLetterOrDigit() }]
     }
 }
 

@@ -16,6 +16,9 @@
     <string name="lib_layout_carousel">Carousel</string>
     <string name="lib_layout_list">List</string>
     <string name="lib_sort">Sort</string>
+    <string name="lib_search">Search</string>
+    <string name="lib_search_hint">Search a game</string>
+    <string name="lib_keyboard_space">Space</string>
     <string name="lib_sort_name">A → Z</string>
     <string name="lib_sort_recent">Recently added</string>
     <string name="lib_sort_console">By console</string>
@@ -168,6 +171,7 @@
     <string name="finder_join">Join</string>
     <string name="finder_starting">starting…</string>
     <string name="finder_ps2_profile">PS2 profile needed</string>
+    <string name="finder_ppsspp_setup">PPSSPP setup needed</string>
     <string name="finder_nobody_yet">Nobody yet</string>
     <string name="finder_one_player">1 player</string>
     <string name="finder_n_players">%1$d players</string>
@@ -427,6 +431,7 @@
     <string name="session_dolphin_lobby">2. Back to the Dolphin lobby</string>
     <string name="session_dolphin_lobby_opened">Back to the Dolphin lobby</string>
     <string name="launch_ps2_profile_missing">The PS2 network profile is missing. Open Emufii\'s settings, "PS2 network profile": without it, no PS2 LAN game will open its local menu.</string>
+    <string name="launch_ppsspp_setup_missing">The PPSSPP setup is missing. Open Emufii\'s settings, "Automatic PPSSPP setup": without it, a PSP session never joins the game\'s ad hoc lobby.</string>
     <string name="settings_row_ps2_profile">PS2 network profile</string>
     <string name="settings_row_ppsspp_config">PPSSPP automatic setup</string>
     <string name="settings_value_ppsspp_config_on">Ready</string>
