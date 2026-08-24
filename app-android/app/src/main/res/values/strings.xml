@@ -9,6 +9,8 @@
     -->
     <!-- A proper noun, the same in every language: never translated. -->
     <string name="app_name" translatable="false">Emufii</string>
+    <!-- La version, sous le nom, sur la face au repos du panneau arriere. -->
+    <string name="panel_idle_version" translatable="false">v%1$s</string>
     <string name="netplay_service_label">Emufii : remplit le netplay d\'Azahar et d\'Eden</string>
     <string name="netplay_service_description">Permet à Emufii de remplir l\'adresse de connexion dans le menu multijoueur d\'Azahar ou d\'Eden, pour t\'éviter de la recopier à la main. Emufii n\'observe que ces deux émulateurs, et uniquement pendant une session en cours.</string>
 
@@ -517,4 +519,57 @@
     <string name="pad_hint_confirm">Ouvrir</string>
     <string name="pad_hint_back">Retour</string>
     <string name="pad_hint_hold">Maintenir · Menu du jeu</string>
+    <string name="pad_hint_details">Détails</string>
+    <string name="panel_vps">Serveur Emufii</string>
+    <string name="panel_vps_online">En ligne</string>
+    <string name="panel_vps_offline">Hors ligne</string>
+    <string name="panel_vps_unknown">Vérification…</string>
+    <string name="panel_page_details">R · Détails</string>
+    <string name="panel_page_back">R · Revenir au jeu</string>
+    <string name="panel_released">Sorti en %1$s</string>
+    <string name="panel_details_unknown">Rien de connu sur ce jeu pour l\'instant.</string>
+
+    <!-- Notifications : amis en ligne et mises a jour -->
+    <string name="notify_channel_friends">Amis</string>
+    <string name="notify_channel_friends_desc">Quand un ami se connecte ou lance un jeu.</string>
+    <string name="notify_channel_updates">Mises à jour</string>
+    <string name="notify_channel_updates_desc">Quand une nouvelle version d\'Emufii est disponible.</string>
+    <string name="notify_friend_unnamed">Un ami</string>
+    <string name="notify_friend_online">%1$s est en ligne</string>
+    <string name="notify_friend_playing">%1$s joue à %2$s</string>
+    <string name="notify_friend_in_game">%1$s est en partie</string>
+    <string name="notify_update_title">Emufii %1$s est disponible</string>
+    <string name="notify_update_body">Ouvre l\'app pour l\'installer.</string>
+    <string name="alert_friend_online">est en ligne</string>
+    <string name="alert_friend_playing">joue à %1$s</string>
+    <string name="alert_friend_in_game">est en partie</string>
+    <string name="settings_notifications">Notifications</string>
+    <string name="settings_notifications_note">Emufii prévient quand un ami se connecte ou lance un jeu, et quand une nouvelle version sort. Hors de l\'app, l\'alerte peut arriver avec un quart d\'heure de retard : sans service de push, Android ne réveille l\'app que par intervalles.</string>
+    <string name="settings_notify_friends_on">Amis activés</string>
+    <string name="settings_notify_friends_off">Amis coupés</string>
+    <string name="settings_notify_updates_on">Mises à jour activées</string>
+    <string name="settings_notify_updates_off">Mises à jour coupées</string>
+    <string name="settings_notify_blocked">Notifications refusées dans Android</string>
+    <string name="settings_notify_watching">Veille active</string>
+    <string name="settings_notify_silent">Rien à signaler</string>
+    <string name="settings_notify_open_android">Ouvrir les réglages Android</string>
+
+    <!-- Second ecran : ce que fait Emufii sur chaque machine, quand le curseur est sur son dossier -->
+    <string name="brief_console_title">%1$s · jouer ensemble</string>
+    <string name="brief_3ds_1">Azahar lance le jeu. Emufii monte le tunnel, ouvre son salon et le remplit à ta place.</string>
+    <string name="brief_3ds_2">Un code de session suffit à ton ami : sa console voit la tienne comme en Wi-Fi local.</string>
+    <string name="brief_3ds_warning">Il faut une pre-release d\'Azahar : sa dernière version stable n\'a pas d\'écran multijoueur.</string>
+    <string name="brief_switch_1">Eden lance le jeu, et le salon est levé sur le serveur d\'Emufii : personne n\'héberge sur sa console.</string>
+    <string name="brief_switch_2">Vous le rejoignez tous les deux, et le code de session en est le mot de passe.</string>
+    <string name="brief_psp_1">PPSSPP cherche un serveur ad hoc à une adresse fixe ; le relais le redirige vers l\'hôte de la session.</string>
+    <string name="brief_psp_2">Le jeu en ligne public, lui, ne passe pas par Emufii : PPSSPP s\'y connecte seul, sans session ni tunnel.</string>
+    <string name="brief_ds_1">Les serveurs de Nintendo sont éteints depuis 2014 : melonDS passe donc par Kaeru WFC, qui les réimplémente.</string>
+    <string name="brief_ds_2">Ni session ni code : Emufii redirige les requêtes du jeu, et tu retrouves les joueurs déjà connectés.</string>
+    <string name="brief_ds_warning">Sans la redirection active, la console appelle les serveurs éteints et ne trouve personne.</string>
+    <string name="brief_ps2_1">ARMSX2 lance le jeu. Emufii ouvre la session, puis te donne l\'adresse et le port à saisir dans le menu réseau du jeu.</string>
+    <string name="brief_ps2_2">Le profil réseau tient sur une carte mémoire en emplacement 1 : Emufii la prépare et y ramène tes sauvegardes.</string>
+    <string name="brief_ps2_warning">Sans ce profil, aucun jeu LAN de PS2 n\'ouvre son menu local.</string>
+    <string name="brief_dolphin_1">Dolphin lance le jeu, et c\'est son propre Netplay qui fait la partie.</string>
+    <string name="brief_dolphin_2">Emufii monte le tunnel et vous réunit dans le même salon ; ton ami n\'a que le code de session à saisir.</string>
+    <string name="brief_dolphin_warning">Les deux joueurs doivent lancer exactement le même dump, sinon Dolphin refuse la partie.</string>
 </resources>
