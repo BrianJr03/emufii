@@ -1,5 +1,7 @@
 package eu.emufii.app.netplay
 
+import eu.emufii.app.azahar.AzaharPackage
+
 /**
  * The netplay UI Emufii knows how to drive, and who ships it.
  *
@@ -44,7 +46,12 @@ data class NetplayTarget(
 
     companion object {
         val AZAHAR = NetplayTarget(
-            packages = listOf("org.azahar_emu.azahar", "org.azahar_emu.azahar.debug"),
+            // Pas de liste en dur ici : c'est `AzaharPackage.candidates` qui
+            // fait foi. Les deux ont été écrites côte à côte, et le jour où
+            // l'identifiant hérité de Lime3DS a été ajouté, la seconde a été
+            // oubliée — l'émulateur redevenait détecté, mais plus reconnu par
+            // le pilote. Une liste, un endroit.
+            packages = AzaharPackage.candidates,
             inGameMenuId = NetplayUi.MENU_MULTIPLAYER,
             homeNavId = NetplayUi.NAV_HOME_SETTINGS,
             homeListId = NetplayUi.HOME_SETTINGS_LIST,

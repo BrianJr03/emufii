@@ -28,5 +28,5 @@
     android:canRetrieveWindowContent="true"
     android:description="@string/netplay_service_description"
     android:notificationTimeout="100"
-    android:packageNames="org.azahar_emu.azahar,org.azahar_emu.azahar.debug,dev.eden.eden_emulator,dev.eden.eden_emulator.nightly,dev.eden.eden_emulator.emufii,com.miHoYo.Yuanshen,com.miHoYo.Yuanshen.nightly,dev.legacy.eden_emulator,org.dolphinemu.dolphinemu,org.dolphinemu.dolphinemu.debug,com.armsx2"
+    android:packageNames="org.azahar_emu.azahar,org.azahar_emu.azahar.debug,io.github.lime3ds.android,dev.eden.eden_emulator,dev.eden.eden_emulator.nightly,dev.eden.eden_emulator.emufii,com.miHoYo.Yuanshen,com.miHoYo.Yuanshen.nightly,dev.legacy.eden_emulator,org.dolphinemu.dolphinemu,org.dolphinemu.dolphinemu.debug,com.armsx2"
     android:settingsActivity="eu.emufii.app.MainActivity" />
