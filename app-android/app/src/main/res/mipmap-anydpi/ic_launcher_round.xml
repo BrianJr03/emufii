@@ -4,11 +4,12 @@
   ~1:1). Contrairement au v2 il n'apporte pas son fond : il est donc la couche
   d'*avant-plan*, et le fond est un aplat blanc.
 
-  Il est mis à l'échelle à 60/108 du cadre — en deçà du carré de sécurité, qui
-  est à 72/108. Aucune découpe de lanceur, ronde ou en écusson, ne peut donc
-  rogner les coins des tuiles, et la marge supplémentaire est voulue : à la
-  taille du carré de sécurité le dessin remplissait la pastille et l'icône
-  n'avait plus de bord blanc.
+  Il est mis à l'échelle à 54/108 du cadre, la moitié — en deçà du carré de
+  sécurité, qui est à 72/108. Aucune découpe de lanceur, ronde ou en écusson,
+  ne peut donc rogner les coins des tuiles, et la marge est volontairement plus
+  large que nécessaire : posé au carré de sécurité, le dessin remplissait la
+  pastille et l'icône n'avait plus de bord blanc. Descendu à 60/108 puis à 54,
+  sur pièce, le 2026-08-25.
 
   `monochrome` est la silhouette du dessin pour les icônes thématiques
   d'Android 13 — celles de la Thor. Le système n'en garde que le canal alpha,
