@@ -62,8 +62,14 @@ import eu.emufii.app.ui.components.PadTextField
 import eu.emufii.app.ui.components.SectionHeader
 import eu.emufii.app.ui.components.SoftCard
 import eu.emufii.app.ui.components.padEntry
-import eu.emufii.app.ui.copyToClipboard
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.res.pluralStringResource
+import eu.emufii.app.secondscreen.rememberPresentationDisplay
+import eu.emufii.app.settings.SettingsStore
+import eu.emufii.app.ui.components.PersonMark
 import eu.emufii.app.ui.theme.LocalEmufiiDarkTheme
+import eu.emufii.app.ui.theme.socket
+import eu.emufii.app.ui.copyToClipboard
 import eu.emufii.app.ui.theme.ShellRed
 
 /**
@@ -133,6 +139,14 @@ fun FriendsScreen(
     val configuration = LocalConfiguration.current
     val landscape = configuration.screenWidthDp > configuration.screenHeightDp
 
+    // Le panneau arriere porte-t-il la liste ? Le reglage ne suffit pas :
+    // l'appareil peut n'avoir qu'un ecran.
+    // pourquoi : docs/decisions/second-ecran.md § La liste d'amis descend au dos, les deux cartes restent devant
+    val panelDisplay by rememberPresentationDisplay()
+    val panelWanted by remember(context) { SettingsStore.get(context).secondScreen }
+        .collectAsState()
+    val panelLive = panelWanted && panelDisplay != null
+
     EmufiiScaffold(title = stringResource(R.string.friends_title), onBack = onBack, modifier = modifier) { topPadding ->
         if (landscape) {
             // The whole page scrolls, as one movement.
@@ -152,13 +166,18 @@ fun FriendsScreen(
                         start = 20.dp, end = 20.dp,
                         // Past the gesture handle, not level with it: the
                         // footnote used to come to rest struck through by it.
-                        // Clearance alone was not enough — it only slid the line
-                        // a dozen pixels — so the gap above it pushes it clear of
-                        // the fold as well, where it is read after scrolling
-                        // rather than half-read at rest.
                         top = topPadding, bottom = bottomInset + 56.dp
                     ),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                // **Centre quand le panneau porte la liste.**
+                //
+                // Il ne reste alors que les deux cartes : posees en haut, elles
+                // laissaient les deux tiers de l'ecran vides sous elles. Sans
+                // panneau, la page reprend son ordre de document — les cartes,
+                // puis la liste — et se lit du haut.
+                // pourquoi : docs/decisions/second-ecran.md § La liste d'amis descend au dos, les deux cartes restent devant
+                verticalArrangement =
+                    if (panelLive) Arrangement.spacedBy(16.dp, Alignment.CenterVertically)
+                    else Arrangement.spacedBy(12.dp)
             ) {
                 // Two cards of equal width and equal height. `IntrinsicSize.Min`
                 // gives the row the height of the taller of the two, and
@@ -183,7 +202,16 @@ fun FriendsScreen(
                     )
                 }
 
-                if (ordered.isEmpty()) {
+                if (panelLive) {
+                    // Ce que la liste au dos ne peut pas dire d'elle-meme : son
+                    // compte, et ou la lire. Sans cette ligne, un joueur dont
+                    // tous les amis sont hors ligne voit un ecran de face qui ne
+                    // parle jamais d'eux.
+                    FriendsPanelNote(
+                        total = ordered.size,
+                        online = ordered.count { statuses[it.code]?.online == true }
+                    )
+                } else if (ordered.isEmpty()) {
                     EmptyFriends()
                 } else {
                     SectionHeader(stringResource(R.string.friends_list))
@@ -512,3 +540,41 @@ private fun EmptyFriends(compact: Boolean = false) {
 
 private val DANGER = ShellRed
 
+
+/**
+ * Ou est passee la liste, et ce qu'elle contient.
+ *
+ * Le panneau la porte, mais il est **derriere** la machine : l'ecran de face
+ * doit dire qu'elle existe, sans quoi un joueur dont personne n'est en ligne
+ * ferme la page en croyant n'avoir aucun ami.
+ * pourquoi : docs/decisions/second-ecran.md § La liste d'amis descend au dos, les deux cartes restent devant
+ */
+@Composable
+private fun FriendsPanelNote(total: Int, online: Int) {
+    val dark = LocalEmufiiDarkTheme.current
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .socket(RoundedCornerShape(16.dp), dark)
+            .padding(horizontal = 18.dp, vertical = 14.dp)
+    ) {
+        PersonMark(size = 22.dp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                if (total == 0) stringResource(R.string.friends_none_title)
+                else pluralStringResource(R.plurals.friends_count, total, total) +
+                    " · " + stringResource(R.string.friends_count_online, online),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                if (total == 0) stringResource(R.string.friends_none_body)
+                else stringResource(R.string.friends_on_panel),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}

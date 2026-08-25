@@ -17,11 +17,159 @@ autre application tournant au dos de la machine.
 
 Il se lit à bout de bras, hors axe, sous les mains du joueur. Donc un objet mène
 chaque face et tout le reste l'étiquette ; le panneau ne tient jamais plus que
-ce qu'un coup d'œil ramasse. Il n'a ni curseur ni commande : il rapporte.
+ce qu'un coup d'œil ramasse.
+
+Il n'avait **ni curseur ni commande** : il rapportait, et rien d'autre. Ça a
+changé le 2026-08-25, et seulement en session — voir « Le panneau prend les
+étapes, parce qu'il est tactile ». Partout ailleurs la règle tient.
 
 La couleur suit le produit et non le chrome — la jaquette est la seule chose
 autorisée à être forte sur la face de survol, et elle prête même sa teinte
 extraite à l'ombre qu'elle projette.
+
+## Le panneau prend les etapes, parce qu'il est tactile
+
+Le panneau **est tactile**, et le système le dit : l'écran arrière de la Thor se
+déclare `touch EXTERNAL`. Il ne l'était pas pour Emufii, parce que sa fenêtre
+portait `FLAG_NOT_TOUCHABLE` et `FLAG_NOT_FOCUSABLE` — posés pour qu'elle ne
+vole jamais un appui destiné au jeu, ce qui en faisait un afficheur et rien
+d'autre.
+
+Ces deux drapeaux tombent. La Thor arbitre le focus entre ses deux écrans : la
+pile de fenêtres porte un focus **par écran**, vérifié sur l'appareil — la
+présentation a le sien sur l'écran 4, l'activité garde le sien sur l'écran 0.
+L'appui destiné au jeu ne se perd donc pas. `FLAG_NOT_TOUCH_MODAL` reste : ce
+qui est pressé *à côté* de la fenêtre continue d'aller à ce qu'il y a derrière.
+
+Ce que ça change en session : **les deux étapes descendent au dos**, sous les
+pouces quand la machine est tenue à deux mains, et l'écran de face rend les
+130 dp qu'elles prenaient à l'explication — qui en avait besoin, la carte PS2 en
+faisant seule plus d'un écran. Dès que le panneau s'éteint, ou qu'il n'y en a
+pas, elles remontent de face : le mono-écran reste la mise en page principale,
+et un joueur sans second écran ne perd pas un bouton.
+
+Trois précautions :
+
+- **Les libellés voyagent déjà traduits.** La fenêtre du panneau a son propre
+  contexte d'affichage, qui a déjà fait parler l'app en français dans une
+  interface en anglais une fois.
+- **Les actions sont retirées en partant.** Ce sont des lambdas d'une
+  composition : l'écran qui les pose les efface à sa mort, sinon le panneau
+  garde une session morte sous le doigt.
+- **Le libellé et l'état du bouton de lancement ont une seule définition.** Deux
+  écrans les dessinent désormais ; le jour où les deux divergent, la moitié des
+  joueurs pressent un bouton qui dit autre chose que ce qu'il fait.
+
+**Le panneau est large et court** — 537 dp sur 320 utiles — et la face vit dans
+une boîte centrée qui ne défile pas : ce qui dépasse est rogné aux deux bouts,
+sans un mot. Deux mises en page ont été essayées et mesurées sur l'appareil
+avant la bonne.
+
+1. **Empilée.** Pastille, code, faits, titre, puis deux commandes l'une sur
+   l'autre : près de 380 dp demandés pour 320 disponibles. Une session Eden
+   n'affichait **qu'un bouton sur deux**, et rien ne disait pourquoi.
+2. **Deux colonnes**, l'identité à gauche et les commandes à droite, pour
+   récupérer de la hauteur. Pire : chaque colonne tombait à 268 dp, le code se
+   cassait en « NRX- » et « 572 », et le port s'écrivait **un chiffre par
+   ligne**. Un code coupé en deux n'est plus un code, c'est deux morceaux qu'il
+   faut recoller à voix haute.
+
+Ce qui marche : **une colonne, et ce qui se répète se met côte à côte.** Le code
+prend toute la largeur sur une seule ligne (`softWrap = false`, jamais
+négociable), la console et le titre du jeu partagent une ligne d'étiquettes, les
+deux creux de référence en partagent une autre, et les deux commandes se
+partagent une rangée à hauteur fixe — 64 dp chacune, la même, pour qu'un
+libellé sur deux lignes ne fasse pas grandir sa plaque à côté de sa voisine.
+
+Leçon à garder : **cette boîte rogne en silence.** Toute face qui gagne un objet
+se remesure contre ces 320 dp. La capture du panneau est possible mais son
+identifiant n'est pas le `displayId` logique : `screencap -d` veut l'identifiant
+physique, celui que donne `dumpsys SurfaceFlinger --display-id`. Sans ça on code
+au jugé, et ces deux mises en page ratées ont été livrées sans que personne les
+voie.
+
+## R tourne la page depuis les deux écrans
+
+La touche R est la seule commande de la face de survol : elle retourne la
+plaque vers la fiche du catalogue. Elle était écoutée par la grille de l'écran
+de face, et c'était juste tant que le panneau ne pouvait rien recevoir.
+
+Depuis qu'il est tactile, **une pression dessus lui donne le focus de son
+écran** — et R n'atteignait plus personne. La commande du panneau cessait de
+marcher au moment précis où l'on venait de toucher le panneau, ce qui est le
+pire moment possible.
+
+Les deux écoutes coexistent donc, chacune sur son écran, et elles appellent la
+même chose. Le focus clavier va à une **fenêtre**, pas à l'appareil : celle qui
+l'a répond, l'autre ne voit rien, et il n'y a pas de double déclenchement à
+craindre. Sur une machine à un seul écran, rien ne change — la pression ne fait
+toujours rien du tout, ce qui reste la règle : l'écran de face ne gagne ni ne
+perd rien parce qu'un panneau existe.
+
+L'oreille du panneau est un `focusable` sans destination : rien ne s'y
+sélectionne, elle ne sert qu'à recevoir la touche.
+
+## La liste d'amis descend au dos, les deux cartes restent devant
+
+La page des amis porte trois choses : ton code, le champ pour ajouter quelqu'un,
+et la liste. Les deux premières **demandent** quelque chose — on les lit, on les
+touche. La troisième **rapporte** : qui est là, qui joue à quoi. C'est
+exactement la ligne de partage entre les deux écrans, alors la liste passe au
+dos et les deux cartes se centrent devant.
+
+Ce que ça donne :
+
+- **Le panneau** montre la liste entière, dans le même ordre que l'écran de
+  face — en jeu, puis en ligne, puis les autres par nom. Deux ordres pour une
+  même liste, ce serait deux listes. Deux colonnes au-delà de cinq amis, parce
+  que la boîte du panneau est courte et rogne en silence.
+- **L'écran de face** garde ses deux cartes, centrées, et gagne une ligne qui
+  dit **où la liste est passée** et combien d'amis elle contient. Sans elle, un
+  joueur dont personne n'est en ligne referme la page en croyant n'avoir aucun
+  ami — le panneau est derrière la machine, il ne se remarque pas tout seul.
+- **Sans panneau**, rien ne bouge : la page reprend son ordre de document, les
+  cartes puis la liste, et se lit du haut.
+
+**Le retrait vit au dos aussi**, et l'asymétrie est fermée. Chaque casse porte
+sa croix, à droite ; l'appui ouvre la question **sur le panneau**, pas sur
+l'écran de face. C'est le point qui décide : le doigt vient de presser au dos,
+et une question posée de l'autre côté de la machine ne se voit pas.
+
+Ce n'est pas un `Dialog` — une fenêtre de dialogue appartient à l'écran qui la
+lance, et celle-ci s'ouvrirait devant le joueur. C'est un voile et une plaque,
+dans la fenêtre du panneau, avec les mêmes réponses qu'ailleurs : annuler
+d'abord, le rouge coque pour ce qui ne se rattrape pas.
+
+Trois détails de forme, tous demandés par l'usage :
+
+- **Le titre est en haut à gauche, en gras.** Centré au-dessus d'une liste, il
+  se lisait comme la légende d'un objet ; c'est le nom de ce que la face porte.
+- **Une casse ne dépasse jamais la moitié de l'écran.** À pleine largeur, un nom
+  et deux mots s'étalent sur 500 dp et la rangée se lit comme une barre. Deux
+  colonnes toujours, même avec un seul ami : la colonne de droite reste vide
+  plutôt que de laisser la casse grandir.
+- **Le point de présence touche le pseudo**, il n'est pas à l'autre bout de la
+  casse : c'est une propriété de la personne, pas une colonne.
+
+Les libellés d'état (« Hors ligne », « En ligne », le titre du jeu) sont résolus
+côté écran de face et voyagent déjà traduits, comme pour les étapes de session :
+la fenêtre du panneau a son propre contexte d'affichage.
+
+## Chaque face se centre pour elle-même
+
+Les faces sont centrées dans la bande qui reste entre l'en-tête et la légende.
+Cette bande n'est pas la même pour toutes : la face de session a une légende
+**vide** — ses commandes se pressent au doigt, il n'y a pas de touche à nommer —
+alors que les faces du menu en ont une. Son centre géométrique tombe donc plus
+bas que le leur, et elle paraissait posée trop bas quand les autres étaient
+justes.
+
+Le creux qui la remonte appartient donc **à elle seule**. Posé d'abord sur la
+boîte commune, il a remonté les faces du menu, qui n'avaient rien demandé —
+c'est la correction d'une face qui en a déréglé trois.
+
+La règle : une face qui a besoin d'être décalée porte son décalage. La boîte
+commune ne fait que centrer.
 
 ## Le fondu entre deux faces n'est pas une décoration
 

@@ -116,6 +116,7 @@ import eu.emufii.app.library.LibraryLayout
 import eu.emufii.app.library.LibrarySort
 import eu.emufii.app.library.byConsole
 import eu.emufii.app.library.sortedFor
+import eu.emufii.app.ui.components.consoleArtwork
 import eu.emufii.app.ui.components.LayoutChip
 import eu.emufii.app.ui.components.SearchChip
 import dev.chrisbanes.haze.hazeEffect
@@ -825,10 +826,14 @@ private fun entryKeys(
         // B goes up a folder, as on every console. Returning `false` when there
         // is nowhere to go lets the system close the screen.
         Key.ButtonB, Key.Back -> if (canGoBack) { onBack(); true } else false
-        // The rear panel's only control, and it lives here because the panel has
-        // no cursor and takes no touch. On a machine with one screen the press
-        // does nothing at all — which is the rule this feature works under: the
-        // front screen neither gains nor loses anything because a panel exists.
+        // La commande du panneau, ecoutee **ici aussi**. Le panneau l'ecoute de
+        // son cote depuis qu'il est tactile, mais le focus clavier va a une
+        // fenetre : tant que c'est l'ecran de face qui l'a — le cas ordinaire,
+        // et le seul sur une machine a un ecran — c'est cette ecoute-ci qui
+        // repond. Sur une machine sans panneau la pression ne fait rien du tout,
+        // ce qui reste la regle : l'ecran de face ne gagne ni ne perd rien parce
+        // qu'un panneau existe.
+        // pourquoi : docs/decisions/second-ecran.md § R tourne la page depuis les deux écrans
         Key.ButtonR1 -> { SecondScreen.flipPage(); true }
         else -> false
     }
@@ -1681,21 +1686,6 @@ private fun FolderTile(
     }
 }
 
-/**
- * The plate art for a console, in the theme's variant, or null — nullable on
- * purpose, so a new console shows its name rather than another machine's art.
- * pourquoi : docs/decisions/bibliotheque.md § Les dossiers de console
- */
-private fun consoleArtwork(console: Console, dark: Boolean): Int? = when (console) {
-    Console.THREE_DS -> if (dark) R.drawable.console_three_ds_dark else R.drawable.console_three_ds_light
-    Console.DS -> if (dark) R.drawable.console_ds_dark else R.drawable.console_ds_light
-    Console.PSP -> if (dark) R.drawable.console_psp_dark else R.drawable.console_psp_light
-    Console.SWITCH -> if (dark) R.drawable.console_switch_dark else R.drawable.console_switch_light
-    Console.GAMECUBE -> if (dark) R.drawable.console_gamecube_dark else R.drawable.console_gamecube_light
-    Console.WII -> if (dark) R.drawable.console_wii_dark else R.drawable.console_wii_light
-    Console.PS2 -> if (dark) R.drawable.console_ps2_dark else R.drawable.console_ps2_light
-    else -> null
-}
 
 /**
  * A console's plate, indexed by name so its colour never moves between

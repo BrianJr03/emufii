@@ -189,3 +189,155 @@ fun TildeIcon(size: Dp = 14.dp, color: Color, modifier: Modifier = Modifier) =
         cubicTo(7f * u, 8.5f * u, 9.5f * u, 8.5f * u, 12f * u, 12f * u)
         cubicTo(14.5f * u, 15.5f * u, 17f * u, 15.5f * u, 19.5f * u, 10f * u)
     }
+
+/*
+ * Les sept marques des pages de reglages. Une par page, et c'est la seule
+ * raison qu'elles ont d'exister : dans un menu ou toutes les rangees se
+ * ressemblent, l'oeil retrouve une page a sa forme avant d'en lire le nom.
+ * pourquoi : docs/decisions/reglages-ecran.md § Une icône par page, et pas une de plus
+ */
+
+/** Profil : une tete et des epaules. */
+@Composable
+fun PersonMark(size: Dp = 20.dp, color: Color, modifier: Modifier = Modifier) =
+    TrayIcon(size, color, modifier) { u ->
+        addOval(
+            androidx.compose.ui.geometry.Rect(
+                Offset(8f * u, 3.5f * u), Size(8f * u, 8f * u)
+            )
+        )
+        moveTo(4.5f * u, 20.5f * u)
+        cubicTo(4.5f * u, 15.5f * u, 19.5f * u, 15.5f * u, 19.5f * u, 20.5f * u)
+    }
+
+/** Bibliotheque : trois tranches sur une etagere. */
+@Composable
+fun ShelfMark(size: Dp = 20.dp, color: Color, modifier: Modifier = Modifier) =
+    TrayIcon(size, color, modifier) { u ->
+        moveTo(5f * u, 4.5f * u); lineTo(5f * u, 17f * u)
+        moveTo(10f * u, 4.5f * u); lineTo(10f * u, 17f * u)
+        moveTo(15f * u, 5.5f * u); lineTo(18.5f * u, 16.5f * u)
+        moveTo(3f * u, 19.5f * u); lineTo(21f * u, 19.5f * u)
+    }
+
+/** Consoles : la grille de tuiles, dont une eteinte. */
+@Composable
+fun GridMark(size: Dp = 20.dp, color: Color, modifier: Modifier = Modifier) =
+    TrayIcon(size, color, modifier) { u ->
+        addRoundRect(
+            androidx.compose.ui.geometry.RoundRect(
+                left = 4f * u, top = 4f * u, right = 10.5f * u, bottom = 10.5f * u,
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(1.5f * u)
+            )
+        )
+        addRoundRect(
+            androidx.compose.ui.geometry.RoundRect(
+                left = 13.5f * u, top = 4f * u, right = 20f * u, bottom = 10.5f * u,
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(1.5f * u)
+            )
+        )
+        addRoundRect(
+            androidx.compose.ui.geometry.RoundRect(
+                left = 4f * u, top = 13.5f * u, right = 10.5f * u, bottom = 20f * u,
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(1.5f * u)
+            )
+        )
+        // La quatrieme n'est pas dessinee : c'est la console masquee, et le
+        // trou dit ce que la page fait mieux qu'une quatrieme tuile.
+    }
+
+/** Emulateurs : une puce et ses broches. */
+@Composable
+fun ChipMark(size: Dp = 20.dp, color: Color, modifier: Modifier = Modifier) =
+    TrayIcon(size, color, modifier) { u ->
+        addRoundRect(
+            androidx.compose.ui.geometry.RoundRect(
+                left = 6.5f * u, top = 6.5f * u, right = 17.5f * u, bottom = 17.5f * u,
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(2f * u)
+            )
+        )
+        moveTo(10f * u, 3.5f * u); lineTo(10f * u, 6.5f * u)
+        moveTo(14f * u, 3.5f * u); lineTo(14f * u, 6.5f * u)
+        moveTo(10f * u, 17.5f * u); lineTo(10f * u, 20.5f * u)
+        moveTo(14f * u, 17.5f * u); lineTo(14f * u, 20.5f * u)
+        moveTo(3.5f * u, 10f * u); lineTo(6.5f * u, 10f * u)
+        moveTo(3.5f * u, 14f * u); lineTo(6.5f * u, 14f * u)
+        moveTo(17.5f * u, 10f * u); lineTo(20.5f * u, 10f * u)
+        moveTo(17.5f * u, 14f * u); lineTo(20.5f * u, 14f * u)
+    }
+
+/** Apparence : une goutte de peinture. */
+@Composable
+fun PaintMark(size: Dp = 20.dp, color: Color, modifier: Modifier = Modifier) =
+    TrayIcon(size, color, modifier) { u ->
+        moveTo(12f * u, 3.5f * u)
+        cubicTo(12f * u, 3.5f * u, 5f * u, 11.5f * u, 5f * u, 15.2f * u)
+        cubicTo(5f * u, 19f * u, 8.2f * u, 20.5f * u, 12f * u, 20.5f * u)
+        cubicTo(15.8f * u, 20.5f * u, 19f * u, 19f * u, 19f * u, 15.2f * u)
+        cubicTo(19f * u, 11.5f * u, 12f * u, 3.5f * u, 12f * u, 3.5f * u)
+        close()
+    }
+
+/** General : deux curseurs de reglage. */
+@Composable
+fun SlidersMark(size: Dp = 20.dp, color: Color, modifier: Modifier = Modifier) =
+    TrayIcon(size, color, modifier) { u ->
+        moveTo(4f * u, 8.5f * u); lineTo(20f * u, 8.5f * u)
+        moveTo(4f * u, 15.5f * u); lineTo(20f * u, 15.5f * u)
+        addOval(
+            androidx.compose.ui.geometry.Rect(
+                Offset(7f * u, 5.5f * u), Size(6f * u, 6f * u)
+            )
+        )
+        addOval(
+            androidx.compose.ui.geometry.Rect(
+                Offset(13f * u, 12.5f * u), Size(6f * u, 6f * u)
+            )
+        )
+    }
+
+/** A propos : la marque d'information. */
+@Composable
+fun InfoMark(size: Dp = 20.dp, color: Color, modifier: Modifier = Modifier) =
+    TrayIcon(size, color, modifier) { u ->
+        addOval(
+            androidx.compose.ui.geometry.Rect(
+                Offset(3.5f * u, 3.5f * u), Size(17f * u, 17f * u)
+            )
+        )
+        moveTo(12f * u, 11f * u); lineTo(12f * u, 16.5f * u)
+        moveTo(12f * u, 7.6f * u); lineTo(12f * u, 7.6f * u)
+    }
+
+/** Modifier, retoucher : le crayon du bouton de photo de profil. */
+@Composable
+fun PencilMark(size: Dp = 14.dp, color: Color, modifier: Modifier = Modifier) =
+    TrayIcon(size, color, modifier) { u ->
+        moveTo(4.5f * u, 19.5f * u)
+        lineTo(5.5f * u, 15f * u)
+        lineTo(16f * u, 4.5f * u)
+        lineTo(19.5f * u, 8f * u)
+        lineTo(9f * u, 18.5f * u)
+        close()
+        moveTo(13.5f * u, 7f * u); lineTo(17f * u, 10.5f * u)
+    }
+
+/**
+ * La loupe : un cercle et un manche, le glyphe que toute recherche porte.
+ *
+ * Elle vivait en deux exemplaires — un `DrawScope` prive dans la barre de la
+ * bibliotheque, dessine a des proportions a lui — et le chercheur en aurait
+ * fait un troisieme. Un glyphe est le meme partout ou il apparait, sinon ce
+ * n'est plus le meme glyphe.
+ * pourquoi : docs/decisions/lancement-et-navigation.md § La recherche ouvre le clavier de l'app
+ */
+@Composable
+fun LensMark(size: Dp = 20.dp, color: Color, modifier: Modifier = Modifier) =
+    TrayIcon(size, color, modifier) { u ->
+        addOval(
+            androidx.compose.ui.geometry.Rect(
+                Offset(3.5f * u, 3.5f * u), Size(13f * u, 13f * u)
+            )
+        )
+        moveTo(15.8f * u, 15.8f * u); lineTo(20.5f * u, 20.5f * u)
+    }

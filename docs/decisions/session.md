@@ -251,6 +251,112 @@ les fichiers par jeu évitent. On garde cette navigation supplémentaire hors de
 tous les ISO/CHD pris en charge, et on la rend explicite ici plutôt que de lancer
 en silence une partie sans profil réseau.
 
+## Le retour ferme la session, et il le dit
+
+Il y avait **deux contrôles pour un seul geste** : le bouton de retour de
+l'en-tête, qui quittait sur-le-champ, et « Fermer la session » à l'autre bout de
+la même barre. Le premier promettait de remonter d'un écran ; il coupait le
+tunnel.
+
+Un seul reste, et c'est celui qu'on trouve sans le chercher parce qu'il est là
+sur tous les autres écrans. Il change de marque — **une croix, au rouge coque**
+— et il demande avant d'agir. Le rouge n'apparaît que deux fois dans toute
+l'app ; ceci en est une, et c'est ce qui le rend lisible.
+
+La question n'est pas la même des deux côtés : l'hôte ferme la session **pour
+tout le monde**, l'invité s'en retire. Et les deux formulations disent ce que la
+fermeture ne fait pas — le jeu déjà lancé continue de tourner.
+
+En portrait, le bouton du bas reste : la page y est une colonne qu'on parcourt,
+et finir sur l'action de sortie est l'ordre naturel. Il passe par la même
+question.
+
+## Le jeu s'affiche dans le vide que le panneau a laissé
+
+Quand le panneau arrière porte l'adresse et les étapes, la colonne d'état de
+l'écran de face se termine par trois cents pixels de vide — sur un écran où
+l'on attend quelqu'un, et où il n'y a donc rien d'autre à regarder.
+
+La jaquette y va, encadrée comme sur sa tuile : même plaque, même contour, même
+lueur empruntée à ses propres couleurs. C'est ce que la session **est**, et
+c'est la seule couleur de l'écran — elle vient du contenu, jamais du chrome.
+
+Deux points de plomberie :
+
+- **La session ne porte qu'une référence de ROM**, sans icône ni couleur
+  extraite. La jaquette se retrouve dans la bibliothèque par son URI, dans le
+  cache déjà chaud, hors du fil principal, et sans jamais déclencher un scan à
+  elle seule. Rien ne s'affiche si elle n'est pas trouvée.
+- **La présence garde la priorité.** Les deux blocs sont en `weight(fill =
+  false)` : la carte des joueurs prend ce qu'il lui faut, l'image prend ce qui
+  reste, et une liste plus longue que sa moitié défile dans sa carte comme
+  avant. L'image disparaît plutôt que de tasser quoi que ce soit sous 96 dp.
+
+**Et le fondu de la colonne de droite ne vit qu'en mono-écran**, aux deux bouts.
+Il est là pour qu'un texte trop long se dissolve au lieu d'être coupé au milieu
+d'un mot, ce qui arrive quand les deux commandes vivent sous lui et lui prennent
+sa hauteur. Panneau allumé, elles sont au dos, la colonne a l'écran entier — et
+un dégradé qui éteint le bas d'une carte pleine se lit alors comme un défaut
+d'affichage.
+
+Même règle, même raison, que la jaquette : **ce que le panneau prend, la face le
+récupère ; ce que le panneau rend, la face le remet.** Un état intermédiaire où
+la face garde les habitudes des deux ne marche dans aucun des deux cas — la
+première version affichait la jaquette dans les deux, et en mono-écran elle
+plafonnait la carte de présence à la moitié d'une colonne qui portait déjà
+l'adresse.
+
+## Copier l'adresse n'a plus de sens depuis qu'Emufii la remplit
+
+La carte de connexion portait deux pastilles, « copier l'adresse » et « copier le
+port ». Elles viennent d'une époque où le joueur remplissait le formulaire de
+l'émulateur à la main.
+
+Trois raisons de les retirer, et la troisième suffit :
+
+- **Emufii remplit le formulaire.** C'est la fonction que le service
+  d'accessibilité existe pour rendre.
+- **Quand elle ne peut pas** — Android ayant coupé le service — la carte
+  d'explication au-dessus dit quoi taper, et la valeur est affichée juste à
+  côté. Le presse-papier, lui, ne tient **qu'une valeur à la fois** alors que la
+  boîte de dialogue en demande deux : il n'a jamais été la bonne réponse à ce
+  problème.
+- **Elles coûtaient 62 dp**, et c'est exactement ce qui manquait pour que le
+  panneau tienne sans défiler.
+
+Le **code**, lui, se copie toujours : c'est ce qu'on envoie à un ami dans une
+autre application, et rien d'autre ne le porte.
+
+## Ce que le panneau arrière porte, l'écran de face ne le redit pas
+
+Le panneau affiche déjà, en session, le code en grand, l'adresse et le port dans
+leurs alvéoles, et le nom du jeu. Tant que l'écran de face les redisait, le
+joueur lisait deux fois la même chose et la carte de connexion mangeait 150 dp.
+
+Quand le panneau est **réellement allumé** — le réglage activé *et* un second
+écran présent — la carte de connexion quitte l'écran de face. Le réglage seul ne
+suffit pas à décider : un appareil peut n'avoir qu'un écran.
+
+**Les boutons, eux, ne bougent pas, et ne peuvent pas.** La fenêtre du panneau
+porte `FLAG_NOT_TOUCHABLE` : rien dessus n'est pressable, par construction, pour
+qu'elle ne vole jamais un appui destiné au jeu. Le panneau rapporte, il ne
+commande pas — c'est écrit dans `second-ecran.md`, et c'est aussi ce que le
+matériel impose. Déplacer les étapes 1 et 2 au dos donnerait deux boutons que
+personne ne peut presser.
+
+Ce qui bouge à la place, et qui rend la place demandée : la colonne d'état
+passe de 272 à 220 dp quand le panneau est allumé, puisqu'il n'y reste que la
+présence. Les 52 dp rendus vont à la colonne de droite, où l'explication tient
+alors sur moins de lignes.
+
+**Une divergence trouvée en chemin, et corrigée.** L'écran de face calculait
+`room?.host ?: hostIp` et le panneau recevait `hostIp` brut : une session Eden
+avec salon aurait affiché au dos une adresse que l'émulateur n'attend pas. Tant
+que les deux s'affichaient côte à côte, ça se voyait à peine ; le jour où la
+face cesse de le redire, ça devient l'unique valeur affichée. La règle vit
+désormais **une seule fois**, sur `Session.shownAddress` / `shownPort`, avec le
+cas PSP dedans — son serveur ad hoc a un nom fixe et pas de port.
+
 ## Les partis pris de dessin de cet écran
 
 **Le code est monté dans l'en-tête** : c'est ce qu'on lit à voix haute à

@@ -57,6 +57,36 @@ data class Session(
 
     val backend: Backend get() = console?.backend ?: Backend.NONE
 
+    /**
+     * L'adresse que le joueur doit voir, et la seule.
+     *
+     * Une **definition unique**, parce qu'il y en avait deux : l'ecran de
+     * session calculait `room?.host ?: hostIp` et le panneau arriere recevait
+     * `hostIp` brut. Tant que les deux s'affichaient cote a cote, la divergence
+     * se voyait a peine ; le jour ou l'ecran de face cesse de la redire quand le
+     * panneau est allume, une session Eden avec salon aurait affiche au dos une
+     * adresse que l'emulateur n'attend pas.
+     * pourquoi : docs/decisions/session.md § Ce que le panneau arrière porte, l'écran de face ne le redit pas
+     */
+    val shownAddress: String get() = when {
+        room != null -> room.host
+        // La PSP est le seul cas ou ce n'est pas une IP : son serveur ad hoc a
+        // un nom fixe, que PPSSPP resout lui-meme.
+        backend == Backend.PPSSPP -> eu.emufii.app.psp.HOST_SENTINEL
+        else -> hostIp
+    }
+
+    /**
+     * Le port qui va avec [shownAddress], ou **null** quand la console n'en
+     * demande pas : celui du serveur ad hoc de la PSP est fixe et PPSSPP ne le
+     * demande pas. Un champ de plus a remplir est un champ de plus a remplir
+     * de travers.
+     */
+    val shownPort: String? get() = when {
+        room != null -> room.port.toString()
+        backend == Backend.PPSSPP -> null
+        else -> port
+    }
 }
 
 object SessionCodes {

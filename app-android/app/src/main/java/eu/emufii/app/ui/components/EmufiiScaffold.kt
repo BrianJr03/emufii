@@ -108,6 +108,15 @@ fun EmufiiScaffold(
     title: String,
     modifier: Modifier = Modifier,
     onBack: (() -> Unit)? = null,
+    /**
+     * La marque du bouton de retour, quand ce n'est pas un chevron.
+     *
+     * Un ecran dont le retour **ferme quelque chose** plutot que de remonter
+     * doit le dire avant qu'on presse : en session, ce bouton met fin a la
+     * session, et un chevron promettait l'inverse.
+     * pourquoi : docs/decisions/session.md § Le retour ferme la session, et il le dit
+     */
+    backIcon: (@Composable (Color) -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
     /**
      * False when the screen fits whole: the veil and its 32 dp only exist for
@@ -160,7 +169,10 @@ fun EmufiiScaffold(
                 CircleIconButton(
                     onClick = onBack,
                     modifier = Modifier.focusRequester(scaffoldFocus.header)
-                ) { tint -> ChevronLeft(size = 20.dp, color = tint) }
+                ) { tint ->
+                    if (backIcon != null) backIcon(tint)
+                    else ChevronLeft(size = 20.dp, color = tint)
+                }
             }
             Text(
                 title,
@@ -323,7 +335,15 @@ fun GhostButton(
      * Drawn instead of the label, for buttons whose action is a symbol rather
      * than a word. [label] still travels with it, as the spoken name.
      */
-    icon: (@Composable (Color) -> Unit)? = null
+    icon: (@Composable (Color) -> Unit)? = null,
+    /**
+     * Une marque posee **avant** le libelle, qui reste. A distinguer de [icon],
+     * qui le remplace : celle-ci sert aux boutons qui menent quelque part et
+     * dont la destination a un visage — un logo de service, jamais un
+     * pictogramme decoratif.
+     * pourquoi : docs/decisions/reglages-ecran.md § Les deux liens sortants, et leur ordre
+     */
+    leading: (@Composable () -> Unit)? = null
 ) {
     val accent = tint ?: MaterialTheme.colorScheme.primary
     // Every secondary action in the app goes through here, so this is the one
@@ -356,6 +376,20 @@ fun GhostButton(
         ) {
             if (icon != null) {
                 icon(accent)
+            } else if (leading != null) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    leading()
+                    Text(
+                        label,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = accent,
+                        textAlign = TextAlign.Center
+                    )
+                }
             } else {
                 Text(
                     label,

@@ -218,6 +218,71 @@ sont une séquence, et une puce ne le dirait pas.
 
 # Navigation de l'app
 
+## Une seule destination nommée par écran
+
+`padEntry()` pose **le** `FocusRequester` de l'écran, celui que la coquille vise
+quand le curseur descend de l'en-tête, et celui qui renvoie vers l'en-tête quand
+il remonte. Il y en a un par écran, et c'est tout le contrat.
+
+Le chercheur de sessions en portait **deux** : la barre de recherche, et *chaque*
+carte de session. Il l'avait d'abord sur la carte, du temps où elle était le
+premier contrôle ; la barre est arrivée après, avec le sien, et personne n'a
+retiré l'autre. Un `FocusRequester` partagé entre douze nœuds ne désigne plus
+rien, et les deux symptômes sont exactement ceux d'une destination ambiguë :
+
+- **descendre depuis l'en-tête sautait la recherche** et tombait sur une carte ;
+- **remonter depuis n'importe quelle carte partait droit au bouton retour**, au
+  lieu de passer à la carte du dessus — parce que chaque carte portait aussi le
+  `onPreviewKeyEvent` de `padEntry`, qui renvoie « haut » vers l'en-tête.
+
+La règle qui manquait, et qui vaut pour tout écran : **un seul `padEntry` par
+écran, sur le premier contrôle, jamais sur un élément de liste.** Une liste se
+traverse toute seule ; ce qu'il faut nommer, c'est la porte d'entrée.
+
+## La recherche ouvre le clavier de l'app
+
+La barre du chercheur était un `PadTextField`, donc un vrai champ de saisie,
+donc l'IME du système : il recouvre la moitié de l'écran, il ne se pilote pas à
+la manette, et il n'a rien à voir avec le reste de l'app.
+
+La bibliothèque n'a jamais eu de champ. Elle affiche la requête et pose **son
+propre clavier** — quatre rangées, des touches qui sont des plaques, et un
+panneau qui avale les appuis à côté pour qu'un raté n'ouvre pas un jeu en plein
+mot. Le chercheur fait pareil désormais : une alvéole qui montre la requête,
+pressable, focalisable, et qui n'est pas éditable — c'est précisément ce qui
+empêche l'IME de s'ouvrir.
+
+Deux façons de le refermer, et les deux sont celles de la bibliothèque : `B`,
+puisque c'est un sous-niveau, et **une tape à côté**. La tape passe par un voile
+invisible sur tout l'écran, déclaré *avant* le panneau pour que les touches
+restent au-dessus de lui. Sans ce voile, `B` était la seule sortie, et une tape
+sur une carte rejoignait une session en plein mot.
+
+La loupe, elle, a été hissée dans `TrayIcons`. Elle vivait en deux exemplaires,
+dessinée à ses propres proportions dans la barre de la bibliothèque, et le
+chercheur en aurait fait un troisième. Un glyphe est le même partout où il
+apparaît, sinon ce n'est plus le même glyphe.
+
+## Un écran vide se centre sur l'écran, pas sous l'en-tête
+
+L'état vide du chercheur recevait la marge haute de la coquille — la bande que
+l'en-tête flottant occupe — et rien en bas. Centré dans ce qui reste **sous**
+l'en-tête, son milieu tombait une cinquantaine de dp sous le milieu de l'écran.
+Sur un écran qui n'a rien d'autre à regarder, ce décalage est la seule chose
+qu'on regarde. La même marge en haut et en bas, et le bloc se centre.
+
+**L'alvéole porte sa marque.** Elle avait été laissée nue exprès : « personne
+pour l'instant » est un emplacement sans jeu, et le plateau a déjà un mot pour
+ça — le creux que la grille laisse dans son dernier rang. Deux tentatives de
+croissant de lune avaient prouvé qu'une métaphore empruntée ne le dirait pas
+mieux.
+
+Vu sur l'appareil, ça ne se lit pas comme une métaphore : **ça se lit comme une
+icône qui n'a pas chargé.** Un cadre vide au milieu d'un écran vide est un
+défaut, pas une figure de style. Le creux reste — c'est le bon mot pour une
+absence — et il reçoit la silhouette que l'app dessine déjà pour un joueur.
+L'absence est dite deux fois, par le trou et par ce qui manque dedans.
+
 ## Ce que « retour » veut dire, écran par écran
 
 **C'est la faille qui fermait l'app.** Rien n'interceptait le retour au-dessus de

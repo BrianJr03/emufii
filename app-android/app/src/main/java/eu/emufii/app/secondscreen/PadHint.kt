@@ -97,9 +97,16 @@ data class PadLegend(
          * So the pad genuinely does nothing on back here, and printing it would
          * be a lie in the one place the player cannot check without quitting the
          * thing they are being told how to quit.
+         *
+         * Et **plus rien du tout** depuis que le panneau porte les etapes :
+         * « B · Ouvrir » y restait affiche alors que B, en session, agit sur le
+         * controle selectionne de l'ecran de face, pas sur ce panneau. Une
+         * legende qui nomme une touche que la face ne prend pas est le seul
+         * defaut que cette legende existe pour eviter. Les commandes du panneau
+         * se pressent au doigt, et un bouton qui porte son nom n'a pas besoin
+         * qu'on legende le doigt.
+         * pourquoi : docs/decisions/second-ecran.md § Le panneau prend les etapes, parce qu'il est tactile
          */
-        val IN_SESSION = PadLegend(
-            right = listOf(PadHint.CONFIRM),
-        )
+        val IN_SESSION = PadLegend()
     }
 }

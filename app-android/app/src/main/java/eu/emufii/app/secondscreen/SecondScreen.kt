@@ -40,10 +40,33 @@ object SecondScreen {
         if (_model.value is SecondScreenModel.Browsing) _page.value = 1 - _page.value
     }
 
+    /**
+     * Les etapes de la session, telles que le panneau peut les presser.
+     *
+     * Elles voyagent **deja resolues** — libelle, etat, action — et non sous
+     * forme d'ingredients a recalculer au dos. Deux raisons : l'etat qui decide
+     * du libelle vit dans la composition de l'ecran de session, et la fenetre
+     * du panneau a son propre contexte d'affichage, qui a deja fait parler
+     * l'app en francais dans une interface en anglais une fois.
+     * pourquoi : docs/decisions/second-ecran.md § Le panneau prend les etapes, parce qu'il est tactile
+     */
+    private val _steps = MutableStateFlow<List<PanelStep>>(emptyList())
+    val steps: StateFlow<List<PanelStep>> = _steps.asStateFlow()
+
+    /**
+     * Publie les etapes, ou les retire. Les lambdas appartiennent a une
+     * composition : l'ecran qui les pose **doit** les retirer en partant, sinon
+     * le panneau garde une session morte sous le doigt.
+     */
+    fun publishSteps(steps: List<PanelStep>) {
+        _steps.value = steps
+    }
+
     /** Back to the resting face. Called when the app leaves a session or stops. */
     fun clear() {
         _model.value = SecondScreenModel.Idle
         _page.value = 0
+        _steps.value = emptyList()
     }
 
     /**
@@ -55,6 +78,46 @@ object SecondScreen {
         before is SecondScreenModel.Browsing && after is SecondScreenModel.Browsing &&
             before.rom.uri == after.rom.uri
 }
+
+/**
+ * Un ami, tel que le panneau le rapporte.
+ *
+ * Deja resolu — le libelle d'etat est traduit par l'ecran de face, jamais au
+ * dos, ou le contexte d'affichage a sa propre langue.
+ * pourquoi : docs/decisions/second-ecran.md § La liste d'amis descend au dos, les deux cartes restent devant
+ */
+data class PanelFriend(
+    val name: String,
+    /** Ce qu'il fait, en toutes lettres : « joue a X », « en ligne », « hors ligne ». */
+    val line: String,
+    val online: Boolean,
+    val inSession: Boolean,
+    /**
+     * Retirer cet ami, pour de bon. Le panneau demande avant, chez lui : la
+     * question se pose la ou le doigt vient de presser, pas de l'autre cote de
+     * la machine.
+     * pourquoi : docs/decisions/second-ecran.md § La liste d'amis descend au dos, les deux cartes restent devant
+     */
+    val onRemove: () -> Unit = {},
+)
+
+/**
+ * Une etape de session, telle que le panneau la presse.
+ *
+ * Le panneau est tactile : la Thor arbitre le focus entre ses deux ecrans, une
+ * pression donne le focus a l'ecran presse. Les etapes descendent donc au dos,
+ * ou elles sont sous les pouces, et l'ecran de face rend la hauteur qu'elles
+ * prenaient a l'explication.
+ * pourquoi : docs/decisions/second-ecran.md § Le panneau prend les etapes, parce qu'il est tactile
+ */
+data class PanelStep(
+    /** Deja traduit par l'ecran de face, jamais resolu au dos. */
+    val label: String,
+    /** Vert, avec sa coche : l'etape est faite. */
+    val done: Boolean,
+    val enabled: Boolean,
+    val onPress: () -> Unit,
+)
 
 /**
  * The faces the panel can wear. Deliberately few: a second screen that tries to
@@ -97,6 +160,7 @@ sealed interface SecondScreenModel {
         get() = when (this) {
             is Idle, is Browsing -> PadLegend.BROWSING
             is ConsoleFolder -> PadLegend.FOLDER
+            is Friends -> PadLegend()
             is InSession -> PadLegend.IN_SESSION
         }
 
@@ -105,6 +169,17 @@ sealed interface SecondScreenModel {
      * play, where the front screen is covered by the emulator.
      * pourquoi : docs/decisions/second-ecran.md § Le code de session ne porte pas d'étiquette
      */
+    /**
+     * La liste d'amis, pendant qu'elle est a l'ecran.
+     *
+     * Le panneau la porte en entier ; l'ecran de face garde les deux cartes qui
+     * demandent quelque chose — ton code, et le champ pour en ajouter un.
+     * pourquoi : docs/decisions/second-ecran.md § La liste d'amis descend au dos, les deux cartes restent devant
+     */
+    data class Friends(
+        val entries: List<PanelFriend>,
+    ) : SecondScreenModel
+
     data class InSession(
         val code: String,
         val role: Session.Role,

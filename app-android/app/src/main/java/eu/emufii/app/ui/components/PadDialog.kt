@@ -39,7 +39,9 @@ fun PrimaryButton(
     label: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    /** Une marque posee avant le libelle : le visage de la destination. */
+    leading: (@Composable () -> Unit)? = null
 ) {
     val dark = LocalEmufiiDarkTheme.current
     val accent = LocalAccent.current
@@ -59,7 +61,17 @@ fun PrimaryButton(
         ),
         modifier = modifier.heightIn(min = 48.dp).controlRing(ActionShape)
     ) {
-        Text(label, style = MaterialTheme.typography.labelLarge)
+        if (leading != null) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                leading()
+                Text(label, style = MaterialTheme.typography.labelLarge)
+            }
+        } else {
+            Text(label, style = MaterialTheme.typography.labelLarge)
+        }
     }
 }
 

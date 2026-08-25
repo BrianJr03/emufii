@@ -112,6 +112,19 @@ import eu.emufii.app.ui.components.SectionHeader
 import eu.emufii.app.ui.components.SoftCard
 import eu.emufii.app.ui.components.softCardFill
 import eu.emufii.app.ui.components.padEntry
+import androidx.compose.foundation.layout.BoxWithConstraints
+import eu.emufii.app.library.Rom
+import eu.emufii.app.ui.components.CrossIcon
+import eu.emufii.app.ui.components.PadDialog
+import eu.emufii.app.ui.components.PadDialogText
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import eu.emufii.app.library.RomsRepository
+import eu.emufii.app.secondscreen.PanelStep
+import eu.emufii.app.ui.components.RomArtwork
+import eu.emufii.app.secondscreen.SecondScreen
+import eu.emufii.app.secondscreen.rememberPresentationDisplay
+import eu.emufii.app.settings.SettingsStore
 import eu.emufii.app.ui.copyToClipboard
 import eu.emufii.app.ui.theme.AccentGreen
 import eu.emufii.app.ui.theme.LocalEmufiiDarkTheme
@@ -350,8 +363,8 @@ fun SessionScreen(
     // nothing and must not appear under the word "host".
     // pourquoi : docs/decisions/session.md § L'adresse affichée est celle qu'on doit taper, jamais une autre
     val room = session.room
-    val shownAddress = room?.host ?: if (psp) HOST_SENTINEL else session.hostIp
-    val shownPort = room?.port?.toString() ?: session.port
+    val shownAddress = session.shownAddress
+    val shownPort = session.shownPort
     val addressLabel = stringResource(
         when {
             room != null -> R.string.session_room_address
@@ -359,37 +372,139 @@ fun SessionScreen(
             else -> R.string.session_host_address
         }
     )
-    val onCopyIp = {
-        copyToClipboard(context, "Emufii IP", shownAddress)
-        status = context.getString(R.string.session_ip_copied)
-    }
+    // Le code, et lui seul, se copie encore : c'est ce qu'on envoie a un ami
+    // dans une autre application. L'adresse et le port ne se copient plus —
+    // Emufii les ecrit dans l'emulateur, et le panneau arriere les affiche tous
+    // les deux a la fois, ce que le presse-papier ne sait pas faire.
+    // pourquoi : docs/decisions/session.md § Copier l'adresse n'a plus de sens depuis qu'Emufii la remplit
     val onCopyCode = {
         copyToClipboard(context, "Emufii", session.code)
         status = context.getString(R.string.common_copied, session.code)
     }
-    val onCopyPort = {
-        copyToClipboard(context, "Emufii Port", shownPort)
-        status = context.getString(R.string.session_port_copied)
+
+    // Le panneau arriere est-il vraiment allume ? Le reglage ne suffit pas :
+    // l'appareil peut n'avoir qu'un ecran. La meme regle que
+    // [secondScreenWanted], vue depuis un ecran qui sait deja qu'il est en
+    // session.
+    // pourquoi : docs/decisions/session.md § Ce que le panneau arrière porte, l'écran de face ne le redit pas
+    val panelDisplay by rememberPresentationDisplay()
+    val panelWanted by remember(context) { SettingsStore.get(context).secondScreen }
+        .collectAsState()
+    val panelLive = panelWanted && panelDisplay != null
+
+    // La session ne porte qu'une **reference** de ROM : ni icone, ni couleur
+    // extraite. La jaquette se retrouve donc dans la bibliotheque, par son URI,
+    // dans le cache que l'app a deja chauffe au demarrage — hors du fil
+    // principal, et sans jamais declencher de scan a elle seule.
+    // pourquoi : docs/decisions/session.md § Le jeu s'affiche dans le vide que le panneau a laissé
+    var sessionArt by remember(session.code) { mutableStateOf<Rom?>(null) }
+    LaunchedEffect(session.rom?.uri) {
+        val uri = session.rom?.uri ?: return@LaunchedEffect
+        sessionArt = withContext(Dispatchers.IO) {
+            runCatching { RomsRepository(context).cachedOrScan() }
+                .getOrDefault(emptyList())
+                .firstOrNull { it.uri == uri }
+        }
     }
+
+    // Les etapes, resolues **une fois** et servies aux deux ecrans.
+    //
+    // Le panneau arriere est tactile : quand il est la, les deux commandes y
+    // descendent, sous les pouces, et l'ecran de face rend leurs 130 dp a
+    // l'explication. Les libelles voyagent deja traduits — la fenetre du
+    // panneau a son propre contexte d'affichage, qui a deja fait parler l'app
+    // en francais dans une interface en anglais une fois.
+    // pourquoi : docs/decisions/second-ecran.md § Le panneau prend les etapes, parce qu'il est tactile
+    val showNetplayStep = session.backend.hasNetplay && !ps2Automatic
+    val showPspStep = session.backend == Backend.PPSSPP && !pspAutomatic
+    val netplayLabel = stringResource(
+        when {
+            waitingForHost -> R.string.session_netplay_waiting_host
+            netplayDone -> R.string.session_netplay_done
+            netplayPrepared -> R.string.session_netplay_again
+            else -> R.string.session_netplay_open
+        },
+        session.backend.emulatorName
+    )
+    val pspLabel = stringResource(
+        if (pspOpened) R.string.session_psp_setup_again else R.string.session_psp_setup
+    )
+    val launchLabel = launchLabel(
+        session = session,
+        netplayPrepared = netplayPrepared,
+        directPs2 = ps2Automatic,
+        waitingForHost = ps2Automatic && waitingForHost
+    )
+    val panelSteps = buildList {
+        if (showNetplayStep) {
+            add(
+                PanelStep(
+                    label = netplayLabel,
+                    done = netplayDone,
+                    enabled = session.rom != null && !waitingForHost,
+                    onPress = onNetplayStep
+                )
+            )
+        }
+        if (showPspStep) {
+            add(
+                PanelStep(
+                    label = pspLabel,
+                    done = pspOpened,
+                    enabled = true,
+                    onPress = {
+                        status = openPpssppForSetup(context, ppsspp) { pspOpened = true }
+                    }
+                )
+            )
+        }
+        add(
+            PanelStep(
+                label = launchLabel,
+                done = false,
+                enabled = launchEnabled(
+                    session = session,
+                    netplayPrepared = netplayPrepared,
+                    directPs2 = ps2Automatic,
+                    waitingForHost = ps2Automatic && waitingForHost
+                ),
+                onPress = onLaunchStep
+            )
+        )
+    }
+    // Les lambdas appartiennent a cette composition : l'ecran qui les pose doit
+    // les retirer en partant, sinon le panneau garde une session morte sous le
+    // doigt.
+    DisposableEffect(panelLive, panelSteps) {
+        SecondScreen.publishSteps(if (panelLive) panelSteps else emptyList())
+        onDispose { SecondScreen.publishSteps(emptyList()) }
+    }
+
+    // **Le retour ferme la session, donc il porte une croix et il demande.**
+    //
+    // Il y avait deux controles pour un seul geste : ce bouton, qui quittait
+    // sur-le-champ, et « Fermer la session » a l'autre bout de l'en-tete. Un
+    // seul reste — celui qu'on trouve sans le chercher, parce qu'il est la sur
+    // tous les autres ecrans — et il cesse de promettre un retour en arriere :
+    // une croix rouge, et une question avant de couper le tunnel.
+    // pourquoi : docs/decisions/session.md § Le retour ferme la session, et il le dit
+    var confirmingLeave by remember { mutableStateOf(false) }
 
     EmufiiScaffold(
         title = if (session.role == Session.Role.HOST) stringResource(R.string.session_mine) else stringResource(R.string.session_joined),
         modifier = modifier,
-        onBack = onLeave,
+        onBack = { confirmingLeave = true },
+        backIcon = { CrossIcon(size = 20.dp, color = ShellRed) },
         // In landscape, "leave" moves up into the header. It is an action you
         // go looking for, not one you scroll past, and the 60 dp it gave back
         // to the left pane are exactly what was missing for the address to fit
         // on screen without scrolling.
-        trailing = if (landscape) {
-            {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    SessionCodeChip(code = session.code, onCopy = onCopyCode)
-                    LeaveButton(session = session, onLeave = onLeave, fillWidth = false)
-                }
-            }
+        // La pastille du code seule, et seulement quand le panneau arriere ne
+        // la porte pas deja : il l'affiche en 64 sp au dos, la redire de face
+        // en 19 sp ne sert personne.
+        // pourquoi : docs/decisions/session.md § Ce que le panneau arrière porte, l'écran de face ne le redit pas
+        trailing = if (landscape && !panelLive) {
+            { SessionCodeChip(code = session.code, onCopy = onCopyCode) }
         } else null,
         // Both panes fit on screen: nothing rises under the header, and the
         // fade margin was an empty band between the title and the cards.
@@ -413,8 +528,14 @@ fun SessionScreen(
                 // No `verticalScroll`: a state pane that can hide its state is
                 // not doing its job. It fits because the code moved to the header.
                 // pourquoi : docs/decisions/session.md § Le panneau d'état ne défile pas, donc il doit tenir
+                // Plus etroit quand le panneau arriere est allume : le panneau
+                // portant deja l'adresse, le port et le jeu, il ne reste ici que
+                // la presence — et les 52 dp rendus vont a la colonne de droite,
+                // ou l'explication passe alors sur moins de lignes. C'est la que
+                // la place gagnee sert a quelque chose.
+                // pourquoi : docs/decisions/session.md § Ce que le panneau arrière porte, l'écran de face ne le redit pas
                 Column(
-                    modifier = Modifier.width(272.dp),
+                    modifier = Modifier.width(if (panelLive) 220.dp else 272.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     // Presence gives way, never the address: the weight is what
@@ -429,14 +550,46 @@ fun SessionScreen(
                         scrollable = true,
                         modifier = Modifier.weight(1f, fill = false)
                     )
-                    ConnectionCard(
-                        hostIp = shownAddress,
-                        addressLabel = addressLabel,
-                        port = if (psp) null else shownPort,
-                        romName = session.rom?.displayName,
-                        onCopyIp = onCopyIp,
-                        onCopyPort = onCopyPort
-                    )
+                    // Le panneau arriere porte deja l'adresse et le port, tous
+                    // les deux a la fois et sans qu'on les demande. Quand il est
+                    // la, cette carte redirait la meme chose de face, et la
+                    // place qu'elle prend revient a l'explication.
+                    // pourquoi : docs/decisions/session.md § Ce que le panneau arrière porte, l'écran de face ne le redit pas
+                    if (!panelLive) {
+                        ConnectionCard(
+                            hostIp = shownAddress,
+                            addressLabel = addressLabel,
+                            port = shownPort,
+                            romName = session.rom?.displayName
+                        )
+                    }
+
+                    // Le jeu, encadre, **et seulement quand le panneau a
+                    // libere la place**.
+                    //
+                    // Ce bloc etait rendu dans les deux cas, et en mono-ecran il
+                    // cassait la carte de presence : deux enfants ponderes se
+                    // partagent l'espace libre, donc la carte des joueurs se
+                    // retrouvait plafonnee a la moitie d'une colonne qui portait
+                    // deja la carte de connexion. Sans panneau, il n'y a pas de
+                    // vide a remplir — c'est le panneau qui le cree en prenant
+                    // l'adresse.
+                    // pourquoi : docs/decisions/session.md § Le jeu s'affiche dans le vide que le panneau a laissé
+                    if (panelLive) {
+                        sessionArt?.let { art ->
+                            Box(
+                                modifier = Modifier.fillMaxWidth().weight(1f, fill = false),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                BoxWithConstraints {
+                                    val side = minOf(maxWidth, maxHeight)
+                                    if (side >= 96.dp) {
+                                        RomArtwork(rom = art, size = minOf(side, 208.dp))
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
 
                 Column(
@@ -446,23 +599,39 @@ fun SessionScreen(
                     // What gives way when there is no room left: the
                     // explanation. Never the buttons, that being exactly the
                     // flaw this rework exists to remove.
+                    // Le fondu **n'existe qu'en mono-ecran**, et aux deux
+                    // bouts.
+                    //
+                    // Il est la pour qu'un texte trop long se dissolve au lieu
+                    // d'etre coupe au milieu d'un mot : c'est le cas quand les
+                    // deux commandes vivent sous lui et lui prennent sa hauteur.
+                    // Panneau allume, elles sont au dos, la colonne a l'ecran
+                    // entier — et un degrade qui eteint le bas d'une carte
+                    // pleine se lit alors comme un defaut d'affichage.
+                    // pourquoi : docs/decisions/session.md § Le panneau d'état ne défile pas, donc il doit tenir
+                    val fade = !panelLive
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .weight(1f, fill = false)
-                            // Fades rather than being cut mid-word.
-                            // pourquoi : docs/decisions/session.md § Le panneau d'état ne défile pas, donc il doit tenir
-                            .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
-                            .drawWithContent {
-                                drawContent()
-                                drawRect(
-                                    brush = Brush.verticalGradient(
-                                        0.94f to Color.Black,
-                                        1f to Color.Transparent
-                                    ),
-                                    blendMode = BlendMode.DstIn
-                                )
-                            }
+                            .then(
+                                if (!fade) Modifier else Modifier
+                                    .graphicsLayer {
+                                        compositingStrategy = CompositingStrategy.Offscreen
+                                    }
+                                    .drawWithContent {
+                                        drawContent()
+                                        drawRect(
+                                            brush = Brush.verticalGradient(
+                                                0f to Color.Transparent,
+                                                0.05f to Color.Black,
+                                                0.94f to Color.Black,
+                                                1f to Color.Transparent
+                                            ),
+                                            blendMode = BlendMode.DstIn
+                                        )
+                                    }
+                            )
                             .verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
@@ -474,6 +643,11 @@ fun SessionScreen(
                         )
                     }
 
+                    // Quand le panneau arriere porte les etapes, l'ecran de face
+                    // ne les redessine pas : c'est toute la hauteur qu'elles
+                    // prenaient qui revient a l'explication au-dessus.
+                    // pourquoi : docs/decisions/second-ecran.md § Le panneau prend les etapes, parce qu'il est tactile
+                    if (!panelLive) {
                     // The first button that exists AND responds: a disabled one
                     // does not take focus. Then a real gap before the buttons.
                     // pourquoi : docs/decisions/session.md § Descendre vise le premier bouton qui répond
@@ -510,6 +684,7 @@ fun SessionScreen(
                                        (session.backend == Backend.PPSSPP && !pspAutomatic)) Modifier
                                    else Modifier.padEntry()
                     )
+                    }
                     status?.let { StatusLine(it) }
                 }
             }
@@ -547,17 +722,20 @@ fun SessionScreen(
                 live = !offline
             )
 
-            ConnectionCard(
-                hostIp = shownAddress,
-                addressLabel = addressLabel,
-                // And no port: the ad hoc server's is fixed and PPSSPP does not
-                // ask for it. One more field to fill in is one more field to
-                // fill in wrong.
-                port = if (psp) null else shownPort,
-                romName = session.rom?.displayName,
-                onCopyIp = onCopyIp,
-                onCopyPort = onCopyPort
-            )
+            // Meme regle qu'en paysage : ce que le panneau arriere rapporte,
+            // l'ecran de face ne le redit pas.
+            // pourquoi : docs/decisions/session.md § Ce que le panneau arrière porte, l'écran de face ne le redit pas
+            if (!panelLive) {
+                ConnectionCard(
+                    hostIp = shownAddress,
+                    addressLabel = addressLabel,
+                    // And no port: the ad hoc server's is fixed and PPSSPP does
+                    // not ask for it. One more field to fill in is one more
+                    // field to fill in wrong.
+                    port = shownPort,
+                    romName = session.rom?.displayName
+                )
+            }
 
             // Before the buttons: Azahar refuses the room over the nickname
             // while blaming the address.
@@ -567,6 +745,10 @@ fun SessionScreen(
                 automationOn = automationOn,
             )
 
+            // Meme regle qu'en paysage : le panneau arriere porte les etapes
+            // quand il est la.
+            // pourquoi : docs/decisions/second-ecran.md § Le panneau prend les etapes, parce qu'il est tactile
+            if (!panelLive) {
             // Two steps, in the order the emulator itself expects: join the room
             // from its main menu, then boot the game. One button did both, so
             // the ROM started in an emulator that had joined nothing, and the
@@ -603,13 +785,44 @@ fun SessionScreen(
                                (session.backend == Backend.PPSSPP && !pspAutomatic)) Modifier
                            else Modifier.padEntry()
             )
+            }
 
             // Directly under the button that produces it: rendered last, a
             // refusal landed off-screen and read as a dead button.
             // pourquoi : docs/decisions/session.md § Ce qui se fait à la main se dit avant le bouton, jamais après
             status?.let { StatusLine(it) }
 
-            LeaveButton(session = session, onLeave = onLeave)
+            LeaveButton(session = session, onLeave = { confirmingLeave = true })
+        }
+    }
+
+    if (confirmingLeave) {
+        val host = session.role == Session.Role.HOST
+        PadDialog(
+            title = stringResource(if (host) R.string.session_close else R.string.session_leave),
+            onDismiss = { confirmingLeave = false },
+            actions = {
+                GhostButton(
+                    label = stringResource(R.string.common_cancel),
+                    onClick = { confirmingLeave = false }
+                )
+                GhostButton(
+                    label = stringResource(if (host) R.string.session_close else R.string.session_leave),
+                    onClick = {
+                        confirmingLeave = false
+                        onLeave()
+                    },
+                    tint = ShellRed
+                )
+            }
+        ) {
+            // L'hote et l'invite ne risquent pas la meme chose : l'un ferme la
+            // session pour tout le monde, l'autre s'en retire.
+            PadDialogText(
+                stringResource(
+                    if (host) R.string.session_close_confirm else R.string.session_leave_confirm
+                )
+            )
         }
     }
 }
@@ -775,10 +988,7 @@ private fun LaunchButton(
 ) {
     Button(
         onClick = onClick,
-        // Greyed until the room step has been through: launching first is the
-        // mistake this pair exists to prevent.
-        enabled = session.rom != null && session.backend != Backend.NONE && !waitingForHost &&
-            (!session.backend.hasNetplay || netplayPrepared || directPs2),
+        enabled = launchEnabled(session, netplayPrepared, directPs2, waitingForHost),
         shape = ActionShape,
         // Disabled, but still legibly the next step: Material's grey-on-grey
         // slab read as an absence rather than as a button waiting for step 1.
@@ -789,38 +999,66 @@ private fun LaunchButton(
         modifier = modifier.fillMaxWidth().height(56.dp).controlRing(ActionShape)
     ) {
         Text(
-            when {
-                waitingForHost -> stringResource(
-                    R.string.session_netplay_waiting_host,
-                    session.backend.emulatorName,
-                )
-                // Joining from the finder for a game we don't own is a different
-                // situation from an unsupported console, and saying the wrong
-                // one sends the user looking in the wrong place.
-                session.rom == null -> stringResource(R.string.session_no_rom)
-                session.backend == Backend.AZAHAR ||
-                    session.backend == Backend.EDEN ||
-                    session.backend == Backend.PPSSPP ||
-                    // The PS2 is in the set: ARMSX2's `MainActivity` is
-                    // exported and takes a `content://`, so the game does launch
-                    // from here. Dolphin is the exception, not it.
-                    session.backend == Backend.ARMSX2 ->
-                    // Numbered only where there is a step 1 above it.
-                    stringResource(
-                        if (session.backend.hasNetplay && !directPs2) R.string.session_launch_step2
-                        else R.string.session_launch_emulation
-                    )
-                session.backend == Backend.MELONDS_WFC -> stringResource(R.string.session_wfc_not_a_session)
-                // Dolphin has no step 2, and saying so beats falling through
-                // to "not supported yet", which was wrong and discouraging.
-                // pourquoi : docs/decisions/session.md § Les cartes par console, et ce que chacune doit empêcher
-                session.backend == Backend.DOLPHIN -> stringResource(R.string.session_dolphin_lobby)
-                else -> stringResource(R.string.session_unsupported_short)
-            },
+            launchLabel(session, netplayPrepared, directPs2, waitingForHost),
             style = MaterialTheme.typography.titleMedium
         )
     }
 }
+
+/**
+ * Ce que le bouton de lancement dit, et s'il repond — **une seule definition**,
+ * parce qu'il y a desormais deux endroits qui le dessinent : l'ecran de face et
+ * le panneau arriere. Le jour ou les deux divergent, la moitie des joueurs
+ * pressent un bouton qui dit autre chose que ce qu'il fait.
+ * pourquoi : docs/decisions/second-ecran.md § Le panneau prend les etapes, parce qu'il est tactile
+ */
+@Composable
+private fun launchLabel(
+    session: Session,
+    netplayPrepared: Boolean,
+    directPs2: Boolean,
+    waitingForHost: Boolean
+): String = when {
+    waitingForHost -> stringResource(
+        R.string.session_netplay_waiting_host,
+        session.backend.emulatorName,
+    )
+    // Rejoindre depuis le chercheur un jeu qu'on ne possede pas est une autre
+    // situation qu'une console non prise en charge, et dire la mauvaise envoie
+    // chercher au mauvais endroit.
+    session.rom == null -> stringResource(R.string.session_no_rom)
+    session.backend == Backend.AZAHAR ||
+        session.backend == Backend.EDEN ||
+        session.backend == Backend.PPSSPP ||
+        // La PS2 est dans le lot : la `MainActivity` d'ARMSX2 est exportee et
+        // prend un `content://`, donc le jeu se lance bien d'ici. Dolphin est
+        // l'exception, pas elle.
+        session.backend == Backend.ARMSX2 ->
+        // Numerote seulement la ou il y a une etape 1 au-dessus.
+        stringResource(
+            if (session.backend.hasNetplay && !directPs2) R.string.session_launch_step2
+            else R.string.session_launch_emulation
+        )
+    session.backend == Backend.MELONDS_WFC -> stringResource(R.string.session_wfc_not_a_session)
+    // Dolphin n'a pas d'etape 2, et le dire vaut mieux que de retomber sur
+    // « pas encore pris en charge », qui etait faux et decourageant.
+    // pourquoi : docs/decisions/session.md § Les cartes par console, et ce que chacune doit empêcher
+    session.backend == Backend.DOLPHIN -> stringResource(R.string.session_dolphin_lobby)
+    else -> stringResource(R.string.session_unsupported_short)
+}
+
+/**
+ * Grise tant que l'etape du salon n'est pas passee : lancer d'abord est
+ * l'erreur que cette paire existe pour empecher.
+ */
+private fun launchEnabled(
+    session: Session,
+    netplayPrepared: Boolean,
+    directPs2: Boolean,
+    waitingForHost: Boolean
+): Boolean =
+    session.rom != null && session.backend != Backend.NONE && !waitingForHost &&
+        (!session.backend.hasNetplay || netplayPrepared || directPs2)
 
 /**
  * The session code, in the header: it is what you read out loud to someone
@@ -1121,11 +1359,9 @@ private fun ConnectionCard(
     /** Null when the console does not ask for one, the column then disappears. */
     port: String?,
     romName: String?,
-    onCopyIp: () -> Unit,
-    onCopyPort: () -> Unit,
     /**
-     * False in the pane, where its forty dp are exactly what clipped the copy
-     * buttons — and a game name is not a state you act on.
+     * False in the pane, where its forty dp are exactly what clipped the card —
+     * and a game name is not a state you act on.
      * pourquoi : docs/decisions/session.md § Les partis pris de dessin de cet écran
      */
     showGame: Boolean = true
@@ -1153,29 +1389,18 @@ private fun ConnectionCard(
                     }
                 }
             }
-            // Equal widths and equal heights: without the weight the port pill
-            // was wider than the IP one, and without the shared intrinsic height
-            // whichever wrapped to two lines overhung its neighbour. Two actions
-            // of the same rank must be the same size.
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.height(IntrinsicSize.Min)
-            ) {
-                GhostButton(
-                    label = stringResource(R.string.session_copy_ip),
-                    onClick = onCopyIp,
-                    fillWidth = true,
-                    modifier = Modifier.weight(1f).fillMaxHeight()
-                )
-                if (port != null) {
-                    GhostButton(
-                        label = stringResource(R.string.session_copy_port),
-                        onClick = onCopyPort,
-                        fillWidth = true,
-                        modifier = Modifier.weight(1f).fillMaxHeight()
-                    )
-                }
-            }
+            // **Plus de boutons « copier ».**
+            //
+            // Ils venaient d'une epoque ou le joueur remplissait le formulaire
+            // de l'emulateur a la main. Emufii le remplit pour lui, et quand
+            // elle ne peut pas — Android ayant coupe le service — la carte
+            // au-dessus dit quoi taper, ce que le presse-papier ne saurait de
+            // toute facon porter qu'a moitie : il ne tient qu'une valeur a la
+            // fois et la boite de dialogue en veut deux.
+            //
+            // Ils coutaient 62 dp, et c'est exactement ce qui manquait pour que
+            // ce panneau tienne sans defiler.
+            // pourquoi : docs/decisions/session.md § Copier l'adresse n'a plus de sens depuis qu'Emufii la remplit
         }
     }
 }

@@ -564,7 +564,11 @@ private fun PrivacyToggle(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        Switch(checked = checked, onCheckedChange = onChange, enabled = enabled)
+        // Le meme interrupteur que les reglages, et c'est le dernier controle
+        // Material qui restait a l'ecran : sa piste plate et sa pastille sans
+        // relief se lisaient comme un autocollant pose sur une plaque moulee.
+        // pourquoi : docs/decisions/reglages-ecran.md § Un réglage qui n'a que deux états est un interrupteur
+        SwitchFace(checked = checked)
     }
 }
 

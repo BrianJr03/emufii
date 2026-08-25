@@ -86,10 +86,6 @@
     <string name="session_host_address">Host address</string>
     <string name="session_psp_address">Address to set in PPSSPP</string>
     <string name="session_room_address">Room address</string>
-    <string name="session_copy_ip">Copy IP</string>
-    <string name="session_copy_port">Copy port</string>
-    <string name="session_ip_copied">IP copied</string>
-    <string name="session_port_copied">Port copied</string>
     <string name="session_game">Game</string>
     <string name="session_port">Port</string>
     <string name="session_close">Close session</string>
@@ -221,7 +217,6 @@
     <string name="settings_accent_white">White</string>
     <string name="settings_accent_rose">Rose</string>
     <string name="settings_library_fact_folder">Folder</string>
-    <string name="settings_library_ready">Library in place</string>
     <string name="settings_library_note">Subfolders are scanned too, whichever console they hold.</string>
     <string name="settings_library_change">Change folder</string>
     <string name="settings_keys_fact_effect">Effect</string>
@@ -233,25 +228,15 @@
     <string name="settings_keys_forget">Forget keys</string>
     <string name="settings_keys_bad">That file does not hold the expected keys.</string>
     <string name="settings_library_rescan">Rescan now</string>
-    <plurals name="settings_library_found">
-        <item quantity="one">%d game found</item>
-        <item quantity="other">%d games found</item>
-    </plurals>
     <string name="settings_about_body">Emufii sets up remote multiplayer between emulators: it shares a network, it doesn\'t reimplement any game. Distributed under the AGPL 3.0 licence, it never routes to Nintendo\'s official servers and ships no ROMs, no BIOS and no keys.</string>
     <!-- Settings screen sections and rows -->
-    <string name="settings_sec_you">You</string>
-    <string name="settings_sec_library">Library</string>
-    <string name="settings_sec_app">App</string>
-    <string name="settings_sec_danger">Danger zone</string>
     <string name="settings_row_identity">Name and photo</string>
     <string name="settings_row_folder">ROM folder</string>
     <string name="settings_row_keys">Console keys</string>
     <string name="settings_row_artwork">Game icons</string>
     <string name="settings_row_autofill">Automatic filling</string>
-    <string name="settings_value_autofill_on">On</string>
-    <string name="settings_value_autofill_off">Off</string>
-    <string name="settings_autofill_state_on">Automatic filling is on</string>
-    <string name="settings_autofill_state_off">Automatic filling is off</string>
+    <string name="settings_value_autofill_on">Enabled</string>
+    <string name="settings_value_autofill_off">Disabled</string>
     <string name="settings_keys_state_ok">Keys in place</string>
     <string name="settings_keys_state_none">No console keys</string>
     <string name="settings_autofill_on">Emufii can fill the address into the emulator\'s multiplayer menu, so you have nothing to copy out.</string>
@@ -259,15 +244,6 @@
     <string name="settings_autofill_note">Android can switch it off on its own, after an update or a change of device. This is where it goes back on.</string>
     <string name="settings_autofill_open">Open Android settings</string>
     <string name="emulators_installed_unknown">Installed</string>
-    <string name="settings_row_consoles">Consoles</string>
-    <string name="settings_value_consoles_all">All</string>
-    <string name="settings_value_consoles_some">%1$d of %2$d</string>
-    <string name="settings_row_about">About Emufii</string>
-    <string name="settings_value_keys_ok">In place</string>
-    <string name="settings_value_keys_none">None</string>
-    <string name="settings_value_artwork_on">On</string>
-    <string name="settings_value_artwork_off">No key</string>
-    <string name="settings_value_none">None</string>
     <string name="common_cancel">Cancel</string>
     <string name="common_copied">Copied: %1$s</string>
 
@@ -380,16 +356,13 @@
     <string name="profile_reset">Delete my profile</string>
     <string name="profile_reset_confirm">Delete your profile? This can\'t be undone: your friend code changes, and your friends list is erased.</string>
     <string name="profile_reset_done">Profile deleted</string>
-    <string name="settings_artwork_status_cocoon">Cocoon\'s artwork is in use</string>
-    <string name="settings_artwork_status_catalogue">Artwork comes from the catalogue</string>
-    <string name="settings_artwork_status_none">The ROMs\' own icons, as they are</string>
     <string name="settings_artwork_fact_fallback">Fallback</string>
     <string name="settings_artwork_fallback_on">SteamGridDB, for whatever Cocoon misses</string>
     <string name="settings_artwork_fallback_off">None</string>
     <string name="settings_cocoon_body">If you use Cocoon, Emufii can take the artwork you already have there, including the ones you re-cropped yourself. No key, no download: your games wear the face you gave them.</string>
     <string name="settings_cocoon_choose">Pick the Cocoon folder</string>
-    <string name="settings_cocoon_change">Change the Cocoon folder</string>
-    <string name="settings_cocoon_forget">Stop using Cocoon</string>
+    <string name="settings_cocoon_change">Change folder</string>
+    <string name="settings_cocoon_forget">Stop using it</string>
     <string name="settings_artwork_body">ROMs only carry a 32 or 48 pixel icon. With a SteamGridDB key, the library fetches real, sharp ones.</string>
     <string name="settings_artwork_field">SteamGridDB key</string>
     <string name="settings_artwork_where">Free key at steamgriddb.com, in your account preferences. Without it, the ROMs\' own icons stay.</string>
@@ -409,8 +382,6 @@
     <string name="hide_cancel">Cancel</string>
     <string name="hide_confirm">Remove</string>
     <string name="settings_row_hidden">Games removed from the menu</string>
-    <string name="settings_value_hidden_none">None</string>
-    <string name="settings_value_hidden_some">%1$d</string>
     <string name="settings_hidden_body">Removed games stay on your storage: only their tile is gone. Restoring puts them all back in the grid, in alphabetical place.</string>
     <string name="settings_hidden_restore">Restore all</string>
     <string name="rename_title">Rename game</string>
@@ -434,33 +405,20 @@
     <string name="launch_ppsspp_setup_missing">The PPSSPP setup is missing. Open Emufii\'s settings, "Automatic PPSSPP setup": without it, a PSP session never joins the game\'s ad hoc lobby.</string>
     <string name="settings_row_ps2_profile">PS2 network profile</string>
     <string name="settings_row_ppsspp_config">PPSSPP automatic setup</string>
-    <string name="settings_value_ppsspp_config_on">Ready</string>
-    <string name="settings_value_ppsspp_config_off">To do</string>
-    <string name="settings_ppsspp_config_body">Choose PPSSPP’s memory-stick root once — the folder containing PSP/SYSTEM/ppsspp.ini. Android grants access only to that folder. Before a private session, Emufii writes PPSSPP’s supported per-game network settings; public launch restores the values that were there before. Exit a running PSP game to PPSSPP’s menu before switching modes.</string>
-    <string name="settings_ppsspp_config_ready">Automatic private-session setup is ready.</string>
     <string name="settings_ppsspp_config_not_ready">The saved folder is unavailable or no longer writable.</string>
     <string name="settings_ppsspp_config_choose">Choose PPSSPP folder</string>
-    <string name="settings_ppsspp_config_change">Change PPSSPP folder</string>
-    <string name="settings_value_ps2_profile_on">Ready</string>
-    <string name="settings_value_ps2_profile_off">To do</string>
+    <string name="settings_ppsspp_config_change">Change folder</string>
     <string name="settings_ps2_fact_card">Card</string>
     <string name="settings_ps2_fact_source">Copied from</string>
     <string name="settings_ps2_fact_bios">BIOS</string>
     <string name="settings_ps2_fact_console">Console</string>
-    <string name="settings_ps2_status_failed">Preparation failed</string>
-    <string name="settings_ps2_status_not_assigned">The prepared card must be checked again</string>
-    <string name="settings_ps2_status_no_folder">Point Emufii at ARMSX2\'s folder to start</string>
-    <string name="settings_ps2_status_todo">Still to prepare</string>
-    <string name="settings_ps2_profile_body">Choose ARMSX2\'s custom data folder. Emufii detects the card and BIOS, then prepares a verified card carrying the network profile: a backed-up clone when possible, or a new card with saves copied from a folder card. At launch, Emufii assigns it only to the selected game. ARMSX2 does not need to be navigated and no save is removed.</string>
     <string name="settings_ps2_profile_created">Clone: %1$s · source: %2$s</string>
     <string name="settings_ps2_profile_new_card">new card</string>
     <string name="settings_ps2_profile_identity">BIOS: %1$s · i.Link: %2$s</string>
     <string name="settings_ps2_profile_default_bios">ARMSX2 default NVM</string>
-    <string name="settings_ps2_profile_preparing">Reading, backing up, and verifying the card…</string>
     <string name="settings_ps2_profile_opening">Opening ARMSX2\'s global memory-card manager…</string>
     <string name="settings_ps2_profile_preserving">Preserving the original card in slot 2…</string>
     <string name="settings_ps2_profile_assigning">Assigning slot 1 and verifying it…</string>
-    <string name="settings_ps2_profile_done">PS2 profile is ready for automatic per-game launch.</string>
     <string name="settings_ps2_profile_accessibility">Enable automatic filling: Emufii needs it to assign the card through ARMSX2\'s real settings.</string>
     <string name="settings_ps2_profile_no_armsx2">ARMSX2 is not installed.</string>
     <string name="settings_ps2_profile_bad_folder">This is not the root of ARMSX2\'s custom folder: the memcards subfolder is missing.</string>
@@ -485,7 +443,7 @@
     <string name="hint_ps2_profile_choose_folder">Choose the ARMSX2 folder</string>
     <string name="hint_ps2_profile_redo">Set it up again</string>
     <string name="hint_ps2_profile_button">Prepare automatically</string>
-    <string name="hint_ps2_profile_change_folder">Change ARMSX2 folder</string>
+    <string name="hint_ps2_profile_change_folder">Change folder</string>
     <string name="hint_ps2_pad">With the network adapter attached, some games stop responding to the controller entirely. If that happens, turn DEV9 Ethernet off in ARMSX2.</string>
     <string name="hint_ps2_automated">When you launch, Emufii configures DEV9, Local Link, the room and the network card for this game, then opens it directly. No ARMSX2 navigation is needed.</string>
     <string name="hint_ps2_manual">In ARMSX2, Settings then Network: local mode, and enter %1$s.</string>
@@ -494,7 +452,7 @@
     <string name="emulators_version_short">v%1$s</string>
     <string name="emulators_absent_short">Not installed</string>
     <string name="consoles_pick_title">Your consoles</string>
-    <string name="consoles_pick_body">These are the emulators that run the games, Emufii runs none itself. Turn a console off to take it out of your library, with its games.</string>
+    <string name="consoles_pick_body">Turn a console off to take it out of your library, with its games.</string>
     <string name="consoles_pick_note">Proven at the versions shown here.</string>
 
     <!-- Second screen (Thor rear panel and any presentation display) -->
@@ -533,13 +491,8 @@
     <string name="alert_friend_in_game">is in a game</string>
     <string name="settings_notifications">Notifications</string>
     <string name="settings_notifications_note">Emufii tells you when a friend comes online or starts a game, and when a new version is out. Outside the app an alert can arrive up to a quarter of an hour late: with no push service, Android only wakes the app at intervals.</string>
-    <string name="settings_notify_friends_on">Friends on</string>
-    <string name="settings_notify_friends_off">Friends off</string>
-    <string name="settings_notify_updates_on">Updates on</string>
-    <string name="settings_notify_updates_off">Updates off</string>
     <string name="settings_notify_blocked">Notifications refused in Android</string>
-    <string name="settings_notify_watching">Watching</string>
-    <string name="settings_notify_silent">Nothing to report</string>
+    <string name="settings_notify_silent">Disabled</string>
     <string name="settings_notify_open_android">Open Android settings</string>
 
     <!-- Second screen: what Emufii does on each machine, when the cursor is on its folder -->
@@ -560,4 +513,67 @@
     <string name="brief_dolphin_1">Dolphin runs the games, and its own Netplay is what carries the match.</string>
     <string name="brief_dolphin_2">Emufii raises the tunnel and puts you in the same lobby; the session code is what your friend types.</string>
     <string name="brief_dolphin_warning">Both players must launch exactly the same dump, or Dolphin refuses the match.</string>
+    <!-- Settings: the hub and its seven pages -->
+    <string name="settings_page_profile">Profile</string>
+    <string name="settings_page_library">Library</string>
+    <string name="settings_page_consoles">Consoles</string>
+    <string name="settings_page_emulators">Emulators</string>
+    <string name="settings_page_appearance">Appearance</string>
+    <string name="settings_page_general">General</string>
+    <string name="settings_page_about">About</string>
+    <string name="settings_sub_library">ROM folder, artwork, keys, hidden games</string>
+    <string name="settings_sub_emulators">What to set up outside Emufii</string>
+    <string name="settings_sub_general">Notifications, second screen</string>
+    <string name="settings_pill_scanning">Scanning</string>
+    <string name="settings_pill_no_folder">No folder</string>
+    <string name="settings_pill_ready">Ready</string>
+    <string name="settings_pill_ratio">%1$d / %2$d</string>
+    <string name="settings_pill_consoles">%1$d of %2$d consoles</string>
+    <plurals name="settings_pill_games">
+        <item quantity="one">%d game</item>
+        <item quantity="other">%d games</item>
+    </plurals>
+    <string name="settings_about_fact_build">Build</string>
+    <!-- Settings: the setup steps, split out of the two paragraph walls -->
+    <string name="settings_ppsspp_step1">Pick PPSSPP\'s memory-stick root: the folder holding PSP/SYSTEM/ppsspp.ini. Android grants access to that one only.</string>
+    <string name="settings_ppsspp_step2">Before a private session, Emufii writes the per-game network settings PPSSPP understands.</string>
+    <string name="settings_ppsspp_step3">A public launch puts back whatever was there before.</string>
+    <string name="settings_ppsspp_caveat">Leave a running PSP game to PPSSPP\'s menu before switching modes.</string>
+    <string name="settings_ps2_step1">Pick ARMSX2\'s custom folder. Emufii finds the memory card and the BIOS in it.</string>
+    <string name="settings_ps2_step2">Emufii prepares a checked card carrying the network profile: a copy of yours where possible, otherwise a fresh card holding a folder card\'s saves.</string>
+    <string name="settings_ps2_step3">At launch it is assigned to the chosen game only. No save is ever deleted.</string>
+    <string name="settings_artwork_source_cocoon">Cocoon</string>
+    <string name="settings_artwork_source_catalogue">Catalogue</string>
+    <string name="settings_artwork_source_none">ROM icons</string>
+    <string name="settings_profile_seen_by">What others see</string>
+    <string name="settings_pill_todo">To do</string>
+    <string name="settings_pill_working">Working</string>
+    <string name="settings_pill_failed">Failed</string>
+    <string name="settings_pill_none">None</string>
+    <plurals name="settings_pill_hidden">
+        <item quantity="one">%d hidden</item>
+        <item quantity="other">%d hidden</item>
+    </plurals>
+    <string name="settings_notify_friends">Friends</string>
+    <string name="settings_notify_updates">Updates</string>
+    <string name="settings_second_screen_switch">Show on the rear panel</string>
+    <string name="settings_library_subfolders">Subfolders are scanned too, whichever console they hold.</string>
+    <string name="settings_about_fact_licence">Licence</string>
+    <string name="settings_about_join">Join in</string>
+    <string name="settings_about_discord">Join the Discord</string>
+    <string name="settings_about_kofi">Support us on Ko-fi</string>
+    <string name="settings_consoles_block">What shows up in the grid</string>
+    <string name="session_close_confirm">The session closes for everyone and the tunnel comes down. A game already running keeps going.</string>
+    <string name="session_leave_confirm">You leave the session and the tunnel comes down. A game already running keeps going.</string>
+    <string name="settings_sec_you">You</string>
+    <string name="settings_sec_library">Library and consoles</string>
+    <string name="settings_sec_emulators">Before you play</string>
+    <string name="settings_sec_app">The app</string>
+    <string name="friends_on_panel">The friends list is on the second screen</string>
+    <plurals name="friends_count">
+        <item quantity="one">%d friend</item>
+        <item quantity="other">%d friends</item>
+    </plurals>
+    <string name="friends_panel_title">Friends list</string>
+    <string name="friends_count_online">%1$d online</string>
 </resources>

@@ -88,13 +88,19 @@ private class EmufiiPresentation(
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Nothing on this panel is touchable, so nothing on it should be able to
-        // steal a press meant for the game or for the app. Without this the
-        // window takes focus when it appears and the front screen loses it.
+        // **Le panneau est tactile.** Il ne l'etait pas : la fenetre portait
+        // `FLAG_NOT_TOUCHABLE` et `FLAG_NOT_FOCUSABLE` pour qu'elle ne vole
+        // jamais un appui destine au jeu, ce qui en faisait un afficheur et
+        // rien d'autre. La Thor arbitre le focus entre ses deux ecrans — une
+        // pression donne le focus a l'ecran presse — donc l'appui destine au
+        // jeu ne se perd pas, et le panneau peut porter des commandes.
+        //
+        // `FLAG_NOT_TOUCH_MODAL` reste : ce qui est presse **a cote** de la
+        // fenetre continue d'aller a ce qu'il y a derriere, au lieu d'etre
+        // avale par une fenetre plein ecran qui n'en voulait pas.
+        // pourquoi : docs/decisions/second-ecran.md § Le panneau prend les etapes, parce qu'il est tactile
         window?.apply {
-            addFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE)
             addFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL)
-            addFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE)
         }
 
         // WARNING: `context` here is NOT the constructor parameter — a

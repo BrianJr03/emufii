@@ -17,6 +17,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import eu.emufii.app.LocalEnsureVpnPermission
 import eu.emufii.app.R
 import eu.emufii.app.library.Backend
@@ -42,6 +43,9 @@ import eu.emufii.app.profile.ProfileStore
 import eu.emufii.app.ps2.Ps2NetworkProfile
 import eu.emufii.app.settings.SettingsStore
 import eu.emufii.app.session.RomRef
+import eu.emufii.app.profile.Friend
+import eu.emufii.app.profile.Profile
+import eu.emufii.app.secondscreen.PanelFriend
 import eu.emufii.app.secondscreen.SecondScreen
 import eu.emufii.app.secondscreen.SecondScreenModel
 import eu.emufii.app.session.Session
@@ -58,7 +62,7 @@ import eu.emufii.app.ui.screens.PreparingScreen
 import eu.emufii.app.ui.screens.PspOnlineScreen
 import eu.emufii.app.ui.screens.SessionFinderScreen
 import eu.emufii.app.ui.screens.SessionScreen
-import eu.emufii.app.ui.screens.SettingsScreen
+import eu.emufii.app.ui.screens.settings.SettingsScreen
 import eu.emufii.app.ui.screens.SplashScreen
 import eu.emufii.app.ui.screens.WfcScreen
 import eu.emufii.app.wfc.WfcManager
@@ -172,23 +176,10 @@ fun EmufiiApp(settings: SettingsStore) {
     var screen by remember {
         mutableStateOf<Screen>(if (onProfilePage) Screen.ProfileAndSettings else Screen.Library)
     }
-    // Derived from `screen`, never pushed per call site, so the panel cannot
-    // disagree with the app; held at process scope for the service host.
+    // Ce que le panneau recoit est derive de `screen` — jamais pousse depuis un
+    // site d'appel — pour qu'il ne puisse pas etre en desaccord avec l'app. Le
+    // bloc vit ici, apres l'etat des amis, parce qu'une des faces en depend.
     // pourquoi : docs/decisions/lancement-et-navigation.md § Ce que le second écran reçoit
-    LaunchedEffect(screen) {
-        SecondScreen.publish(
-            (screen as? Screen.InSession)?.session?.let { active ->
-                SecondScreenModel.InSession(
-                    code = active.code,
-                    role = active.role,
-                    console = active.console,
-                    gameTitle = active.rom?.displayName,
-                    hostAddress = active.hostIp,
-                    port = active.port,
-                )
-            } ?: SecondScreenModel.Idle
-        )
-    }
     // The panel must not survive the app that feeds it: a stale code glowing
     // on a handheld's back is the failure this feature gets blamed for.
     // pourquoi : docs/decisions/lancement-et-navigation.md § Ce que le second écran reçoit
@@ -527,6 +518,71 @@ fun EmufiiApp(settings: SettingsStore) {
     val friendCodes = friends.map { it.code }
     LaunchedEffect(friendCodes) { watcher.run(friendCodes) }
 
+    // Les libelles d'etat des amis, resolus **ici**, du cote qui parle la langue
+    // de l'interface : la fenetre du panneau a son propre contexte d'affichage.
+    // pourquoi : docs/decisions/second-ecran.md § La liste d'amis descend au dos, les deux cartes restent devant
+    val friendPlayingUnknown = stringResource(R.string.friends_playing_unknown)
+    // Le nom de repli, resolu ici aussi : `playerDisplayName` est composable, et
+    // un effet n'est pas une composition.
+    val friendUnnamed = stringResource(R.string.profile_default_name)
+    val friendOnline = stringResource(R.string.friends_online)
+    val friendOffline = stringResource(R.string.friends_offline)
+
+    LaunchedEffect(screen, friends, friendStatuses) {
+        if (screen is Screen.Friends) {
+            SecondScreen.publish(
+                SecondScreenModel.Friends(
+                    entries = friends
+                        // Le meme ordre que l'ecran de face : en jeu, puis en
+                        // ligne, puis les autres par nom. Deux ordres pour une
+                        // meme liste, ce serait deux listes.
+                        .sortedWith(
+                            compareByDescending<Friend> {
+                                friendStatuses[it.code]?.inSession == true
+                            }
+                                .thenByDescending { friendStatuses[it.code]?.online == true }
+                                .thenBy { (it.name ?: it.displayCode).lowercase() }
+                        )
+                        .map { friend ->
+                            val status = friendStatuses[friend.code]
+                            PanelFriend(
+                                name = friend.name?.takeIf { it.isNotBlank() }
+                                    ?.takeIf { it != Profile.DEFAULT_NAME }
+                                    ?: friend.displayCode.ifBlank { friendUnnamed },
+                                line = when {
+                                    status?.inSession == true ->
+                                        status.romTitle ?: friendPlayingUnknown
+                                    status?.online == true -> friendOnline
+                                    else -> friendOffline
+                                },
+                                online = status?.online == true,
+                                inSession = status?.inSession == true,
+                                onRemove = { friendStore.remove(friend.code) },
+                            )
+                        }
+                )
+            )
+            return@LaunchedEffect
+        }
+        SecondScreen.publish(
+            (screen as? Screen.InSession)?.session?.let { active ->
+                SecondScreenModel.InSession(
+                    code = active.code,
+                    role = active.role,
+                    console = active.console,
+                    gameTitle = active.rom?.displayName,
+                    // Les memes valeurs que l'ecran de face, par la meme
+                    // definition : le panneau recevait `hostIp` brut, donc une
+                    // session Eden avec salon publiait au dos une adresse que
+                    // l'emulateur n'attend pas.
+                    // pourquoi : docs/decisions/session.md § Ce que le panneau arrière porte, l'écran de face ne le redit pas
+                    hostAddress = active.shownAddress,
+                    port = active.shownPort,
+                )
+            } ?: SecondScreenModel.Idle
+        )
+    }
+
     var alert by remember { mutableStateOf<FriendEvent?>(null) }
     LaunchedEffect(watcher) {
         watcher.alerts.collect { event ->
@@ -680,6 +736,7 @@ fun EmufiiApp(settings: SettingsStore) {
             profileStore = profileStore,
             friendStore = friendStore,
             settingsStore = settingsStore,
+            romsRepo = romsRepo,
             libraryFolder = libraryFolder,
             libraryScanning = libraryScanning,
             libraryCount = libraryCount,

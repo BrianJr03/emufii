@@ -7,6 +7,13 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!--
+      Required by the notification watch, and only by it: Android refuses a
+      persisted periodic job without it. Nothing runs at boot on its own; the
+      permission is what lets the already-scheduled job survive a restart, which
+      a handheld does every day.
+    -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!--
       Installer la mise à jour depuis la bannière. Ne donne pas le droit
       d'installer : elle donne le droit de *demander*, et Android n'ouvre son
       dialogue qu'après que le joueur a autorisé Emufii dans ses réglages. Voir
@@ -86,6 +93,16 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!--
+          The watch that runs while Emufii is closed: friends coming online and
+          new versions. Periodic, network-bound, and persisted across reboots.
+          Bound by the platform, so it carries the scheduler's own permission.
+        -->
+        <service
+            android:name=".notify.FriendWatchJob"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
 
         <service
             android:name=".wg.EmufiiWgService"

@@ -130,10 +130,17 @@ fun FriendsChip(
     modifier: Modifier = Modifier
 ) {
     TopBarChip(onClick = onClick, modifier = modifier) {
-        // Not a pictogram of people: two avatars stacked, the way the app
-        // already says "other players" everywhere else.
+        // La silhouette du systeme d'icones, celle que l'etat vide du chercheur
+        // porte deja.
+        //
+        // C'etaient deux avatars empiles, au motif que l'app dit « d'autres
+        // joueurs » avec des disques et non avec un pictogramme. Le motif tenait
+        // tant qu'aucune autre marque ne disait « joueur » ; depuis que le
+        // chercheur en a une, deux dessins repondaient a la meme question — et
+        // deux avatars vides a 23 dp se lisaient de loin comme une tache, pas
+        // comme des gens.
         // pourquoi : docs/decisions/direction-visuelle.md § Les glyphes disent « d'autres joueurs » comme le reste de l'app
-        FriendsAvatars()
+        PersonMark(size = 22.dp, color = MaterialTheme.colorScheme.onSurface)
     }
 }
 

@@ -11,6 +11,8 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -67,6 +69,18 @@ import eu.emufii.app.session.Session
 import eu.emufii.app.ui.components.CompatBadge
 import eu.emufii.app.ui.components.compatLabel
 import eu.emufii.app.ui.theme.ArtworkShape
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import eu.emufii.app.ui.theme.AccentGreen
+import eu.emufii.app.secondscreen.PanelFriend
+import eu.emufii.app.ui.components.Avatar
+import androidx.compose.runtime.setValue
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import eu.emufii.app.ui.components.CrossIcon
+import eu.emufii.app.ui.components.GhostButton
+import eu.emufii.app.ui.theme.ShellRed
+import eu.emufii.app.ui.ActionShape
 import eu.emufii.app.ui.theme.CardShape
 import eu.emufii.app.ui.theme.LocalAccent
 import eu.emufii.app.ui.theme.LocalEmufiiDarkTheme
@@ -80,12 +94,20 @@ import kotlinx.coroutines.withContext
 import eu.emufii.app.ui.theme.tilePlateBrush
 import eu.emufii.app.ui.theme.plate
 import eu.emufii.app.ui.theme.socket
+import androidx.compose.foundation.focusable
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import eu.emufii.app.ui.wallpaper.TrayBackdrop
 
 /**
  * What the second panel draws, whoever is holding the window.
  *
- * It has no cursor and no controls: it reports.
  * pourquoi : docs/decisions/second-ecran.md § Le panneau n'a pas de style à lui
  */
 @Composable
@@ -93,7 +115,40 @@ fun SecondScreenContent(model: SecondScreenModel) {
     val dark = LocalEmufiiDarkTheme.current
     val page by SecondScreen.page.collectAsState()
 
-    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+    // **R tourne la page, quel que soit l'ecran qui a le focus.**
+    //
+    // La touche etait ecoutee par la grille de l'ecran de face, et c'etait juste
+    // tant que le panneau ne pouvait rien recevoir. Depuis qu'il est tactile,
+    // une pression dessus lui donne le focus de son ecran — et R n'atteignait
+    // plus personne : la commande du panneau cessait de marcher des qu'on avait
+    // touche le panneau.
+    //
+    // Les deux ecoutes coexistent, chacune sur son ecran, et elles appellent la
+    // meme chose. Le focus clavier va a une fenetre, pas a l'appareil : celle
+    // qui l'a repond, l'autre ne voit rien.
+    // pourquoi : docs/decisions/second-ecran.md § R tourne la page depuis les deux écrans
+    val keys = remember { FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { keys.requestFocus() } }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .focusRequester(keys)
+            // Focalisable sans etre focalisable a la croix : ce n'est pas une
+            // destination de curseur, c'est une oreille. Rien ici ne se
+            // selectionne.
+            .focusProperties { canFocus = true }
+            .focusable()
+            .onKeyEvent { event ->
+                if (event.type == KeyEventType.KeyDown && event.key == Key.ButtonR1) {
+                    SecondScreen.flipPage()
+                    true
+                } else {
+                    false
+                }
+            }
+    ) {
         // This window has no wallpaper behind it, so the tray is painted rather
         // than shown through.
         TrayBackdrop(modifier = Modifier.fillMaxSize(), dark = dark)
@@ -137,6 +192,15 @@ fun SecondScreenContent(model: SecondScreenModel) {
                                 ?: shown.console
                         )
                         is SecondScreenModel.Browsing -> BrowsingPages(shown, page)
+                        is SecondScreenModel.Friends -> FriendsFace(
+                            // En direct, comme la fiche console : la liste
+                            // change pendant qu'on la regarde — quelqu'un se
+                            // connecte, quelqu'un lance un jeu — et la valeur
+                            // gelee sur la cle de face resterait sur l'etat du
+                            // moment de l'ouverture.
+                            // pourquoi : docs/decisions/second-ecran.md § La console se lit en direct, les autres faces sont gelées
+                            (model as? SecondScreenModel.Friends) ?: shown
+                        )
                         is SecondScreenModel.InSession -> InSession(shown)
                     }
                 }
@@ -163,6 +227,7 @@ private fun faceKey(model: SecondScreenModel): String = when (model) {
     // itself — see [ConsoleCard]. The outer fade is for changing *face*.
     is SecondScreenModel.ConsoleFolder -> "console"
     is SecondScreenModel.Browsing -> "rom:${model.rom.uri}"
+    is SecondScreenModel.Friends -> "friends"
     is SecondScreenModel.InSession -> "session:${model.code}"
 }
 
@@ -829,27 +894,71 @@ private fun InSession(model: SecondScreenModel.InSession) {
     val dark = LocalEmufiiDarkTheme.current
     val oled = LocalEmufiiOledTheme.current
     val accent = LocalAccent.current
+    val steps by SecondScreen.steps.collectAsState()
 
+    // **Une seule colonne, et le code prend toute la largeur.**
+    //
+    // La version precedente coupait la face en deux — l'identite a gauche, les
+    // commandes a droite — pour gagner de la hauteur. Vu en vrai, c'etait pire
+    // que le probleme : chaque colonne tombait a 268 dp, le code se cassait en
+    // « NRX- » et « 572 », et le port s'ecrivait **un chiffre par ligne**.
+    //
+    // Le panneau est large (537 dp) et court (320 dp). Ce qui doit s'etaler
+    // s'etale donc en largeur, et ce qui se repete se met cote a cote : les
+    // deux commandes partagent une rangee au lieu d'empiler 130 dp.
+    // pourquoi : docs/decisions/second-ecran.md § Le panneau prend les etapes, parce qu'il est tactile
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(18.dp)
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+        // Le creux du bas remonte **cette face-la, et elle seule**.
+        //
+        // Elle est centree dans ce qui reste entre l'en-tete et la legende, et
+        // sa legende est vide alors que celle des autres faces ne l'est pas :
+        // son centre geometrique tombe donc plus bas que le leur, et elle
+        // paraissait posee trop bas quand les autres etaient justes. Le creux a
+        // d'abord ete pose sur la boite commune, ce qui a remonte les faces du
+        // menu qui n'avaient rien demande.
+        // pourquoi : docs/decisions/second-ecran.md § Chaque face se centre pour elle-même
+        modifier = Modifier.fillMaxWidth().padding(bottom = 62.dp)
     ) {
-        model.console?.let { ConsoleBadge(it) }
+        // La console et le jeu sur une meme ligne : deux etiquettes de ce que
+        // la session est, et aucune des deux ne merite sa rangee.
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            model.console?.let { ConsoleBadge(it) }
+            model.gameTitle?.let { title ->
+                Text(
+                    title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.widthIn(max = 300.dp)
+                )
+            }
+        }
 
         // Ten of lift rather than the usual four: this is the one object on the
-        // screen and it has to read as such from across a room.
+        // screen and it has to read as such from across a room. **Jamais sur
+        // deux lignes** : un code coupe en deux n'est plus un code, c'est deux
+        // morceaux qu'il faut recoller a voix haute.
         Box(
             modifier = Modifier
                 .plate(CardShape, dark = dark, oled = oled, lift = 10.dp)
-                .padding(horizontal = 44.dp, vertical = 22.dp)
+                .padding(horizontal = 34.dp, vertical = if (steps.isEmpty()) 20.dp else 12.dp)
         ) {
+            val codeSize = if (steps.isEmpty()) 80.sp else 64.sp
             Text(
                 model.code,
-                fontSize = 80.sp,
-                lineHeight = 86.sp,
+                fontSize = codeSize,
+                lineHeight = codeSize * 1.05f,
                 fontWeight = FontWeight.Black,
                 letterSpacing = 3.sp,
                 color = accent.bright,
+                maxLines = 1,
+                softWrap = false,
                 textAlign = TextAlign.Center
             )
         }
@@ -863,16 +972,242 @@ private fun InSession(model: SecondScreenModel.InSession) {
             }
         }
 
-        model.gameTitle?.let { title ->
+        // Les commandes, cote a cote : deux plaques empilees prenaient 130 dp
+        // de la hauteur qui manque, et elles disent la meme chose l'une que
+        // l'autre — « fais ceci, puis cela ».
+        if (steps.isNotEmpty()) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxWidth().padding(top = 2.dp)
+            ) {
+                steps.forEach { step ->
+                    StepButton(step, modifier = Modifier.weight(1f))
+                }
+            }
+        }
+    }
+}
+
+/**
+ * La liste d'amis, au dos.
+ *
+ * Deux colonnes des que ca depasse cinq : le panneau est large et court, et une
+ * colonne de dix rangees deborderait la boite centree, qui rogne en silence.
+ * pourquoi : docs/decisions/second-ecran.md § La liste d'amis descend au dos, les deux cartes restent devant
+ */
+@Composable
+private fun FriendsFace(model: SecondScreenModel.Friends) {
+    // La question de retrait vit **ici**, pas sur l'ecran de face : le doigt
+    // vient de presser au dos, et une question posee de l'autre cote de la
+    // machine ne se voit pas.
+    // pourquoi : docs/decisions/second-ecran.md § La liste d'amis descend au dos, les deux cartes restent devant
+    var confirming by remember { mutableStateOf<PanelFriend?>(null) }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            // En haut a gauche, et en gras : c'est le nom de ce que la face
+            // porte, pas une legende posee au-dessus d'un objet centre.
             Text(
-                title,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
+                stringResource(R.string.friends_panel_title),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            if (model.entries.isEmpty()) {
+                Text(
+                    stringResource(R.string.friends_none_body),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                return@Column
+            }
+
+            // **Deux colonnes, toujours.** Une casse ne depasse jamais la moitie
+            // de l'ecran : a pleine largeur, un nom et deux mots s'etalent sur
+            // 500 dp et la rangee se lit comme une barre. Avec un seul ami, la
+            // colonne de droite reste vide plutot que de laisser la casse
+            // grandir.
+            val half = (model.entries.size + 1) / 2
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                listOf(model.entries.take(half), model.entries.drop(half)).forEach { column ->
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        column.forEach { PanelFriendRow(it, onRemove = { confirming = it }) }
+                    }
+                }
+            }
+        }
+
+        confirming?.let { friend ->
+            PanelConfirm(
+                friend = friend,
+                onCancel = { confirming = null },
+                onConfirm = {
+                    friend.onRemove()
+                    confirming = null
+                }
+            )
+        }
+    }
+}
+
+/**
+ * La question, posee sur le panneau lui-meme.
+ *
+ * Pas un `Dialog` : une fenetre de dialogue appartient a l'ecran qui la lance,
+ * et celle-ci s'ouvrirait devant le joueur au lieu de sous ses pouces. C'est un
+ * voile et une plaque, dans la fenetre du panneau.
+ * pourquoi : docs/decisions/second-ecran.md § La liste d'amis descend au dos, les deux cartes restent devant
+ */
+@Composable
+private fun PanelConfirm(friend: PanelFriend, onCancel: () -> Unit, onConfirm: () -> Unit) {
+    val dark = LocalEmufiiDarkTheme.current
+    val oled = LocalEmufiiOledTheme.current
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            // Le plateau s'assombrit, il ne se givre pas.
+            .background(Color(0xFF060A12).copy(alpha = if (dark) 0.74f else 0.62f))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onCancel
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier
+                .widthIn(max = 420.dp)
+                .plate(CardShape, dark = dark, oled = oled, lift = 8.dp)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = {}
+                )
+                .padding(24.dp)
+        ) {
+            Text(
+                stringResource(R.string.friends_remove_confirm, friend.name),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                GhostButton(
+                    label = stringResource(R.string.friends_cancel),
+                    onClick = onCancel
+                )
+                GhostButton(
+                    label = stringResource(R.string.friends_remove),
+                    onClick = onConfirm,
+                    tint = ShellRed
+                )
+            }
+        }
+    }
+}
+
+/** Un ami : son avatar, son nom avec son point, ce qu'il fait, et la croix. */
+@Composable
+private fun PanelFriendRow(friend: PanelFriend, onRemove: () -> Unit) {
+    val dark = LocalEmufiiDarkTheme.current
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .socket(RoundedCornerShape(14.dp), dark)
+            .padding(start = 12.dp, end = 6.dp, top = 8.dp, bottom = 8.dp)
+    ) {
+        Avatar(name = friend.name, size = 34.dp)
+        Column(modifier = Modifier.weight(1f)) {
+            // Le point de presence contre le pseudo, et non a l'autre bout de la
+            // casse : c'est une propriete de la personne, pas une colonne.
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    friend.name,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Box(
+                    modifier = Modifier
+                        .size(9.dp)
+                        .clip(CircleShape)
+                        .background(
+                            if (friend.online) AccentGreen
+                            else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
+                        )
+                )
+            }
+            Text(
+                friend.line,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (friend.inSession) AccentGreen
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
         }
+        Box(
+            modifier = Modifier
+                .size(38.dp)
+                .clip(CircleShape)
+                .clickable(onClick = onRemove),
+            contentAlignment = Alignment.Center
+        ) {
+            CrossIcon(size = 16.dp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+/**
+ * Une etape, pressee au dos.
+ *
+ * Le meme dessin que sur l'ecran de face — plaque d'action, verte et cochee une
+ * fois faite — parce que c'est le meme geste : un joueur qui apprend le bouton
+ * devant doit le reconnaitre derriere.
+ * pourquoi : docs/decisions/second-ecran.md § Le panneau prend les etapes, parce qu'il est tactile
+ */
+@Composable
+private fun StepButton(step: PanelStep, modifier: Modifier = Modifier) {
+    Button(
+        onClick = step.onPress,
+        enabled = step.enabled,
+        shape = ActionShape,
+        colors = if (step.done) {
+            ButtonDefaults.buttonColors(containerColor = AccentGreen)
+        } else {
+            ButtonDefaults.buttonColors()
+        },
+        // Hauteur fixe, et la meme pour les deux : un libelle qui passe sur deux
+        // lignes ne doit pas faire grandir sa plaque a cote de sa voisine, sinon
+        // la paire se lit comme deux boutons de rangs differents.
+        modifier = modifier.height(64.dp)
+    ) {
+        Text(
+            step.label,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 
@@ -887,15 +1222,24 @@ private fun Fact(label: String, value: String) {
             .socket(RoundedCornerShape(14.dp), dark)
             .padding(horizontal = 18.dp, vertical = 9.dp)
     ) {
+        // Ni l'etiquette ni la valeur ne passent a la ligne. Serre entre deux
+        // colonnes, « Port » s'ecrivait « Por / t » et le numero un chiffre par
+        // ligne : un creux de reference qui se casse ne se lit plus, il se
+        // dechiffre.
+        // pourquoi : docs/decisions/second-ecran.md § Le panneau prend les etapes, parce qu'il est tactile
         Text(
             label,
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            softWrap = false
         )
         Text(
             value,
             style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onSurface
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            softWrap = false
         )
     }
 }

@@ -60,12 +60,27 @@ import eu.emufii.app.ui.components.EmufiiScaffold
 import eu.emufii.app.ui.components.GhostButton
 import eu.emufii.app.ui.components.SectionHeader
 import eu.emufii.app.ui.components.SoftCard
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.platform.LocalConfiguration
+import eu.emufii.app.ui.components.EmufiiKeyboard
+import eu.emufii.app.ui.components.LensMark
+import eu.emufii.app.ui.components.PersonMark
+import eu.emufii.app.ui.controlRing
+import eu.emufii.app.ui.theme.LocalEmufiiOledTheme
+import eu.emufii.app.ui.theme.plate
+import eu.emufii.app.ui.theme.socket
 import eu.emufii.app.ui.components.padEntry
 import eu.emufii.app.ui.components.SignalMark
-import eu.emufii.app.ui.theme.socket
 import eu.emufii.app.ui.theme.TileShape
-import eu.emufii.app.ui.theme.plate
-import eu.emufii.app.ui.theme.LocalEmufiiOledTheme
 import eu.emufii.app.ui.theme.LocalEmufiiDarkTheme
 import kotlinx.coroutines.delay
 
@@ -135,10 +150,25 @@ fun SessionFinderScreen(
 
     val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
+    // Le clavier de l'app, jamais celui d'Android.
+    //
+    // Le champ etait un `PadTextField`, donc un vrai champ de saisie, donc l'IME
+    // du systeme : il recouvre la moitie de l'ecran, il n'a pas la manette pour
+    // lui, et il n'a rien a voir avec le reste. La bibliotheque n'a jamais eu de
+    // champ — elle affiche la requete et pose son propre clavier — et cet ecran
+    // fait desormais pareil.
+    // pourquoi : docs/decisions/lancement-et-navigation.md § La recherche ouvre le clavier de l'app
+    var searching by remember { mutableStateOf(false) }
+
+    // B ferme le clavier avant de quitter l'ecran : c'est un sous-niveau, comme
+    // une rangee depliee l'etait dans les reglages.
+    BackHandler(enabled = searching) { searching = false }
+
     EmufiiScaffold(
         title = stringResource(R.string.finder_title),
         onBack = onBack
     ) { topPadding ->
+        Box(Modifier.fillMaxSize()) {
         when {
             loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
@@ -152,12 +182,12 @@ fun SessionFinderScreen(
             )
 
             sessions.isEmpty() && query.isBlank() -> FinderMessage(
-                // Not a drawn mark at all: an empty socket, the same recess the
-                // library leaves in its last row. "Nobody yet" is a slot with no
-                // game in it, and the tray already has a word for that — two
-                // attempts at a crescent moon proved only that a borrowed
-                // metaphor was never going to say it as plainly.
-                mark = null,
+                // Une alveole, comme le dernier rang de la grille laisse un
+                // emplacement vide — mais avec sa marque dedans. « Personne pour
+                // l'instant » parle de joueurs absents, et la silhouette est ce
+                // que l'app dessine deja pour un joueur.
+                mark = { tint -> PersonMark(size = 40.dp, color = tint) },
+                hollow = true,
                 title = stringResource(R.string.finder_nobody_yet),
                 subtitle = stringResource(R.string.finder_empty),
                 topPadding = topPadding
@@ -173,10 +203,9 @@ fun SessionFinderScreen(
                 modifier = Modifier.fillMaxSize()
             ) {
                 item {
-                    PadTextField(
-                        value = query,
-                        onValueChange = { query = it },
-                        placeholder = stringResource(R.string.finder_search),
+                    SearchField(
+                        query = query,
+                        onOpen = { searching = true },
                         modifier = Modifier.fillMaxWidth().padEntry()
                     )
                 }
@@ -203,8 +232,104 @@ fun SessionFinderScreen(
                         onJoin = { onJoin(session) }
                     )
                 }
+                // De quoi faire defiler la derniere carte au-dessus du clavier,
+                // qui la recouvrirait sinon.
+                if (searching) item { Spacer(Modifier.height(KEYBOARD_ROOM)) }
             }
         }
+
+        // Une tape a cote ferme le clavier, comme dans la bibliotheque.
+        //
+        // Un voile invisible sur tout l'ecran, declare **avant** le panneau pour
+        // que les touches restent au-dessus de lui. Sans ca, la seule facon de
+        // refermer etait `B`, et une tape sur une carte rejoignait une session
+        // en plein mot — le panneau, lui, avale deja les siennes.
+        // pourquoi : docs/decisions/lancement-et-navigation.md § La recherche ouvre le clavier de l'app
+        if (searching) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .focusProperties { canFocus = false }
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = { searching = false }
+                    )
+            )
+        }
+
+        AnimatedVisibility(
+            visible = searching,
+            enter = fadeIn(tween(140)) + slideInVertically(tween(180)) { it },
+            exit = fadeOut(tween(120)) + slideOutVertically(tween(180)) { it },
+            modifier = Modifier.align(Alignment.BottomCenter)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.72f)
+                    .padding(bottom = 16.dp)
+                    .clip(RoundedCornerShape(28.dp))
+                    .plate(
+                        shape = RoundedCornerShape(28.dp),
+                        dark = LocalEmufiiDarkTheme.current,
+                        oled = LocalEmufiiOledTheme.current,
+                        lift = 8.dp
+                    )
+                    // Le panneau avale chaque appui qui n'est pas une touche,
+                    // les interstices compris : sans ca, un rate atterrit sur la
+                    // carte derriere et rejoint une session en plein mot.
+                    .focusProperties { canFocus = false }
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = {}
+                    )
+            ) {
+                EmufiiKeyboard(
+                    onKey = { query += it },
+                    onBackspace = { if (query.isNotEmpty()) query = query.dropLast(1) },
+                    maxHeight = LocalConfiguration.current.screenHeightDp.dp / 2 - 32.dp,
+                )
+            }
+        }
+        }
+    }
+}
+
+/** Ce que le clavier prend en bas, et qu'il faut pouvoir depasser en defilant. */
+private val KEYBOARD_ROOM = 260.dp
+
+/**
+ * La barre de recherche : une alveole, pas un champ.
+ *
+ * Elle n'est pas editable — il n'y a rien a editer, le clavier de l'app ecrit
+ * dans la requete — et c'est precisement ce qui empeche l'IME du systeme de
+ * s'ouvrir. Elle reste un vrai noeud de focus, donc la manette s'y arrete et
+ * l'anneau la montre.
+ * pourquoi : docs/decisions/lancement-et-navigation.md § La recherche ouvre le clavier de l'app
+ */
+@Composable
+private fun SearchField(query: String, onOpen: () -> Unit, modifier: Modifier = Modifier) {
+    val dark = LocalEmufiiDarkTheme.current
+    val shape = RoundedCornerShape(14.dp)
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = modifier
+            .controlRing(shape)
+            .socket(shape, dark)
+            .clickable(onClick = onOpen)
+            .padding(horizontal = 16.dp, vertical = 14.dp)
+    ) {
+        LensMark(size = 20.dp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            query.ifBlank { stringResource(R.string.finder_search) },
+            style = MaterialTheme.typography.bodyLarge,
+            color = if (query.isBlank()) MaterialTheme.colorScheme.onSurfaceVariant
+                    else MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 
@@ -221,13 +346,17 @@ private fun SessionCard(session: OpenSession, rom: Rom?, onJoin: () -> Unit) {
     val pspBlocked = rom?.console == Console.PSP && !rememberPpssppReady()
     val joinBlocked = ps2Blocked || pspBlocked
 
-    // The card is the "down" destination from the header, and not the pill it
-    // contains: a `GhostButton`'s modifier applies to its frame, which is not
-    // focusable, so the request failed there silently. The card is clickable, and
-    // is a real focus node.
+    // **Plus de `padEntry` ici.** La carte etait la destination nommee de la
+    // manette, du temps ou elle etait le premier controle de l'ecran. Depuis
+    // qu'une barre de recherche la precede, elles le portaient toutes les
+    // deux — et un `FocusRequester` partage entre douze noeuds ne designe plus
+    // rien : le curseur descendait de l'en-tete vers une carte au hasard en
+    // sautant la recherche, et « haut » depuis n'importe quelle carte
+    // remontait droit au bouton retour au lieu de passer a la carte du dessus.
+    // pourquoi : docs/decisions/lancement-et-navigation.md § Une seule destination nommée par écran
     SoftCard(
         onClick = onJoin,
-        modifier = Modifier.animateContentSize().padEntry()
+        modifier = Modifier.animateContentSize()
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -329,44 +458,59 @@ private fun FinderMessage(
     mark: (@Composable (Color) -> Unit)?,
     title: String,
     subtitle: String,
-    topPadding: androidx.compose.ui.unit.Dp
+    topPadding: androidx.compose.ui.unit.Dp,
+    /**
+     * Vrai quand le bloc parle d'une **absence** : la marque se pose alors dans
+     * une alveole plutot que sur une plaque. Le plateau a deja un mot pour
+     * « rien ici », et c'est le trou.
+     */
+    hollow: Boolean = false
 ) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(top = topPadding, start = 32.dp, end = 32.dp, bottom = 32.dp),
+            // La meme marge en haut et en bas, et c'est ce qui le centre.
+            //
+            // Il n'y avait que celle du haut — la bande de l'en-tete — donc le
+            // bloc etait centre dans ce qui reste **sous** l'en-tete, et son
+            // milieu tombait une cinquantaine de dp sous le milieu de l'ecran.
+            // Un ecran vide n'a rien d'autre a regarder : le decalage se voit.
+            // pourquoi : docs/decisions/lancement-et-navigation.md § Un écran vide se centre sur l'écran, pas sous l'en-tête
+            .padding(top = topPadding, bottom = topPadding, start = 32.dp, end = 32.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // A mark sits on its own moulded disc, the same object as the header's
-        // round button: an empty state is still part of the tray, not a gap in
-        // it. With no mark, the disc gives way to the socket itself.
-        if (mark != null) {
-            Box(
-                modifier = Modifier
-                    .size(88.dp)
-                    .plate(
+        // La marque tient sur un objet moule, le meme que le bouton rond de
+        // l'en-tete : un etat vide fait encore partie du plateau, il n'y est pas
+        // un trou. Sauf quand il parle justement d'une absence, et la c'est une
+        // alveole — mais **avec sa marque dedans**.
+        //
+        // L'alveole a d'abord ete laissee nue, au motif qu'un emplacement sans
+        // jeu est deja ce que la grille dessine. Vue en vrai, elle ne se lit pas
+        // comme une metaphore : elle se lit comme une icone qui n'a pas charge.
+        // pourquoi : docs/decisions/lancement-et-navigation.md § Un écran vide se centre sur l'écran, pas sous l'en-tête
+        Box(
+            modifier = Modifier
+                .size(88.dp)
+                .then(
+                    if (hollow) Modifier.socket(TileShape, LocalEmufiiDarkTheme.current)
+                    else Modifier.plate(
                         shape = CircleShape,
                         dark = LocalEmufiiDarkTheme.current,
                         oled = LocalEmufiiOledTheme.current,
                         lift = 6.dp
-                    ),
-                contentAlignment = Alignment.Center
-            ) { mark(MaterialTheme.colorScheme.onSurfaceVariant) }
-        } else {
-            Box(
-                modifier = Modifier
-                    .size(88.dp)
-                    .socket(TileShape, LocalEmufiiDarkTheme.current)
-            )
-        }
+                    )
+                ),
+            contentAlignment = Alignment.Center
+        ) { mark?.invoke(MaterialTheme.colorScheme.onSurfaceVariant) }
+
         Spacer(Modifier.height(20.dp))
         Text(
             title,
             style = MaterialTheme.typography.headlineSmall,
-            // This Column sits straight on the wallpaper, so nothing supplies a
-            // content colour and the title falls back to black, invisible in
-            // dark mode. Every Text outside a Surface has to name its own.
+            // Cette colonne est posee a meme le fond d'ecran : rien ne fournit
+            // de couleur de contenu, et un Text sans couleur retombe en noir,
+            // invisible sur le theme sombre.
             color = MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Center
         )

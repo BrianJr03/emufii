@@ -52,70 +52,67 @@ import eu.emufii.app.ui.theme.ShellOled
 import eu.emufii.app.ui.theme.accentCuts
 
 /**
- * The look of the app, in one panel.
+ * L'apparence de l'app : quatre plateaux a comparer, puis les accents en perles.
  *
- * It replaces an unfolding row that stacked nine labelled lines — four
- * brightnesses then five colours — inside a card the rest of the settings had to
- * scroll past. Two things were wrong with that beyond its length. A list of
- * names asks you to imagine what "OLED" and "Amber" look like, when the whole
- * subject is what they look like; and a choice that changes the entire app is
- * not a detail of a row, it is its own moment. So it shows the thing: four small
- * trays you can compare side by side, and the accent as a row of beads.
+ * Ca remplacait une rangee depliante qui empilait neuf lignes nommees — quatre
+ * luminosites puis cinq couleurs — dans une carte que le reste des reglages
+ * devait faire defiler. Deux choses clochaient au-dela de la longueur. Une
+ * liste de noms demande d'imaginer ce que « OLED » et « Ambre » donnent, quand
+ * c'est justement le sujet ; et un choix qui repeint toute l'app n'est pas le
+ * detail d'une rangee. Ca a d'abord ete un panneau, puis, le jour ou les
+ * reglages sont devenus des pages, c'est devenu **la page Apparence** : un
+ * panneau modal qui repeint l'ecran qu'il recouvre se juge a travers son propre
+ * voile.
+ * pourquoi : docs/decisions/reglages-ecran.md § Un hub et sept pages, plus un accordéon
  */
 @Composable
-fun ThemeDialog(
+fun ThemeSwatches(
     theme: AppTheme,
     accent: AppAccent,
     onTheme: (AppTheme) -> Unit,
-    onAccent: (AppAccent) -> Unit,
-    onDismiss: () -> Unit
+    modifier: Modifier = Modifier,
+    /** Vrai quand le premier plateau est le premier controle de la page. */
+    firstIsEntry: Boolean = false
 ) {
-    PadDialog(
-        title = stringResource(R.string.settings_theme),
-        onDismiss = onDismiss,
-        actions = {
-            // One button, and it says "done" rather than "cancel": every choice
-            // here has already taken effect on the screen behind. There is
-            // nothing to confirm and nothing to undo that picking again would
-            // not undo better.
-            GhostButton(
-                label = stringResource(R.string.common_done),
-                onClick = onDismiss
+    val cuts = accentCuts(accent)
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        AppTheme.entries.forEachIndexed { index, option ->
+            ThemeSwatch(
+                theme = option,
+                accent = cuts,
+                selected = option == theme,
+                onClick = { onTheme(option) },
+                entry = firstIsEntry && index == 0,
+                modifier = Modifier.weight(1f)
             )
         }
+    }
+}
+
+/**
+ * Les accents, en rangee de perles de leur propre couleur.
+ *
+ * Les noms vivent **sous** la rangee plutot que sous chaque perle : cinq
+ * libelles en travers de 420 dp donnent trois lignes a « Couleur systeme » et la
+ * rangee cesse d'etre une rangee de couleurs. Seule celle qui est choisie a
+ * besoin d'etre nommee.
+ */
+@Composable
+fun AccentBeads(
+    accent: AppAccent,
+    onAccent: (AppAccent) -> Unit,
+    modifier: Modifier = Modifier,
+    /** Combien de perles par rangee. Quatre en colonne etroite, huit en large. */
+    perRow: Int = 4
+) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        val cuts = accentCuts(accent)
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            AppTheme.entries.forEach { option ->
-                ThemeSwatch(
-                    theme = option,
-                    accent = cuts,
-                    selected = option == theme,
-                    onClick = { onTheme(option) },
-                    modifier = Modifier.weight(1f)
-                )
-            }
-        }
-
-        SectionHeader(
-            stringResource(R.string.settings_accent),
-            modifier = Modifier.padding(top = 6.dp)
-        )
-
-        // The same four columns as the theme swatches above, and that is the
-        // whole point of laying it out by hand.
-        //
-        // Eight beads do not fit across the panel, so they wrap; left to
-        // themselves they wrapped seven plus an orphan, hard against the left
-        // edge, under a row of swatches that spans the full width. Two rows of
-        // four, each bead centred in its quarter, puts every bead on a column
-        // the eye has already learned one section higher, and lets the caption
-        // underneath sit centred on something rather than beside it.
-        AppAccent.entries.chunked(4).forEach { row ->
+        AppAccent.entries.chunked(perRow).forEach { row ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -132,19 +129,13 @@ fun ThemeDialog(
                         )
                     }
                 }
-                // A last row with fewer beads keeps its columns instead of
-                // spreading: the grid has to survive a ninth accent being added
-                // one day, and a half-row that re-centres itself looks like a
-                // different layout.
-                repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
+                // Une derniere rangee moins fournie garde ses colonnes au lieu
+                // de s'etaler : la grille doit survivre a un neuvieme accent
+                // ajoute un jour, et une demi-rangee qui se recentre ressemble
+                // a une autre mise en page.
+                repeat(perRow - row.size) { Spacer(Modifier.weight(1f)) }
             }
         }
-
-        // The names live under the row rather than under each bead.
-        //
-        // Five labels across 420 dp gives "Couleur système" three lines and the
-        // beads stop being a row of colours. Only the chosen one has to be
-        // named, and naming it here also gives the row a caption to settle on.
         Text(
             stringResource(accent.labelRes),
             style = MaterialTheme.typography.bodySmall,
@@ -172,7 +163,8 @@ private fun ThemeSwatch(
     accent: AccentCuts,
     selected: Boolean,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    entry: Boolean = false
 ) {
     val panelDark = LocalEmufiiDarkTheme.current
     // The selected outline animates, because picking a theme also repaints the
@@ -190,6 +182,7 @@ private fun ThemeSwatch(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(1.3f)
+                .then(if (entry) Modifier.padEntry() else Modifier)
                 .controlRing(InsetShape, width = 3.dp, glowRadius = 18.dp)
                 .clip(InsetShape)
                 .clickable(onClick = onClick)

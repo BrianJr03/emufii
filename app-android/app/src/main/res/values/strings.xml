@@ -90,10 +90,6 @@
     <string name="session_host_address">Adresse de l\'hôte</string>
     <string name="session_psp_address">Adresse à régler dans PPSSPP</string>
     <string name="session_room_address">Adresse du salon</string>
-    <string name="session_copy_ip">Copier l\'IP</string>
-    <string name="session_copy_port">Copier le port</string>
-    <string name="session_ip_copied">IP copiée</string>
-    <string name="session_port_copied">Port copié</string>
     <string name="session_game">Jeu</string>
     <string name="session_port">Port</string>
     <string name="session_close">Fermer la session</string>
@@ -225,7 +221,6 @@
     <string name="settings_accent_white">Blanc</string>
     <string name="settings_accent_rose">Rose</string>
     <string name="settings_library_fact_folder">Dossier</string>
-    <string name="settings_library_ready">Bibliothèque en place</string>
     <string name="settings_library_note">Les sous-dossiers sont explorés aussi, quelle que soit la console.</string>
     <string name="settings_library_change">Changer de dossier</string>
     <string name="settings_keys_fact_effect">Effet</string>
@@ -237,41 +232,43 @@
     <string name="settings_keys_forget">Oublier les clés</string>
     <string name="settings_keys_bad">Ce fichier ne contient pas les clés attendues.</string>
     <string name="settings_library_rescan">Relancer le scan</string>
-    <plurals name="settings_library_found">
-        <item quantity="one">%d jeu trouvé</item>
-        <item quantity="other">%d jeux trouvés</item>
-    </plurals>
     <string name="settings_about_body">Emufii monte le multijoueur distant entre émulateurs : elle partage un réseau, elle ne réimplémente aucun jeu. Distribuée sous licence AGPL 3.0, elle ne route jamais vers les serveurs officiels de Nintendo et ne distribue ni ROM, ni BIOS, ni clés.</string>
+    <!-- Settings: the hub and its seven pages -->
+    <string name="settings_page_profile">Profil</string>
+    <string name="settings_page_library">Bibliothèque</string>
+    <string name="settings_page_consoles">Consoles</string>
+    <string name="settings_page_emulators">Émulateurs</string>
+    <string name="settings_page_appearance">Apparence</string>
+    <string name="settings_page_general">Général</string>
+    <string name="settings_page_about">À propos</string>
+    <string name="settings_sub_library">Dossier de ROMs, icônes, clés, jeux masqués</string>
+    <string name="settings_sub_emulators">Ce qu\'il faut préparer hors d\'Emufii</string>
+    <string name="settings_sub_general">Notifications, second écran</string>
+    <string name="settings_pill_scanning">Scan</string>
+    <string name="settings_pill_no_folder">Aucun dossier</string>
+    <string name="settings_pill_ready">Prête</string>
+    <string name="settings_pill_ratio">%1$d / %2$d</string>
+    <string name="settings_pill_consoles">%1$d consoles sur %2$d</string>
+    <plurals name="settings_pill_games">
+        <item quantity="one">%d jeu</item>
+        <item quantity="other">%d jeux</item>
+    </plurals>
+    <string name="settings_about_fact_build">Build</string>
     <!-- Settings screen sections and rows -->
-    <string name="settings_sec_you">Toi</string>
-    <string name="settings_sec_library">Bibliothèque</string>
-    <string name="settings_sec_app">Application</string>
-    <string name="settings_sec_danger">Zone rouge</string>
     <string name="settings_row_identity">Pseudo et photo</string>
     <string name="settings_row_folder">Dossier de ROMs</string>
     <string name="settings_row_keys">Clés de console</string>
     <string name="settings_row_artwork">Icônes de jeu</string>
-    <string name="settings_row_autofill">Automatic filling</string>
-    <string name="settings_value_autofill_on">On</string>
-    <string name="settings_value_autofill_off">Off</string>
-    <string name="settings_autofill_state_on">Le remplissage automatique est actif</string>
-    <string name="settings_autofill_state_off">Le remplissage automatique est coupé</string>
+    <string name="settings_row_autofill">Remplissage automatique</string>
+    <string name="settings_value_autofill_on">Activé</string>
+    <string name="settings_value_autofill_off">Désactivé</string>
     <string name="settings_keys_state_ok">Clés en place</string>
     <string name="settings_keys_state_none">Aucune clé</string>
-    <string name="settings_autofill_on">Emufii can fill the address into the emulator\'s multiplayer menu, so you have nothing to copy out.</string>
-    <string name="settings_autofill_off">Emufii cannot fill the emulator\'s form in. Sessions still work, the address just has to be typed by hand.</string>
-    <string name="settings_autofill_note">Android can switch it off on its own, after an update or a change of device. This is where it goes back on.</string>
-    <string name="settings_autofill_open">Open Android settings</string>
+    <string name="settings_autofill_on">Emufii peut écrire l\'adresse dans le menu multijoueur de l\'émulateur : tu n\'as rien à recopier.</string>
+    <string name="settings_autofill_off">Emufii ne peut pas remplir le formulaire de l\'émulateur. Les sessions marchent quand même, l\'adresse est juste à saisir à la main.</string>
+    <string name="settings_autofill_note">Android peut le couper tout seul, après une mise à jour ou un changement d\'appareil. C\'est ici qu\'on le rallume.</string>
+    <string name="settings_autofill_open">Ouvrir les réglages d\'Android</string>
     <string name="emulators_installed_unknown">Installé</string>
-    <string name="settings_row_consoles">Consoles</string>
-    <string name="settings_value_consoles_all">Toutes</string>
-    <string name="settings_value_consoles_some">%1$d sur %2$d</string>
-    <string name="settings_row_about">À propos d\'Emufii</string>
-    <string name="settings_value_keys_ok">En place</string>
-    <string name="settings_value_keys_none">Aucune</string>
-    <string name="settings_value_artwork_on">Activées</string>
-    <string name="settings_value_artwork_off">Aucune clé</string>
-    <string name="settings_value_none">Aucun</string>
     <string name="common_cancel">Annuler</string>
     <string name="common_copied">Copié : %1$s</string>
 
@@ -390,16 +387,13 @@
     <string name="profile_reset">Supprimer mon profil</string>
     <string name="profile_reset_confirm">Supprimer ton profil ? C\'est irréversible : ton code ami change, et ta liste d\'amis est effacée.</string>
     <string name="profile_reset_done">Profil supprimé</string>
-    <string name="settings_artwork_status_cocoon">Les images de Cocoon sont utilisées</string>
-    <string name="settings_artwork_status_catalogue">Les images viennent du catalogue</string>
-    <string name="settings_artwork_status_none">Les icônes des ROMs, telles quelles</string>
     <string name="settings_artwork_fact_fallback">Secours</string>
     <string name="settings_artwork_fallback_on">SteamGridDB, pour ce que Cocoon ne couvre pas</string>
     <string name="settings_artwork_fallback_off">Aucun</string>
     <string name="settings_cocoon_body">Si tu utilises Cocoon, Emufii peut reprendre les images que tu y as déjà, y compris celles que tu as retouchées. Aucune clé, aucun téléchargement : tes jeux ont ici le visage que tu leur as donné là-bas.</string>
     <string name="settings_cocoon_choose">Choisir le dossier Cocoon</string>
-    <string name="settings_cocoon_change">Changer de dossier Cocoon</string>
-    <string name="settings_cocoon_forget">Ne plus utiliser Cocoon</string>
+    <string name="settings_cocoon_change">Changer de dossier</string>
+    <string name="settings_cocoon_forget">Ne plus utiliser</string>
     <string name="settings_artwork_body">Les ROMs ne portent qu\'une icône de 32 ou 48 pixels. Avec une clé SteamGridDB, la bibliothèque va chercher de vraies icônes, nettes.</string>
     <string name="settings_artwork_field">Clé SteamGridDB</string>
     <string name="settings_artwork_where">Clé gratuite sur steamgriddb.com, dans les préférences de ton compte. Sans elle, les icônes des ROMs restent affichées.</string>
@@ -419,8 +413,6 @@
     <string name="hide_cancel">Annuler</string>
     <string name="hide_confirm">Retirer</string>
     <string name="settings_row_hidden">Jeux retirés du menu</string>
-    <string name="settings_value_hidden_none">Aucun</string>
-    <string name="settings_value_hidden_some">%1$d</string>
     <string name="settings_hidden_body">Les jeux retirés restent sur ton stockage : seule leur tuile disparaît. Les réafficher les remet tous dans la grille, à leur place alphabétique.</string>
     <string name="settings_hidden_restore">Tout réafficher</string>
     <string name="rename_title">Renommer le jeu</string>
@@ -446,33 +438,20 @@
     <string name="launch_ppsspp_setup_missing">Il manque le paramétrage PPSSPP. Ouvre les réglages d\'Emufii, ligne « Paramétrage automatique PPSSPP » : sans lui, une session PSP ne rejoint jamais le salon ad hoc du jeu.</string>
     <string name="settings_row_ps2_profile">Profil réseau PS2</string>
     <string name="settings_row_ppsspp_config">Paramétrage automatique PPSSPP</string>
-    <string name="settings_value_ppsspp_config_on">Prêt</string>
-    <string name="settings_value_ppsspp_config_off">À faire</string>
-    <string name="settings_ppsspp_config_body">Choisis une fois la racine de la Memory Stick PPSSPP — le dossier qui contient PSP/SYSTEM/ppsspp.ini. Android ne donne accès qu’à ce dossier. Avant une session privée, Emufii écrit les réglages réseau par jeu reconnus par PPSSPP ; le lancement public restaure les valeurs présentes auparavant. Quitte un jeu PSP en cours jusqu’au menu PPSSPP avant de changer de mode.</string>
-    <string name="settings_ppsspp_config_ready">Le paramétrage automatique des sessions privées est prêt.</string>
     <string name="settings_ppsspp_config_not_ready">Le dossier mémorisé est indisponible ou n’est plus accessible en écriture.</string>
     <string name="settings_ppsspp_config_choose">Choisir le dossier PPSSPP</string>
-    <string name="settings_ppsspp_config_change">Changer le dossier PPSSPP</string>
-    <string name="settings_value_ps2_profile_on">Prêt</string>
-    <string name="settings_value_ps2_profile_off">À faire</string>
+    <string name="settings_ppsspp_config_change">Changer de dossier</string>
     <string name="settings_ps2_fact_card">Carte</string>
     <string name="settings_ps2_fact_source">Copiée de</string>
     <string name="settings_ps2_fact_bios">BIOS</string>
     <string name="settings_ps2_fact_console">Console</string>
-    <string name="settings_ps2_status_failed">La préparation a échoué</string>
-    <string name="settings_ps2_status_not_assigned">La carte préparée doit être vérifiée à nouveau</string>
-    <string name="settings_ps2_status_no_folder">Indique le dossier d\'ARMSX2 pour commencer</string>
-    <string name="settings_ps2_status_todo">Reste à préparer</string>
-    <string name="settings_ps2_profile_body">Choisis le dossier personnalisé d\'ARMSX2. Emufii détecte la carte et le BIOS, puis prépare une carte vérifiée portant le profil réseau : une copie sauvegardée quand c\'est possible, ou une carte neuve avec les sauvegardes d\'une carte dossier. Au lancement, Emufii ne l\'affecte qu\'au jeu choisi. Aucun parcours d\'ARMSX2 et aucune suppression de sauvegarde.</string>
     <string name="settings_ps2_profile_created">Clone : %1$s · source : %2$s</string>
     <string name="settings_ps2_profile_new_card">nouvelle carte</string>
     <string name="settings_ps2_profile_identity">BIOS : %1$s · i.Link : %2$s</string>
     <string name="settings_ps2_profile_default_bios">NVM ARMSX2 par défaut</string>
-    <string name="settings_ps2_profile_preparing">Lecture, sauvegarde et vérification de la carte…</string>
     <string name="settings_ps2_profile_opening">Ouverture du gestionnaire global de cartes ARMSX2…</string>
     <string name="settings_ps2_profile_preserving">Conservation de la carte originale dans le slot 2…</string>
     <string name="settings_ps2_profile_assigning">Affectation au slot 1 et vérification…</string>
-    <string name="settings_ps2_profile_done">Profil PS2 prêt pour le lancement automatique par jeu.</string>
     <string name="settings_ps2_profile_accessibility">Active le remplissage automatique : Emufii en a besoin pour affecter la carte dans les vrais réglages ARMSX2.</string>
     <string name="settings_ps2_profile_no_armsx2">ARMSX2 n\'est pas installé.</string>
     <string name="settings_ps2_profile_bad_folder">Ce n\'est pas la racine du dossier personnalisé ARMSX2 : le sous-dossier memcards est introuvable.</string>
@@ -497,7 +476,7 @@
     <string name="hint_ps2_profile_choose_folder">Choisir le dossier ARMSX2</string>
     <string name="hint_ps2_profile_redo">Refaire le paramétrage</string>
     <string name="hint_ps2_profile_button">Préparer automatiquement</string>
-    <string name="hint_ps2_profile_change_folder">Changer de dossier ARMSX2</string>
+    <string name="hint_ps2_profile_change_folder">Changer de dossier</string>
     <string name="hint_ps2_pad">Avec l\'adaptateur réseau branché, certains jeux ne répondent plus du tout à la manette. Si ça arrive, coupe DEV9 Ethernet dans ARMSX2.</string>
     <string name="hint_ps2_automated">Au lancement, Emufii configure DEV9, Local Link, le salon et la carte réseau pour ce jeu, puis l\'ouvre directement. Aucun parcours d\'ARMSX2 n\'est nécessaire.</string>
     <string name="hint_ps2_manual">Dans ARMSX2, Réglages puis Réseau : mode local, et saisis %1$s.</string>
@@ -506,7 +485,7 @@
     <string name="emulators_version_short">v%1$s</string>
     <string name="emulators_absent_short">Pas installé</string>
     <string name="consoles_pick_title">Tes consoles</string>
-    <string name="consoles_pick_body">Voici les émulateurs qui font tourner les jeux, Emufii n\'en émule aucun. Coupe une console pour la sortir de ta bibliothèque, avec ses jeux.</string>
+    <string name="consoles_pick_body">Éteins une console pour la retirer de ta bibliothèque, avec ses jeux.</string>
     <string name="consoles_pick_note">Éprouvé sur les versions affichées ici.</string>
 
     <!-- Second screen (Thor rear panel and any presentation display) -->
@@ -545,13 +524,8 @@
     <string name="alert_friend_in_game">est en partie</string>
     <string name="settings_notifications">Notifications</string>
     <string name="settings_notifications_note">Emufii prévient quand un ami se connecte ou lance un jeu, et quand une nouvelle version sort. Hors de l\'app, l\'alerte peut arriver avec un quart d\'heure de retard : sans service de push, Android ne réveille l\'app que par intervalles.</string>
-    <string name="settings_notify_friends_on">Amis activés</string>
-    <string name="settings_notify_friends_off">Amis coupés</string>
-    <string name="settings_notify_updates_on">Mises à jour activées</string>
-    <string name="settings_notify_updates_off">Mises à jour coupées</string>
     <string name="settings_notify_blocked">Notifications refusées dans Android</string>
-    <string name="settings_notify_watching">Veille active</string>
-    <string name="settings_notify_silent">Rien à signaler</string>
+    <string name="settings_notify_silent">Désactivé</string>
     <string name="settings_notify_open_android">Ouvrir les réglages Android</string>
 
     <!-- Second ecran : ce que fait Emufii sur chaque machine, quand le curseur est sur son dossier -->
@@ -572,4 +546,47 @@
     <string name="brief_dolphin_1">Dolphin lance le jeu, et c\'est son propre Netplay qui fait la partie.</string>
     <string name="brief_dolphin_2">Emufii monte le tunnel et vous réunit dans le même salon ; ton ami n\'a que le code de session à saisir.</string>
     <string name="brief_dolphin_warning">Les deux joueurs doivent lancer exactement le même dump, sinon Dolphin refuse la partie.</string>
+    <!-- Settings: the setup steps, split out of the two paragraph walls -->
+    <string name="settings_ppsspp_step1">Choisis la racine de la Memory Stick de PPSSPP : le dossier qui contient PSP/SYSTEM/ppsspp.ini. Android ne donne accès qu\'à celui-là.</string>
+    <string name="settings_ppsspp_step2">Avant une session privée, Emufii écrit les réglages réseau par jeu que PPSSPP reconnaît.</string>
+    <string name="settings_ppsspp_step3">Un lancement public remet les valeurs qui étaient là avant.</string>
+    <string name="settings_ppsspp_caveat">Quitte un jeu PSP en cours jusqu\'au menu de PPSSPP avant de changer de mode.</string>
+    <string name="settings_ps2_step1">Choisis le dossier personnalisé d\'ARMSX2. Emufii y trouve la carte mémoire et le BIOS.</string>
+    <string name="settings_ps2_step2">Emufii prépare une carte vérifiée portant le profil réseau : une copie de la tienne quand c\'est possible, sinon une carte neuve avec les sauvegardes d\'une carte dossier.</string>
+    <string name="settings_ps2_step3">Au lancement, elle n\'est affectée qu\'au jeu choisi. Aucune sauvegarde n\'est supprimée.</string>
+    <string name="settings_artwork_source_cocoon">Cocoon</string>
+    <string name="settings_artwork_source_catalogue">Catalogue</string>
+    <string name="settings_artwork_source_none">Icônes des ROMs</string>
+    <string name="settings_profile_seen_by">Ce que les autres voient</string>
+    <string name="settings_pill_todo">À faire</string>
+    <string name="settings_pill_working">En cours</string>
+    <string name="settings_pill_failed">Échec</string>
+    <string name="settings_pill_none">Aucun</string>
+    <plurals name="settings_pill_hidden">
+        <item quantity="one">%d masqué</item>
+        <item quantity="other">%d masqués</item>
+    </plurals>
+    <string name="settings_notify_friends">Amis</string>
+    <string name="settings_notify_updates">Mises à jour</string>
+    <string name="settings_second_screen_switch">Afficher sur le panneau arrière</string>
+    <string name="settings_library_subfolders">Sous-dossiers explorés aussi, quelle que soit la console.</string>
+    <string name="settings_about_fact_licence">Licence</string>
+    <string name="settings_about_licence_value" translatable="false">AGPL 3.0</string>
+    <string name="settings_about_join">Rejoindre</string>
+    <string name="settings_about_discord">Rejoindre le Discord</string>
+    <string name="settings_about_kofi">Soutenir sur Ko-fi</string>
+    <string name="settings_consoles_block">Ce qui apparaît dans la grille</string>
+    <string name="session_close_confirm">La session se ferme pour tout le monde, et le tunnel est coupé. Le jeu en cours, lui, continue.</string>
+    <string name="session_leave_confirm">Tu quittes la session et le tunnel est coupé. Le jeu en cours, lui, continue.</string>
+    <string name="settings_sec_you">Toi</string>
+    <string name="settings_sec_library">Bibliothèque et consoles</string>
+    <string name="settings_sec_emulators">Avant de jouer</string>
+    <string name="settings_sec_app">L\'application</string>
+    <string name="friends_on_panel">La liste d\'amis est sur le second écran</string>
+    <plurals name="friends_count">
+        <item quantity="one">%d ami</item>
+        <item quantity="other">%d amis</item>
+    </plurals>
+    <string name="friends_panel_title">Liste d\'amis</string>
+    <string name="friends_count_online">%1$d en ligne</string>
 </resources>

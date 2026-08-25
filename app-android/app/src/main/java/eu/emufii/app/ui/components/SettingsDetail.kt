@@ -22,6 +22,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import eu.emufii.app.ui.theme.LocalEmufiiDarkTheme
 import eu.emufii.app.ui.theme.LocalEmufiiOledTheme
@@ -190,7 +191,7 @@ private fun FactRow(fact: DetailFact) {
  * invented a second one would be teaching the player twice.
  */
 @Composable
-private fun StateBead(tone: DetailTone) {
+fun StateBead(tone: DetailTone, size: Dp = 14.dp) {
     val fill = when (tone) {
         DetailTone.GOOD -> listOf(Color(0xFF12A55C), Color(0xFF0C6A3B))
         DetailTone.BUSY -> listOf(Color(0xFF3C82C4), Color(0xFF255C93))
@@ -206,12 +207,12 @@ private fun StateBead(tone: DetailTone) {
             .padding(3.dp),
         contentAlignment = Alignment.Center
     ) {
-        Box(Modifier.size(14.dp), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(size), contentAlignment = Alignment.Center) {
             when (tone) {
-                DetailTone.GOOD -> CheckIcon(size = 12.dp, color = Color.White)
-                DetailTone.BUSY -> TildeIcon(size = 13.dp, color = Color.White)
-                DetailTone.WARN -> WarnIcon(size = 12.dp, color = Color.White)
-                DetailTone.BAD -> CrossIcon(size = 11.dp, color = Color.White)
+                DetailTone.GOOD -> CheckIcon(size = size * (12f / 14f), color = Color.White)
+                DetailTone.BUSY -> TildeIcon(size = size * (13f / 14f), color = Color.White)
+                DetailTone.WARN -> WarnIcon(size = size * (12f / 14f), color = Color.White)
+                DetailTone.BAD -> CrossIcon(size = size * (11f / 14f), color = Color.White)
             }
         }
     }

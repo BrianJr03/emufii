@@ -1,0 +1,39 @@
+<!-- La tasse de Ko-fi, redessinee dans la langue d'icones de l'app : boite de
+     24 unites, un seul trait, bouts et jointures ronds. Ce n'est pas le logo de
+     Ko-fi et ne pretend pas l'etre — le nom du service est ecrit a cote, en
+     toutes lettres, ce qui est plus honnete qu'une marque approximative.
+     pourquoi : docs/decisions/reglages-ecran.md § Les deux liens sortants, et leur ordre -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:strokeColor="#FF5E5B"
+        android:strokeWidth="2.6"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent"
+        android:pathData="M4,8 L4,15 A4,4 0 0 0 8,19 L12,19 A4,4 0 0 0 16,15 L16,8 Z" />
+    <path
+        android:strokeColor="#FF5E5B"
+        android:strokeWidth="2.6"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent"
+        android:pathData="M16,9.5 L18,9.5 A2.5,2.5 0 0 1 18,14.5 L16,14.5" />
+    <path
+        android:strokeColor="#FF5E5B"
+        android:strokeWidth="2.6"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent"
+        android:pathData="M7.5,4.8 L7.5,6" />
+    <path
+        android:strokeColor="#FF5E5B"
+        android:strokeWidth="2.6"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent"
+        android:pathData="M12,4.8 L12,6" />
+</vector>
