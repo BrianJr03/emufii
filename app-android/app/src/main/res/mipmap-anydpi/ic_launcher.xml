@@ -1,20 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  The v2 logo is a wide drawing (two rings, ~1.86:1) sitting on white. So it is
-  the *background* layer, the one the launcher masks, and the foreground layer is
-  empty: there is nothing to float above it.
+  Le logo v3 est un dessin carré et détouré (deux tuiles arrondies décalées,
+  ~1:1). Contrairement au v2 il n'apporte pas son fond : il est donc la couche
+  d'*avant-plan*, et le fond est un aplat blanc.
 
-  It is scaled to 58 % of the frame's width, which is the largest rectangle of
-  that ratio fitting entirely inside an adaptive icon's safe circle. No launcher
-  mask, round or squircle, can therefore clip the rings. The price is a generous
-  white margin; the full-frame version cut the ends off the wordmark.
+  Il est mis à l'échelle à 72/108 du cadre, le carré de sécurité d'une icône
+  adaptative : aucune découpe de lanceur, ronde ou en écusson, ne peut rogner
+  les coins des tuiles.
 
-  `monochrome` is the drawing's silhouette, for Android 13's themed icons, which
-  is what the Thor uses. Without it the system keeps the icon in colour in the
-  middle of a tinted home screen.
+  `monochrome` est la silhouette du dessin pour les icônes thématiques
+  d'Android 13 — celles de la Thor. Le système n'en garde que le canal alpha,
+  donc les zones claires du logo (la plaque centrale, la croix, les boutons)
+  y sont des trous : c'est ce qui laisse le E lisible une fois teinté. Le mono
+  du v2 était un aplat opaque et se serait affiché en pavé plein.
 -->
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-    <background android:drawable="@mipmap/ic_launcher_art" />
-    <foreground android:drawable="@android:color/transparent" />
+    <background android:drawable="@color/ic_launcher_background" />
+    <foreground android:drawable="@mipmap/ic_launcher_art" />
     <monochrome android:drawable="@mipmap/ic_launcher_mono" />
 </adaptive-icon>

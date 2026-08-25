@@ -2,7 +2,7 @@
 
 # Emufii
 
-<img src="logo.png" alt="Emufii" width="300">
+<img src="logo.png" alt="Emufii" width="180">
 
 **One code, and you're in the same room.**
 

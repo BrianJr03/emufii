@@ -24,18 +24,17 @@
     <issue id="LocalContextGetResourceValueCall" severity="ignore" />
 
     <!--
-      The launcher icon filling its square, which is what an adaptive icon's
-      background layer is for.
+      La forme de l'icône de lancement.
 
-      `ic_launcher_art.png` is an opaque white square with the wordmark at 58 %
-      in the middle, and it is wired as the <background> of `ic_launcher.xml`.
-      A background layer is *required* to cover the whole 108dp square: the
-      launcher is what applies the round or squircle mask on top. Lint sees a
-      square-filling bitmap named ic_launcher_* and reads it as a legacy icon.
+      Depuis le logo v3, `ic_launcher_art.png` est un dessin détouré posé en
+      <foreground> de `ic_launcher.xml`, sur un <background> qui est un aplat de
+      couleur. Aucun des deux bitmaps ne remplit son carré, mais ils gardent le
+      préfixe `ic_launcher_`, et lint lit tout bitmap ainsi nommé comme une
+      icône historique dont il juge la silhouette.
 
-      The design is deliberate and its reasoning is written where it belongs, in
-      `mipmap-anydpi/ic_launcher.xml`. Nothing to fix here; the rule simply does
-      not describe this case.
+      Le raisonnement du découpage en couches est écrit là où il a un sens, dans
+      `mipmap-anydpi/ic_launcher.xml`. Rien à corriger ici ; la règle ne décrit
+      pas ce cas.
     -->
     <issue id="IconLauncherShape" severity="ignore" />
 
