@@ -1,10 +1,11 @@
 <div align="center">
 
-# Emufii
-
 <img src="logo.png" alt="Emufii" width="180">
 
-**One code, and you're in the same room.**
+<br>
+<br>
+
+**Emufii: One code, and you're in the same room.**
 
 Emufii puts your devices on a single network for as long as you're playing.
 Your emulators find each other exactly as they would over local Wi-Fi.
