@@ -20,26 +20,10 @@ import kotlinx.coroutines.launch
 /**
  * The watch that runs while Emufii is closed.
  *
- * ## What this can and cannot promise, stated plainly
- *
- * Emufii is sideloaded and has no push service behind it: nothing on a server
- * can wake this app up. The only honest mechanism left is to ask, now and then,
- * from the device itself. Android's floor for periodic work is fifteen minutes,
- * and Doze stretches it further on a phone in a pocket. So an alert about a
- * friend can arrive a quarter of an hour after they arrived, sometimes more,
- * and a friend who plays for ten minutes may never be announced at all.
- *
- * That is a real limit and it is written into the settings text rather than
- * hidden: a feature that quietly under-delivers teaches people to distrust every
- * notification the app ever sends. What this does deliver reliably is the slow
- * news, a new version and a friend who settles in for an evening.
- *
- * ## Why JobScheduler and not WorkManager
- *
- * WorkManager would bring a dependency, a database and a hundred kilobytes for
- * one periodic task with no chaining, no constraints beyond the network, and no
- * result to observe. The platform scheduler does this exact job, and the APK
- * stays where it is.
+ * Pas de push : on demande, toutes les quinze minutes au mieux, et la limite est
+ * ecrite dans les reglages plutot que cachee. `JobScheduler` et non WorkManager,
+ * qui couterait une base de donnees pour une tache sans chainage.
+ * pourquoi : docs/decisions/amis-et-notifications.md § Ce que la veille en arrière-plan peut promettre, et ce qu'elle ne peut pas
  */
 class FriendWatchJob : JobService() {
 

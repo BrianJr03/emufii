@@ -1,10 +1,12 @@
 package eu.emufii.app.ui.screens
 
+import eu.emufii.app.ui.sounded
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
@@ -34,6 +36,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.aspectRatio
@@ -41,10 +44,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.navigationBarsIgnoringVisibility
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.calculateEndPadding
@@ -66,6 +71,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -119,10 +125,8 @@ import eu.emufii.app.library.sortedFor
 import eu.emufii.app.ui.components.consoleArtwork
 import eu.emufii.app.ui.components.LayoutChip
 import eu.emufii.app.ui.components.SearchChip
-import dev.chrisbanes.haze.hazeEffect
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
-import eu.emufii.app.ui.components.EmufiiKeyboard
 import eu.emufii.app.ui.components.SearchField
 import eu.emufii.app.ui.components.CompatBadge
 import eu.emufii.app.library.compatKeys
@@ -131,7 +135,10 @@ import eu.emufii.app.library.RomTagReader
 import eu.emufii.app.meta.LocalGameMetaDb
 import eu.emufii.app.secondscreen.PanelFeed
 import eu.emufii.app.secondscreen.SecondScreen
+import eu.emufii.app.profile.playerDisplayName
+import eu.emufii.app.secondscreen.PanelMark
 import eu.emufii.app.secondscreen.SecondScreenModel
+import eu.emufii.app.secondscreen.rememberPresentationDisplay
 import eu.emufii.app.ui.components.SortChip
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -139,12 +146,16 @@ import kotlinx.coroutines.delay
 import eu.emufii.app.R
 import eu.emufii.app.library.Backend
 import eu.emufii.app.library.Console
+import eu.emufii.app.library.GameTitles
 import eu.emufii.app.library.Rom
 import eu.emufii.app.library.RomsRepository
 import eu.emufii.app.library.shortLabel
 import eu.emufii.app.profile.Profile
 import eu.emufii.app.ui.RING_IN_MS
 import eu.emufii.app.ui.focusRing
+import eu.emufii.app.ui.ringColor
+import eu.emufii.app.ui.LocalRingTone
+import eu.emufii.app.ui.RingTone
 import eu.emufii.app.ui.CONFIRM_KEYS
 import eu.emufii.app.ui.gamepadClick
 import eu.emufii.app.ui.components.FriendsChip
@@ -169,19 +180,30 @@ import eu.emufii.app.ui.theme.ArtworkShape
 import eu.emufii.app.ui.theme.moldedRim
 import eu.emufii.app.ui.theme.socket
 import eu.emufii.app.ui.theme.LocalEmufiiOledTheme
-import eu.emufii.app.ui.theme.edgeColor
 import eu.emufii.app.ui.components.ChevronLeft
 import eu.emufii.app.ui.components.FolderMark
+import eu.emufii.app.ui.components.VpsLamp
 import eu.emufii.app.ui.theme.plate
 import eu.emufii.app.ui.theme.TileShape
 import eu.emufii.app.artwork.rememberTileArt
 import eu.emufii.app.ui.theme.LocalEmufiiDarkTheme
+import eu.emufii.app.ui.theme.Coral
+import eu.emufii.app.ui.theme.GoodLight
+import eu.emufii.app.ui.theme.InfoLight
+import eu.emufii.app.ui.theme.InkText
+import eu.emufii.app.ui.theme.Teal
+import eu.emufii.app.ui.theme.Violet
+import eu.emufii.app.ui.theme.VioletDark
+import eu.emufii.app.ui.theme.WarnLight
 import eu.emufii.app.ui.wallpaper.TrayBackdrop
 import kotlin.math.abs
 import kotlin.math.max
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import eu.emufii.app.ui.tapOrHold
+import eu.emufii.app.ui.tap
+import eu.emufii.app.ui.Sfx
 
 /**
  * Portrait keeps three big tiles; landscape follows the width instead.
@@ -202,12 +224,21 @@ private val TILE_TITLE_ROOM = 32.dp
  * The air between the floating header and the first thing under it.
  *
  * The grid takes it as a *floor* on its slack, the list adds it outright.
- * pourquoi : docs/decisions/bibliotheque.md § L'air sous l'en-tête est nommé, plus laissé au hasard
+ *
+ * **Sa valeur est celle du curseur**, comme [SHELF_INSET] : les deux sortent du
+ * meme calcul et se refont ensemble.
+ * pourquoi : docs/decisions/bibliotheque.md § L'air sous la barre est celui du curseur, et il se calcule
  */
-private val HEADER_GAP = 14.dp
+private val HEADER_GAP = 22.dp
 
-/** How deep the discs sit in their shelf. */
-private val SHELF_INSET = 6.dp
+/**
+ * How deep the discs sit in their shelf.
+ *
+ * **Sa valeur est celle du curseur** : il deborde de 8,7 dp autour d'une
+ * pastille, et le creux doit pouvoir le contenir. Voir [HEADER_GAP].
+ * pourquoi : docs/decisions/bibliotheque.md § L'air sous la barre est celui du curseur, et il se calcule
+ */
+private val SHELF_INSET = 10.dp
 
 /**
  * Whether a tile that is composing right now should play its arrival.
@@ -218,8 +249,30 @@ private val SHELF_INSET = 6.dp
  */
 internal val LocalTileEntrance = staticCompositionLocalOf { false }
 
+/**
+ * L'epaisseur du curseur sur une jaquette, en part du cote de la tuile.
+ *
+ * Plus fine que le defaut : une jaquette est ce que la grille sert. Lue a deux
+ * endroits, d'ou la constante.
+ */
+private const val TILE_BAND = 0.070f
+
 /** How long the library's arrival lasts before tiles simply appear. */
 private const val ENTRANCE_WINDOW_MS = 900L
+
+/**
+ * How far the selected tile slides on the diagonal — the logo's staircase step.
+ * pourquoi : docs/decisions/theme-duotone-shelves.md § L'escalier diagonal
+ */
+/**
+ * Le retrait des pastilles au bord de la jaquette.
+ *
+ * Juste assez pour dégager le moulage de la tuile, pas plus : au-delà elles
+ * flottent au milieu de l'image au lieu de se ranger dans son coin.
+ */
+private val BADGE_INSET = 9.dp
+
+private val TILE_RISE = 2.5.dp
 
 /** What an entry of the tile menu triggers. */
 private enum class TileAction { ICON, RENAME, HIDE }
@@ -241,6 +294,7 @@ private sealed interface Entry {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun LibraryScreen(
     profile: Profile,
@@ -276,7 +330,6 @@ fun LibraryScreen(
     fun headerFocus(side: HeaderSide) =
         if (side == HeaderSide.LEFT) topBarLeftFocus else topBarFocus
     val gridFocus = remember { FocusRequester() }
-
     // Folder and rescan now live in the settings page, so this screen no longer
     // owns them: it reads whatever the repository holds and rebuilds when
     // [libraryRevision] says something upstream changed it.
@@ -338,6 +391,13 @@ fun LibraryScreen(
             // cache before bumping the revision, so this is a cheap read.
             roms = withContext(Dispatchers.IO) { repo.scan() }
             loading = false
+            // Names the encrypted files kept to themselves, asked for by the
+            // identifiers they did give up. A late overlay on purpose: the grid
+            // shows on the first frame with whatever it has, and the proper
+            // titles land when the coordinator answers.
+            if (GameTitles.refresh(context, roms)) {
+                roms = withContext(Dispatchers.IO) { repo.cachedOrScan() }
+            }
         } else {
             roms = emptyList()
         }
@@ -357,10 +417,6 @@ fun LibraryScreen(
     // closes it before anything else.
     var searchOpen by rememberSaveable { mutableStateOf(false) }
     var query by rememberSaveable { mutableStateOf("") }
-    // Its own state, never a second reading of `searchOpen`: only the search's
-    // own close empties the field.
-    // pourquoi : docs/decisions/bibliotheque.md § La recherche prend l'étagère, et les deux états ne se croisent pas
-    var keyboardOpen by rememberSaveable { mutableStateOf(false) }
 
     // Applied here, never in the scan: the repository's cache is shared with
     // the session flow, which must still find a hidden console's ROM.
@@ -399,7 +455,7 @@ fun LibraryScreen(
     // panel before the search: back undoes one layer at a time, so a player who
     // wanted the grid uncovered does not lose their query for asking.
     BackHandler(enabled = searchOpen) {
-        if (keyboardOpen) keyboardOpen = false else { searchOpen = false; query = "" }
+        searchOpen = false; query = ""
     }
     LaunchedEffect(searchOpen) {
         if (searchOpen) runCatching { topBarLeftFocus.requestFocus() }
@@ -412,14 +468,26 @@ fun LibraryScreen(
         }
     }
 
-    val topInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-    val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    // `IgnoringVisibility` : voir plus bas, l'écran de chargement cache les
+    // barres et leur retour ne doit pas recompter la grille.
+    val topInset = WindowInsets.statusBarsIgnoringVisibility.asPaddingValues()
+        .calculateTopPadding()
+    val bottomInset = WindowInsets.navigationBarsIgnoringVisibility.asPaddingValues()
+        .calculateBottomPadding()
 
     Box(modifier = Modifier.fillMaxSize()) {
         val hazeState = rememberHazeState()
 
         // Source layer (backdrop for Haze): wallpaper + content
-        Box(modifier = Modifier.fillMaxSize().hazeSource(hazeState)) {
+        // La source du flou n'est branchee que quand quelque chose floute :
+        // sinon toute la grille passe par une cible de rendu plein ecran pour
+        // personne. Sur `searchOpen`, une longueur d'avance sur la dalle.
+        // pourquoi : docs/decisions/performance-rendu.md § La source du flou ne se branche que quand quelque chose floute
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .then(if (searchOpen) Modifier.hazeSource(hazeState) else Modifier)
+        ) {
             TrayBackdrop(modifier = Modifier.fillMaxSize(), dark = dark)
 
             when {
@@ -471,6 +539,10 @@ fun LibraryScreen(
 
                     // Armed only while the shelf is really being filled.
                     // pourquoi : docs/decisions/bibliotheque.md § L'arrivée des tuiles est armée, puis désarmée
+                    // L'arrivée n'a plus besoin d'être coupée au démarrage : la
+                    // grille se compose derrière l'écran de chargement, donc
+                    // elle arrive pendant que le logo tient l'écran et se trouve
+                    // posée depuis longtemps quand il s'efface.
                     var arriving by remember(openConsole, reload) { mutableStateOf(true) }
                     LaunchedEffect(openConsole, reload) {
                         arriving = true
@@ -540,22 +612,6 @@ fun LibraryScreen(
             WallpaperVeil(band = bottomInset + 14.dp, dark = dark, fromTop = false)
         }
 
-        // Declared BEFORE the top bar on purpose, so the search field stays
-        // above it: the field is the one thing outside that must not dismiss.
-        // pourquoi : docs/decisions/bibliotheque.md § La recherche prend l'étagère, et les deux états ne se croisent pas
-        if (searchOpen && keyboardOpen) {
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .focusProperties { canFocus = false }
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = { keyboardOpen = false }
-                    )
-            )
-        }
-
         // OVERLAY : floating wordmark + profile (no glass rectangle wrapper)
         FloatingTopBar(
             profile = profile,
@@ -568,86 +624,24 @@ fun LibraryScreen(
             onLeaveFolder = { openConsole = null },
             searchOpen = searchOpen,
             query = query,
-            onSearchOpen = { searchOpen = true; keyboardOpen = true },
+            onSearchOpen = { searchOpen = true },
             onQueryChange = { query = it },
-            onSearchClose = { searchOpen = false; keyboardOpen = false; query = "" },
-            // Tapping the field is how the panel comes back once it has been
-            // put down. Without it, dismissing the keyboard was a one way trip
-            // and the only way back was to close the search and retype.
-            onFieldTap = { keyboardOpen = true },
+            onSearchClose = { searchOpen = false; query = "" },
             onOpenProfile = onOpenProfile,
             onOpenFriends = onOpenFriends,
             onOpenFinder = onOpenFinder,
             topBarLeftFocus = topBarLeftFocus,
             topBarFocus = topBarFocus,
+            // Descendre depuis l'en-tete mene a la grille : le clavier est
+            // celui du systeme, il n'est pas un arret du curseur.
             onLeaveDown = { runCatching { gridFocus.requestFocus() } },
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .fillMaxWidth()
-                .windowInsetsPadding(WindowInsets.statusBars)
+                .windowInsetsPadding(WindowInsets.statusBarsIgnoringVisibility)
                 .padding(horizontal = 20.dp, vertical = 14.dp)
         )
 
-        // Never past half the grid, and it takes nothing with it when it goes
-        // down. Rises from the edge on the same beat as the field's swap.
-        // pourquoi : docs/decisions/bibliotheque.md § La recherche prend l'étagère, et les deux états ne se croisent pas
-        androidx.compose.animation.AnimatedVisibility(
-            visible = searchOpen && keyboardOpen,
-            // Slide only, no fade, all the way past the edge: fading a
-            // Haze-frosted layer drops the blur and shows the flat fill.
-            // pourquoi : docs/decisions/bibliotheque.md § La recherche prend l'étagère, et les deux états ne se croisent pas
-            enter = androidx.compose.animation.slideInVertically(
-                // Stiff and barely sprung: the panel comes up like a drawer
-                // pushed home, not like a ball dropped on a trampoline. The
-                // soft spring read as hesitation, and opening is the one
-                // gesture that must not hesitate.
-                animationSpec = androidx.compose.animation.core.spring(
-                    dampingRatio = androidx.compose.animation.core.Spring.DampingRatioLowBouncy,
-                    stiffness = androidx.compose.animation.core.Spring.StiffnessMedium
-                ),
-                initialOffsetY = { it }
-            ),
-            exit = androidx.compose.animation.slideOutVertically(
-                // Leaving is quicker than arriving and does not bounce: a
-                // panel the player has dismissed should be out of the way,
-                // not asking for one more look.
-                animationSpec = androidx.compose.animation.core.tween(
-                    durationMillis = 180,
-                    easing = androidx.compose.animation.core.FastOutLinearInEasing
-                ),
-                targetOffsetY = { it }
-            ),
-            modifier = Modifier.align(Alignment.BottomCenter)
-        ) {
-            // Frosted, on the player's say-so: the keys float on a panel of
-            // blurred tray, and the grid stays readable through it. The
-            // keyboard itself keeps the half-screen ceiling; the panel's
-            // padding is subtracted so the keys never exceed it.
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(0.72f)
-                    .padding(bottom = 16.dp)
-                    .clip(RoundedCornerShape(28.dp))
-                    .hazeEffect(hazeState)
-                    .background(Color(0xFF0A1220).copy(alpha = if (dark) 0.45f else 0.28f))
-                    .border(1.dp, edgeColor(dark, LocalEmufiiOledTheme.current), RoundedCornerShape(28.dp))
-                    // The panel swallows every tap that is not on a key,
-                    // the gaps included: without this, a miss landed on the
-                    // tile behind and opened a game mid-word.
-                    .focusProperties { canFocus = false }
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = {}
-                    )
-            ) {
-                EmufiiKeyboard(
-                    onKey = { query += it },
-                    onBackspace = { if (query.isNotEmpty()) query = query.dropLast(1) },
-                    maxHeight = LocalConfiguration.current.screenHeightDp.dp / 2 - 32.dp,
-                )
-            }
-        }
 
         // OVERLAY: "a new version exists".
         update?.let { latest ->
@@ -657,7 +651,7 @@ fun LibraryScreen(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .fillMaxWidth()
-                    .windowInsetsPadding(WindowInsets.statusBars)
+                    .windowInsetsPadding(WindowInsets.statusBarsIgnoringVisibility)
                     .padding(start = 20.dp, end = 20.dp, top = 76.dp)
             )
         }
@@ -800,7 +794,7 @@ private fun entryKeys(
                 // the first one starts the timer, or the menu would be armed
                 // over and over and fire on the last repeat instead of on time.
                 if (!hold.down) {
-                    hold.press { (entry as? Entry.Game)?.let { onLongPress(it.rom) } }
+                    hold.press { (entry as? Entry.Game)?.let { Sfx.click(); onLongPress(it.rom) } }
                 }
                 true
             }
@@ -808,7 +802,7 @@ private fun entryKeys(
                 // A hold that already opened the menu must not also launch the
                 // game on release: that is exactly the double action a long
                 // press exists to avoid.
-                if (hold.release() && entry != null) onSelect(entry)
+                if (hold.release() && entry != null) { Sfx.click(); onSelect(entry) }
                 true
             }
             else -> false
@@ -822,23 +816,19 @@ private fun entryKeys(
         // first, which is why both exist.
         Key.ButtonY ->
             (entries.getOrNull(cursorIndex()) as? Entry.Game)
-                ?.let { onLongPress(it.rom); true } ?: false
+                ?.let { Sfx.click(); onLongPress(it.rom); true } ?: false
         // B goes up a folder, as on every console. Returning `false` when there
         // is nowhere to go lets the system close the screen.
         Key.ButtonB, Key.Back -> if (canGoBack) { onBack(); true } else false
-        // La commande du panneau, ecoutee **ici aussi**. Le panneau l'ecoute de
-        // son cote depuis qu'il est tactile, mais le focus clavier va a une
-        // fenetre : tant que c'est l'ecran de face qui l'a — le cas ordinaire,
-        // et le seul sur une machine a un ecran — c'est cette ecoute-ci qui
-        // repond. Sur une machine sans panneau la pression ne fait rien du tout,
-        // ce qui reste la regle : l'ecran de face ne gagne ni ne perd rien parce
-        // qu'un panneau existe.
+        // La commande du panneau, ecoutee **ici aussi** : le focus clavier va a
+        // une fenetre, et sur une machine a un ecran c'est celle-ci qui l'a.
         // pourquoi : docs/decisions/second-ecran.md § R tourne la page depuis les deux écrans
         Key.ButtonR1 -> { SecondScreen.flipPage(); true }
         else -> false
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun RomsGrid(
     entries: List<Entry>,
@@ -865,11 +855,12 @@ private fun RomsGrid(
     val gutter = 18.dp
     val rowGap = 24.dp
     val topPad = contentPadding.calculateTopPadding()
-    // Where the tray really ends: the bottom veil paints the backdrop back over
-    // this band, so anything laid out under it is invisible even though Compose
-    // considers it on screen. Measuring against `maxHeight` alone is what put a
-    // row's titles under that veil.
-    val bottomLimit = WindowInsets.navigationBars.asPaddingValues()
+    // Les insets se lisent en « ignoring visibility » : le splash cache les
+    // barres puis les rend, et la grille passait de six colonnes a sept sous
+    // les yeux du joueur. Et le voile du bas repeint le plateau sur sa bande.
+    // pourquoi : docs/decisions/bibliotheque.md § Les insets se lisent en « ignoring visibility »
+    // pourquoi : docs/decisions/bibliotheque.md § Des rangées entières, ou rien
+    val bottomLimit = WindowInsets.navigationBarsIgnoringVisibility.asPaddingValues()
         .calculateBottomPadding() + 14.dp
     val available = maxHeight - topPad - bottomLimit
 
@@ -920,9 +911,14 @@ private fun RomsGrid(
      * cannot get lost because it depends on no live component.
      * pourquoi : docs/decisions/bibliotheque.md § Le curseur est un index calculé, jamais un focus deviné
      */
-    var cursor by rememberSaveable { mutableStateOf(0) }
-    var padFocused by remember { mutableStateOf(false) }
-    PublishHovered(entries, cursor)
+    // L'etat, pas sa valeur : lire `cursor` dans un corps de composable
+    // l'abonne au curseur. Delegue juste apres pour le reste du fichier.
+    // pourquoi : docs/decisions/bibliotheque.md § Ce que la tuile lit ne doit changer que pour elle
+    val cursorState = rememberSaveable { mutableStateOf(0) }
+    var cursor by cursorState
+    val padFocusedState = remember { mutableStateOf(false) }
+    var padFocused by padFocusedState
+    PublishHovered(entries, cursorState)
 
     // A rescan, or entering a folder, can shorten the list under the cursor.
     LaunchedEffect(entries.size) {
@@ -959,8 +955,11 @@ private fun RomsGrid(
             }
             val top = item.offset.y
             val bottom = top + item.size.height
-            val safeTop = info.beforeContentPadding
-            val safeBottom = info.viewportEndOffset - info.viewportStartOffset - info.afterContentPadding
+            // Les deux bords se lisent dans le repere de `item.offset.y`, qui
+            // compte depuis le debut du contenu : le bord haut vaut donc zero.
+            // pourquoi : docs/decisions/bibliotheque.md § Amener la cible : les deux bords se lisent dans le même repère
+            val safeTop = info.viewportStartOffset + info.beforeContentPadding
+            val safeBottom = info.viewportEndOffset - info.afterContentPadding
             // Margin on top of strict visibility: the targeted tile is scaled
             // up 7 % and carries a glow, so it spills past its own layout
             // bounds. Stopping at the exact pixel left it clipped by the edge.
@@ -1032,13 +1031,20 @@ private fun RomsGrid(
     ) {
         items(count = totalSlots, key = { it }) { i ->
             val entry = entries.getOrNull(i)
+            // Un etat derive : lire `cursor` ici abonnerait les quatorze tuiles
+            // a l'ecran, et un pas les recomposerait toutes.
+            // pourquoi : docs/decisions/bibliotheque.md § Ce que la tuile lit ne doit changer que pour elle
+            val selected = remember(i) {
+                derivedStateOf { padFocusedState.value && i == cursorState.value }
+            }
+            val held = remember(i) { derivedStateOf { hold.down && i == cursorState.value } }
             when (entry) {
                 null -> EmptySlot()
                 is Entry.Folder -> FolderTile(
                     folder = entry,
                     onClick = { onSelect(entry) },
-                    selected = padFocused && i == cursor,
-                    padHeld = hold.down && i == cursor
+                    selected = selected.value,
+                    padHeld = held.value
                 )
                 is Entry.Game -> RomTile(
                     rom = entry.rom,
@@ -1047,8 +1053,8 @@ private fun RomsGrid(
                     // The cursor is ours: a tile no longer asks whether *it*
                     // has focus, it is told. So a tile destroyed on leaving the
                     // screen can no longer take the selection with it.
-                    selected = padFocused && i == cursor,
-                    padHeld = hold.down && i == cursor,
+                    selected = selected.value,
+                    padHeld = held.value,
                     menuOpen = menuFor?.uri == entry.rom.uri,
                     onChangeIcon = { onMenuAction(entry.rom, TileAction.ICON) },
                     onRename = { onMenuAction(entry.rom, TileAction.RENAME) },
@@ -1062,10 +1068,22 @@ private fun RomsGrid(
 }
 
 /** A carousel card's width, as a fraction of the available width. */
-private const val CAROUSEL_CARD_FRACTION = 0.42f
+private const val CAROUSEL_CARD_FRACTION = 0.38f
 
 /** What the title claims under the card: two lines, plus the gap. */
-private val CAROUSEL_TITLE_ROOM = 48.dp
+private val CAROUSEL_TITLE_ROOM = 66.dp
+
+/**
+ * De combien le titre descend quand le curseur prend la carte, dans le carrousel
+ * seul. La carte active porte l'agrandissement de 7 % du curseur *et* son
+ * anneau, qui debordent tous deux de ses bornes de mise en page : sans ce recul
+ * l'anneau passe par dessus la premiere ligne du titre. C'est un decalage de
+ * dessin, pas de mise en page — la colonne garde sa hauteur, sinon la carte
+ * active grandirait la rangee et ses voisines se recentreraient a chaque pas.
+ * L'ecart au repos reste celui de la grille : le titre revient a sa place des
+ * que le curseur passe.
+ */
+private val CAROUSEL_TITLE_DROP = 18.dp
 
 /**
  * One game at a time, large. A single row, so up and down do not navigate: up
@@ -1088,9 +1106,14 @@ private fun RomsCarousel(
 ) {
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
-    var cursor by rememberSaveable { mutableStateOf(0) }
-    var padFocused by remember { mutableStateOf(false) }
-    PublishHovered(entries, cursor)
+    // L'etat, pas sa valeur : lire `cursor` dans un corps de composable
+    // l'abonne au curseur. Delegue juste apres pour le reste du fichier.
+    // pourquoi : docs/decisions/bibliotheque.md § Ce que la tuile lit ne doit changer que pour elle
+    val cursorState = rememberSaveable { mutableStateOf(0) }
+    var cursor by cursorState
+    val padFocusedState = remember { mutableStateOf(false) }
+    var padFocused by padFocusedState
+    PublishHovered(entries, cursorState)
 
     LaunchedEffect(entries.size) {
         if (cursor > entries.lastIndex) cursor = entries.lastIndex.coerceAtLeast(0)
@@ -1217,7 +1240,7 @@ private fun RomsCarousel(
             contentPadding.calculateBottomPadding() -
             CAROUSEL_TITLE_ROOM
         val cardSize = minOf(maxWidth * CAROUSEL_CARD_FRACTION, free)
-            .coerceIn(120.dp, 320.dp)
+            .coerceIn(120.dp, 300.dp)
 
         /**
          * Half of what remains around a card, which is what lets the first and
@@ -1250,7 +1273,9 @@ private fun RomsCarousel(
         ) {
             items(count = entries.size, key = { entries[it].key }) { i ->
                 val entry = entries[i]
-                val active = i == cursor
+                // Lecture differee, comme dans la grille : sans elle, un pas de
+                // curseur recompose toutes les cartes visibles pour en changer deux.
+                val active by remember(i) { derivedStateOf { i == cursorState.value } }
                 // The neighbours step back. Without that gap a row of
                 // equally-sized cards reads as a one-line grid, and nothing
                 // points at the one about to be launched.
@@ -1285,7 +1310,8 @@ private fun RomsCarousel(
                             onChangeIcon = { onMenuAction(entry.rom, TileAction.ICON) },
                             onRename = { onMenuAction(entry.rom, TileAction.RENAME) },
                             onHide = { onMenuAction(entry.rom, TileAction.HIDE) },
-                            onDismissMenu = onDismissMenu
+                            onDismissMenu = onDismissMenu,
+                            titleDrop = CAROUSEL_TITLE_DROP
                         )
                     }
                 }
@@ -1298,6 +1324,7 @@ private fun RomsCarousel(
  * Titles spelled out: the layout for telling two dumps of one game apart.
  * pourquoi : docs/decisions/bibliotheque.md § La liste existe pour distinguer deux dumps du même jeu
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun RomsList(
     entries: List<Entry>,
@@ -1319,11 +1346,17 @@ private fun RomsList(
     // The strip the bottom veil paints back over the list. Layout does not know
     // about it; the eye does.
     val VEIL_PX = with(density) {
-        (WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 14.dp).roundToPx()
+        (WindowInsets.navigationBarsIgnoringVisibility.asPaddingValues()
+            .calculateBottomPadding() + 14.dp).roundToPx()
     }
-    var cursor by rememberSaveable { mutableStateOf(0) }
-    var padFocused by remember { mutableStateOf(false) }
-    PublishHovered(entries, cursor)
+    // L'etat, pas sa valeur : lire `cursor` dans un corps de composable
+    // l'abonne au curseur. Delegue juste apres pour le reste du fichier.
+    // pourquoi : docs/decisions/bibliotheque.md § Ce que la tuile lit ne doit changer que pour elle
+    val cursorState = rememberSaveable { mutableStateOf(0) }
+    var cursor by cursorState
+    val padFocusedState = remember { mutableStateOf(false) }
+    var padFocused by padFocusedState
+    PublishHovered(entries, cursorState)
 
     LaunchedEffect(entries.size) {
         if (cursor > entries.lastIndex) cursor = entries.lastIndex.coerceAtLeast(0)
@@ -1413,9 +1446,13 @@ private fun RomsList(
             .onPreviewKeyEvent(onKey)
     ) {
         items(count = entries.size, key = { entries[it].key }) { i ->
+            // Lecture differee, comme dans la grille.
+            val selected by remember(i) {
+                derivedStateOf { padFocusedState.value && i == cursorState.value }
+            }
             EntryRow(
                 entry = entries[i],
-                selected = padFocused && i == cursor,
+                selected = selected,
                 onClick = { onSelect(entries[i]) },
                 onLongClick = { (entries[i] as? Entry.Game)?.let { onLongPress(it.rom) } },
                 menuFor = menuFor,
@@ -1467,7 +1504,7 @@ private fun EntryRow(
                 ) else Modifier
             )
             .focusProperties { canFocus = false }
-            .combinedClickable(
+            .tapOrHold(
                 interactionSource = interaction,
                 indication = null,
                 onClick = onClick,
@@ -1592,16 +1629,22 @@ private fun FolderTile(
 
     // Same clock as the ring, and gone the instant the cursor leaves — see the
     // ROM tile, where the desync this fixes is written up.
-    val focusScale by animateFloatAsState(
-        targetValue = if (selected) 1.07f else 1f,
+    // Une seule animation pour les trois marques, comme sur la tuile de jeu.
+    val mark by animateFloatAsState(
+        targetValue = if (selected) 1f else 0f,
         animationSpec = tween(if (selected) RING_IN_MS else 0),
-        label = "folder-focus-scale"
+        label = "folder-mark"
     )
+    val focusScale = 1f + 0.07f * mark
     val scale by animateFloatAsState(
         targetValue = if (pressed || padHeld) 0.94f else 1f,
         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
         label = "folder-scale"
     )
+    // The same diagonal step as the game tiles: one staircase, not two.
+    // pourquoi : docs/decisions/theme-duotone-shelves.md § L'escalier diagonal
+    val riseX = TILE_RISE * mark
+    val riseY = TILE_RISE * mark
 
     Column(
         modifier = Modifier.fillMaxWidth().zIndex(if (selected) 1f else 0f),
@@ -1610,15 +1653,25 @@ private fun FolderTile(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
+                .offset(x = -riseX, y = -riseY)
                 .aspectRatio(1f)
                 .scale(scale * focusScale)
-                .shadow(elevation = 8.dp, shape = TileShape)
+                .shadow(
+                    elevation = 8.dp,
+                    shape = TileShape,
+                    // Ne rogne pas, pour la meme raison que la tuile de jeu.
+                    clip = false,
+                    // The selected folder's shadow takes the ring's tint, like
+                    // the game tiles.
+                    spotColor = if (selected) ringColor() else InkText.copy(alpha = 0.30f),
+                    ambientColor = InkText.copy(alpha = 0.22f)
+                )
                 .focusRing(selected, TileShape)
                 .clip(TileShape)
                 .background(consolePlate(folder.console))
                 .moldedRim(TileShape, dark = LocalEmufiiDarkTheme.current, oled = LocalEmufiiOledTheme.current)
                 .focusProperties { canFocus = false }
-                .clickable(interactionSource = interaction, indication = null, onClick = onClick)
+                .tap(interactionSource = interaction, indication = null, onClick = onClick)
                 .gamepadClick(interaction, onClick = onClick),
             contentAlignment = Alignment.Center
         ) {
@@ -1732,7 +1785,7 @@ private fun FolderHeader(
         modifier = modifier
             .focusRing(focused, shape)
             .plate(shape = shape, dark = dark, oled = LocalEmufiiOledTheme.current, lift = 5.dp)
-            .clickable(interactionSource = interaction, indication = null, onClick = onBack)
+            .tap(interactionSource = interaction, indication = null, onClick = onBack)
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -1783,7 +1836,6 @@ private fun FloatingTopBar(
     onSearchOpen: () -> Unit,
     onQueryChange: (String) -> Unit,
     onSearchClose: () -> Unit,
-    onFieldTap: () -> Unit,
     onOpenProfile: () -> Unit,
     onOpenFriends: () -> Unit,
     onOpenFinder: () -> Unit,
@@ -1793,11 +1845,139 @@ private fun FloatingTopBar(
     onLeaveDown: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // Le panneau arriere est-il vraiment allume ? Le reglage ne suffit pas :
+    // l'appareil peut n'avoir qu'un ecran.
+    // pourquoi : docs/decisions/session.md § Ce que le panneau arrière porte, l'écran de face ne le redit pas
+    val context = LocalContext.current
+    val panelDisplay by rememberPresentationDisplay()
+    val panelWanted by remember(context) { SettingsStore.get(context).secondScreen }
+        .collectAsState()
+    val panelLive = panelWanted && panelDisplay != null
+
+    // Le jeton de la face posee pendant que l'en-tete tient le curseur.
+    var headerAside by remember { mutableStateOf<Any?>(null) }
+    DisposableEffect(Unit) {
+        onDispose { headerAside?.let { SecondScreen.takeBack(it) } }
+    }
+
+    /**
+     * Ce que le panneau montre pendant que l'en-tete a le curseur : la pastille
+     * visee, ou le repos entre deux.
+     *
+     * **Le panneau montre en grand ce que la pastille dit en petit**, comme le
+     * hub des reglages le fait deja de ses cases. Une pastille de la barre du
+     * haut est un dessin de 21 dp et rien d'autre — pas d'etiquette, pas
+     * d'infobulle : c'est la seule couche de l'ecran ou le joueur peut se
+     * trouver sans savoir sur quoi. Rien ne quitte l'ecran principal pour
+     * autant : les pastilles gardent leurs dessins et leur menu.
+     * pourquoi : CLAUDE.md § Deux écrans : le mono-écran reste la mise en page principale
+     * pourquoi : docs/decisions/reglages-ecran.md § Le hub est une grille, et le panneau montre la case visée
+     */
+    var headerFace by remember { mutableStateOf<SecondScreenModel?>(null) }
+
+    /**
+     * Vrai tant que le curseur est quelque part dans l'en-tete.
+     *
+     * **La face ne se retire pas sur-le-champ.** Passer d'une pastille a la
+     * voisine fait perdre le focus a la rangee pour une fraction de frame :
+     * Compose le retire de l'ancienne avant de le donner a la nouvelle, et la
+     * rangee, qui ne lit que `hasFocus`, voyait un depart. Elle retirait donc sa
+     * face et en reposait une neuve a chaque pas — le panneau repassait par le
+     * repos entre deux pastilles, ce qui se voit tres bien.
+     *
+     * Le sursis ne change rien au depart reel : [HEADER_RELEASE_MS] est
+     * imperceptible a l'oeil et deux ordres de grandeur au-dessus d'un
+     * passage de focus.
+     * pourquoi : docs/decisions/bibliotheque.md § Le panneau cesse de parler du jeu quand on quitte la grille
+     */
+    var barFocused by remember { mutableStateOf(false) }
+    LaunchedEffect(barFocused) {
+        if (barFocused) {
+            if (headerAside == null) {
+                headerAside = SecondScreen.putAside(headerFace ?: SecondScreenModel.Idle)
+            }
+        } else {
+            delay(HEADER_RELEASE_MS)
+            headerAside?.let { SecondScreen.takeBack(it) }
+            headerAside = null
+            headerFace = null
+        }
+    }
+
+    LaunchedEffect(headerFace, headerAside) {
+        headerAside?.let { SecondScreen.updateAside(it, headerFace ?: SecondScreenModel.Idle) }
+    }
+
+    val root = stringResource(R.string.bar_root)
+    fun chipFace(title: String, summary: String, mark: PanelMark, social: Boolean = false) =
+        SecondScreenModel.SettingsEntry(
+            title = title,
+            summary = summary,
+            root = root,
+            mark = mark,
+            social = social
+        )
+
+    /**
+     * Deux pastilles peuvent se croiser : la nouvelle s'annonce avant que
+     * l'ancienne ne se retire, et un `null` inconditionnel effacerait celle qui
+     * vient d'arriver. On ne retire donc que sa propre face.
+     */
+    fun follow(face: SecondScreenModel) = { focused: Boolean ->
+        // Seule la prise du curseur ecrit. Une pastille qui le **rend** ne dit
+        // rien : elle le rend a sa voisine, qui s'annonce dans la meme frame, et
+        // effacer entre les deux faisait clignoter le repos.
+        if (focused) headerFace = face
+    }
+
+    val searchFace = chipFace(
+        stringResource(R.string.lib_search),
+        stringResource(R.string.bar_search_summary),
+        PanelMark.SEARCH
+    )
+    val layoutFace = chipFace(
+        stringResource(R.string.lib_layout),
+        stringResource(R.string.bar_layout_summary),
+        PanelMark.LAYOUT
+    )
+    val sortFace = chipFace(
+        stringResource(R.string.lib_sort),
+        stringResource(R.string.bar_sort_summary),
+        PanelMark.SORT
+    )
+    // Les trois de droite sont le domaine social : le panneau prend la meme
+    // teinte corail que le curseur de ces ecrans.
+    // pourquoi : docs/decisions/theme-duotone-shelves.md § Deux axes sémantiques
+    val sessionsFace = chipFace(
+        stringResource(R.string.finder_title),
+        stringResource(R.string.bar_sessions_summary),
+        PanelMark.SESSIONS,
+        social = true
+    )
+    val friendsFace = chipFace(
+        stringResource(R.string.friends_title),
+        stringResource(R.string.bar_friends_summary),
+        PanelMark.FRIENDS,
+        social = true
+    )
+    val profileFace = chipFace(
+        playerDisplayName(profile.name),
+        stringResource(R.string.bar_profile_summary),
+        PanelMark.PROFILE,
+        social = true
+    )
+
     Row(
         // Named, like going up, and on the whole row: the left corner carries
         // buttons now, so one must be able to come down from there too.
         // pourquoi : docs/decisions/bibliotheque.md § Sortir par le haut se nomme, et selon la colonne
-        modifier = modifier.onPreviewKeyEvent { event ->
+        modifier = modifier
+            // Le panneau cesse de parler du jeu quand on quitte la grille : sa
+            // legende mentait des qu'on montait dans l'en-tete. La face de repos
+            // est **posee par-dessus** plutot que publiee.
+            // pourquoi : docs/decisions/bibliotheque.md § Le panneau cesse de parler du jeu quand on quitte la grille
+            .onFocusChanged { state -> barFocused = state.hasFocus }
+            .onPreviewKeyEvent { event ->
             if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown) {
                 onLeaveDown()
                 true
@@ -1812,6 +1992,15 @@ private fun FloatingTopBar(
         // on this project again and again.
         // pourquoi : docs/decisions/bibliotheque.md § La barre du haut : deux étagères, jamais une barre
         val shelfDark = LocalEmufiiDarkTheme.current
+        // La lampe de service se tient a cote de l'etagere, jamais dessus : elle
+        // ne se vise pas, ne s'ouvre pas, et une pastille de plus sur le creux
+        // ferait croire a un quatrieme bouton. Le groupe entier cede la place a
+        // l'etagere sociale, la lampe la premiere.
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            modifier = Modifier.weight(1f, fill = false)
+        ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -1856,7 +2045,6 @@ private fun FloatingTopBar(
                         value = query,
                         onValueChange = onQueryChange,
                         onClose = onSearchClose,
-                        onTap = onFieldTap,
                         modifier = Modifier.focusRequester(topBarLeftFocus)
                     )
                 } else {
@@ -1868,13 +2056,18 @@ private fun FloatingTopBar(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        SearchChip(onClick = onSearchOpen)
+                        SearchChip(onClick = onSearchOpen, onFocused = follow(searchFace))
                         LayoutChip(
                             current = layout,
                             onPick = onPickLayout,
-                            modifier = Modifier.focusRequester(topBarLeftFocus)
+                            modifier = Modifier.focusRequester(topBarLeftFocus),
+                            onFocused = follow(layoutFace)
                         )
-                        SortChip(current = sort, onPick = onPickSort)
+                        SortChip(
+                            current = sort,
+                            onPick = onPickSort,
+                            onFocused = follow(sortFace)
+                        )
                     }
                 }
             }
@@ -1889,16 +2082,35 @@ private fun FloatingTopBar(
                 )
             }
         }
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier.socket(PillShape, shelfDark).padding(SHELF_INSET)
-        ) {
-            // Sessions first: that is what the app exists for, and the reading
-            // order runs towards oneself, the others, then you.
-            SessionsChip(onClick = onOpenFinder, modifier = Modifier.focusRequester(topBarFocus))
-            FriendsChip(onClick = onOpenFriends)
-            ProfileChip(profile = profile, onClick = onOpenProfile)
+            // Cachee pendant la recherche, et cachee quand le panneau arriere est
+            // allume : c'est la seule chose que les deux ecrans diraient au mot
+            // pres, a trente centimetres l'une de l'autre.
+            // pourquoi : docs/decisions/bibliotheque.md § La lampe de service s'éteint quand le panneau est allumé
+            if (!searchOpen && !panelLive) VpsLamp(dotSize = 10.dp)
+        }
+        // The social shelf: the cursor says the zone, so every ring inside turns
+        // coral. The library's own controls stay on the teal axis.
+        // pourquoi : docs/decisions/theme-duotone-shelves.md § FOCUS MANETTE
+        CompositionLocalProvider(LocalRingTone provides RingTone.CORAL) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.socket(PillShape, shelfDark).padding(SHELF_INSET)
+            ) {
+                // Sessions first: that is what the app exists for, and the reading
+                // order runs towards oneself, the others, then you.
+                SessionsChip(
+                    onClick = onOpenFinder,
+                    modifier = Modifier.focusRequester(topBarFocus),
+                    onFocused = follow(sessionsFace)
+                )
+                FriendsChip(onClick = onOpenFriends, onFocused = follow(friendsFace))
+                ProfileChip(
+                    profile = profile,
+                    onClick = onOpenProfile,
+                    onFocused = follow(profileFace)
+                )
+            }
         }
     }
 }
@@ -1941,7 +2153,12 @@ private fun RomTile(
     onChangeIcon: () -> Unit,
     onRename: () -> Unit,
     onHide: () -> Unit,
-    onDismissMenu: () -> Unit
+    onDismissMenu: () -> Unit,
+    /**
+     * De combien le titre descend quand la tuile est sous le curseur. Nul dans
+     * la grille ; voir [CAROUSEL_TITLE_DROP].
+     */
+    titleDrop: androidx.compose.ui.unit.Dp = 0.dp
 ) {
     val context = LocalContext.current
     val interaction = remember { MutableInteractionSource() }
@@ -1961,11 +2178,15 @@ private fun RomTile(
     // On the same clock as the ring, leaving on the same instant. A bouncy
     // spring here split the cursor into two halves for a few frames.
     // pourquoi : docs/decisions/bibliotheque.md § Une seule horloge pour tout ce qui marque la cellule
-    val focusScale by animateFloatAsState(
-        targetValue = if (focused) 1.07f else 1f,
+    // Une seule animation pour les trois marques : elles partagent deja une
+    // horloge, elles n'ont pas besoin de trois `Animatable` par tuile.
+    // pourquoi : docs/decisions/bibliotheque.md § Une seule animation pour les trois marques du curseur
+    val mark by animateFloatAsState(
+        targetValue = if (focused) 1f else 0f,
         animationSpec = tween(if (focused) RING_IN_MS else 0),
-        label = "tile-focus-scale"
+        label = "tile-mark"
     )
+    val focusScale = 1f + 0.07f * mark
 
     val entrance by animateFloatAsState(
         targetValue = if (shown) 1f else 0f,
@@ -1983,6 +2204,17 @@ private fun RomTile(
         label = "tile-elev"
     )
 
+    // The staircase: the selected tile climbs and slides diagonally towards the
+    // top-left, the logo's own step. On the ring's clock, and gone with it.
+    // pourquoi : docs/decisions/theme-duotone-shelves.md § L'escalier diagonal
+    // Deduits de la meme valeur : voir [mark] plus haut.
+    val riseX = TILE_RISE * mark
+    val riseY = TILE_RISE * mark
+
+    // Le curseur est allume sur cette tuile : jamais sur une tuile qui arrive
+    // encore — un halo est une ombre, et il traverse un calque translucide.
+    val lit = focused && entrance > 0.99f
+
     Column(
         // Above its neighbours while enlarged, otherwise the next one draws over
         // it and the glow is cut clean off.
@@ -1996,21 +2228,38 @@ private fun RomTile(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
+                .offset(x = -riseX, y = -riseY)
                 .aspectRatio(1f)
                 .scale(scale * focusScale * (0.88f + 0.12f * entrance))
-                .alpha(entrance)
+                // `graphicsLayer` et surtout pas `alpha` : sous 1, `alpha` pose
+                // un `clip` **rectangulaire** qui tranche l'anneau a l'equerre.
+                // pourquoi : docs/decisions/navigation-manette.md § `Modifier.alpha` rogne, et c'est ce qui rendait le curseur carré
+                .graphicsLayer { this.alpha = entrance }
                 .shadow(
                     elevation = (elevation + if (accent != null) 10f else 0f).dp,
                     shape = TileShape,
-                    // Ambient stays neutral so the glow reads as light under the
-                    // tile rather than as a coloured outline around it.
-                    ambientColor = Color.Black.copy(alpha = 0.22f),
-                    spotColor = accent ?: Color.Black.copy(alpha = 0.30f)
+                    // **Ne rogne pas.** `shadow` fait defaut a `clip = elevation > 0`,
+                    // et taillait alors l'anneau, qui entoure la tuile par l'exterieur.
+                    // pourquoi : docs/decisions/navigation-manette.md § L'anneau entoure, il ne rogne pas
+                    clip = false,
+                    // Ambient stays neutral (warm ink, never blue-black) so the
+                    // glow reads as light under the tile rather than as a
+                    // coloured outline around it.
+                    ambientColor = InkText.copy(alpha = 0.22f),
+                    // Under the cursor the shadow takes the axis's tint (teal by
+                    // default, coral in a social zone); at rest it is the game's
+                    // own borrowed colour, or plain.
+                    // pourquoi : docs/decisions/theme-duotone-shelves.md § FOCUS MANETTE
+                    spotColor = (if (focused) ringColor() else accent)
+                        ?: InkText.copy(alpha = 0.30f)
                 )
                 // Never on a tile still fading in: a glow is a shadow, and it
                 // draws through a translucent layer.
                 // pourquoi : docs/decisions/bibliotheque.md § Une seule horloge pour tout ce qui marque la cellule
-                .focusRing(focused && entrance > 0.99f, TileShape)
+                // Un peu plus fine que partout ailleurs : une jaquette est ce
+                // que la grille sert, et le curseur doit la cercler sans lui
+                // disputer la case. Les tuiles voisines sont a 10 dp.
+                .focusRing(lit, TileShape, bandFraction = TILE_BAND)
                 .clip(TileShape)
                 .background(tilePlate())
                 // The moulding, over the artwork: a tile is an object with an
@@ -2024,7 +2273,7 @@ private fun RomTile(
                 // combinedClickable and not clickable: long press opens the tile
                 // menu. That is the gesture everyone already tries on a grid of
                 // icons, and which did nothing until now.
-                .combinedClickable(
+                .tapOrHold(
                     interactionSource = interaction,
                     indication = null,
                     onClick = onClick,
@@ -2077,11 +2326,13 @@ private fun RomTile(
                 onDismiss = onDismissMenu
             )
 
-            // Only 3DS files carry an icon, so without a marker a GameCube
-            // tile is just a coloured square, and the grid now mixes consoles.
+            // 9 dp et non 6 : la tuile porte un moulage, et a 6 dp la pastille
+            // mordait dedans — un lisere entame sur deux pixels suffit a faire
+            // lire la tuile comme mal decoupee.
+            // pourquoi : docs/decisions/bibliotheque.md § La pastille de console est à 9 dp du bord, pas à 6
             ConsoleBadge(
                 console = rom.console,
-                modifier = Modifier.align(Alignment.BottomEnd).padding(6.dp)
+                modifier = Modifier.align(Alignment.BottomEnd).padding(BADGE_INSET)
             )
 
             // Opposite corner from the console badge, and never beside it: the
@@ -2091,12 +2342,17 @@ private fun RomTile(
             LocalCompatDb.current.ratingFor(rom.compatKeys())?.let { entry ->
                 CompatBadge(
                     rating = entry.rating,
-                    modifier = Modifier.align(Alignment.BottomStart).padding(6.dp)
+                    modifier = Modifier.align(Alignment.BottomStart).padding(BADGE_INSET)
                 )
             }
         }
         Spacer(Modifier.height(8.dp))
-        TileTitle(rom.displayName)
+        TileTitle(
+            rom.displayName,
+            // Sur la meme horloge que l'anneau : le titre s'ecarte pendant que
+            // le curseur arrive, pas apres.
+            modifier = Modifier.graphicsLayer { translationY = titleDrop.toPx() * mark }
+        )
     }
 }
 
@@ -2106,7 +2362,7 @@ private fun RomTile(
  * pourquoi : docs/decisions/bibliotheque.md § Le maintien de A, et le titre qui s'efface
  */
 @Composable
-private fun TileTitle(title: String) {
+private fun TileTitle(title: String, modifier: Modifier = Modifier) {
     val style = MaterialTheme.typography.labelMedium
     val density = LocalDensity.current
     // Two lines, always, whatever the length: a tile with a short name would
@@ -2119,13 +2375,19 @@ private fun TileTitle(title: String) {
     var overflows by remember(title) { mutableStateOf(false) }
 
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .height(boxHeight)
-            // The gradient applies to the text's own rendering, hence DstIn on a
-            // layer: painting a background-coloured rectangle over it would only
-            // work on a flat background, and this one is an animated gradient.
-            .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+            // Le degrade s'applique au rendu du texte, d'ou le `DstIn` sur un
+            // calque — et seulement quand il y a un degrade a poser.
+            // pourquoi : docs/decisions/performance-rendu.md § Un calque hors écran n'est pas un réglage de dessin
+                        .then(
+                if (overflows) {
+                    Modifier.graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                } else {
+                    Modifier
+                }
+            )
             .drawWithContent {
                 drawContent()
                 if (overflows) {
@@ -2161,12 +2423,12 @@ private fun TileTitle(title: String) {
 /** Small, dark, unobtrusive, it labels the tile without competing with the art. */
 @Composable
 private fun ConsoleBadge(console: Console, modifier: Modifier = Modifier) {
-    // Sticker treatment, borrowed from Cocoon's icon style: a white contour is
+    // Sticker treatment: a white contour is
     // what makes a small mark legible over artwork we don't control. A dark
     // translucent chip disappeared on dark box art and muddied light art.
     Surface(
         shape = RoundedCornerShape(9.dp),
-        color = Color(0xFF23262E),
+        color = InkText,
         border = BorderStroke(1.5.dp, Color.White),
         shadowElevation = 2.dp,
         modifier = modifier
@@ -2206,18 +2468,24 @@ private fun PlaceholderArtwork(title: String) {
     }
 }
 
+/**
+ * The placeholder gradients, remixed from the logo's two axes and their
+ * neighbouring semantic tones: no invented hue, every pair crosses the duotone
+ * world's own colours.
+ * pourquoi : docs/decisions/theme-duotone-shelves.md § CONTRAINTES (aucun hex en dur)
+ */
 private val PALETTE = listOf(
-    Color(0xFF6C5CE7) to Color(0xFF00CEC9),
-    Color(0xFFFD79A8) to Color(0xFFE84393),
-    Color(0xFF00B894) to Color(0xFF55EFC4),
-    Color(0xFFFDCB6E) to Color(0xFFE17055),
-    Color(0xFF74B9FF) to Color(0xFF0984E3),
-    Color(0xFFA29BFE) to Color(0xFF6C5CE7),
-    Color(0xFFFF7675) to Color(0xFFD63031),
-    Color(0xFFFAB1A0) to Color(0xFFE17055),
-    Color(0xFF81ECEC) to Color(0xFF00CEC9),
-    Color(0xFFDDA0DD) to Color(0xFF9B59B6),
-    Color(0xFFFFAA5C) to Color(0xFFFF6348)
+    Teal.bright to Teal.deep,
+    Coral.bright to Coral.deep,
+    Violet to VioletDark,
+    GoodLight to Teal.ink,
+    WarnLight to Coral.ink,
+    InfoLight to Violet,
+    Coral.darkBright to Coral.ink,
+    Teal.darkBright to Teal.ink,
+    VioletDark to Coral.ink,
+    Coral.deep to Teal.ink,
+    Teal.deep to Coral.ink
 )
 
 private fun paletteFor(seed: String): Pair<Color, Color> {
@@ -2274,7 +2542,7 @@ private fun EmptyState(
             textAlign = TextAlign.Center
         )
         Spacer(Modifier.height(24.dp))
-        Button(onClick = onCta, shape = RoundedCornerShape(50)) {
+        Button(onClick = sounded(onCta), shape = RoundedCornerShape(50)) {
             Text(cta, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
         }
     }
@@ -2286,8 +2554,10 @@ private fun EmptyState(
  * pourquoi : docs/decisions/bibliotheque.md § Ce qui est publié au second écran
  */
 @Composable
-private fun PublishHovered(entries: List<Entry>, cursor: Int) {
-    val entry = entries.getOrNull(cursor)
+private fun PublishHovered(entries: List<Entry>, cursor: State<Int>) {
+    // Le seul endroit qui s'abonne au curseur hors des tuiles, et c'est voulu :
+    // ce composable ne rend rien, donc sa recomposition ne coute qu'elle-meme.
+    val entry = entries.getOrNull(cursor.value)
     val hovered = (entry as? Entry.Game)?.rom
     // A folder is a machine, and the panel has something to say about a machine
     // that has never had anywhere to be said: how playing together works there.
@@ -2318,6 +2588,17 @@ private fun PublishHovered(entries: List<Entry>, cursor: Int) {
 
 /**
  * How long the cursor has to stand still before the rear panel is told.
- * pourquoi : docs/decisions/bibliotheque.md § Ce qui est publié au second écran
+ *
+ * Porte de 110 a 200 ms : publier reveille la seconde fenetre, et une descente
+ * soutenue repassait l'ancien seuil a chaque pas.
+ * pourquoi : docs/decisions/bibliotheque.md § Ce qui réveille le second écran a un seuil, et il était trop court
  */
-private const val SECOND_SCREEN_SETTLE_MS = 110L
+private const val SECOND_SCREEN_SETTLE_MS = 200L
+
+/**
+ * Le sursis avant que l'en-tete ne rende sa face au panneau. Assez long pour
+ * couvrir un passage de focus d'une pastille a l'autre — l'affaire d'une frame —
+ * et assez court pour qu'un vrai retour a la grille ne se sente pas.
+ */
+private const val HEADER_RELEASE_MS = 120L
+

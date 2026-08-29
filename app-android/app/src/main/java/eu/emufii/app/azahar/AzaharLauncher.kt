@@ -8,6 +8,8 @@ import android.net.Uri
 import android.provider.Settings
 import android.text.TextUtils
 import eu.emufii.app.netplay.NetplayUiSupport
+import eu.emufii.app.library.Console
+import eu.emufii.app.library.EmulatorPick
 
 sealed class LaunchResult {
     data object Success : LaunchResult()
@@ -24,9 +26,7 @@ sealed class LaunchResult {
 
 class AzaharLauncher(private val context: Context) {
 
-    fun installedPackage(): String? = AzaharPackage.candidates.firstOrNull { pkg ->
-        runCatching { context.packageManager.getPackageInfo(pkg, 0) }.isSuccess
-    }
+    fun installedPackage(): String? = EmulatorPick.packageFor(context, Console.THREE_DS)
 
     /** Shown in the "update Azahar" message, so the user can tell what they have. */
     fun installedVersionName(pkg: String): String? = runCatching {

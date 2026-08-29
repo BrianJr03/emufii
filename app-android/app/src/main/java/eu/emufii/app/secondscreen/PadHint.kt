@@ -44,6 +44,16 @@ enum class PadHint(
      * a word like "hold" on the cap would have been a caption on an icon.
      */
     HOLD(glyph = "B", label = R.string.pad_hint_hold, held = true),
+
+    /**
+     * Efface le dernier caractere saisi. Meme bouton que [BACK], et c'est
+     * voulu : le clavier de code n'a pas de touche d'effacement, c'est retour
+     * qui defait — un cran de saisie tant qu'il en reste, l'ecran ensuite. La
+     * legende le dit la ou il sert, sur l'ecran de face cette fois : c'est le
+     * premier endroit de l'app ou une touche fait deux choses selon l'etat, et
+     * un joueur ne peut pas le deviner.
+     */
+    ERASE(glyph = "A", label = R.string.pad_hint_erase),
     ;
 }
 
@@ -87,25 +97,10 @@ data class PadLegend(
         )
 
         /**
-         * In a session, back is missing, and that is not an oversight.
-         *
-         * `EmufiiApp`'s `goBack` is null for `Screen.InSession`, and the press is
-         * swallowed rather than passed up: letting it travel to the system used
-         * to close the app mid-game and leave a session nobody closes behind it.
-         * Leaving is the screen's own button, on purpose.
-         *
-         * So the pad genuinely does nothing on back here, and printing it would
-         * be a lie in the one place the player cannot check without quitting the
-         * thing they are being told how to quit.
-         *
-         * Et **plus rien du tout** depuis que le panneau porte les etapes :
-         * « B · Ouvrir » y restait affiche alors que B, en session, agit sur le
-         * controle selectionne de l'ecran de face, pas sur ce panneau. Une
-         * legende qui nomme une touche que la face ne prend pas est le seul
-         * defaut que cette legende existe pour eviter. Les commandes du panneau
-         * se pressent au doigt, et un bouton qui porte son nom n'a pas besoin
-         * qu'on legende le doigt.
-         * pourquoi : docs/decisions/second-ecran.md § Le panneau prend les etapes, parce qu'il est tactile
+         * En session, la legende est **vide**, et ce n'est pas un oubli : le pad
+         * ne fait rien sur retour, et B agit sur l'ecran de face, pas sur le
+         * panneau. Les commandes du panneau se pressent au doigt.
+         * pourquoi : docs/decisions/second-ecran.md § En session, la légende du pad est vide
          */
         val IN_SESSION = PadLegend()
     }

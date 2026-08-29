@@ -13,6 +13,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -25,7 +26,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextOverflow
 import eu.emufii.app.R
+import eu.emufii.app.ui.LocalRingTone
+import eu.emufii.app.ui.RingTone
 import eu.emufii.app.update.LatestVersion
 import eu.emufii.app.update.UpdateInstaller
 import eu.emufii.app.update.UpdateOutcome
@@ -95,6 +99,11 @@ fun UpdateBanner(
         }
     }
 
+    // An update is a link, not a game: the banner belongs to the social axis,
+    // and everything pressable in it speaks coral — rings included.
+    // pourquoi : docs/decisions/theme-duotone-shelves.md § Deux axes sémantiques
+    val coral = MaterialTheme.colorScheme.tertiary
+    CompositionLocalProvider(LocalRingTone provides RingTone.CORAL) {
     SoftCard(modifier = modifier) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(start = 18.dp, end = 8.dp, top = 14.dp, bottom = 6.dp),
@@ -117,7 +126,11 @@ fun UpdateBanner(
                     style = MaterialTheme.typography.bodySmall,
                     color = if (failure != null) MaterialTheme.colorScheme.error
                     else MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2
+                    maxLines = 2,
+                    // Une note de version ou un message d'echec n'a aucune
+                    // longueur garantie : c'est le texte le moins maitrise de
+                    // l'app, et le seul qui vienne du reseau.
+                    overflow = TextOverflow.Ellipsis
                 )
             }
             Row(
@@ -127,13 +140,15 @@ fun UpdateBanner(
             ) {
                 GhostButton(
                     label = stringResource(R.string.update_later),
-                    onClick = { if (!busy) onDismiss() }
+                    onClick = { if (!busy) onDismiss() },
+                    tint = coral
                 )
                 // The link stays on offer when one is published: it leads to a
                 // page to read, where the button next to it leads to a binary.
                 latest.url?.let { url ->
                     GhostButton(
                         label = stringResource(R.string.update_open),
+                        tint = coral,
                         onClick = {
                             if (busy) return@GhostButton
                             // Best-effort: on a device with no browser there is
@@ -154,6 +169,7 @@ fun UpdateBanner(
                 GhostButton(
                     label = stringResource(R.string.update_install),
                     onClick = { if (!busy) install() },
+                    tint = coral,
                     icon = if (!busy) null else { tint ->
                         CircularProgressIndicator(
                             color = tint,
@@ -164,5 +180,6 @@ fun UpdateBanner(
                 )
             }
         }
+    }
     }
 }

@@ -3,30 +3,10 @@ package eu.emufii.app.library
 /**
  * The keys under which a ROM is looked up in the compatibility database.
  *
- * The whole difficulty of "does this game work" is not the verdict, it is
- * saying *which game* without asking anyone to name it. A rating is given once
- * and has to reach every copy of that game in the world, whatever language the
- * player's dump speaks, so a key has to survive the change of region.
- *
- * Two families of console, and they need opposite treatments:
- *
- * - **The region is a character at a known position.** The 3DS, the DS, the
- *   GameCube and the Wii all stamp their region into one letter of an otherwise
- *   identical code (`CTR-P-ARR`**`J`**, `ADA`**`E`**, `RMC`**`P`**`01`). Drop
- *   that letter and the remainder *is* the game, for free, with no table to
- *   maintain and no game left out.
- * - **The regions carry unrelated numbers.** A PSP or PS2 release has nothing
- *   in common between territories — `UCUS-98653` against `UCES-00842` — and no
- *   rule will ever bridge them. Those are matched on the exact serial, and it
- *   falls to the database to list every serial a game was released under. The
- *   tool that writes the database resolves them from the public serial indexes;
- *   this file cannot, and must not pretend to.
- *
- * Every ROM therefore yields *several* keys — a family key where one exists, and
- * always the exact identifiers — and an entry matches if any of them is listed.
- * Belt and braces on purpose: if a family rule ever meets a code it misreads,
- * the exact identifier still lands, and the failure costs one region rather
- * than the whole game.
+ * Une ROM rend **plusieurs** cles : une cle de famille quand la region est un
+ * caractere a position connue, et toujours les identifiants exacts. Doit rester
+ * d'accord avec `scripts/compat.mjs`, sinon la pastille disparait en silence.
+ * pourquoi : docs/decisions/identite-et-dumps.md § Une ROM rend plusieurs clés, jamais une seule
  */
 fun Rom.compatKeys(): List<String> = compatKeys(console, productCode, titleIdHex)
 

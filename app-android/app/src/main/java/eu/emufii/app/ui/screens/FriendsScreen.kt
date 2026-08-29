@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -67,10 +68,22 @@ import androidx.compose.ui.res.pluralStringResource
 import eu.emufii.app.secondscreen.rememberPresentationDisplay
 import eu.emufii.app.settings.SettingsStore
 import eu.emufii.app.ui.components.PersonMark
+import eu.emufii.app.ui.theme.Coral
+import eu.emufii.app.ui.theme.ErrorDark
+import eu.emufii.app.ui.theme.ErrorLight
+import eu.emufii.app.ui.theme.GoodDark
+import eu.emufii.app.ui.theme.GoodLight
+import eu.emufii.app.ui.theme.InkDarkTextMuted
+import eu.emufii.app.ui.theme.InkTextMuted
 import eu.emufii.app.ui.theme.LocalEmufiiDarkTheme
+import eu.emufii.app.ui.theme.PlateLight
+import eu.emufii.app.ui.theme.ShellDarkLow
+import eu.emufii.app.ui.theme.WarnDark
+import eu.emufii.app.ui.theme.WarnLight
 import eu.emufii.app.ui.theme.socket
+import eu.emufii.app.ui.LocalRingTone
+import eu.emufii.app.ui.RingTone
 import eu.emufii.app.ui.copyToClipboard
-import eu.emufii.app.ui.theme.ShellRed
 
 /**
  * Your friends, and what they're playing.
@@ -147,6 +160,9 @@ fun FriendsScreen(
         .collectAsState()
     val panelLive = panelWanted && panelDisplay != null
 
+    // Le domaine social : le curseur manette y devient corail.
+    // pourquoi : docs/decisions/theme-duotone-shelves.md § FOCUS MANETTE
+    CompositionLocalProvider(LocalRingTone provides RingTone.CORAL) {
     EmufiiScaffold(title = stringResource(R.string.friends_title), onBack = onBack, modifier = modifier) { topPadding ->
         if (landscape) {
             // The whole page scrolls, as one movement.
@@ -279,6 +295,7 @@ fun FriendsScreen(
             }
         }
     }
+    }
 
     pendingRemoval?.let { friend ->
         val label = friend.name?.let { playerDisplayName(it) } ?: friend.displayCode
@@ -296,7 +313,7 @@ fun FriendsScreen(
                         friendStore.remove(friend.code)
                         pendingRemoval = null
                     },
-                    tint = DANGER
+                    tint = danger()
                 )
             }
         ) {
@@ -385,7 +402,7 @@ private fun AddFriendCard(
                 modifier = Modifier.fillMaxWidth()
             )
             error?.let {
-                Text(it, style = MaterialTheme.typography.bodySmall, color = DANGER)
+                Text(it, style = MaterialTheme.typography.bodySmall, color = danger())
             }
             GhostButton(
                 label = stringResource(R.string.friends_add_action),
@@ -431,7 +448,8 @@ private fun FriendRow(
                 Text(
                     statusLine(status),
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (status.inSession) MaterialTheme.colorScheme.primary
+                    // La ligne « en session » porte l'axe social.
+                    color = if (status.inSession) coral()
                     else MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -467,15 +485,17 @@ private fun FriendRow(
     }
 }
 
-/** Green when in a game, amber when merely online, hollow when not there. */
+/** In a game = warning (the room holds them), online = good, absent = muted. */
 @Composable
 private fun PresenceDot(status: FriendStatus) {
     val dark = LocalEmufiiDarkTheme.current
-    val ring = if (dark) Color(0xFF0E1116) else Color.White
+    // L'anneau du point reste une surface du theme : la coquille basse en
+    // sombre, la plaque claire en clair. Plus aucun hex ici.
+    val ring = if (dark) ShellDarkLow else PlateLight
     val fill = when {
-        status.inSession -> Color(0xFF30A46C)
-        status.online -> Color(0xFFF5A524)
-        else -> if (dark) Color(0xFF3A414D) else Color(0xFFC9CED6)
+        status.inSession -> if (dark) WarnDark else WarnLight
+        status.online -> if (dark) GoodDark else GoodLight
+        else -> if (dark) InkDarkTextMuted else InkTextMuted
     }
     Box(
         modifier = Modifier.size(16.dp).clip(CircleShape).background(ring),
@@ -511,8 +531,8 @@ private fun EmptyFriends(compact: Boolean = false) {
                 // white wash lifts the emoji off a pale backdrop, and would be
                 // the brightest thing on screen against the dark one.
                 .background(
-                    if (LocalEmufiiDarkTheme.current) Color.White.copy(alpha = 0.06f)
-                    else Color.White.copy(alpha = 0.55f)
+                    if (LocalEmufiiDarkTheme.current) PlateLight.copy(alpha = 0.06f)
+                    else PlateLight.copy(alpha = 0.55f)
                 ),
             contentAlignment = Alignment.Center
         ) { Text("👋", fontSize = 32.sp) }
@@ -538,7 +558,15 @@ private fun EmptyFriends(compact: Boolean = false) {
     }
 }
 
-private val DANGER = ShellRed
+/** L'erreur tiree vers le corail, la coupe du fond courant. */
+@Composable
+private fun danger() =
+    if (LocalEmufiiDarkTheme.current) ErrorDark else ErrorLight
+
+/** La coupe corail lisible sur le fond courant. */
+@Composable
+private fun coral(dark: Boolean = LocalEmufiiDarkTheme.current) =
+    if (dark) Coral.darkBright else Coral.ink
 
 
 /**

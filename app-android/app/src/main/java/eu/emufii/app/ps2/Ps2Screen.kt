@@ -6,30 +6,10 @@ import eu.emufii.app.dolphin.Node
 /**
  * Reading ARMSX2's Settings -> Network screen.
  *
- * [Node] and [Bounds] are borrowed from the Dolphin side rather than
- * redeclared: they are inert data, with nothing emulator-specific about them,
- * and two copies would drift. Nothing else is shared, the rules below are
- * ARMSX2's own and are called only by [Ps2NetplayDriver].
- *
- * The shape of this screen, taken with `uiautomator` on the Thor, resembles
- * neither of the other two:
- *
- * - On Dolphin the label is inside the field (Compose), so we search by
- *   nesting.
- * - Here, label and value are two sibling `TextView`s on one line, the label on
- *   the left, the value on the right, and neither is clickable: the row is. No
- *   `EditText` is visible until the row has been opened.
- *
- * A measured example, host mode:
- *
- * ```
- * "Local Link port"  TextView  [69,809][306,867]
- * "19072"            TextView  [1761,809][1851,867]
- * ```
- *
- * Hence the pairing rule: the horizontal band, and not the order of the nodes.
- * A screen that gains a row, or reorders itself, does not break this; counting
- * nodes would have broken at the first upstream addition.
+ * Etiquette et valeur sont deux `TextView` freres, apparies par leur bande
+ * horizontale et jamais par l'ordre des noeuds. [Node] et [Bounds] viennent du
+ * cote Dolphin : donnees inertes, deux copies deriveraient.
+ * pourquoi : docs/decisions/pilotes-emulateurs.md § ARMSX2 : deux `TextView` frères, appariés par leur bande horizontale
  */
 object Ps2Screen {
 
@@ -108,24 +88,10 @@ object Ps2Screen {
     }
 
     /**
-     * There is no editable field anywhere in ARMSX2, and that is measured.
-     *
-     * Tapping a row does not open an `EditText`: ARMSX2 draws its own keyboard,
-     * 42 keys, each a clickable view carrying its character as a `TextView`.
-     * Recorded on the Thor on 2026-08-17: 44 views, 42 labels, and not one
-     * `android.widget.EditText` in the entire tree.
-     *
-     * Two consequences, and the second one is a wall:
-     *
-     * 1. `ACTION_SET_TEXT` has nothing to aim at. Input goes in key by key, like
-     *    a player's. `input text` over ADB does not get through either: this
-     *    keyboard ignores injected key events, tried and verified.
-     * 2. The keyboard has no dot key. Digits, letters, shift, Space, backspace,
-     *    Clear, Done, and nothing else. The shift key only changes case, and the
-     *    field does not add the dots by itself: typing `10671` displays `10671`.
-     *    An IPv4 address is therefore impossible to enter, by us as much as by
-     *    the player. This is an upstream flaw, see
-     *    `docs/PHASE1_SCOUT_PS2_ARMSX2.md`.
+     * ARMSX2 n'a aucun `EditText` : la saisie se fait touche par touche sur son
+     * clavier maison, et ce clavier n'a pas de point — une IPv4 y est
+     * impossible a saisir, par nous comme par le joueur.
+     * pourquoi : docs/decisions/pilotes-emulateurs.md § ARMSX2 n'a aucun champ éditable, et c'est un mur
      */
     const val KEY_CLEAR = "Clear"
     const val KEY_DONE = "Done"

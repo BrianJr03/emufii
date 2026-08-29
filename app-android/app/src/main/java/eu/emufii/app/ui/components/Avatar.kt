@@ -23,6 +23,11 @@ import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import eu.emufii.app.profile.avatarPaletteFor
 import eu.emufii.app.profile.initialsFor
+import eu.emufii.app.ui.theme.Coral
+import eu.emufii.app.ui.theme.GlyphInk
+import eu.emufii.app.ui.theme.Teal
+import eu.emufii.app.ui.theme.Violet
+import eu.emufii.app.ui.theme.VioletDark
 import java.io.File
 
 /**
@@ -69,9 +74,15 @@ fun Avatar(
                 modifier = Modifier.fillMaxSize().clip(CircleShape)
             )
         } else {
+            // The bright cuts are light: white initials on them would vanish.
+            // The axis's own ink reads on its bright face, white on everything
+            // else.
+            val onFace =
+                if (c1 == Coral.bright || c1 == Teal.bright) GlyphInk
+                else Color.White
             androidx.compose.material3.Text(
                 text = initialsFor(name),
-                color = Color.White,
+                color = onFace,
                 fontWeight = FontWeight.Black,
                 fontSize = (size.value * 0.36f).sp
             )
@@ -80,21 +91,20 @@ fun Avatar(
 }
 
 /**
- * Twelve rather than eight: with two or three people on screen at once, a
- * collision is immediately visible, two players sharing a colour read as the
- * same person at a glance. More hues make that rarer without ever ruling it out.
+ * Remixes of the logo's own two axes, nothing else: coral crossing teal, each
+ * crossing violet (the gradient's depth end), each axis against its own deep
+ * cut. Eight rather than twelve — the old palette imported hues this world does
+ * not carry (blues, yellows, pure greens); the cost is a collision more often,
+ * and the gain is that a player's circle is made of the app's own colours.
+ * pourquoi : docs/decisions/theme-duotone-shelves.md § Avatars
  */
 private val AVATAR_PALETTE = listOf(
-    Color(0xFF6C5CE7) to Color(0xFF00CEC9),
-    Color(0xFFFD79A8) to Color(0xFFE84393),
-    Color(0xFF00B894) to Color(0xFF55EFC4),
-    Color(0xFFFDCB6E) to Color(0xFFE17055),
-    Color(0xFF74B9FF) to Color(0xFF0984E3),
-    Color(0xFFA29BFE) to Color(0xFF6C5CE7),
-    Color(0xFFFF7675) to Color(0xFFD63031),
-    Color(0xFF81ECEC) to Color(0xFF00CEC9),
-    Color(0xFFF6B93B) to Color(0xFFE58E26),
-    Color(0xFF38ADA9) to Color(0xFF079992),
-    Color(0xFFB53471) to Color(0xFF833471),
-    Color(0xFF5758BB) to Color(0xFF1B1464)
+    Coral.bright to Teal.bright,
+    Coral.bright to Violet,
+    Teal.bright to Violet,
+    Coral.deep to Coral.bright,
+    Teal.deep to Teal.bright,
+    Violet to Coral.deep,
+    VioletDark to Teal.bright,
+    Coral.ink to Coral.bright
 )

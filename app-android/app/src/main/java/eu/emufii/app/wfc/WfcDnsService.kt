@@ -227,24 +227,9 @@ class WfcDnsService : VpnService() {
     /**
      * The user swiped Emufii out of the recents list: take the tunnel down.
      *
-     * Without this the tunnel outlived the app indefinitely. `START_STICKY` made
-     * it worse than merely forgotten, kill the process and Android brings the
-     * service back, tunnel and all, with no Emufii on screen to stop it. The key
-     * icon stays in the status bar and the only way out is Android's own VPN
-     * settings.
-     *
-     * [onDestroy] was not enough on its own: swiping the task away does not
-     * destroy a started foreground service, which is the whole point of one.
-     * This callback is the only signal Android gives for "the user is done with
-     * this app", so it is where the decision belongs.
-     *
-     * Deliberately unconditional. Swiping the app away while melonDS is still
-     * mid-session will cut WFC name resolution under it, but a tunnel nothing
-     * can reach is the worse failure, and the emulator keeps its own task in
-     * recents, so the gesture is aimed at Emufii specifically.
-     *
-     * `stopSelf` matters as much as [stopTunnel]: it clears the sticky restart,
-     * so the service stays down instead of being resurrected.
+     * Deliberement inconditionnel, et `stopSelf` compte autant que [stopTunnel] :
+     * il efface le redemarrage collant.
+     * pourquoi : docs/decisions/tunnel-wireguard.md § Balayer l'app hors des récents coupe le tunnel
      */
     override fun onTaskRemoved(rootIntent: Intent?) {
         Log.d(TAG, "Emufii swiped away, taking the WFC tunnel down")

@@ -11,18 +11,23 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
-import eu.emufii.app.settings.AppAccent
 
+/**
+ * The three schemes of DUOTONE SHELVES: warm neutrals, the teal axis in
+ * Material's primary slot, good/error from the centralised semantic set.
+ * pourquoi : docs/decisions/theme-duotone-shelves.md § PALETTE
+ */
 private fun lightScheme(accent: AccentCuts) = lightColorScheme(
     primary = accent.deep,
     onPrimary = Color.White,
     primaryContainer = accent.soft,
     onPrimaryContainer = accent.ink,
-    secondary = AccentGreen,
-    onSecondary = Color(0xFF00311A),
+    secondary = GoodLight,
+    onSecondary = Color.White,
+    tertiary = Coral.deep,
+    onTertiary = Color.White,
     background = ShellLight,
     onBackground = InkText,
     surface = PlateLight,
@@ -34,7 +39,7 @@ private fun lightScheme(accent: AccentCuts) = lightColorScheme(
     surfaceContainerHigh = PlateLight,
     outline = EdgeLight,
     outlineVariant = EdgeLight,
-    error = ShellRed,
+    error = ErrorLight,
     onError = Color.White
 )
 
@@ -43,8 +48,10 @@ private fun darkScheme(accent: AccentCuts) = darkColorScheme(
     onPrimary = accent.ink,
     primaryContainer = accent.soft,
     onPrimaryContainer = Color.White,
-    secondary = AccentGreen,
-    onSecondary = Color(0xFF00311A),
+    secondary = GoodDark,
+    onSecondary = Color(0xFF04241C),
+    tertiary = Coral.darkBright,
+    onTertiary = Coral.ink,
     background = ShellDark,
     onBackground = InkDarkText,
     surface = PlateDark,
@@ -56,8 +63,8 @@ private fun darkScheme(accent: AccentCuts) = darkColorScheme(
     surfaceContainerHigh = PlateDark,
     outline = EdgeDark,
     outlineVariant = EdgeDark,
-    error = ShellRed,
-    onError = Color.White
+    error = ErrorDark,
+    onError = Color(0xFF2B0805)
 )
 
 private fun oledScheme(accent: AccentCuts) = darkScheme(accent).copy(
@@ -99,15 +106,12 @@ val LocalEmufiiOledTheme = staticCompositionLocalOf { false }
 fun EmufiiTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     oled: Boolean = false,
-    accent: AppAccent = AppAccent.CYAN,
     content: @Composable () -> Unit
 ) {
-    // Resolved once, here, and handed down. Every screen reads the accent off
-    // `colorScheme.primary`; only the cursor's ring and the filled action need
-    // the cuts Material has no slot for, and they take them from [LocalAccent].
-    val cuts = accentCuts(accent)
-    // OLED without dark does not exist: letting it through would give light text
-    // on a light background for a caller who wired the two up wrongly.
+    // L'axe du jeu et du systeme, en dur : il n'y a plus d'accent a resoudre.
+    // Les zones corail lisent leurs coupes dans `Coral` / `colorScheme.tertiary`,
+    // pas dans ce local.
+    val cuts = TealCuts
     val oledTheme = oled && darkTheme
     CompositionLocalProvider(
         LocalEmufiiDarkTheme provides darkTheme,
@@ -115,14 +119,9 @@ fun EmufiiTheme(
         LocalAccent provides cuts
     ) {
         // Focus tints nothing. Material lays a grey veil over any focused or
-        // hovered control, a "state layer". On a handheld, where the cursor is
-        // permanently somewhere, that amounts to painting the selected element
-        // grey, which reads as "disabled" and sits on top of the green ring that
-        // already says where you are. Two signals for one state, one of them
-        // saying the opposite.
-        //
-        // Only the focus and hover opacities drop to zero: the press keeps its
-        // ripple, which does answer a gesture.
+        // hovered control; on a handheld, where the cursor is permanently
+        // somewhere, that paints the selected element grey over the teal ring
+        // that already says where you are.
         CompositionLocalProvider(LocalRippleConfiguration provides NoFocusRipple) {
             MaterialTheme(
                 colorScheme = when {

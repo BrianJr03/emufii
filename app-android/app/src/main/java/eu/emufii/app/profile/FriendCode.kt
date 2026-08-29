@@ -5,25 +5,11 @@ import java.security.SecureRandom
 /**
  * The string you give someone so they can add you.
  *
- * It is not a key into a directory: there is no directory. The code *is* the
- * identity, the same value the coordinator counts presence by, so adding a
- * friend needs no server round-trip and works while they are offline. That is
- * what keeps this feature free to run: no account, no database, nothing to
- * host beyond the coordinator that already exists.
- *
- * Alphabet is Crockford's base32, which drops I, L, O and U. The first three
- * because they are read back as 1 and 0 over a voice call or off a photo of a
- * screen; U because excluding it keeps accidental words out of generated codes.
- *
- * Eleven random symbols is 2^55, far past any risk of two players colliding or
- * of someone finding a live code by guessing, each attempt costs a request to
- * a rate-limited endpoint.
- *
- * The twelfth symbol is a checksum. Without it a typo is indistinguishable
- * from a friend who simply has not opened the app: with no directory to ask,
- * the app cannot tell "no such code" from "offline". The checksum lets it
- * reject a mistyped code on the spot rather than storing a friend who will
- * never come online.
+ * Le code **est** l'identite : il n'y a pas d'annuaire. Onze symboles base32 de
+ * Crockford, plus une somme de controle qui distingue une faute de frappe d'un
+ * ami hors ligne.
+ * pourquoi : docs/decisions/identite-et-dumps.md § Le code d'ami *est* l'identité, et il est public par conception
+ * pourquoi : docs/decisions/identite-et-dumps.md § L'alphabet du code d'ami, et son douzième symbole
  */
 object FriendCode {
 

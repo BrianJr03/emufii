@@ -129,3 +129,47 @@ Une vraie version de titre — le `1.0.2` qu'installe une mise à jour — **n'e
 dans le nom de fichier du tout** ; elle est dans les métadonnées du NSP, que rien
 ici ne lit encore. Imprimer la version faible parce qu'elle était bon marché était
 l'erreur.
+
+## Une ROM rend plusieurs clés, jamais une seule
+
+Toute la difficulté de « est-ce que ce jeu marche » n'est pas le verdict, c'est
+de dire **quel jeu** sans demander à personne de le nommer. Un verdict se donne
+une fois et doit atteindre chaque copie de ce jeu dans le monde, quelle que soit
+la langue du dump du joueur : une clé doit donc survivre au changement de région.
+
+Deux familles de console, et elles demandent des traitements opposés :
+
+- **La région est un caractère à position connue.** 3DS, DS, GameCube et Wii
+  estampent leur région dans une lettre d'un code par ailleurs identique
+  (`CTR-P-ARR`**`J`**, `ADA`**`E`**, `RMC`**`P`**`01`). Retirer cette lettre et
+  le reste *est* le jeu, gratuitement, sans table à maintenir et sans laisser un
+  jeu de côté.
+- **Les régions portent des numéros sans rapport.** Une sortie PSP ou PS2 n'a
+  rien en commun d'un territoire à l'autre — `UCUS-98653` contre `UCES-00842` —
+  et aucune règle ne les reliera jamais. Celles-là s'apparient sur le serial
+  exact, et il revient à la base de lister chaque serial sous lequel un jeu est
+  sorti. L'outil qui écrit la base les résout depuis les index publics ; ce
+  fichier ne le peut pas, et ne doit pas prétendre le faire.
+
+Chaque ROM rend donc **plusieurs** clés — une clé de famille quand elle existe,
+et toujours les identifiants exacts — et une entrée correspond si l'une d'elles
+est listée. Ceinture et bretelles à dessein : si une règle de famille rencontre
+un jour un code qu'elle lit mal, l'identifiant exact tombe quand même, et l'échec
+coûte une région plutôt que le jeu entier.
+
+## L'alphabet du code d'ami, et son douzième symbole
+
+Alphabet base32 de Crockford, qui retire I, L, O et U. Les trois premières parce
+qu'elles se relisent en 1 et 0 au téléphone ou sur une photo d'écran ; le U parce
+que l'exclure tient les mots involontaires hors des codes engendrés.
+
+Onze symboles aléatoires font 2^55, très au-delà de tout risque que deux joueurs
+se télescopent ou que quelqu'un trouve un code vivant en devinant — chaque essai
+coûte une requête à un point d'entrée limité en débit.
+
+**Le douzième symbole est une somme de contrôle**, et il existe pour une raison
+précise. Sans lui, une faute de frappe est indiscernable d'un ami qui n'a
+simplement pas ouvert l'app : sans annuaire à interroger, l'app ne peut pas
+distinguer « ce code n'existe pas » de « il est hors ligne ». La somme de
+contrôle lui permet de rejeter un code mal tapé sur-le-champ, plutôt que
+d'enregistrer un ami qui ne se connectera jamais.

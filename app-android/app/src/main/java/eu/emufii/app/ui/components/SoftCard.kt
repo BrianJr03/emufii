@@ -20,6 +20,7 @@ import eu.emufii.app.ui.theme.PlateLight
 import eu.emufii.app.ui.theme.PlateOled
 import eu.emufii.app.ui.theme.plate
 import eu.emufii.app.ui.theme.tilePlateBrush
+import eu.emufii.app.ui.tap
 
 /**
  * A panel's fill, exposed because content scrolling inside one has to be able to
@@ -60,7 +61,7 @@ fun tilePlate(): Brush = tilePlateBrush(
  */
 @Composable
 fun artworkRim(): Color =
-    if (LocalEmufiiDarkTheme.current) Color(0x24FFFFFF) else Color(0x2E000000)
+    if (LocalEmufiiDarkTheme.current) eu.emufii.app.ui.theme.EdgeDark else eu.emufii.app.ui.theme.EdgeLight
 
 /**
  * The panel every screen is built out of: one moulded plate.
@@ -92,7 +93,7 @@ fun SoftCard(
             // `clickable` in the chain, so it still reads its focus.
             .then(if (onClick != null) Modifier.controlRing(shape) else Modifier)
             .plate(shape = shape, dark = dark, oled = oled, lift = 6.dp)
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .then(if (onClick != null) Modifier.tap(onClick = onClick) else Modifier)
     ) {
         // A Box provides no content colour, so any Text inside that doesn't name
         // one falls back to black: fine on the pale plate, invisible on the dark

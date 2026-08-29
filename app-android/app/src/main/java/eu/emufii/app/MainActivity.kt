@@ -23,8 +23,10 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import eu.emufii.app.settings.SettingsStore
 import eu.emufii.app.ui.EmufiiApp
+import eu.emufii.app.ui.SplashGate
 import eu.emufii.app.ui.theme.EmufiiTheme
 import eu.emufii.app.wg.EmufiiWgManager
+import eu.emufii.app.ui.Sfx
 
 /**
  * Requests VPN permission before a session starts.
@@ -68,8 +70,25 @@ class MainActivity : ComponentActivity() {
         AppForeground.set(false)
     }
 
+    /**
+     * Re-arms the splash on every real start of the activity. Without this,
+     * a process Android kept alive skipped the logo entirely on reopening and
+     * dropped the player straight onto the grid. Configuration changes
+     * (rotation, locale) are excluded — they are not openings — and the gate
+     * itself refuses while a session lives, so returning from the emulator
+     * still lands in the session's screen.
+     */
+    override fun onStart() {
+        super.onStart()
+        if (!isChangingConfigurations) SplashGate.rearm()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Decode les deux sons avant le premier ecran : charges a la volee, le
+        // tout premier survol serait muet.
+        // pourquoi : docs/decisions/sons.md § Deux sons, une seule famille
+        Sfx.prepare(this)
         enableEdgeToEdge()
         setContent {
             val pending = remember { mutableStateOf<Pair<() -> Unit, () -> Unit>?>(null) }
@@ -109,7 +128,6 @@ class MainActivity : ComponentActivity() {
             // isn't reading.
             val settings = remember { SettingsStore.get(this@MainActivity) }
             val theme by settings.theme.collectAsState()
-            val accent by settings.accent.collectAsState()
             val dark = theme.isDark(isSystemInDarkTheme())
 
             // enableEdgeToEdge picks the status bar icon colour once, from the
@@ -132,7 +150,7 @@ class MainActivity : ComponentActivity() {
             val secondScreen by settings.secondScreen.collectAsState()
             SecondScreenHost(enabled = secondScreen)
 
-            EmufiiTheme(darkTheme = dark, oled = theme.isOled, accent = accent) {
+            EmufiiTheme(darkTheme = dark, oled = theme.isOled) {
                 CompositionLocalProvider(LocalEnsureVpnPermission provides ensureVpn) {
                     EmufiiApp(settings = settings)
                 }

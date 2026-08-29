@@ -10,6 +10,8 @@ import eu.emufii.app.azahar.NetplayAutomation
 import eu.emufii.app.azahar.NetplayPlan
 import eu.emufii.app.azahar.PlanStore
 import eu.emufii.app.netplay.NetplayTarget
+import eu.emufii.app.library.Console
+import eu.emufii.app.library.EmulatorPick
 
 /**
  * Starts a Switch game in Eden, and arms the netplay autofill.
@@ -26,33 +28,12 @@ import eu.emufii.app.netplay.NetplayTarget
 class EdenLauncher(private val context: Context) {
 
     /**
-     * Which Eden variant Emufii drives, when the player has several.
-     *
-     * The last installed wins. Eden ships as a matrix of packages, mainline,
-     * "Optimized" under Genshin Impact's identity, legacy, each doubled by a
-     * nightly, and nothing stops someone having three at once. A hardcoded order
-     * then always picked the same one, when the one just installed is precisely
-     * the one meant to be used: on the Thor, last week's stable beat the Optimized
-     * installed moments earlier, and Emufii opened the emulator the player had not
-     * chosen.
-     *
-     * `lastUpdateTime` rather than `firstInstallTime`: reinstalling or updating a
-     * variant is as deliberate a gesture as installing it the first time. The
-     * downside is accepted, updating a forgotten variant can take over without
-     * saying so. The day that becomes a nuisance, what will be needed is an
-     * explicit setting, not a finer heuristic.
-     *
-     * On equal dates, the order of [NetplayTarget.EDEN.packages] decides, which
-     * keeps our fork in front, it being the only one that lets the network
-     * interface be chosen.
+     * Which Eden variant Emufii drives, when the player has several : la
+     * derniere installee, par `lastUpdateTime`. A dates egales, l'ordre de
+     * [NetplayTarget.EDEN] tranche. Surchargeable par [EmulatorPick].
+     * pourquoi : docs/decisions/pilotes-emulateurs.md § Eden : la dernière installée gagne
      */
-    fun installedPackage(): String? = pickEden(
-        NetplayTarget.EDEN.packages.mapNotNull { pkg ->
-            runCatching { context.packageManager.getPackageInfo(pkg, 0) }
-                .getOrNull()
-                ?.let { pkg to it.lastUpdateTime }
-        }
-    )
+    fun installedPackage(): String? = EmulatorPick.packageFor(context, Console.SWITCH)
 
     fun isInstalled(): Boolean = installedPackage() != null
 

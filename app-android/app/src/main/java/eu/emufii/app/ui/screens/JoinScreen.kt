@@ -1,7 +1,7 @@
 package eu.emufii.app.ui.screens
 
+import eu.emufii.app.ui.sounded
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,13 +11,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -28,16 +27,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -46,11 +37,19 @@ import eu.emufii.app.R
 import eu.emufii.app.network.CoordinatorClient
 import eu.emufii.app.session.RomRef
 import eu.emufii.app.session.SessionCodes
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.pluralStringResource
+import eu.emufii.app.ui.components.EmufiiCodeKeyboard
 import eu.emufii.app.ui.components.EmufiiScaffold
+import eu.emufii.app.ui.components.LandOn
 import eu.emufii.app.ui.components.padEntry
+import eu.emufii.app.secondscreen.LEGEND_CAP
+import eu.emufii.app.secondscreen.PadHint
+import eu.emufii.app.secondscreen.PadHintRow
 import eu.emufii.app.ui.theme.LocalEmufiiDarkTheme
 import eu.emufii.app.ui.theme.socket
 import eu.emufii.app.ui.focusRing
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.animateFloat
@@ -59,18 +58,24 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import eu.emufii.app.ui.theme.PillShape
-import eu.emufii.app.ui.theme.PlateDark
-import eu.emufii.app.ui.theme.PlateLight
-import eu.emufii.app.ui.theme.EdgeDark
-import eu.emufii.app.ui.theme.EdgeLight
+import eu.emufii.app.ui.theme.Coral
+import eu.emufii.app.ui.LocalRingTone
+import eu.emufii.app.ui.RingTone
+import eu.emufii.app.ui.ringColor
 
 /** A session code is six characters; the hyphen only helps to read it. */
 private const val CODE_LENGTH = 6
 
+/** La coupe corail lisible sur le fond courant, pour les etats affaiblis. */
+private fun coralCut(dark: Boolean) = if (dark) Coral.darkBright else Coral.deep
+
 /**
- * Entering the code you were given, as six boxes rather than a form. The real
- * input field still exists, invisible, under them — it is what brings the
- * keyboard, the selection and pasting for free.
+ * Entering the code you were given, as six boxes rather than a form.
+ *
+ * La dalle de l'app remplace le champ invisible qui attendait un clavier systeme
+ * qui ne s'ouvrait jamais a la manette. En deux colonnes : a gauche ce qu'on
+ * lit, a droite ce avec quoi on ecrit.
+ * pourquoi : docs/decisions/coquille-ecrans.md § Rejoindre : le clavier de l'app plutôt qu'un champ invisible
  * pourquoi : docs/decisions/coquille-ecrans.md § Six cases plutôt qu'un champ
  */
 @Composable
@@ -82,41 +87,45 @@ fun JoinScreen(
     modifier: Modifier = Modifier
 ) {
     var code by remember { mutableStateOf("") }
-    val focus = remember { FocusRequester() }
     val complete = code.length == CODE_LENGTH
+    val dark = LocalEmufiiDarkTheme.current
+    val landing = remember { FocusRequester() }
 
-    // The IME key closes the keyboard and stops there. `ImeAction` only draws
-    // the key; and it must NOT start the session.
-    // pourquoi : docs/decisions/coquille-ecrans.md § La touche du clavier ferme le clavier, et s'arrête là
-    val keyboard = LocalSoftwareKeyboardController.current
-    val focusManager = LocalFocusManager.current
-    val dismissKeyboard = {
-        keyboard?.hide()
-        focusManager.clearFocus()
-    }
+    // **B efface une case, il ne quitte pas l'ecran tant qu'il reste du code.**
+    // La dalle n'a plus de touche d'effacement : elle tordait la grille pour
+    // loger une cible que la manette avait deja sous le pouce. Declare avant le
+    // scaffold pour passer devant le sien, qui lui sort de l'ecran — ce que B
+    // fait de nouveau des que le champ est vide.
+    // pourquoi : docs/decisions/coquille-ecrans.md § Le clavier de code n'est pas le clavier de recherche
+    BackHandler(enabled = code.isNotEmpty()) { code = code.dropLast(1) }
 
-    // No automatic keyboard: in landscape the IME opens fullscreen and would
-    // cover the screen before it had ever been seen.
-    // pourquoi : docs/decisions/coquille-ecrans.md § Pas de clavier automatique, et le bloc est centré sur l'écran
-
+    // Le domaine social : le curseur manette y devient corail.
+    // pourquoi : docs/decisions/theme-duotone-shelves.md § FOCUS MANETTE
+    CompositionLocalProvider(LocalRingTone provides RingTone.CORAL) {
     EmufiiScaffold(
         title = stringResource(R.string.join_title),
         modifier = modifier,
         onBack = onBack,
-        contentScrolls = false
+        contentScrolls = false,
+        // Le scaffold ne pose pas son curseur : il le poserait sur le premier
+        // controle de l'ecran, qui est le bouton « Rejoindre », et celui-ci est
+        // desactive tant que le code n'est pas complet. On le pose nous-memes
+        // sur le clavier, qui est ce qu'il y a a faire en arrivant.
+        autoFocus = false
     ) { _ ->
-        // Centred on the screen, not under the header: reserving the top
-        // padding put the block 90 px too low, and nothing here reaches it.
-        // pourquoi : docs/decisions/coquille-ecrans.md § Pas de clavier automatique, et le bloc est centré sur l'écran
-        Box(
+        LandOn(landing)
+
+        Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(start = 24.dp, end = 24.dp, top = 32.dp, bottom = 12.dp),
-            contentAlignment = Alignment.Center
+                .padding(start = 24.dp, end = 24.dp, top = 28.dp, bottom = 14.dp),
+            horizontalArrangement = Arrangement.spacedBy(22.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(18.dp)
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+                modifier = Modifier.weight(1f)
             ) {
                 Text(
                     rom.displayName,
@@ -129,77 +138,106 @@ fun JoinScreen(
                     textAlign = TextAlign.Center
                 )
 
-                BasicTextField(
-                    value = code,
-                    onValueChange = { new ->
-                        // The hyphen is typed or not, it is the same code; we
-                        // keep only what counts, and never more than six.
-                        code = new.uppercase()
-                            .filter { it.isLetterOrDigit() }
-                            .take(CODE_LENGTH)
-                    },
-                    singleLine = true,
-                    textStyle = TextStyle(color = Color.Transparent),
-                    // The field's caret has nothing to draw: the boxes are what
-                    // show where you are.
-                    cursorBrush = SolidColor(Color.Transparent),
-                    keyboardOptions = KeyboardOptions(
-                        capitalization = KeyboardCapitalization.Characters,
-                        keyboardType = KeyboardType.Ascii,
-                        imeAction = ImeAction.Done,
-                        // No autocorrect — not about spelling: it stops the
-                        // keyboard opening a *composing region* on the field.
-                        // pourquoi : docs/decisions/coquille-ecrans.md § Six cases plutôt qu'un champ
-                        autoCorrectEnabled = false
-                    ),
-                    keyboardActions = KeyboardActions(onDone = { dismissKeyboard() }),
-                    modifier = Modifier.focusRequester(focus),
-                    decorationBox = {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(9.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            repeat(CODE_LENGTH) { i ->
-                                CodeSlot(
-                                    char = code.getOrNull(i),
-                                    // The current box, and the last one once the
-                                    // code is complete: the accent has to land
-                                    // somewhere.
-                                    active = i == code.length.coerceAtMost(CODE_LENGTH - 1)
-                                )
-                                // The dash is a reading aid, in the middle, and
-                                // not a character to type.
-                                if (i == 2) Separator()
-                            }
-                        }
-                    }
-                )
-
+                // **Le gabarit passe au-dessus des cases.**
+                //
+                // « ex. KMR-347 » etait sous les encoches et plus discret
+                // qu'elles : il se lisait apres, donc trop tard, et rien ne
+                // reliait ses caracteres aux cases. Pose juste au-dessus, il
+                // devient un modele — trois lettres, un tiret, trois chiffres —
+                // et le tiret imprime dans la bande d'encoches y repond.
                 Text(
                     stringResource(R.string.join_code_example),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(9.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    repeat(CODE_LENGTH) { i ->
+                        CodeSlot(
+                            char = code.getOrNull(i),
+                            // The current box, and the last one once the
+                            // code is complete: the accent has to land
+                            // somewhere.
+                            active = i == code.length.coerceAtMost(CODE_LENGTH - 1)
+                        )
+                        // The dash is a reading aid, in the middle, and
+                        // not a character to type.
+                        if (i == 2) Separator()
+                    }
+                }
+
+                // **Ce que fait retour, dit la ou il sert**, et dans la langue
+                // que le panneau arriere parle deja : un capuchon moule et un
+                // mot. Le clavier de code n'a plus de touche d'effacement — sans
+                // cette ligne, un joueur qui se trompe d'une lettre n'a aucun
+                // moyen de savoir qu'il peut la reprendre.
+                //
+                // La bande garde sa hauteur meme vide : elle apparait au premier
+                // caractere, et c'est exactement quand retour efface au lieu de
+                // sortir. Sans la reserve, la bande d'encoches sautait d'un cran
+                // a la premiere lettre tapee.
+                Box(modifier = Modifier.height(LEGEND_CAP)) {
+                    if (code.isNotEmpty()) PadHintRow(PadHint.ERASE)
+                }
+
                 Button(
-                    onClick = {
-                        dismissKeyboard()
-                        onSubmitCode(SessionCodes.normalize(code))
-                    },
+                    onClick = sounded { onSubmitCode(SessionCodes.normalize(code)) },
                     enabled = complete,
                     shape = PillShape,
-                    // Material's disabled pill is grey on grey, under 3:1 on this
-                    // tray: the button read as an absence rather than as a
-                    // control waiting for six characters. Tinted from the accent
-                    // instead, it stays visibly the thing that will take you in.
+                    // Rejoindre est un lien : pilule corail, coupe pleine sur
+                    // fond clair, coupe bright sur fond sombre. Desactivee, la
+                    // teinte reste lisible — le controle attend ses six caracteres,
+                    // il n'est pas absent.
+                    // pourquoi : docs/decisions/theme-duotone-shelves.md § Deux axes sémantiques
                     colors = ButtonDefaults.buttonColors(
-                        disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
-                        disabledContentColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
+                        containerColor = if (dark) Coral.bright else Coral.deep,
+                        contentColor = if (dark) Coral.ink else Color.White,
+                        disabledContainerColor = coralCut(dark).copy(alpha = 0.16f),
+                        disabledContentColor = coralCut(dark).copy(alpha = 0.55f)
                     ),
-                    modifier = Modifier.width(260.dp).height(52.dp).controlRing(PillShape).padEntry()
-                ) { Text(stringResource(R.string.join_action)) }
+                    modifier = Modifier.width(240.dp).height(50.dp).controlRing(PillShape).padEntry()
+                ) {
+                    // **Le bouton desactive dit ce qui manque.**
+                    //
+                    // « Rejoindre » en grise ne disait pas pourquoi il ne
+                    // marchait pas ; le joueur pouvait croire que le code etait
+                    // refuse alors qu'il etait seulement incomplet. Il compte
+                    // donc a voix haute tant qu'il manque quelque chose, et ne
+                    // reprend son nom qu'au moment ou il devient appuyable —
+                    // c'est-a-dire qu'il n'annonce jamais une action qu'il ne
+                    // peut pas rendre.
+                    Text(
+                        if (complete) stringResource(R.string.join_action)
+                        else pluralStringResource(
+                            R.plurals.join_code_remaining,
+                            CODE_LENGTH - code.length,
+                            CODE_LENGTH - code.length
+                        )
+                    )
+                }
+            }
+
+            // Le clavier, a droite. Il porte le curseur en arrivant : c'est le
+            // seul endroit de l'ecran ou il y ait quelque chose a faire tant que
+            // le code n'est pas complet.
+            //
+            // **Rien dessous.** Il a eu une plaque, puis un plateau creuse : les
+            // deux ajoutaient une surface entre le clavier et le fond, et les
+            // touches se lisaient comme des objets ranges dans une boite. Un
+            // clavier de console est pose a meme l'ecran ; sa forme lui vient de
+            // ses touches, pas d'un cadre autour.
+            Box(modifier = Modifier.weight(1.05f)) {
+                EmufiiCodeKeyboard(
+                    firstKeyFocus = landing,
+                    onKey = { c -> if (code.length < CODE_LENGTH) code += c },
+                    maxHeight = LocalConfiguration.current.screenHeightDp.dp * 0.70f
+                )
             }
         }
+    }
     }
 }
 
@@ -214,13 +252,22 @@ private fun CodeSlot(char: Char?, active: Boolean) {
     val shape = RoundedCornerShape(16.dp)
     Box(
         modifier = Modifier
-            .size(width = 56.dp, height = 72.dp)
+            // **Retaille pour la colonne de gauche, pas pour l'ecran entier.**
+            //
+            // A 56 dp de large, six encoches, leur tiret et leurs ecarts
+            // demandaient plus que la moitie de l'ecran : la bande depassait sa
+            // colonne et la sixieme case sortait par la droite. Le code se lit
+            // toujours a bout de bras a 48, et c'est le nombre de caracteres
+            // qui fait la largeur, pas l'inverse.
+            .size(width = 48.dp, height = 66.dp)
             .focusRing(active, shape, width = 3.dp, glowRadius = 16.dp)
+            // Une encoche crème plate : la teinte basse de la plaque suffit à
+            // dire « ici va un caractère », le creux en relief est un monde
+            // disparu. L'encoche active se teinte de l'axe social.
             .socket(shape, dark)
-            // A floor darker than the tray. At the tray's own value the six
-            // recesses vanished into the ground and the strip read as a row of
-            // ghosts; a code field has to look like somewhere a character goes.
-            .background(if (dark) Color(0x33000000) else Color(0x14101A2A), shape),
+            .then(
+                if (active) Modifier.background(Coral.soft, shape) else Modifier
+            ),
         contentAlignment = Alignment.Center
     ) {
         if (char != null) {
@@ -257,7 +304,8 @@ private fun Caret() {
         modifier = Modifier
             .size(width = 3.dp, height = 34.dp)
             .background(
-                MaterialTheme.colorScheme.primary.copy(alpha = alpha),
+                // Le caret dit l'axe social : corail dans le domaine corail.
+                ringColor().copy(alpha = alpha),
                 RoundedCornerShape(2.dp)
             )
     )

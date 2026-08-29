@@ -1,5 +1,6 @@
 package eu.emufii.app.ui.components
 
+import eu.emufii.app.ui.sounded
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,6 +13,9 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import eu.emufii.app.secondscreen.SecondScreen
+import eu.emufii.app.secondscreen.SecondScreenModel
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -22,6 +26,7 @@ import eu.emufii.app.ui.ActionShape
 import eu.emufii.app.ui.controlRing
 import eu.emufii.app.ui.theme.LocalEmufiiDarkTheme
 import eu.emufii.app.ui.theme.LocalAccent
+import eu.emufii.app.ui.SilenceSystemSfx
 
 /**
  * The filled action, the only one of its kind on a screen.
@@ -48,7 +53,7 @@ fun PrimaryButton(
     val container = if (dark) accent.bright else accent.deep
     val ink = if (dark) accent.ink else Color.White
     Button(
-        onClick = onClick,
+        onClick = sounded(onClick),
         enabled = enabled,
         shape = ActionShape,
         colors = ButtonDefaults.buttonColors(
@@ -98,9 +103,40 @@ fun PadDialog(
     modifier: Modifier = Modifier,
     /** Dismissable by tapping outside, except where the choice has to be made. */
     dismissOnOutside: Boolean = true,
+    /**
+     * La consequence, en une phrase, pour le panneau arriere.
+     *
+     * Le corps de ce dialogue est un `@Composable`, donc illisible d'ici : la
+     * phrase se redonne, elle ne se recupere pas. C'est le prix a payer pour que
+     * le panneau cesse de contredire l'ecran de face, et il est modique — un
+     * dialogue qui n'a rien a dire de plus que son titre laisse ce parametre
+     * nul et le panneau n'affiche que le titre.
+     */
+    panelDetail: String? = null,
+    /** Corail quand la question porte sur une session ou sur quelqu'un. */
+    panelSocial: Boolean = false,
     actions: @Composable () -> Unit,
     content: @Composable () -> Unit
 ) {
+    // **Le panneau apprend qu'on demande quelque chose devant.**
+    //
+    // Pose ici et pas chez les appelants : c'est le seul dialogue de
+    // confirmation de l'app, donc le seul endroit ou brancher la regle, et un
+    // futur dialogue en heritera sans que personne ait a y penser. Le panneau
+    // affichait jusqu'ici la scene d'avant — le code d'une session pendant
+    // qu'on demandait s'il fallait la fermer.
+    // pourquoi : docs/decisions/second-ecran.md § Ce qui voyage jusqu'au panneau
+    DisposableEffect(title, panelDetail, panelSocial) {
+        val token = SecondScreen.putAside(
+            SecondScreenModel.Asking(
+                title = title,
+                detail = panelDetail.orEmpty(),
+                social = panelSocial
+            )
+        )
+        onDispose { SecondScreen.takeBack(token) }
+    }
+
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(
@@ -111,6 +147,7 @@ fun PadDialog(
             usePlatformDefaultWidth = false
         )
     ) {
+        SilenceSystemSfx()
         // Bounded, and that bound is the whole reason this measures itself.
         //
         // `usePlatformDefaultWidth = false` is what lets a long sentence wrap

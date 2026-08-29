@@ -23,12 +23,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import eu.emufii.app.ui.controlRing
+import eu.emufii.app.ui.ringColor
 import eu.emufii.app.ui.theme.LocalEmufiiDarkTheme
 import eu.emufii.app.ui.theme.plate
 import eu.emufii.app.ui.theme.socket
+import eu.emufii.app.ui.tap
 
 /**
  * L'interrupteur de l'app : une alvéole creusée dans la plaque, et un bouton
@@ -56,9 +59,16 @@ private val PAD = 3.dp
 /**
  * Une rangée d'interrupteur : ce qu'il fait à gauche, l'interrupteur à droite.
  *
- * Toute la rangée est la cible, pas seulement l'interrupteur : viser une
- * pastille de 52 dp au bout d'une ligne à la manette est un travail, et à deux
- * mains sur une console c'est le mauvais geste.
+ * Toute la rangée est la cible **du doigt**, pas seulement l'interrupteur :
+ * viser une pastille de 52 dp au bout d'une ligne à la manette est un travail,
+ * et à deux mains sur une console c'est le mauvais geste.
+ *
+ * Mais le **focus** vit sur l'interrupteur seul. La rangée porte bien un
+ * contrôle, seulement son contour faisait le tour de toute la ligne — un
+ * cadre sur trois mots de libellé, qui se lisait comme une sélection et pas
+ * comme un curseur. La rangée n'est donc pas un arrêt de focus
+ * (`canFocus = false`) : au doigt elle toggle, à la manette c'est la pastille
+ * qui porte l'anneau, et il n'y a toujours qu'un seul geste.
  * pourquoi : docs/decisions/reglages-ecran.md § Un réglage qui n'a que deux états est un interrupteur
  */
 @Composable
@@ -75,8 +85,8 @@ fun SwitchRow(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         modifier = modifier
             .fillMaxWidth()
-            .controlRing(CircleShape)
-            .clickable(role = Role.Switch) { onCheckedChange(!checked) }
+            .focusProperties { canFocus = false }
+            .tap(role = Role.Switch) { onCheckedChange(!checked) }
             .padding(vertical = 4.dp)
     ) {
         Column(modifier = Modifier.weight(1f)) {
@@ -93,10 +103,15 @@ fun SwitchRow(
                 )
             }
         }
-        // L'interrupteur ne porte pas son propre anneau : la rangee entiere est
-        // le controle, et deux anneaux pour un geste feraient deux arrets de
-        // curseur la ou il n'y a qu'une chose a faire.
-        SwitchFace(checked = checked)
+        // Le seul arrêt de focus de la rangée : l'anneau épouse l'interrupteur,
+        // pas la ligne entière.
+        Box(
+            modifier = Modifier
+                .controlRing(CircleShape)
+                .tap(role = Role.Switch) { onCheckedChange(!checked) }
+        ) {
+            SwitchFace(checked = checked)
+        }
     }
 }
 
@@ -104,19 +119,24 @@ fun SwitchRow(
  * L'interrupteur sans son clic ni son anneau : la rangee qui le porte les a
  * deja. Publie parce que la carte de lancement a la sienne, et qu'une app n'a
  * le droit qu'a un seul interrupteur.
- * pourquoi : docs/decisions/reglages-ecran.md § Un réglage qui n'a que deux états est un interrupteur
+ *
+ * DUOTONE SHELVES : plat, comme le reste. La piste est une encoche (la teinte
+ * basse de la plaque), la pastille une tuile sans relief, et l'etat actif
+ * prend l'axe en force — turquoise par defaut, corail si la rangee vit dans
+ * une zone sociale (`LocalRingTone`).
+ * pourquoi : docs/decisions/theme-duotone-shelves.md § Les creux deviennent des encoches
  */
 @Composable
 fun SwitchFace(checked: Boolean) {
     val dark = LocalEmufiiDarkTheme.current
-    val accent = MaterialTheme.colorScheme.primary
+    val axis = ringColor()
     val knob by animateDpAsState(
         targetValue = if (checked) TRACK_WIDTH - KNOB - PAD else PAD,
         animationSpec = spring(dampingRatio = 0.7f, stiffness = 900f),
         label = "switch-row-knob"
     )
     val fill by animateColorAsState(
-        targetValue = if (checked) accent.copy(alpha = 0.55f) else Color.Transparent,
+        targetValue = if (checked) axis.copy(alpha = 0.35f) else Color.Transparent,
         label = "switch-row-track"
     )
     Box(
@@ -136,7 +156,7 @@ fun SwitchFace(checked: Boolean) {
             modifier = Modifier
                 .offset(x = knob)
                 .size(KNOB)
-                .plate(shape = CircleShape, dark = false, oled = false, lift = 3.dp)
+                .plate(shape = CircleShape, dark = false, oled = false, lift = 2.dp)
         )
     }
 }

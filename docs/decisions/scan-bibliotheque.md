@@ -131,3 +131,44 @@ SAF nous rend un identifiant de document de la forme `primary:Roms/3DS` : le
 préfixe de volume ne veut rien dire pour quiconque hors du framework, donc seule
 la partie qui suit est montrée. Repli sur le dernier segment de l'URI pour les
 fournisseurs dont le format d'identifiant nous est inconnu.
+
+## Un nom que le fichier ne donne pas se demande à l'index
+
+Une ROM dit toujours **quel jeu elle est** — l'identifiant de titre, le code de
+jeu, l'identifiant de disque, le serial vivent dans des en-têtes qu'aucun
+chiffrement ne touche — mais pas toujours son **titre** : pas de clés console
+signifie pas de NACP sur un dump Switch, pas de SMDH sur un 3DS, et les formats
+de disque ne portent aucune bannière une fois sur deux. La grille retombe alors
+sur le nom de fichier, étiquettes de release comprises.
+
+C'est donc le seul endroit où un vrai nom est *demandé*, par identifiant, aux
+mêmes index publics contre lesquels l'outil de compatibilité résout les siens.
+Toutes les consoles sont couvertes : une tuile qui nomme son jeu sur une console
+et son fichier sur la suivante est le désordre que ça existe pour éviter.
+
+Servi et mis en cache comme tout autre document public (`/compat`, `/meta`) : les
+portables sont hors ligne la moitié du temps, et un vrai titre qui disparaît sans
+Wi-Fi renverrait la grille au jargon de scène, ce qui se lit comme une panne.
+
+La surcouche ne remplace **jamais** qu'un nom dérivé du fichier, et perd contre
+les deux choses qui la dominent : un titre lu dans le fichier lui-même (la
+cartouche parle sa propre langue) et le nom choisi par le joueur.
+
+## La langue d'une cartouche est celle de l'app
+
+Chaque format qu'Emufii lit porte son titre plusieurs fois — une bannière DS en
+six langues, un SMDH 3DS en douze, un control Switch en seize — et chaque lecteur
+choisissait dans une liste figée à « français, puis anglais, puis japonais ». Une
+app en anglais affichait donc « Pokémon Version Blanche 2 », sans moyen de
+demander autre chose. La cartouche connaît les deux noms ; la seule question est
+lequel lire, et la réponse est la langue que l'app elle-même parle.
+
+L'app est bilingue, donc chaque ordre nomme sa langue d'abord et l'autre ensuite,
+puis garde l'ancienne queue : une cartouche japonaise qui ne porte ni français ni
+anglais doit quand même produire *quelque chose*, et un titre japonais vaut mieux
+qu'un nom de fichier.
+
+Le marqueur de langue existe parce que les titres sont mis en cache sur disque.
+Deux langues de la même cartouche sont deux chaînes différentes sous le même code
+de jeu : la clé de cache doit donc porter la langue, sans quoi changer la langue
+de l'app afficherait la précédente jusqu'au prochain scan.

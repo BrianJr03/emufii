@@ -47,7 +47,9 @@ fun SteamGridDbMark(modifier: Modifier = Modifier) {
             Text(
                 stringResource(R.string.artwork_service_name),
                 style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurface
+                // Muted, not full ink: the mark names a third-party service, it
+                // is not one of this app's own actions and takes neither axis.
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
                 stringResource(R.string.artwork_service_host),

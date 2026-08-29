@@ -7,6 +7,8 @@ import eu.emufii.app.R
 import eu.emufii.app.azahar.LaunchResult
 import eu.emufii.app.library.Rom
 import eu.emufii.app.session.RomRef
+import eu.emufii.app.library.Console
+import eu.emufii.app.library.EmulatorPick
 
 /**
  * The address the player sets once inside PPSSPP.
@@ -33,9 +35,7 @@ class PpssppLauncher(private val context: Context) {
 
     private val config = PpssppConfigStore(context)
 
-    fun installedPackage(): String? = PpssppPackage.candidates.firstOrNull { pkg ->
-        runCatching { context.packageManager.getPackageInfo(pkg, 0) }.isSuccess
-    }
+    fun installedPackage(): String? = EmulatorPick.packageFor(context, Console.PSP)
 
     /**
      * Opens PPSSPP on its own screen, with no game.

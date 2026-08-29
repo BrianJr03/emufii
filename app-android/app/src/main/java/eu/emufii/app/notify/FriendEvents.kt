@@ -35,22 +35,10 @@ data class SeenFriend(val online: Boolean, val game: String?)
 /**
  * Compares two polls and says what deserves to be announced.
  *
- * Pure, and that is the point: the same function serves the in-app alert and
- * the background job, so what the two announce cannot drift apart. It is also
- * the only part of this feature that can be tested without a device.
- *
- * The rules, and each one was earned by imagining the notification it prevents:
- *
- * - A friend we have never seen produces nothing. The first poll after adding
- *   someone, or after the app was killed for a day, would otherwise announce
- *   the whole list at once as if everyone had just arrived.
- * - Coming online announces once. If they are already in a game at that moment,
- *   the game is what gets announced, not both.
- * - Starting a game announces even for someone who was already online, which is
- *   the case that actually matters: they are there, and now there is something
- *   to join.
- * - A friend who was already in that same game produces nothing, however many
- *   times we poll.
+ * Pure a dessein : la meme fonction sert l'alerte dans l'app et le travail de
+ * fond, donc les deux ne peuvent pas diverger. C'est aussi la seule partie
+ * testable sans appareil.
+ * pourquoi : docs/decisions/amis-et-notifications.md § Les règles d'annonce, chacune gagnée en imaginant la notification qu'elle évite
  */
 fun friendEvents(
     previous: Map<String, SeenFriend>,

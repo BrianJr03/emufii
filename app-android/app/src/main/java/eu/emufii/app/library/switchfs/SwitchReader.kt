@@ -1,32 +1,25 @@
 package eu.emufii.app.library.switchfs
 
 import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.net.Uri
-import eu.emufii.app.library.TitleLanguage
 import java.io.FileInputStream
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
 
-/** Title and icon of a Switch dump, or nothing at all, both are ordinary. */
-data class SwitchData(val icon: Bitmap?, val title: String?, val cacheKey: String?)
-
 /**
- * Reads what a Switch dump will admit to, given the player's own console keys.
+ * Reads the one thing a Switch dump says without any console key: its title id.
  *
- * Both containers are handled: `.nsp` for a download, `.xci` for a cartridge
- * dump. They differ only in how the NCAs are wrapped, so everything past that
- * is shared.
+ * The title and the icon live in an encrypted NCA, and reading them used to be
+ * the whole point of this package — a few megabytes of AES per file, against a
+ * key file the player had to be talked into providing. The titles now come from
+ * the public index by title id (see `GameTitles`), in the app's language, and
+ * the icons from the artwork sources; the decryption stack, and the `prod.keys`
+ * plumbing that fed it, are gone.
  *
- * Two things are read at very different costs, and the split matters:
- *
- * - a title id can be had off an NSP's plaintext table of contents, with no
- *   keys at all, one small read. A cartridge carries no ticket, so there it
- *   only comes from the decrypted NCA header;
- * - the icon and title need `prod.keys`, a few megabytes of AES, and a
- *   filesystem walk. Without keys they are simply absent, and the tile keeps
- *   its initials like any unrecognised file.
+ * What is left is the cheapest read in the library: the plaintext table of
+ * contents at the head of an NSP, no decryption, one small read. A cartridge
+ * dump (`.xci`) carries no ticket and says nothing without keys — its game is
+ * named by its filename, cleaned, and that is the honest limit.
  */
 class SwitchReader(private val context: Context) {
 
@@ -35,57 +28,28 @@ class SwitchReader(private val context: Context) {
      *
      * Read off the ticket or certificate entry name, which an NSP carries in
      * clear: `0100cd801ce5e0000000000000000011.tik`. Not from the file name on
-     * disk, which is whoever-dumped-it's opinion. A cartridge dump has no such
-     * entry, there the id comes from the NCA header, once keys are available.
+     * disk, which is whoever-dumped-it's opinion.
      */
-    fun titleId(uri: Uri): String? = open(uri) { source ->
-        Pfs0.entries(source)
-            ?.asSequence()
-            ?.mapNotNull { entry ->
-                val stem = entry.name.substringBefore('.')
-                stem.takeIf {
-                    (entry.name.endsWith(".tik") || entry.name.endsWith(".cert")) &&
-                        it.length >= 16 && it.take(16).all { c -> c.isDigit() || c in 'a'..'f' || c in 'A'..'F' }
-                }
-            }
-            ?.firstOrNull()
-            ?.take(16)
-            ?.uppercase()
-    }
-
-    fun read(uri: Uri, keys: SwitchKeys?): SwitchData {
-        val id = titleId(uri)
-        if (keys == null || !keys.isUsable) return SwitchData(null, null, id)
-        val control = open(uri) { source ->
-            runCatching { SwitchControl.read(source, keys, preferredLanguages()) }.getOrNull()
-        } ?: return SwitchData(null, null, id)
-
-        val bitmap = control.iconJpeg?.let {
-            runCatching { BitmapFactory.decodeByteArray(it, 0, it.size) }.getOrNull()
-        }
-        // The id off the NCA header beats the one off a file name, and is the
-        // only one a cartridge dump offers at all.
-        return SwitchData(bitmap, control.title, control.titleId ?: id)
-    }
-
-    /**
-     * Which language to read the title and icon in, see [TitleLanguage], which
-     * holds that decision for every console at once so the library cannot end
-     * up half in one language and half in the other.
-     */
-    private fun preferredLanguages(): List<String> = TitleLanguage.switch
-
-    private fun <T> open(uri: Uri, block: (SwitchControl.RandomAccess) -> T?): T? = runCatching {
+    fun titleId(uri: Uri): String? = runCatching {
         context.contentResolver.openFileDescriptor(uri, "r")?.use { pfd ->
             FileInputStream(pfd.fileDescriptor).channel.use { channel ->
-                block(ChannelAccess(channel))
+                Pfs0.entries(ChannelAccess(channel))?.asSequence()
+                    ?.mapNotNull { entry ->
+                        val stem = entry.name.substringBefore('.')
+                        stem.takeIf {
+                            (entry.name.endsWith(".tik") || entry.name.endsWith(".cert")) &&
+                                it.length >= 16 && it.take(16).all { c -> c.isDigit() || c in 'a'..'f' || c in 'A'..'F' }
+                        }
+                    }
+                    ?.firstOrNull()
+                    ?.take(16)
+                    ?.uppercase()
             }
         }
     }.getOrNull()
 
-    private class ChannelAccess(private val channel: FileChannel) : SwitchControl.RandomAccess {
+    private class ChannelAccess(private val channel: FileChannel) : Pfs0.RandomAccess {
         override val size: Long get() = channel.size()
-
         override fun read(offset: Long, length: Int): ByteArray {
             require(length >= 0) { "negative read" }
             val buffer = ByteBuffer.allocate(length)

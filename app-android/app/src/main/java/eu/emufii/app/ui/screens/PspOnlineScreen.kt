@@ -1,5 +1,6 @@
 package eu.emufii.app.ui.screens
 
+import eu.emufii.app.ui.sounded
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,6 +20,7 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -37,8 +39,13 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.ui.text.style.TextOverflow
 import eu.emufii.app.ui.ActionShape
 import eu.emufii.app.ui.controlRing
+import eu.emufii.app.ui.LocalRingTone
+import eu.emufii.app.ui.RingTone
 import eu.emufii.app.ui.components.RomArtwork
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalConfiguration
 import eu.emufii.app.R
 import eu.emufii.app.azahar.LaunchResult
@@ -47,8 +54,18 @@ import eu.emufii.app.psp.PpssppLauncher
 import eu.emufii.app.ui.components.EmufiiScaffold
 import eu.emufii.app.ui.components.SectionHeader
 import eu.emufii.app.ui.components.SoftCard
+import eu.emufii.app.ui.components.waitTrim
 import eu.emufii.app.ui.components.padEntry
-import eu.emufii.app.ui.theme.AccentGreen
+import eu.emufii.app.ui.theme.Coral
+import eu.emufii.app.ui.theme.GoodDark
+import eu.emufii.app.ui.theme.GoodLight
+import eu.emufii.app.ui.theme.LocalEmufiiDarkTheme
+import eu.emufii.app.ui.theme.Teal
+
+/** Le bon token, tire vers le turquoise. */
+@Composable
+private fun good() = if (LocalEmufiiDarkTheme.current) GoodDark else GoodLight
+
 
 /**
  * Playing a PSP game online, with strangers.
@@ -93,32 +110,19 @@ fun PspOnlineScreen(
         }
     }
 
+    // Le domaine social : le curseur manette y devient corail.
+    // pourquoi : docs/decisions/theme-duotone-shelves.md § FOCUS MANETTE
+    CompositionLocalProvider(LocalRingTone provides RingTone.CORAL) {
     EmufiiScaffold(
         title = stringResource(R.string.psp_online_title),
         modifier = modifier,
         onBack = onBack,
         contentScrolls = false
     ) { topPadding ->
-        // Two panes, like the session screen and like Kaeru. This screen was the
-        // last one built in portrait: two full-width cards and two 56 dp buttons
-        // stacked in a scrolling column, of which the Thor showed only a third,
-        // and the instructions you come here for were precisely in the two thirds
-        // you could not see.
-        //
-        // On the left the game and what this mode is, on the right what there is
-        // to do and the two buttons that do it.
-        // Centred on the screen, not under the header.
-        //
-        // Reserving `topPadding` centred the card within what was left *below*
-        // the title, hence 87 px too low. A height ceiling was tried so it could
-        // be centred without risking going behind the header: it clipped the
-        // content instead of compressing it, the left column not being
-        // scrollable, so whatever overflows disappears. Removed.
-        //
-        // What makes plain centring possible is that the card has slimmed down:
-        // 310 dp of the device's 468, its top edge landing at 79 dp where the
-        // header stops at 68. The remaining `heightIn` is only a screen stop, and
-        // it does not trigger here.
+        // Deux volets, et centre sur l'ecran et non sous l'en-tete : un plafond
+        // de hauteur avait ete essaye, il rognait le contenu au lieu de le
+        // comprimer.
+        // pourquoi : docs/decisions/lancement-et-navigation.md § PSP en ligne : deux volets, et centré sur l'écran
         Box(
             // A little more margin at the top than at the bottom: geometrically
             // the card was centred to within 4 px, but the header carries weight
@@ -133,6 +137,7 @@ fun PspOnlineScreen(
                 modifier = Modifier
                     .widthIn(max = 800.dp)
                     .heightIn(max = LocalConfiguration.current.screenHeightDp.dp - 24.dp)
+                    .waitTrim()
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(18.dp),
@@ -194,9 +199,9 @@ fun PspOnlineScreen(
                         }
 
                         Button(
-                            onClick = { report(ppsspp.openPublicSettings(rom)) { opened = true } },
+                            onClick = sounded { report(ppsspp.openPublicSettings(rom)) { opened = true } },
                             shape = ActionShape,
-                            colors = if (opened) ButtonDefaults.buttonColors(containerColor = AccentGreen)
+                            colors = if (opened) ButtonDefaults.buttonColors(containerColor = good())
                                      else ButtonDefaults.buttonColors(),
                             modifier = Modifier.fillMaxWidth().height(52.dp)
                                 .controlRing(ActionShape).padEntry()
@@ -211,7 +216,7 @@ fun PspOnlineScreen(
                         }
 
                         Button(
-                            onClick = { report(ppsspp.launchPublicGame(rom)) },
+                            onClick = sounded { report(ppsspp.launchPublicGame(rom)) },
                             // Greyed out until the emulator has been opened
                             // once: launching the game first means arriving in an
                             // ad hoc lobby still pointing at the previous game's
@@ -241,6 +246,7 @@ fun PspOnlineScreen(
                 }
             }
         }
+    }
     }
 }
 

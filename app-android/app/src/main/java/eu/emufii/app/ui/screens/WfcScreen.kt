@@ -1,5 +1,6 @@
 package eu.emufii.app.ui.screens
 
+import eu.emufii.app.ui.sounded
 import android.app.Activity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -14,6 +15,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -35,20 +37,40 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import eu.emufii.app.ui.ActionShape
 import eu.emufii.app.ui.controlRing
+import eu.emufii.app.ui.LocalRingTone
+import eu.emufii.app.ui.RingTone
 import eu.emufii.app.ui.components.RomArtwork
-import eu.emufii.app.ui.theme.AccentGreen
+import eu.emufii.app.ui.theme.GoodDark
+import eu.emufii.app.ui.theme.GoodLight
+import eu.emufii.app.ui.theme.LocalEmufiiDarkTheme
 import eu.emufii.app.ui.theme.PillShape
 import eu.emufii.app.R
 import eu.emufii.app.azahar.LaunchResult
 import eu.emufii.app.library.Rom
 import eu.emufii.app.ui.components.EmufiiScaffold
 import eu.emufii.app.ui.components.SoftCard
+import eu.emufii.app.ui.components.waitTrim
 import eu.emufii.app.ui.components.padEntry
 import eu.emufii.app.wfc.MelonDs
 import eu.emufii.app.wfc.WfcManager
 import eu.emufii.app.wfc.WfcState
+import eu.emufii.app.ui.theme.Coral
+import eu.emufii.app.ui.theme.Teal
+
+/**
+ * Le liseré diagonal corail→turquoise : la signature des flux d'attente et de
+ * connexion, un trait en biais sur le coin de la carte neutre.
+ * pourquoi : docs/decisions/theme-duotone-shelves.md § Onboarding / Preparing
+ */
+/** Le bon token, tire vers le turquoise. */
+@Composable
+private fun good() = if (LocalEmufiiDarkTheme.current) GoodDark else GoodLight
+
 
 /**
  * DS online play. No session, no code, no other player to wait for, the console
@@ -106,6 +128,9 @@ fun WfcScreen(
         onBack()
     }
 
+    // Le domaine social : le curseur manette y devient corail.
+    // pourquoi : docs/decisions/theme-duotone-shelves.md § FOCUS MANETTE
+    CompositionLocalProvider(LocalRingTone provides RingTone.CORAL) {
     EmufiiScaffold(
         title = stringResource(R.string.wfc_title),
         modifier = modifier,
@@ -132,7 +157,7 @@ fun WfcScreen(
         // past what can be read in one go, and two large gaps were left above and
         // below. The same layout as the launch card, of which it is the sibling: a
         // game, what is about to happen to it, a button.
-        SoftCard(modifier = Modifier.widthIn(max = 648.dp)) {
+        SoftCard(modifier = Modifier.widthIn(max = 648.dp).waitTrim()) {
             Row(
                 modifier = Modifier.fillMaxWidth().padding(24.dp),
                 horizontalArrangement = Arrangement.spacedBy(26.dp)
@@ -195,7 +220,7 @@ fun WfcScreen(
             // still the thing to switch off, even while Kaeru is silent.
             val active = state is WfcState.Active || state is WfcState.Unreachable
             Button(
-                onClick = {
+                onClick = sounded {
                     if (active) {
                         leave()
                     } else {
@@ -240,6 +265,7 @@ fun WfcScreen(
         }
         }
     }
+    }
 }
 
 /**
@@ -276,7 +302,7 @@ private fun WfcStateChip(state: WfcState) {
     val running = state is WfcState.Active
     val tint = when {
         error -> MaterialTheme.colorScheme.error
-        running -> AccentGreen
+        running -> good()
         else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
     Row(

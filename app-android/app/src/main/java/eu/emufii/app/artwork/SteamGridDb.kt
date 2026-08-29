@@ -10,29 +10,11 @@ import java.net.URLEncoder
 /**
  * Where the app goes to find real game icons.
  *
- * ROMs only carry a tiny icon, 32x32 on DS, 48x48 on 3DS, and blown up to the
- * size of a tile it is the first flaw you see on opening the app. SteamGridDB
- * publishes high-resolution versions of them, made and rated by a community.
- *
- * We take the icons, not the cover art, although the same service serves both. A
- * box cover is 2:3: adopting it would mean turning the whole grid into vertical
- * tiles, that is, abandoning the "3DS menu" target, which has square tiles. The
- * icon drops into the existing tile without changing anything else, and the gain
- * we are after, sharpness, is the same.
- *
- * Nothing ships in the APK. These images belong to their publishers: the app
- * downloads them at runtime, on the player's device, and keeps them in its local
- * cache. That is what every launcher does, and it is the difference between
- * displaying an image and redistributing it.
- *
- * Every player brings their own key, entered at onboarding or in the settings. A
- * key frozen into the APK would be the same for everybody: extractable by
- * opening the package, and it would be the author's account carrying the quota
- * and the abuse of the entire installed base.
- *
- * With no key the feature does not exist: no request goes out and the tiles keep
- * their embedded icon. That is not a failure, merely a library with no remote
- * icons.
+ * Les icones, jamais les jaquettes verticales. Rien n'est empaquete dans l'APK,
+ * et chaque joueur apporte sa cle : sans cle, aucune requete ne part et les
+ * tuiles gardent leur icone embarquee.
+ * pourquoi : docs/decisions/jaquettes.md § L'icône, jamais la jaquette verticale
+ * pourquoi : docs/decisions/jaquettes.md § Chaque joueur apporte sa propre clé
  */
 /** A game from the catalogue, as offered to the player fixing the match. */
 data class SgdbGame(val id: Int, val name: String)

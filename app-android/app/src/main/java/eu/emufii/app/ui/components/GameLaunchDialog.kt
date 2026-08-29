@@ -1,5 +1,6 @@
 package eu.emufii.app.ui.components
 
+import eu.emufii.app.ui.sounded
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -16,8 +17,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -29,6 +38,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.Switch
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -39,8 +49,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -53,7 +63,12 @@ import androidx.compose.foundation.focusGroup
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.foundation.focusable
 import androidx.compose.ui.focus.onFocusEvent
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.focus.focusRequester
+import eu.emufii.app.secondscreen.SecondScreen
+import eu.emufii.app.secondscreen.SecondScreenModel
+import androidx.compose.ui.input.InputMode
+import androidx.compose.ui.platform.LocalInputModeManager
 import kotlinx.coroutines.delay
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -69,13 +84,24 @@ import androidx.compose.ui.platform.LocalContext
 import eu.emufii.app.ps2.Ps2NetworkProfile
 import eu.emufii.app.library.Rom
 import eu.emufii.app.library.compatKeys
+import eu.emufii.app.ui.LocalRingTone
+import eu.emufii.app.ui.RingTone
 import eu.emufii.app.ui.controlRing
+import eu.emufii.app.ui.rememberAnimationsEnabled
+import eu.emufii.app.ui.theme.CardShape
+import eu.emufii.app.ui.theme.Coral
+import eu.emufii.app.ui.theme.InkText
 import eu.emufii.app.ui.theme.LocalEmufiiDarkTheme
 import eu.emufii.app.ui.theme.PillShape
+import eu.emufii.app.ui.theme.Teal
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.ui.platform.LocalConfiguration
+import eu.emufii.app.ui.tap
+
+/** Un aller-retour complet du liseré d'un axe à l'autre. */
+private const val TILE_HUE_MS = 7000
 
 /**
  * What you get when you pick a game: the game itself, what is about to happen,
@@ -164,17 +190,49 @@ fun GameLaunchDialog(
      */
     val cardRoot = remember { FocusRequester() }
     var rootHasCursor by remember { mutableStateOf(false) }
+    // **Le panneau apprend que la carte est ouverte.**
+    //
+    // Il gardait la fiche du jeu et sa legende « B · Ouvrir / Maintenir · Menu
+    // du jeu » pendant qu'une carte modale attendait un choix devant — deux
+    // touches qui, a cet instant, ne font plus rien de ce qui est annonce.
+    // La carte de lancement n'est pas un `PadDialog`, elle a sa propre coque,
+    // donc elle pose sa face elle-meme.
+    // pourquoi : docs/decisions/second-ecran.md § Ce qui voyage jusqu'au panneau
+    val askTitle = rom.displayName
+    val askDetail = stringResource(R.string.panel_asking_launch)
+    DisposableEffect(askTitle, askDetail) {
+        val token = SecondScreen.putAside(
+            SecondScreenModel.Asking(title = askTitle, detail = askDetail, social = true)
+        )
+        onDispose { SecondScreen.takeBack(token) }
+    }
+
+    val inputMode = LocalInputModeManager.current
     LaunchedEffect(Unit) {
         // `getOrDefault`, not `isSuccess`: `requestFocus` returns false without
         // throwing, so `runCatching` succeeds with false.
         // pourquoi : docs/decisions/lancement-et-navigation.md § Le curseur doit entrer dans la carte, et ne plus en sortir
         repeat(10) {
+            // **Le mode clavier se demande avant, et c'est ce qui manquait.**
+            //
+            // Le repli sous cette boucle disait deja le symptome — « mode
+            // tactile : les boutons ont refuse » — sans nommer la cause. En
+            // `InputMode.Touch`, aucun element Compose ne retient le focus :
+            // les dix tentatives rendaient `false` l'une apres l'autre, et la
+            // carte s'ouvrait sans anneau. Or on ouvre cette carte en appuyant
+            // sur A depuis une tuile, c'est-a-dire depuis un ecran deja pilote
+            // a la manette — mais la grille tient son propre curseur sans
+            // passer par le focus, donc Compose, lui, etait reste en tactile.
+            // pourquoi : docs/decisions/coquille-ecrans.md § Le curseur arrive avec l'écran
+            inputMode.requestInputMode(InputMode.Keyboard)
             if (runCatching { firstAction.requestFocus() }.getOrDefault(false)) {
                 return@LaunchedEffect
             }
             delay(40)
         }
-        // Touch mode: the buttons refused, so the card itself takes the keys.
+        // Le repli reste : une carte sans action primaire (PS2 sans profil, PSP
+        // non configure) n'a rien a offrir au curseur, et la carte elle-meme
+        // doit alors prendre les touches pour que B la referme.
         runCatching { cardRoot.requestFocus() }
     }
 
@@ -209,18 +267,17 @@ fun GameLaunchDialog(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            // The tray dims, it does not frost.
+            // The tray dims, it does not frost. Warm ink, not blue-black: the
+            // world's shadows are warm, the scrim does not switch families.
             // pourquoi : docs/decisions/lancement-et-navigation.md § Le plateau s'assombrit, il ne se dépolit pas
             .background(
-                Color(0xFF060A12).copy(
-                    alpha = (if (dark) 0.74f else 0.62f) * entrance
-                )
+                InkText.copy(alpha = (if (dark) 0.74f else 0.62f) * entrance)
             )
             // The backdrop swallows taps and is NOT a cursor stop: traversal
             // used to halt on it, at a node with no ring and no visible effect.
             // pourquoi : docs/decisions/lancement-et-navigation.md § Le curseur doit entrer dans la carte, et ne plus en sortir
             .focusProperties { canFocus = false }
-            .clickable(
+            .tap(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
                 enabled = !starting,
@@ -228,6 +285,40 @@ fun GameLaunchDialog(
             ),
         contentAlignment = Alignment.Center
     ) {
+        // Le liseré des deux axes, sur le contour de la carte.
+        //
+        // Il remplace une **tuile posée derrière**, qui était la troisième tuile
+        // du logo prise au pied de la lettre : une plaque turquoise débordant de
+        // la carte. Trois formes ont été essayées — la tuile en biais, puis
+        // droite avec une marge égale — et toutes avaient le même défaut de
+        // fond : pour dire « il y a une couche en dessous », elles ajoutaient un
+        // objet de plus à un écran qui en a déjà deux (la carte, et la
+        // bibliothèque assombrie derrière). Le contour dit la même chose sans
+        // rien ajouter.
+        //
+        // La dérive entre les deux axes est conservée telle quelle, elle change
+        // seulement de support : c'est le seul écran où les deux sont vrais à la
+        // fois — la carte propose de créer une session (corail) et de lancer
+        // (turquoise) — et une teinte figée y prendrait un parti que l'écran ne
+        // prend pas.
+        // pourquoi : docs/decisions/theme-duotone-shelves.md § Fiche de jeu (dialogue)
+        val blend = if (rememberAnimationsEnabled()) {
+            rememberInfiniteTransition(label = "tile-hue").animateFloat(
+                initialValue = 0f,
+                targetValue = 1f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(TILE_HUE_MS, easing = LinearEasing),
+                    repeatMode = RepeatMode.Reverse
+                ),
+                label = "tile-hue"
+            ).value
+        } else {
+            // Figé à mi-course : un mélange des deux axes, qui est l'arrêt
+            // honnête d'une chose dont le propos est de n'être ni l'un ni
+            // l'autre.
+            0.5f
+        }
+
         SoftCard(
             modifier = Modifier
                 .focusRequester(cardRoot)
@@ -263,6 +354,14 @@ fun GameLaunchDialog(
                 // Arrives from slightly under its final size, like the tiles.
                 .scale(0.92f + 0.08f * entrance)
                 .alpha(entrance)
+                // **Ici, et pas en tete de chaine.** Un `drawWithContent` prend
+                // la taille de ce qu'il enveloppe : place en premier, il
+                // enveloppait aussi le padding exterieur de 24/16 dp et tracait
+                // un contour 48 dp plus large et 32 dp plus haut que la carte,
+                // flottant autour d'elle. Sous les bornes de taille, il epouse
+                // la plaque ; et sous `scale`/`alpha`, il arrive avec elle au
+                // lieu de rester fixe pendant qu'elle grandit.
+                .waitTrim(blend)
                 // Swallows taps only. NO `canFocus = false` here: on the card it
                 // disables the whole subtree, buttons included.
                 // pourquoi : docs/decisions/lancement-et-navigation.md § Le curseur doit entrer dans la carte, et ne plus en sortir
@@ -313,11 +412,17 @@ fun GameLaunchDialog(
                         // it rewrites the card, it does not act.
                         // pourquoi : docs/decisions/lancement-et-navigation.md § Le choix du monde vient en premier, pas en dernier
                         if (onPlayOnline != null) {
-                            ModeSwitch(
-                                publicMode = publicMode,
-                                enabled = !starting,
-                                onPick = { publicMode = it }
-                            )
+                            // Friends or the open internet: the choice of *who
+                            // you play with* is the social axis, and its cursor
+                            // says so.
+                            // pourquoi : docs/decisions/theme-duotone-shelves.md § FOCUS MANETTE
+                            CompositionLocalProvider(LocalRingTone provides RingTone.CORAL) {
+                                ModeSwitch(
+                                    publicMode = publicMode,
+                                    enabled = !starting,
+                                    onPick = { publicMode = it }
+                                )
+                            }
                         }
                         // Yields first and alone: the explanation scrolls, the
                         // actions never do.
@@ -336,11 +441,15 @@ fun GameLaunchDialog(
                         // clip their labels silently. The switch sits above them.
                         // pourquoi : docs/decisions/lancement-et-navigation.md § Les boutons sont empilés, et c'est un piège évité
                         if (!online) {
-                            PrivacyToggle(
-                                checked = isPrivate,
-                                enabled = !starting,
-                                onChange = { isPrivate = it }
-                            )
+                            // A session's visibility is a social question: the
+                            // toggle and its ring speak coral.
+                            CompositionLocalProvider(LocalRingTone provides RingTone.CORAL) {
+                                PrivacyToggle(
+                                    checked = isPrivate,
+                                    enabled = !starting,
+                                    onChange = { isPrivate = it }
+                                )
+                            }
                         }
                         // Braced, and it is not a style point: an `else` whose branch sits
                         // at the same indentation as the `if` reads to a human as two
@@ -358,13 +467,20 @@ fun GameLaunchDialog(
                             )
                         }
                         if (!setupBlocked && onJoinWithCode != null && !publicMode) {
-                            OutlinedButton(
-                                onClick = onJoinWithCode,
-                                enabled = !starting,
-                                shape = PillShape,
-                                modifier = Modifier.fillMaxWidth().height(52.dp)
-                                    .controlRing(PillShape)
-                            ) { Text(stringResource(R.string.lib_join_by_code)) }
+                            // Joining by code is entering someone's session: the
+                            // social axis, ring and all.
+                            CompositionLocalProvider(LocalRingTone provides RingTone.CORAL) {
+                                OutlinedButton(
+                                    onClick = sounded(onJoinWithCode),
+                                    enabled = !starting,
+                                    shape = PillShape,
+                                    colors = ButtonDefaults.outlinedButtonColors(
+                                        contentColor = if (dark) Coral.darkBright else Coral.deep
+                                    ),
+                                    modifier = Modifier.fillMaxWidth().height(52.dp)
+                                        .controlRing(PillShape)
+                                ) { Text(stringResource(R.string.lib_join_by_code)) }
+                            }
                         }
 
                     }
@@ -381,13 +497,15 @@ fun GameLaunchDialog(
                 verticalArrangement = Arrangement.spacedBy(if (compact) 10.dp else 14.dp)
             ) {
                 // As in two columns: the choice of world opens the card, it does
-                // not conclude it.
+                // not conclude it. Coral: choosing who you play with.
                 if (onPlayOnline != null) {
-                    ModeSwitch(
-                        publicMode = publicMode,
-                        enabled = !starting,
-                        onPick = { publicMode = it }
-                    )
+                    CompositionLocalProvider(LocalRingTone provides RingTone.CORAL) {
+                        ModeSwitch(
+                            publicMode = publicMode,
+                            enabled = !starting,
+                            onPick = { publicMode = it }
+                        )
+                    }
                 }
 
                 // The explanation scrolls; the two buttons never do.
@@ -415,11 +533,13 @@ fun GameLaunchDialog(
 
                 // Same reason as in two columns: no session, nothing to hide.
                 if (!online) {
-                    PrivacyToggle(
-                        checked = isPrivate,
-                        enabled = !starting,
-                        onChange = { isPrivate = it }
-                    )
+                    CompositionLocalProvider(LocalRingTone provides RingTone.CORAL) {
+                        PrivacyToggle(
+                            checked = isPrivate,
+                            enabled = !starting,
+                            onChange = { isPrivate = it }
+                        )
+                    }
                 }
 
                 // Braced, and it is not a style point: an `else` whose branch sits
@@ -441,13 +561,18 @@ fun GameLaunchDialog(
                 // Hidden in public mode: there is no session to join, exactly as
                 // for DS online play.
                 if (!setupBlocked && onJoinWithCode != null && !publicMode) {
-                    OutlinedButton(
-                        onClick = onJoinWithCode,
-                        enabled = !starting,
-                        shape = PillShape,
-                        modifier = Modifier.fillMaxWidth().height(52.dp)
-                            .controlRing(PillShape)
-                    ) { Text(stringResource(R.string.lib_join_by_code)) }
+                    CompositionLocalProvider(LocalRingTone provides RingTone.CORAL) {
+                        OutlinedButton(
+                            onClick = sounded(onJoinWithCode),
+                            enabled = !starting,
+                            shape = PillShape,
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = if (dark) Coral.darkBright else Coral.deep
+                            ),
+                            modifier = Modifier.fillMaxWidth().height(52.dp)
+                                .controlRing(PillShape)
+                        ) { Text(stringResource(R.string.lib_join_by_code)) }
+                    }
                 }
 
             }
@@ -544,14 +669,31 @@ private fun PrivacyToggle(
             .fillMaxWidth()
             .controlRing(PillShape)
             .clip(PillShape)
-            .clickable(enabled = enabled) { onChange(!checked) }
+            .tap(enabled = enabled) { onChange(!checked) }
             .padding(horizontal = 14.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Column(modifier = Modifier.weight(1f)) {
+            // **Le titre nomme l'etat, il ne nomme pas le reglage.**
+            //
+            // Il disait « Session privee » en permanence, et la ligne sous lui
+            // decrivait l'etat courant. Interrupteur ouvert, cela donnait
+            // « Session privee / Elle apparaitra dans la liste des sessions, ou
+            // n'importe qui peut la rejoindre » : le titre et son explication
+            // se contredisaient mot pour mot, et le joueur devait deviner
+            // lequel des deux parlait du present.
+            //
+            // Un interrupteur qui n'a que deux etats a le droit de les nommer
+            // tous les deux. « Ouverte » puis « Privee » se lisent comme la
+            // meme phrase que la ligne du dessous, et la position de la
+            // pastille cesse d'etre la seule chose a interpreter.
+            // pourquoi : docs/decisions/lancement-et-navigation.md § « Session privée » promet exactement ce que le coordinator livre
             Text(
-                stringResource(R.string.lib_private_session),
+                stringResource(
+                    if (checked) R.string.lib_private_session
+                    else R.string.lib_open_session
+                ),
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold
             )
@@ -588,11 +730,10 @@ private fun ModeSwitch(
         modifier = modifier
             .fillMaxWidth()
             .clip(PillShape)
-            // Distinctly darker than the card: at 55 % of `surfaceVariant` the
-            // selected half had nothing to stand out against.
-            .background(
-                if (LocalEmufiiDarkTheme.current) Color(0x1FFFFFFF) else Color(0x14000000)
-            )
+            // A notch, not a tint: the low cut of the plate the card is made
+            // of, so the selector sits *in* the card rather than on it.
+            // pourquoi : docs/decisions/theme-duotone-shelves.md § Les creux deviennent des encoches
+            .background(MaterialTheme.colorScheme.surfaceVariant)
             .padding(4.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
@@ -621,23 +762,19 @@ private fun ModeSegment(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // The selected half is solid, the other transparent: the selection reads
-    // without reading either label. The card's background rather than an accent
-    // tint, this app's colour comes from the content, not from the chrome.
+    // The selected half is the plate itself, the other transparent: two flat
+    // fills, the world's own separation. No lifted shadow — a choice taken is
+    // said by the tile, not by a relief.
+    // pourquoi : docs/decisions/theme-duotone-shelves.md § MATIÈRE
     val fill =
         if (selected) softCardFill() else Color.Transparent
     Box(
         modifier = modifier
             .controlRing(PillShape)
-            // The shadow makes the selection: two flat tints read as two
-            // colours, a pill lifting off reads as a choice taken.
-            .then(
-                if (selected) Modifier.shadow(3.dp, PillShape, spotColor = Color.Black)
-                else Modifier
-            )
             .clip(PillShape)
             .background(fill)
-            .clickable(enabled = enabled, onClick = onClick)
+            .then(if (selected) Modifier.border(1.dp, MaterialTheme.colorScheme.outline, PillShape) else Modifier)
+            .tap(enabled = enabled, onClick = onClick)
             .padding(vertical = 11.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -685,13 +822,21 @@ private fun PrimaryAction(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val dark = LocalEmufiiDarkTheme.current
+    // The launch pill is the teal axis, filled: deep cut under white ink on the
+    // light theme (bright teal never carries text), bright cut in the dark.
+    // pourquoi : docs/decisions/theme-duotone-shelves.md § Fiche de jeu (dialogue)
+    val container = if (dark) Teal.darkBright else Teal.deep
+    val ink = if (dark) Teal.ink else Color.White
     Button(
-        onClick = onClick,
+        onClick = sounded(onClick),
         enabled = !starting,
         shape = PillShape,
         colors = ButtonDefaults.buttonColors(
-            disabledContainerColor = MaterialTheme.colorScheme.primary,
-            disabledContentColor = MaterialTheme.colorScheme.onPrimary
+            containerColor = container,
+            contentColor = ink,
+            disabledContainerColor = container,
+            disabledContentColor = ink
         ),
         modifier = modifier.height(52.dp).controlRing(PillShape)
 

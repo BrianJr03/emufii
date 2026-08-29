@@ -16,13 +16,19 @@ object Pfs0 {
 
     data class Entry(val name: String, val offset: Long, val size: Long)
 
+    /** A read-only window onto a file, however it was opened. */
+    interface RandomAccess {
+        val size: Long
+        fun read(offset: Long, length: Int): ByteArray
+    }
+
     private const val MAGIC = "PFS0"
 
     /** Sanity ceilings: a real NSP has a handful of entries and short names. */
     private const val MAX_ENTRIES = 512
     private const val MAX_STRING_TABLE = 64 * 1024
 
-    fun entries(source: SwitchControl.RandomAccess): List<Entry>? {
+    fun entries(source: RandomAccess): List<Entry>? {
         if (source.size < 0x10) return null
         val head = ByteBuffer.wrap(source.read(0, 0x10)).order(ByteOrder.LITTLE_ENDIAN)
         if (String(head.array(), 0, 4, Charsets.US_ASCII) != MAGIC) return null

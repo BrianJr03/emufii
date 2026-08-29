@@ -177,3 +177,28 @@ cohérents pour publier.
 `PackageInstaller` plutôt qu'`ACTION_INSTALL_PACKAGE` : ce dernier est déprécié
 depuis Oreo et réclame un `FileProvider` plus des permissions d'URI juste pour
 nommer un fichier qu'on possède déjà.
+
+## La signature du client change le coût, pas l'identité
+
+L'adresse du coordinator voyage en clair dans l'APK — un `strings` sur le dex
+suffit à la lire — et l'API n'exigeait rien de ses appelants. Une session pouvait
+donc être créée en production avec un simple `curl`, mesuré le 2026-08-09.
+N'importe qui tenant l'APK publique pouvait faire tourner ses parties sur un VPS
+qu'il ne paie pas.
+
+**Ce n'est pas une preuve d'identité et ça ne peut pas l'être.** Le client est
+entre les mains de la personne même qu'on veut tenir dehors : la clé est dans le
+binaire, donc extractible, et prétendre l'inverse serait un mensonge. Ce que la
+signature change est le **coût** : lire une URL ne suffit plus, il faut démonter
+l'APK, y trouver la clé, et réimplémenter ce calcul. Et comme la clé change à
+chaque version, l'exercice est à refaire à chaque fois.
+
+Le reste de la défense est côté serveur, où elle se trouve vraiment : le
+coordinator journalise la version qui l'appelle, ce qui rend un client périmé ou
+étranger visible, donc blocable.
+
+La forme : `HMAC-SHA256(secret, méthode + "\n" + chemin + "\n" + horodatage +
+"\n" + SHA-256(corps))`, en hexadécimal minuscule. Le corps entre dans le calcul,
+sans quoi une signature valide pour une requête le serait pour n'importe quelle
+autre au même chemin. L'horodatage borne à quelques minutes la rejouabilité d'une
+signature interceptée.

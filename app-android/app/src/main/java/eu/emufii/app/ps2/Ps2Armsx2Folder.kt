@@ -52,28 +52,14 @@ object Ps2Armsx2Folder {
         data class WriteFailed(val detail: String) : Outcome
     }
 
-    /** Re-check the public mirror so a later manual slot change revokes readiness. */
     /**
-     * Is the prepared card still the one in Slot 1, and does it still carry our
-     * profile?
+     * La carte preparee est-elle toujours celle de l'emplacement 1, et porte-t-elle
+     * toujours notre profil ?
      *
-     * **This deliberately does not compare the card byte for byte.** It did, and
-     * that was wrong in a way that only shows up in use: a memory card is a live
-     * disk. The moment a game saves — or ARMSX2 merely mounts it — its bytes
-     * change, the checksum stops matching, and the player is told their setup is
-     * gone while their card sits there, perfectly good, in the right slot. It
-     * cost a player their PS2 games between two launches of the app.
-     *
-     * What actually has to hold is narrower and survives normal play:
-     *
-     *  - Slot 1 is still enabled and still names this card;
-     *  - the card is still there;
-     *  - the network configuration is still on it, and reading it back yields
-     *    the console id it was written for. That last part is the real proof:
-     *    the save is encrypted per console, so recovering the right id from it
-     *    means both that our profile is present and that it belongs here.
-     *
-     * New saves alongside it are none of our business, which is the point.
+     * **Ne compare surtout pas la carte octet par octet** : une carte memoire est
+     * un disque vivant, et une sauvegarde de jeu suffirait a declarer la
+     * preparation perdue.
+     * pourquoi : docs/decisions/ps2-carte-memoire.md § Une carte prête ne se vérifie pas octet par octet
      */
     fun isStillValid(
         context: Context,

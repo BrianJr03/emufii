@@ -429,3 +429,173 @@ La route Kaeru (DS) et l'ad hoc public PSP portent une ROM et **pas** une sessio
 rien n'est créé, rien n'est rejoint, aucun autre joueur n'est impliqué. La PSP a un
 écran plutôt qu'une carte parce qu'on le quitte pour aller configurer PPSSPP et
 qu'il faut retrouver sa place au retour.
+
+## L'écran d'ouverture tient le logo entre deux durées
+
+Sans lui, l'app s'ouvrait sur une grille vide surmontée d'un indicateur de
+chargement — la bibliothèque étant parcourue au moment même où l'écran d'accueil
+se compose, et un dossier de ROMs raisonnablement rempli prend quelques secondes
+à lire. Le premier écran de l'app était donc son plus laid. Ici le parcours se
+fait *derrière* le logo, et l'accueil ne paraît qu'une fois rempli.
+
+Deux durées, et elles tirent en sens contraires :
+
+- Un **minimum** retient le logo même quand le cache est déjà chaud. Une
+  animation qui dure trois images ne se lit pas comme une ouverture mais comme un
+  clignotement — le même défaut déjà corrigé sur l'écran de préparation, sauf
+  qu'ici l'écran est *toujours* traversé.
+- Un **maximum** le fait céder quand le parcours s'éternise. Un premier scan sur
+  une grande carte SD peut dépasser dix secondes, et retenir le joueur devant un
+  logo aussi longtemps serait pire que de le laisser regarder la bibliothèque se
+  remplir : elle a son propre indicateur pour ça.
+
+Délibérément non focalisable et sans contrôle : rien à viser à la manette, donc
+rien à signaler. Le curseur reprend sa place sur la grille.
+
+## Le logo est centré seul, et la barre d'état n'existe pas
+
+Empilés dans une colonne centrée, c'est la **paire** qui se centrait : la barre
+poussait le logo vers le haut de la moitié de ce qu'elle occupait. Mesuré sur la
+Thor, les anneaux tombaient 30 px au-dessus du milieu de l'écran. La barre est
+donc positionnée par rapport au centre sans entrer dans le calcul de mise en page
+du logo.
+
+L'autre moitié du décalage venait de l'image elle-même : le PNG portait 113 px de
+vide à gauche et aucun à droite, 92 en haut contre 142 en bas. Recadré sur son
+contenu, ce qui est ce qui fait enfin que « centré » veut dire ce qu'on lit à
+l'écran.
+
+**L'heure et la batterie n'ont rien à faire sur la première image.** Le splash
+est un noir plein tenu quelques secondes, et la barre d'état d'Android s'y
+détachait comme une ligne de texte étrangère posée sur le logo — c'est la seule
+seconde de l'app où l'on ne peut rien faire, donc la seule où l'on regarde
+vraiment ce qu'il y a autour. On les cache le temps du logo, et on les rend en
+partant : le reste de l'app en a besoin, un joueur qui cherche un jeu veut savoir
+combien il lui reste de batterie.
+
+## PSP en ligne : deux volets, et centré sur l'écran
+
+Cet écran était le dernier construit en portrait : deux cartes pleine largeur et
+deux boutons de 56 dp empilés dans une colonne défilante, dont la Thor ne montrait
+qu'un tiers — et les instructions pour lesquelles on vient étaient précisément
+dans les deux tiers invisibles. À gauche le jeu et ce qu'est ce mode, à droite ce
+qu'il y a à faire et les deux boutons qui le font.
+
+Centré sur l'**écran**, pas sous l'en-tête. Réserver la marge du haut centrait la
+carte dans ce qui restait *sous* le titre, donc 87 px trop bas. Un plafond de
+hauteur a été essayé pour pouvoir centrer sans risquer de passer derrière
+l'en-tête : il **rognait** le contenu au lieu de le comprimer, la colonne de
+gauche n'étant pas défilante, donc ce qui déborde disparaît. Retiré.
+
+Ce qui rend le centrage simple possible est que la carte a maigri : 310 dp sur
+les 468 de l'appareil, son bord haut tombant à 79 dp là où l'en-tête s'arrête à
+68. Le `heightIn` qui reste n'est qu'une butée d'écran, et il ne se déclenche pas
+ici.
+
+## Le préchargement tourne, et l'app se compose derrière lui
+
+Le logo était un écran **à la place** de l'app : quand il s'effaçait, la
+bibliothèque commençait seulement à se composer — mesurer la grille, demander ses
+jaquettes, poser son curseur. D'où les quelques centièmes de seconde où les tuiles
+n'étaient pas là, malgré des caches déjà chauds : ce qui manquait n'était plus les
+données, c'était le travail de rendu.
+
+Le logo est donc une **couche par-dessus** : tout ce qu'on voit ensuite est
+composé, mesuré et peint pendant qu'il tient l'écran. Quand il s'en va, il ne
+reste rien à faire — il découvre une image déjà finie.
+
+Le budget accordé aux préchauffages suit la même logique : les quatre premières
+secondes sont gratuites, c'est le plancher pendant lequel le logo reste de toute
+façon. Les deux suivantes, seul un démarrage à froid les dépense — index de
+dossiers à construire, jaquettes à décoder pour la première fois. Le plafond de
+l'écran de chargement reste au-dessus : un préchauffage qui traîne rend la main de
+lui-même, il ne peut pas retenir l'app.
+
+**La règle « une fois par processus » est partie.** Android garde le processus
+vivant plusieurs minutes après le départ du joueur, donc rouvrir depuis le
+lanceur sautait le logo entièrement et tombait droit sur la grille — lu comme un
+splash cassé plutôt que comme un cache chaud. Le jeton est réarmé à chaque
+démarrage réel, sauf pendant qu'une session vit : revenir de l'émulateur doit
+ramener dans l'écran du jeu, pas devant un logo.
+
+## Une tentative en vol ne doit pas téléporter quelqu'un qui a renoncé
+
+L'écran d'attente n'avait aucune sortie : ni bouton, ni légende, ni changement
+d'état. Un tunnel qui ne monte pas ou un VPS qui ne répond pas laissaient le
+joueur devant un rond qui tourne, avec la touche Home pour seule issue.
+
+Il peut renoncer — mais renoncer ne suffit pas à arrêter une coroutine déjà
+partie, qui aboutirait plus tard et téléporterait dans une session quittée
+quelqu'un revenu tranquillement à sa bibliothèque.
+
+Chaque tentative retient donc le numéro qu'elle portait au départ, et n'a le droit
+d'ouvrir une session que si c'est toujours le sien. Renoncer incrémente le
+compteur, ce qui suffit à rendre orpheline toute tentative en vol sans avoir à
+savoir où elle en est.
+
+## Les icônes de l'app sont dessinées, pas tapées
+
+Elles étaient du texte : `‹` pour le retour, `✕` pour retirer un ami, un emoji
+dans chaque état vide. Trois problèmes, et le troisième a décidé — un caractère
+est positionné par les métriques de sa police, donc il ne tombe jamais tout à fait
+au centre du bouton qui le porte ; un caractère hérite de la police système d'un
+appareil dont le jeu d'emoji n'est pas le vôtre ; et un emoji est l'illustration
+de quelqu'un d'autre, à la graisse de quelqu'un d'autre, au milieu d'un monde
+entièrement moulé.
+
+Toutes sont construites pareil : un carré de 24 unités, bouts ronds, jonctions
+rondes, une seule graisse de trait. **C'est tout le système d'icônes, et ce qu'on
+ajoutera plus tard se dessine aux trois mêmes règles.**
+
+Deux conséquences de dessin qui reviennent :
+
+- **Le point est un trait sans longueur.** Un bout rond le rend comme un disque
+  exactement à la graisse de l'icône, donc il reste du même dessin au lieu d'être
+  une forme pleine passée en fraude dans un système qui n'a que des traits.
+- **Pas de forme dans une forme.** Le triangle d'avertissement a été retiré : la
+  pastille est déjà une perle ronde à liseré blanc, un contour dans un contour se
+  lit à l'étroit, et il laissait la marque elle-même trop petite. Ses deux
+  voisines sont des figures d'un seul trait qui remplissent la perle — une coche,
+  une croix — et celle-ci est la troisième de ce jeu.
+
+Un glyphe est le même partout où il apparaît, sinon ce n'est plus le même glyphe :
+la loupe vivait en deux exemplaires à des proportions différentes, et le chercheur
+en aurait fait un troisième.
+
+## Le chercheur de sessions sonde, il n'écoute pas
+
+Les sessions durent une heure au plus et la liste est courte : une socket serait
+beaucoup de machinerie pour un écran sur lequel on reste vingt secondes.
+
+Le coordinator ne connaît qu'un **titre** : il n'a ni jaquette ni console à
+offrir, et il n'a pas à en avoir — ce sont des ROMs, qui vivent sur l'appareil. On
+apparie donc le titre annoncé contre ce qu'on a localement, et quand ça tombe la
+carte montre la vraie icône du jeu. Sinon elle montre l'hôte : une session reste
+identifiable par qui l'ouvre.
+
+Les faits d'une carte sont des **pastilles**, pas une phrase à points. Une phrase
+doit se lire en entier pour en extraire un détail ; des pastilles se balaient, ce
+qui est ce qu'on fait devant une liste de sessions.
+
+## Une seule destination nommée par écran
+
+La carte de session était la destination nommée de la manette, du temps où elle
+était le premier contrôle de l'écran. Depuis qu'une barre de recherche la précède,
+elles la portaient **toutes les deux** — et un `FocusRequester` partagé entre
+douze nœuds ne désigne plus rien : le curseur descendait de l'en-tête vers une
+carte au hasard en sautant la recherche, et « haut » depuis n'importe quelle carte
+remontait droit au bouton retour au lieu de passer à la carte du dessus.
+
+## Un écran vide se centre sur l'écran, pas sous l'en-tête
+
+Il n'y avait que la marge du haut — la bande de l'en-tête — donc le bloc était
+centré dans ce qui reste **sous** l'en-tête, et son milieu tombait une
+cinquantaine de dp sous le milieu de l'écran. Un écran vide n'a rien d'autre à
+regarder : le décalage se voit.
+
+La marque tient sur un objet moulé, le même que le bouton rond de l'en-tête : un
+état vide fait encore partie du plateau, il n'y est pas un trou. Sauf quand il
+parle justement d'une absence, et là c'est une alvéole — mais **avec sa marque
+dedans**. L'alvéole a d'abord été laissée nue, au motif qu'un emplacement sans jeu
+est déjà ce que la grille dessine ; vue en vrai, elle ne se lit pas comme une
+métaphore, elle se lit comme une icône qui n'a pas chargé.

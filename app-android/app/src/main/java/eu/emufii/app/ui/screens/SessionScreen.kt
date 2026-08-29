@@ -1,5 +1,6 @@
 package eu.emufii.app.ui.screens
 
+import eu.emufii.app.ui.sounded
 import android.icu.text.ListFormatter
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.RepeatMode
@@ -13,6 +14,14 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -40,8 +49,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
@@ -63,6 +74,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.graphics.Path
@@ -75,6 +87,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import eu.emufii.app.ui.ActionShape
+import eu.emufii.app.ui.CONFIRM_KEYS
 import androidx.compose.foundation.layout.heightIn
 import eu.emufii.app.ui.theme.PillShape
 import eu.emufii.app.ui.controlRing
@@ -107,6 +120,7 @@ import eu.emufii.app.session.Session
 import eu.emufii.app.ui.components.WarnIcon
 import eu.emufii.app.ui.components.AvatarStack
 import eu.emufii.app.ui.components.EmufiiScaffold
+import eu.emufii.app.ui.components.LocalScaffoldFocus
 import eu.emufii.app.ui.components.GhostButton
 import eu.emufii.app.ui.components.SectionHeader
 import eu.emufii.app.ui.components.SoftCard
@@ -126,23 +140,40 @@ import eu.emufii.app.secondscreen.SecondScreen
 import eu.emufii.app.secondscreen.rememberPresentationDisplay
 import eu.emufii.app.settings.SettingsStore
 import eu.emufii.app.ui.copyToClipboard
-import eu.emufii.app.ui.theme.AccentGreen
+import eu.emufii.app.ui.theme.Coral
+import eu.emufii.app.ui.theme.ErrorDark
+import eu.emufii.app.ui.theme.ErrorLight
+import eu.emufii.app.ui.theme.GoodDark
+import eu.emufii.app.ui.theme.GoodLight
 import eu.emufii.app.ui.theme.LocalEmufiiDarkTheme
-import eu.emufii.app.ui.theme.PlateDark
-import eu.emufii.app.ui.theme.PlateLight
 import eu.emufii.app.ui.theme.socket
 import eu.emufii.app.ui.theme.plate
 import eu.emufii.app.ui.theme.LocalEmufiiOledTheme
+import eu.emufii.app.ui.LocalRingTone
+import eu.emufii.app.ui.RingTone
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.clickable
-import eu.emufii.app.ui.theme.ShellRed
 import eu.emufii.app.ui.theme.edgeColor
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import eu.emufii.app.ui.tap
+import eu.emufii.app.ui.Sfx
+
+/** L'erreur tiree vers le corail, la coupe du fond courant. */
+@Composable
+private fun danger() = if (LocalEmufiiDarkTheme.current) ErrorDark else ErrorLight
+
+/** Le bon token, tire vers le turquoise. */
+@Composable
+private fun good() = if (LocalEmufiiDarkTheme.current) GoodDark else GoodLight
+
+/** La coupe corail lisible sur le fond courant (texte). */
+@Composable
+private fun coralText() = if (LocalEmufiiDarkTheme.current) Coral.darkBright else Coral.ink
 
 @Composable
 fun SessionScreen(
@@ -302,14 +333,27 @@ fun SessionScreen(
     }
 
     /** ARMSX2's direct path performs its former two steps behind one launch. */
+    /**
+     * Vrai des que l'emulateur est parti. **Pour le panneau arriere avant tout** :
+     * l'ecran de face disparait derriere l'emulateur a la seconde ou l'on presse,
+     * et le panneau restait sur une etape que rien ne distinguait d'une etape
+     * jamais pressee. Une action dont on ne voit pas l'effet est une action dont
+     * on doute, et le premier reflexe est de la presser une seconde fois.
+     * pourquoi : docs/decisions/second-ecran.md § Un panneau qui affirme le faux est une panne
+     */
+    var launched by remember(session.code) { mutableStateOf(false) }
     val onLaunchStep: () -> Unit = fun() {
         scope.launch {
-            status = session.launch(context, azahar, eden, ppsspp) {
-                if (ps2Automatic) {
-                    netplayPrepared = true
-                    netplayDone = true
-                }
-            }
+            status = session.launch(
+                context, azahar, eden, ppsspp,
+                onPs2Started = {
+                    if (ps2Automatic) {
+                        netplayPrepared = true
+                        netplayDone = true
+                    }
+                },
+                onLaunched = { launched = true }
+            )
         }
     }
 
@@ -407,13 +451,9 @@ fun SessionScreen(
         }
     }
 
-    // Les etapes, resolues **une fois** et servies aux deux ecrans.
-    //
-    // Le panneau arriere est tactile : quand il est la, les deux commandes y
-    // descendent, sous les pouces, et l'ecran de face rend leurs 130 dp a
-    // l'explication. Les libelles voyagent deja traduits — la fenetre du
-    // panneau a son propre contexte d'affichage, qui a deja fait parler l'app
-    // en francais dans une interface en anglais une fois.
+    // Les etapes, resolues **une fois** et servies aux deux ecrans : les
+    // libelles voyagent deja traduits.
+    // pourquoi : docs/decisions/second-ecran.md § Ce qui voyage au panneau voyage déjà résolu
     // pourquoi : docs/decisions/second-ecran.md § Le panneau prend les etapes, parce qu'il est tactile
     val showNetplayStep = session.backend.hasNetplay && !ps2Automatic
     val showPspStep = session.backend == Backend.PPSSPP && !pspAutomatic
@@ -428,6 +468,10 @@ fun SessionScreen(
     )
     val pspLabel = stringResource(
         if (pspOpened) R.string.session_psp_setup_again else R.string.session_psp_setup
+    )
+    val launchedLabel = stringResource(
+        if (session.backend.hasNetplay && !ps2Automatic) R.string.session_launch_done_step2
+        else R.string.session_launch_done
     )
     val launchLabel = launchLabel(
         session = session,
@@ -460,8 +504,12 @@ fun SessionScreen(
         }
         add(
             PanelStep(
-                label = launchLabel,
-                done = false,
+                // Une fois partie, l'etape garde sa place et change de visage :
+                // elle reste pressable, parce que revenir au jeu depuis le
+                // panneau est exactement ce qu'on veut apres avoir bascule
+                // ailleurs.
+                label = if (launched) launchedLabel else launchLabel,
+                done = launched,
                 enabled = launchEnabled(
                     session = session,
                     netplayPrepared = netplayPrepared,
@@ -480,29 +528,30 @@ fun SessionScreen(
         onDispose { SecondScreen.publishSteps(emptyList()) }
     }
 
-    // **Le retour ferme la session, donc il porte une croix et il demande.**
-    //
-    // Il y avait deux controles pour un seul geste : ce bouton, qui quittait
-    // sur-le-champ, et « Fermer la session » a l'autre bout de l'en-tete. Un
-    // seul reste — celui qu'on trouve sans le chercher, parce qu'il est la sur
-    // tous les autres ecrans — et il cesse de promettre un retour en arriere :
-    // une croix rouge, et une question avant de couper le tunnel.
-    // pourquoi : docs/decisions/session.md § Le retour ferme la session, et il le dit
+    // Le pilotage des etapes du panneau arriere. Le focus ne traverse pas les
+    // fenetres : la manette de l'ecran de face conduit donc un curseur virtuel,
+    // publie dans [SecondScreen], que le panneau dessine de son cote — le meme
+    // parti pris que R pour tourner la page.
+    // pourquoi : docs/decisions/second-ecran.md § R tourne la page depuis les deux écrans
+    val panelCursor by SecondScreen.stepCursor.collectAsState()
+
+    // Le retour **ferme** la session : une croix rouge, et une question avant
+    // de couper le tunnel. Il y avait deux controles pour un seul geste.
+    // pourquoi : docs/decisions/session.md § Le retour ferme la session, donc il porte une croix et il demande
     var confirmingLeave by remember { mutableStateOf(false) }
 
+    // Le domaine social : le curseur manette y devient corail.
+    // pourquoi : docs/decisions/theme-duotone-shelves.md § FOCUS MANETTE
+    CompositionLocalProvider(LocalRingTone provides RingTone.CORAL) {
     EmufiiScaffold(
         title = if (session.role == Session.Role.HOST) stringResource(R.string.session_mine) else stringResource(R.string.session_joined),
         modifier = modifier,
         onBack = { confirmingLeave = true },
-        backIcon = { CrossIcon(size = 20.dp, color = ShellRed) },
-        // In landscape, "leave" moves up into the header. It is an action you
-        // go looking for, not one you scroll past, and the 60 dp it gave back
-        // to the left pane are exactly what was missing for the address to fit
-        // on screen without scrolling.
-        // La pastille du code seule, et seulement quand le panneau arriere ne
-        // la porte pas deja : il l'affiche en 64 sp au dos, la redire de face
-        // en 19 sp ne sert personne.
-        // pourquoi : docs/decisions/session.md § Ce que le panneau arrière porte, l'écran de face ne le redit pas
+        backIcon = { CrossIcon(size = 20.dp, color = danger()) },
+        // En paysage, « quitter » monte dans l'en-tete, et les 60 dp rendus au
+        // volet gauche sont ce qui manquait a l'adresse. La pastille du code ne
+        // parait que si le panneau ne la porte pas deja.
+        // pourquoi : docs/decisions/session.md § Ce que le panneau porte, l'écran de face le rend en place
         trailing = if (landscape && !panelLive) {
             { SessionCodeChip(code = session.code, onCopy = onCopyCode) }
         } else null,
@@ -510,12 +559,135 @@ fun SessionScreen(
         // fade margin was an empty band between the title and the cards.
         contentScrolls = !landscape
     ) { topPadding ->
+        // Le pilote vit **dans** la coquille : rendre le curseur au-dela de la
+        // premiere etape, c'est le poser sur la croix de l'en-tete, et le
+        // requester de cette croix ne se lit que derriere le fournisseur de la
+        // coquille. Quand les commandes sont au panneau, la page n'a plus de
+        // premier controle — le pilote est donc aussi le `first` de la coquille,
+        // pour que Bas depuis la croix redescende jusqu'a lui.
+        val scaffoldFocus = LocalScaffoldFocus.current
+
+        /**
+         * Poser le curseur des que les etapes existent, **sans attendre que le
+         * pilote prenne le focus** — il ne le prend jamais. La bonne condition
+         * n'a jamais eu de rapport avec le focus.
+         * pourquoi : docs/decisions/second-ecran.md § Le curseur du panneau ne dépend pas du focus, qui n'arrive jamais
+         */
+        LaunchedEffect(panelLive, panelSteps) {
+            if (panelLive &&
+                panelSteps.isNotEmpty() &&
+                SecondScreen.stepCursor.value == null
+            ) {
+                SecondScreen.selectStep(0)
+            }
+        }
+
+        // **Un seul `focusRequester`, et c'est celui de la coquille** : deux
+        // empiles et le noeud ne prenait jamais le focus. Le pilote *recoit* les
+        // touches sans etre designe, et une destination n'a qu'une adresse.
+        // pourquoi : docs/decisions/session.md § Un seul `focusRequester` par nœud, et c'est celui de la coquille
+        val pilotFocus = remember(scaffoldFocus) { scaffoldFocus?.first ?: FocusRequester() }
+
+        /**
+         * Le pilote reclame le curseur image par image : une seule demande apres
+         * 150 ms perdait contre le focus initial de Compose.
+         * pourquoi : docs/decisions/session.md § Un seul `focusRequester` par nœud, et c'est celui de la coquille
+         */
+        LaunchedEffect(panelLive) {
+            if (!panelLive) return@LaunchedEffect
+            repeat(PILOT_FOCUS_FRAMES) {
+                withFrameNanos { }
+                runCatching { pilotFocus.requestFocus() }
+            }
+        }
+
+        val panelPilot = if (!panelLive) Modifier else Modifier
+            .focusRequester(pilotFocus)
+            // **Avant `focusable()`, jamais apres.** Un `onFocusChanged`
+            // observe ce qui le suit dans la chaine : place derriere, il ne
+            // voyait rien du noeud qu'il etait cense surveiller, et la trace
+            // annoncait « le pilote ne prend jamais le focus » alors qu'il le
+            // prenait. Une sonde mal placee ment plus surement qu'elle
+            // n'informe.
+            .onFocusChanged { state ->
+                // Rendre le curseur au pilote, c'est le rendre aux etapes.
+                // C'est le chemin du retour depuis la croix : l'en-tete
+                // consomme Bas et demande le focus ici, et sans cette ligne il
+                // arrivait sans que rien ne soit designe — d'ou la seconde
+                // pression.
+                if (state.isFocused &&
+                    SecondScreen.stepCursor.value == null &&
+                    SecondScreen.steps.value.isNotEmpty()
+                ) {
+                    SecondScreen.selectStep(0)
+                }
+            }
+            .focusable()
+            // Des que la page tient le focus, le curseur est **directement** sur
+            // les etapes du panneau : un arret intermediaire invisible n'etait
+            // pas un etat, c'etait un silence.
+
+            .onKeyEvent { event ->
+                if (event.type != KeyEventType.KeyDown && event.type != KeyEventType.KeyUp) {
+                    return@onKeyEvent false
+                }
+                // Sortir du panneau rend le curseur a l'ecran de face, sur la
+                // croix : la ou l'on voit qu'on est rendu.
+                fun leavePanel() {
+                    SecondScreen.clearStepCursor()
+                    scaffoldFocus?.header?.let { runCatching { it.requestFocus() } }
+                }
+                val cursor = panelCursor
+                // L'entree : Bas, quand le curseur de face n'a plus rien sous la
+                // main — c'est-a-dire depuis la derniere commande de la page.
+                if (cursor == null) {
+                    if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown &&
+                        SecondScreen.steps.value.isNotEmpty()
+                    ) {
+                        SecondScreen.selectStep(0)
+                        true
+                    } else {
+                        false
+                    }
+                } else {
+                    val steps = SecondScreen.steps.value
+                    when {
+                        // A et ses synonymes pressent l'etape designee. Le KeyDown
+                        // est avale pour qu'une pression ne lise pas deux fois,
+                        // comme partout ailleurs au pad.
+                        event.key in CONFIRM_KEYS -> {
+                            if (event.type == KeyEventType.KeyUp) {
+                                steps.getOrNull(cursor)?.takeIf { it.enabled }
+                                    ?.let { Sfx.click(); it.onPress() }
+                            }
+                            true
+                        }
+                        event.type == KeyEventType.KeyDown -> when (event.key) {
+                            Key.DirectionLeft -> { SecondScreen.moveStep(-1); true }
+                            Key.DirectionRight -> { SecondScreen.moveStep(1); true }
+                            Key.DirectionUp -> {
+                                // Remonter au-dela de la premiere etape rend le
+                                // curseur a l'ecran de face, sur la croix.
+                                if (cursor == 0) leavePanel() else SecondScreen.moveStep(-1)
+                                true
+                            }
+                            // Les etapes forment une rangee : Bas n'a nulle part ou
+                            // aller, mais il ne doit pas rendre le curseur non plus.
+                            Key.DirectionDown -> true
+                            // B reprend le curseur, sans fermer le panneau.
+                            Key.ButtonB, Key.Back -> { leavePanel(); true }
+                            else -> false
+                        }
+                        else -> false
+                    }
+                }
+            }
         if (landscape) {
             // Two panes: state on the left, what is left to do on the right,
             // with every answer under the button that produced it.
             // pourquoi : docs/decisions/session.md § Deux panneaux, parce qu'empilé cet écran ne tient pas
             Row(
-                modifier = Modifier
+                modifier = panelPilot
                     .fillMaxSize()
                     .padding(
                         top = topPadding,
@@ -525,15 +697,11 @@ fun SessionScreen(
                     ),
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // No `verticalScroll`: a state pane that can hide its state is
-                // not doing its job. It fits because the code moved to the header.
+                // Pas de `verticalScroll` : un volet d'etat qui peut cacher son
+                // etat ne fait pas son travail. Plus etroit panneau allume — il ne
+                // reste que la presence, et les 52 dp vont a droite.
                 // pourquoi : docs/decisions/session.md § Le panneau d'état ne défile pas, donc il doit tenir
-                // Plus etroit quand le panneau arriere est allume : le panneau
-                // portant deja l'adresse, le port et le jeu, il ne reste ici que
-                // la presence — et les 52 dp rendus vont a la colonne de droite,
-                // ou l'explication passe alors sur moins de lignes. C'est la que
-                // la place gagnee sert a quelque chose.
-                // pourquoi : docs/decisions/session.md § Ce que le panneau arrière porte, l'écran de face ne le redit pas
+                // pourquoi : docs/decisions/session.md § Ce que le panneau porte, l'écran de face le rend en place
                 Column(
                     modifier = Modifier.width(if (panelLive) 220.dp else 272.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -564,17 +732,10 @@ fun SessionScreen(
                         )
                     }
 
-                    // Le jeu, encadre, **et seulement quand le panneau a
-                    // libere la place**.
-                    //
-                    // Ce bloc etait rendu dans les deux cas, et en mono-ecran il
-                    // cassait la carte de presence : deux enfants ponderes se
-                    // partagent l'espace libre, donc la carte des joueurs se
-                    // retrouvait plafonnee a la moitie d'une colonne qui portait
-                    // deja la carte de connexion. Sans panneau, il n'y a pas de
-                    // vide a remplir — c'est le panneau qui le cree en prenant
-                    // l'adresse.
-                    // pourquoi : docs/decisions/session.md § Le jeu s'affiche dans le vide que le panneau a laissé
+                    // Le jeu, encadre, **et seulement quand le panneau a libere la
+                    // place** : sans panneau il n'y a pas de vide a remplir, et ce
+                    // bloc plafonnait la carte de presence a la moitie d'une colonne.
+                    // pourquoi : docs/decisions/session.md § Ce que le panneau porte, l'écran de face le rend en place
                     if (panelLive) {
                         sessionArt?.let { art ->
                             Box(
@@ -596,19 +757,9 @@ fun SessionScreen(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    // What gives way when there is no room left: the
-                    // explanation. Never the buttons, that being exactly the
-                    // flaw this rework exists to remove.
-                    // Le fondu **n'existe qu'en mono-ecran**, et aux deux
-                    // bouts.
-                    //
-                    // Il est la pour qu'un texte trop long se dissolve au lieu
-                    // d'etre coupe au milieu d'un mot : c'est le cas quand les
-                    // deux commandes vivent sous lui et lui prennent sa hauteur.
-                    // Panneau allume, elles sont au dos, la colonne a l'ecran
-                    // entier — et un degrade qui eteint le bas d'une carte
-                    // pleine se lit alors comme un defaut d'affichage.
-                    // pourquoi : docs/decisions/session.md § Le panneau d'état ne défile pas, donc il doit tenir
+                    // Ce qui cede quand il n'y a plus de place : l'explication, jamais
+                    // les boutons. Et le fondu **n'existe qu'en mono-ecran**.
+                    // pourquoi : docs/decisions/session.md § Ce que le panneau porte, l'écran de face le rend en place
                     val fade = !panelLive
                     Column(
                         modifier = Modifier
@@ -692,7 +843,7 @@ fun SessionScreen(
         }
 
         Column(
-            modifier = Modifier
+            modifier = panelPilot
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(
@@ -795,12 +946,21 @@ fun SessionScreen(
             LeaveButton(session = session, onLeave = { confirmingLeave = true })
         }
     }
+    }
 
     if (confirmingLeave) {
         val host = session.role == Session.Role.HOST
         PadDialog(
             title = stringResource(if (host) R.string.session_close else R.string.session_leave),
             onDismiss = { confirmingLeave = false },
+            // C'est le dialogue qui rendait le panneau le plus faux : il
+            // continuait d'afficher le code et les etapes pendant qu'on
+            // demandait s'il fallait tout couper. Il porte la meme phrase que le
+            // corps, parce que c'est la meme question.
+            panelDetail = stringResource(
+                if (host) R.string.session_close_confirm else R.string.session_leave_confirm
+            ),
+            panelSocial = true,
             actions = {
                 GhostButton(
                     label = stringResource(R.string.common_cancel),
@@ -812,7 +972,7 @@ fun SessionScreen(
                         confirmingLeave = false
                         onLeave()
                     },
-                    tint = ShellRed
+                    tint = danger()
                 )
             }
         ) {
@@ -902,11 +1062,11 @@ private fun NetplayButton(
 ) {
     val enabled = session.rom != null && !waitingForHost
     Button(
-        onClick = onClick,
+        onClick = sounded(onClick),
         enabled = enabled,
         shape = ActionShape,
         colors = if (netplayDone) {
-            ButtonDefaults.buttonColors(containerColor = AccentGreen)
+            ButtonDefaults.buttonColors(containerColor = good())
         } else {
             ButtonDefaults.buttonColors()
         },
@@ -953,10 +1113,10 @@ private fun PspSetupButton(
     modifier: Modifier = Modifier
 ) {
     Button(
-        onClick = onClick,
+        onClick = sounded(onClick),
         shape = ActionShape,
         colors = if (pspOpened) {
-            ButtonDefaults.buttonColors(containerColor = AccentGreen)
+            ButtonDefaults.buttonColors(containerColor = good())
         } else {
             ButtonDefaults.buttonColors()
         },
@@ -987,7 +1147,7 @@ private fun LaunchButton(
     modifier: Modifier = Modifier
 ) {
     Button(
-        onClick = onClick,
+        onClick = sounded(onClick),
         enabled = launchEnabled(session, netplayPrepared, directPs2, waitingForHost),
         shape = ActionShape,
         // Disabled, but still legibly the next step: Material's grey-on-grey
@@ -1007,9 +1167,7 @@ private fun LaunchButton(
 
 /**
  * Ce que le bouton de lancement dit, et s'il repond — **une seule definition**,
- * parce qu'il y a desormais deux endroits qui le dessinent : l'ecran de face et
- * le panneau arriere. Le jour ou les deux divergent, la moitie des joueurs
- * pressent un bouton qui dit autre chose que ce qu'il fait.
+ * parce que deux ecrans le dessinent.
  * pourquoi : docs/decisions/second-ecran.md § Le panneau prend les etapes, parce qu'il est tactile
  */
 @Composable
@@ -1068,14 +1226,13 @@ private fun launchEnabled(
 @Composable
 private fun SessionCodeChip(code: String, onCopy: () -> Unit) {
     val dark = LocalEmufiiDarkTheme.current
-    // The pill is round: the ring takes its shape, and its height is explicit
-    // so the drawing covers the whole touch target, otherwise `Surface(onClick)`
-    // reserves 48 dp and paints a smaller background inside it, which leaves a
-    // gap between the outline and the pill.
+    // La pilule est ronde et sa hauteur explicite, sinon `Surface(onClick)`
+    // reserve 48 dp et peint un fond plus petit dedans. Elle porte l'axe social.
+    // pourquoi : docs/decisions/theme-duotone-shelves.md § Session / Join — domaine corail
     Surface(
-        onClick = onCopy,
+        onClick = sounded(onCopy),
         shape = CircleShape,
-        color = if (dark) PlateDark else PlateLight,
+        color = if (dark) Coral.bright else Coral.deep,
         border = BorderStroke(1.dp, edgeColor(dark, oled = false)),
         shadowElevation = 4.dp,
         modifier = Modifier.controlRing(CircleShape)
@@ -1088,15 +1245,16 @@ private fun SessionCodeChip(code: String, onCopy: () -> Unit) {
             Text(
                 stringResource(R.string.session_code_label).uppercase(),
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = if (dark) Coral.ink else Color.White.copy(alpha = 0.80f),
                 letterSpacing = 1.sp
             )
             Text(
                 code.ifBlank { "—" },
                 fontSize = 20.sp,
+                fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Black,
                 letterSpacing = 2.sp,
-                color = MaterialTheme.colorScheme.onSurface
+                color = if (dark) Coral.ink else Color.White
             )
         }
     }
@@ -1134,7 +1292,7 @@ private fun LeaveButton(
             .heightIn(min = 48.dp)
             .controlRing(PillShape)
             .plate(shape = PillShape, dark = dark, oled = oled, lift = 4.dp, pressed = pressed)
-            .clickable(interactionSource = interaction, indication = null, onClick = onLeave)
+            .tap(interactionSource = interaction, indication = null, onClick = onLeave)
             .padding(horizontal = 20.dp, vertical = 12.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -1142,7 +1300,7 @@ private fun LeaveButton(
             if (session.role == Session.Role.HOST) stringResource(R.string.session_close)
             else stringResource(R.string.session_leave),
             style = MaterialTheme.typography.labelLarge,
-            color = ShellRed
+            color = danger()
         )
     }
 }
@@ -1177,9 +1335,11 @@ private fun CodeCard(code: String, isHost: Boolean) {
             Text(
                 code.ifBlank { "—" },
                 fontSize = 44.sp,
+                fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Black,
                 letterSpacing = 4.sp,
-                color = MaterialTheme.colorScheme.onSurface
+                // Le code est le lien que l'on donne : il porte l'axe corail.
+                color = coralText()
             )
             if (isHost) {
                 Spacer(Modifier.height(8.dp))
@@ -1341,7 +1501,7 @@ private fun LiveDot() {
                 .size(8.dp)
                 .alpha(alpha)
                 .clip(CircleShape)
-                .background(AccentGreen)
+                .background(good())
         )
         Spacer(Modifier.size(6.dp))
         Text(
@@ -1389,17 +1549,8 @@ private fun ConnectionCard(
                     }
                 }
             }
-            // **Plus de boutons « copier ».**
-            //
-            // Ils venaient d'une epoque ou le joueur remplissait le formulaire
-            // de l'emulateur a la main. Emufii le remplit pour lui, et quand
-            // elle ne peut pas — Android ayant coupe le service — la carte
-            // au-dessus dit quoi taper, ce que le presse-papier ne saurait de
-            // toute facon porter qu'a moitie : il ne tient qu'une valeur a la
-            // fois et la boite de dialogue en veut deux.
-            //
-            // Ils coutaient 62 dp, et c'est exactement ce qui manquait pour que
-            // ce panneau tienne sans defiler.
+            // **Plus de boutons « copier »** : Emufii remplit le formulaire, et le
+            // presse-papier ne tient qu'une valeur quand la boite en veut deux.
             // pourquoi : docs/decisions/session.md § Copier l'adresse n'a plus de sens depuis qu'Emufii la remplit
         }
     }
@@ -1680,7 +1831,7 @@ private fun PspHintCard(automatic: Boolean) {
                 Text(
                     stringResource(R.string.hint_psp_automatic_ready),
                     style = MaterialTheme.typography.bodySmall,
-                    color = AccentGreen
+                    color = good()
                 )
                 Text(
                     stringResource(R.string.hint_psp_step4),
@@ -1692,7 +1843,7 @@ private fun PspHintCard(automatic: Boolean) {
                     HOST_SENTINEL,
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+                    color = coralText()
                 )
                 for (step in listOf(
                     stringResource(R.string.hint_psp_step1),
@@ -1717,7 +1868,7 @@ private fun PspHintCard(automatic: Boolean) {
                     Text(
                         stringResource(R.string.hint_psp_copied),
                         style = MaterialTheme.typography.bodySmall,
-                        color = AccentGreen
+                        color = good()
                     )
                 }
                 GhostButton(
@@ -1818,6 +1969,17 @@ private suspend fun Session.launch(
     eden: EdenLauncher,
     ppsspp: PpssppLauncher,
     onPs2Started: () -> Unit = {},
+    /**
+     * Appele quand l'emulateur est **reellement** parti, et seulement alors.
+     *
+     * La valeur de retour ne suffit pas a le savoir : c'est un message d'etat,
+     * et « Lancement de X… » comme « Console non prise en charge » sont tous
+     * deux des chaines. Le panneau arriere, lui, doit distinguer les deux — il
+     * est le seul ecran qui reste visible une fois l'emulateur devant, et il ne
+     * peut pas cocher une etape sur une phrase.
+     * pourquoi : docs/decisions/second-ecran.md § Un panneau qui affirme le faux est une panne
+     */
+    onLaunched: () -> Unit = {},
 ): String {
     val rom = this.rom ?: return context.getString(R.string.session_no_rom_attached)
     // Step two runs after the room has been joined, so the plan has done its
@@ -1839,6 +2001,7 @@ private suspend fun Session.launch(
         Backend.DOLPHIN -> {
             val result = DolphinLauncher(context).launch()
             return if (result == LaunchResult.Success) {
+                onLaunched()
                 context.getString(R.string.session_dolphin_lobby_opened)
             } else {
                 context.getString(R.string.err_not_installed, "Dolphin")
@@ -1865,7 +2028,10 @@ private suspend fun Session.launch(
         Backend.NONE -> return context.getString(R.string.session_unsupported_console)
     }
     return when (result) {
-        LaunchResult.Success -> context.getString(R.string.session_launching, rom.displayName)
+        LaunchResult.Success -> {
+            onLaunched()
+            context.getString(R.string.session_launching, rom.displayName)
+        }
         LaunchResult.NotInstalled -> context.getString(R.string.err_not_installed, emulator)
         is LaunchResult.NoNetplayUi -> context.getString(
             R.string.err_no_netplay_ui,
@@ -1966,3 +2132,9 @@ private const val PRESENCE_MS = 5000L
 
 /** ~15 s of silence before concluding the room is gone rather than the network flaky. */
 private const val MAX_PRESENCE_MISSES = 3
+
+/**
+ * Combien d'images le pilote passe a reclamer le curseur quand les commandes
+ * descendent au panneau. Six, comme la coquille, et pour la meme raison.
+ */
+private const val PILOT_FOCUS_FRAMES = 6

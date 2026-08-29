@@ -1,81 +1,59 @@
 package eu.emufii.app.ui.theme
 
-import android.os.Build
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
-import eu.emufii.app.settings.AppAccent
 
 /**
- * The one accent, in the three cuts the world actually spends. One hue cannot
- * do all three jobs.
+ * DUOTONE SHELVES: two axes, not one accent. Corail = the social, turquoise =
+ * play and system. Read them from [Coral] and [Teal]; go through
+ * `colorScheme.primary` where Material has a slot.
+ * pourquoi : docs/decisions/theme-duotone-shelves.md § Deux axes sémantiques
+ */
+
+/**
+ * A colour axis in the cuts the world actually spends.
  *
- * @property bright the cursor, its glow, and the filled action on the dark themes.
+ * @property bright the cursor ring, the glow, the filled action on dark themes.
  * @property deep the filled action on the light theme, under white text.
  * @property ink what is written on [bright].
- * @property soft the ghost pills' fill and the primary container, [bright] veiled.
- * pourquoi : docs/decisions/direction-visuelle.md § Un accent, mais toujours en trois coupes
+ * @property soft the ghost pills' fill, [bright] at a fifth.
  */
 data class AccentCuts(
     val bright: Color,
     val deep: Color,
     val ink: Color
 ) {
-    /** Never a solid fill: the secondary pills take the accent at a fifth. */
+    /** Never a solid fill: the secondary pills take the colour at a fifth. */
     val soft: Color get() = bright.copy(alpha = 0.20f)
 }
 
-/**
- * The accent in force, for the only two places that cannot read it off the
- * colour scheme. Everything else goes through `colorScheme.primary`.
- * pourquoi : docs/decisions/direction-visuelle.md § Les deux seuls endroits qui lisent l'accent à la main
- */
-val LocalAccent = staticCompositionLocalOf { AccentCuts(TrayCyan, TrayCyanDeep, TrayCyanInk) }
+/** The axis in force for the game/system domain: teal by default. */
+val TealCuts = AccentCuts(Teal.bright, Teal.deep, Teal.ink)
+
+/** The social axis. */
+val CoralCuts = AccentCuts(Coral.bright, Coral.deep, Coral.ink)
 
 /**
- * The cuts for a chosen accent, measured rather than picked by eye:every deep
- * clears 4.6:1 under white, every ink 5:1 on its own base.
- *
- * Green is deliberately absent (it means connected). Red is offered despite
- * colliding with the shell's error red, on the user's call.
- * pourquoi : docs/decisions/direction-visuelle.md § Un accent, mais toujours en trois coupes
+ * The cuts behind `colorScheme.primary` and the default ring. Kept as a local
+ * because the ring is drawn by hand; it carries the teal axis (play + system),
+ * corail zones override it via [LocalRingTone].
  */
-@Composable
-fun accentCuts(accent: AppAccent): AccentCuts = when (accent) {
-    AppAccent.SYSTEM -> systemAccent()
-    AppAccent.CYAN -> AccentCuts(TrayCyan, TrayCyanDeep, TrayCyanInk)
-    AppAccent.AMBER -> AccentCuts(Color(0xFFF0A62B), Color(0xFFA2690B), Color(0xFF583906))
-    AppAccent.VIOLET -> AccentCuts(Color(0xFFA183F0), Color(0xFF8058EB), Color(0xFF290E71))
-    AppAccent.ROSE -> AccentCuts(Color(0xFFF072B6), Color(0xFFDD1782), Color(0xFF5C0A36))
-    AppAccent.YELLOW -> AccentCuts(Color(0xFFF2CE1B), Color(0xFF887308), Color(0xFF5F5005))
-    AppAccent.RED -> AccentCuts(Color(0xFFF04747), Color(0xFFE71313), Color(0xFF2D0404))
-    // White's ink is the app's dark ink, not the grey the ratio would stop at:
-    // the rule is a floor, not a target.
-    // pourquoi : docs/decisions/direction-visuelle.md § Un accent, mais toujours en trois coupes
-    AppAccent.WHITE -> AccentCuts(Color(0xFFFFFFFF), Color(0xFF757575), Color(0xFF1B2430))
-}
+val LocalAccent = staticCompositionLocalOf { TealCuts }
 
 /**
- * The wallpaper's colour, taken from the platform's two schemes rather than
- * derived, because they already carry the contrast guarantees.
+ * **Il n'y a plus d'accent configurable, ni de Material You.**
  *
- * Below Android 12 the tray's cyan stands in; the setting still appears.
- * pourquoi : docs/decisions/direction-visuelle.md § L'accent système est pris à la plateforme, pas dérivé
+ * Le monde duotone tient sur deux axes qui *veulent dire* quelque chose —
+ * turquoise le jeu et le systeme, corail le lien social — et l'anneau du
+ * curseur nomme la zone ou l'on se trouve. Un accent pris du fond d'ecran
+ * repeignait le turquoise sans repeindre le corail : la distinction cessait
+ * d'etre lisible, et c'est la seule chose que la couleur dit dans cette app.
+ *
+ * Le reglage a donc ete retire le 2026-08-28. Il ne tenait deja plus qu'a un
+ * fil : l'anneau, les pastilles d'etat, l'interrupteur et les boutons prennent
+ * leurs coupes des deux axes en dur, si bien que « Couleur systeme » ne teintait
+ * que quelques elements secondaires — un reglage qu'on active sans voir ce qu'il
+ * fait. Le rendre visible aurait demande de sacrifier la semantique ; le retirer
+ * ne coute rien qu'un interrupteur.
+ * pourquoi : docs/decisions/theme-duotone-shelves.md § Réglages
  */
-@Composable
-private fun systemAccent(): AccentCuts {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
-        return AccentCuts(TrayCyan, TrayCyanDeep, TrayCyanInk)
-    }
-    val context = LocalContext.current
-    val dark = dynamicDarkColorScheme(context)
-    val light = dynamicLightColorScheme(context)
-    return AccentCuts(
-        bright = dark.primary,
-        deep = light.primary,
-        ink = dark.onPrimary
-    )
-}

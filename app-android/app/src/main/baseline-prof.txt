@@ -1,0 +1,48 @@
+# Profil de compilation anticipee.
+#
+# **Ce que c'est, et pourquoi il existe.** Android n'installe pas une
+# application compilee : ART l'interprete, puis compile a la volee ce qu'il voit
+# revenir souvent, et ne compile serieusement qu'au bout de plusieurs heures, en
+# tache de fond, une fois l'appareil au repos. Les premieres sessions tournent
+# donc en interprete — precisement celles ou l'on juge si l'app est fluide.
+#
+# Ce fichier dit a ART quoi compiler des l'installation. Il est empaquete dans
+# l'APK sous `assets/dexopt/`, et `androidx.profileinstaller` le remet au
+# systeme au premier lancement.
+#
+# **Mesure sur la Thor, 25 descentes rapides dans la grille, le 2026-08-29.**
+# Meme code, meme appareil, seule la compilation change :
+#
+#   | build                    | mediane | 90e   | 99e   | en retard |
+#   |--------------------------|---------|-------|-------|-----------|
+#   | debug (interpretee)      |  12 ms  | 48 ms | 113 ms|   16 %    |
+#   | release, sans compilation|   9 ms  | 53 ms |  97 ms|   21 %    |
+#   | release, compilee        |   9 ms  | 31 ms |  46 ms|   16 %    |
+#
+# C'est la queue qui bouge, et c'est elle qu'on sent : les a-coups isoles a
+# 100 ms tombent de moitie. Une build *debug* ne peut pas etre compilee du tout
+# — ART refuse d'optimiser du code debuggable — donc juger la fluidite sur une
+# debug ne veut rien dire, et c'est ce qu'on faisait.
+#
+# Cocoon, le lanceur d'a cote, en embarque un (`assets/dexopt/baseline.prof`) et
+# tourne en `speed-profile` : 5 ms de mediane, 6 ms au 90e, aucune image en
+# retard. C'est de la qu'est venue la piste.
+#
+# **Ce profil est ecrit a la main, avec des jokers.** L'outil officiel demande
+# un module de macrobenchmark qui rejoue un parcours sur l'appareil ; on liste
+# ici les paquets dont on sait qu'ils sont sur le chemin chaud — la
+# bibliotheque, son curseur, la matiere plastique, le fond, le second ecran. Il
+# n'a pas besoin d'etre exhaustif : ce qu'il rate est simplement compile plus
+# tard, comme avant.
+#
+# `H` = chaud (appele souvent), `S` = au demarrage, `P` = a compiler.
+
+HSPLeu/emufii/app/ui/**->**(**)**
+HSPLeu/emufii/app/secondscreen/**->**(**)**
+HSPLeu/emufii/app/library/**->**(**)**
+HSPLeu/emufii/app/artwork/**->**(**)**
+HSPLeu/emufii/app/settings/**->**(**)**
+Leu/emufii/app/ui/**
+Leu/emufii/app/secondscreen/**
+Leu/emufii/app/library/**
+Leu/emufii/app/artwork/**

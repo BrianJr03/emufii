@@ -7,42 +7,11 @@ import java.nio.ByteOrder
  * Surgery on a memory card the player already owns: keep every save on it,
  * put the network configuration next to them.
  *
- * The player's source image is read, `BWNETCNF` is inserted or replaced, and
- * a new byte array is returned for the provisioning layer to publish as a
- * clone. The input array is never mutated. Existing save payloads survive the
- * filesystem rewrite unchanged, so no BIOS copy ceremony is required.
- *
- * ### What the operation does to the filesystem
- *
- * The card is parsed through its own superblock — geometry, indirect FAT, FAT
- * chains, root directory — never through assumptions: an 8 MB card and a
- * 64 MB one, a BIOS format and a PCSX2-flavoured one, all declare themselves.
- * An existing `BWNETCNF`, if any, is freed (its file chains and directory
- * clusters returned to the FAT, its root entry compacted away, the saves after
- * it shifted up with their back-references fixed), a fresh save is written
- * from [Ps2MemoryCard.saveFiles] for [consoleId], allocated first-fit over the
- * FAT's own free entries so fragmentation is fine, and every page touched is
- * rewritten with data plus a recomputed ECC spare. No checksum exists anywhere
- * in the format that would need maintaining, and the superblock keeps no
- * free-space count — nothing outside the FAT and the two directories changes.
- *
- * An all-`0xFF` card — what ARMSX2 manufactures for a fresh install before the
- * BIOS has ever formatted it — has no filesystem to read, so it is formatted
- * first, with the constants the generator uses, sized to the file it came in.
- *
- * ### Which console the configuration is encrypted for
- *
- * [inject] takes the console's 8-byte i.Link ID because the YNCF halves are
- * console-locked (see [Ps2NetcnfConfig]). The provisioning layer should
- * resolve that ID from the active BIOS and its NVM. [recoverConsoleId] is a
- * diagnostic/migration helper that can often recover an older card's ID:
- * every YNCF
- * file starts with the same 38-byte header, so a `BWNETCNF` the console wrote
- * yields its own keystream, and the keystream is three shifts per ID byte.
- * That covers the player who once made a configuration with any
- * network-capable game. It must not override a conflicting identity proven by
- * the active NVM. A card this app patched before decodes under the same ID,
- * which also makes the helper useful for validation.
+ * L'entree n'est jamais modifiee ; la carte se lit par son superbloc, jamais par
+ * supposition. [inject] prend l'identifiant i.Link car les moities YNCF sont
+ * verrouillees a la console (voir [Ps2NetcnfConfig]).
+ * pourquoi : docs/decisions/ps2-carte-memoire.md § Opérer la carte du joueur plutôt que lui en donner une neuve
+ * pourquoi : docs/decisions/ps2-carte-memoire.md § Retrouver l'identifiant d'une carte déjà écrite
  */
 object Ps2CardPatch {
 

@@ -6,6 +6,8 @@ import android.content.Intent
 import android.net.Uri
 import eu.emufii.app.R
 import eu.emufii.app.azahar.LaunchResult
+import eu.emufii.app.library.Console
+import eu.emufii.app.library.EmulatorPick
 
 /**
  * Launching melonDS, which is the easiest of the three emulators to talk to.
@@ -41,9 +43,7 @@ object MelonDsPackage {
 
 class MelonDs(private val context: Context) {
 
-    fun installedPackage(): String? = MelonDsPackage.candidates.firstOrNull { pkg ->
-        runCatching { context.packageManager.getPackageInfo(pkg, 0) }.isSuccess
-    }
+    fun installedPackage(): String? = EmulatorPick.packageFor(context, Console.DS)
 
     fun launchGame(romUri: Uri): LaunchResult {
         val pkg = installedPackage() ?: return LaunchResult.NotInstalled

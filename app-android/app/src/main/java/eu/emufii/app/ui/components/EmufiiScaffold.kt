@@ -1,5 +1,6 @@
 package eu.emufii.app.ui.components
 
+import eu.emufii.app.ui.sounded
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,6 +22,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -32,6 +35,7 @@ import eu.emufii.app.ui.controlRing
 import eu.emufii.app.ui.focusRing
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.input.InputMode
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -43,10 +47,13 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalInputModeManager
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.BlendMode
@@ -67,6 +74,8 @@ import eu.emufii.app.ui.theme.LocalEmufiiOledTheme
 import eu.emufii.app.ui.theme.plate
 import eu.emufii.app.ui.theme.PlateDark
 import eu.emufii.app.ui.theme.PlateLightLow
+import eu.emufii.app.ui.theme.ShellDarkLow
+import eu.emufii.app.ui.tap
 
 /**
  * The two gamepad destinations of a scaffolded screen.
@@ -103,6 +112,7 @@ fun Modifier.padEntry(): Modifier {
  * for all screens. The header floats; it is never a bar with a background.
  * pourquoi : docs/decisions/coquille-ecrans.md § L'en-tête flotte, et ce que ça coûte
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun EmufiiScaffold(
     title: String,
@@ -124,11 +134,40 @@ fun EmufiiScaffold(
      * pourquoi : docs/decisions/coquille-ecrans.md § L'en-tête flotte, et ce que ça coûte
      */
     contentScrolls: Boolean = true,
+    /**
+     * False pour un ecran qui place son curseur lui-meme.
+     *
+     * Personne ne s'en sert aujourd'hui — la bibliotheque, seul ecran a tenir
+     * son propre curseur, n'est pas scaffoldee. Le parametre existe pour que le
+     * jour ou un ecran en aura besoin, il puisse refuser sans qu'on retire
+     * l'arrivee du curseur a tous les autres.
+     */
+    autoFocus: Boolean = true,
     content: @Composable (topPadding: Dp) -> Unit
 ) {
     val dark = LocalEmufiiDarkTheme.current
     val scaffoldFocus = remember { ScaffoldFocus(FocusRequester(), FocusRequester()) }
-    val statusBar = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+
+    /**
+     * Le curseur arrive avec l'ecran. Deux pieges, dans cet ordre : demander le
+     * mode clavier **avant** le focus, et redemander a chaque image des
+     * premieres **sans tester** si ca a marche.
+     * pourquoi : docs/decisions/coquille-ecrans.md § Le curseur arrive avec l'écran
+     */
+    val inputMode = LocalInputModeManager.current
+    if (autoFocus) {
+        LaunchedEffect(Unit) {
+            repeat(AUTO_FOCUS_FRAMES) {
+                withFrameNanos { }
+                inputMode.requestInputMode(InputMode.Keyboard)
+                runCatching { scaffoldFocus.first.requestFocus() }
+            }
+        }
+    }
+    // Voir LibraryScreen : la barre est cachée pendant le logo, et sa hauteur
+    // doit rester la même avant et après, sinon l'en-tête saute au passage.
+    val statusBar = WindowInsets.statusBarsIgnoringVisibility.asPaddingValues()
+        .calculateTopPadding()
     // Header height + its vertical padding (2 × 12) + the status bar.
     val band = statusBar + HEADER_HEIGHT + 24.dp
 
@@ -205,6 +244,16 @@ fun EmufiiScaffold(
         if (contentScrolls) WallpaperVeil(band = band, dark = dark)
     }
 }
+
+/**
+ * Combien d'images le scaffold passe a reclamer son premier controle.
+ *
+ * Six, soit une centaine de millisecondes : la mise en page se stabilise bien
+ * avant sur la Thor, et le reste est la marge d'un ecran qui compose une liste
+ * avant de la placer. Au-dela, c'est qu'il n'y a pas de premier controle a
+ * trouver.
+ */
+private const val AUTO_FOCUS_FRAMES = 6
 
 /**
  * A second copy of the wallpaper, drawn over the content and erased except
@@ -293,7 +342,7 @@ fun CircleIconButton(
             .scale(press)
             .focusRing(focused, CircleShape, width = 3.dp, glowRadius = 18.dp)
             .plate(shape = CircleShape, dark = dark, oled = oled, lift = 5.dp, pressed = pressed)
-            .clickable(interactionSource = interaction, indication = null, onClick = onClick),
+            .tap(interactionSource = interaction, indication = null, onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         icon(MaterialTheme.colorScheme.onSurface)
@@ -356,7 +405,7 @@ fun GhostButton(
     // pourquoi : docs/decisions/coquille-ecrans.md § L'anneau entoure la pastille, il ne mord pas dedans
     Box(modifier = modifier.controlRing(shape), propagateMinConstraints = true) {
     Surface(
-        onClick = onClick,
+        onClick = sounded(onClick),
         shape = shape,
         color = accent.copy(alpha = 0.12f),
         interactionSource = interaction,
@@ -416,7 +465,7 @@ fun AvatarStack(
     max: Int = 4
 ) {
     val dark = LocalEmufiiDarkTheme.current
-    val ring = if (dark) Color(0xFF0E1116) else Color.White
+    val ring = if (dark) ShellDarkLow else Color.White
     val shown = names.take(max)
     val extra = names.size - shown.size
     // Overlap has to come from an offset: a negative Spacer width isn't a

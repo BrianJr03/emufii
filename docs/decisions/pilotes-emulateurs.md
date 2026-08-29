@@ -404,3 +404,191 @@ débordement sous le pouce du joueur.
 cliqué, l'écran n'a pas changé comme prévu, et il rend la main sans rien dire au
 joueur. C'est exactement l'instant à photographier ; plus tôt, on capturerait la
 grille avant l'ouverture du menu, ce qui ne prouve rien.
+
+## ARMSX2 : deux `TextView` frères, appariés par leur bande horizontale
+
+L'écran Réglages → Réseau d'ARMSX2 ne ressemble à aucun des deux autres, mesuré
+à l'`uiautomator` sur la Thor.
+
+Sur Dolphin, l'étiquette est **dans** le champ (Compose), donc on cherche par
+imbrication. Ici, étiquette et valeur sont deux `TextView` **frères** sur une
+ligne — l'étiquette à gauche, la valeur à droite — et aucun des deux n'est
+cliquable : c'est la rangée qui l'est. Aucun `EditText` n'est visible tant que la
+rangée n'a pas été ouverte.
+
+Un exemple mesuré, en mode hôte :
+
+```
+"Local Link port"  TextView  [69,809][306,867]
+"19072"            TextView  [1761,809][1851,867]
+```
+
+D'où la règle d'appariement : **la bande horizontale, et non l'ordre des nœuds**.
+Un écran qui gagne une rangée, ou qui se réordonne, ne casse pas ça ; compter les
+nœuds aurait cassé au premier ajout en amont.
+
+`Node` et `Bounds` sont empruntés au côté Dolphin plutôt que redéclarés : ce sont
+des données inertes, sans rien de spécifique à un émulateur, et deux copies
+dériveraient.
+
+## ARMSX2 n'a aucun champ éditable, et c'est un mur
+
+Mesuré sur la Thor le 2026-08-17 : toucher une rangée n'ouvre pas d'`EditText`.
+ARMSX2 dessine son propre clavier, 42 touches, chacune une vue cliquable portant
+son caractère dans un `TextView`. Relevé : 44 vues, 42 étiquettes, et pas un seul
+`android.widget.EditText` dans tout l'arbre.
+
+Deux conséquences, et la seconde est un mur :
+
+1. `ACTION_SET_TEXT` n'a rien à viser. La saisie se fait touche par touche, comme
+   celle d'un joueur. `input text` par ADB ne passe pas davantage : ce clavier
+   ignore les événements de touche injectés, essayé et vérifié.
+2. **Le clavier n'a pas de point.** Chiffres, lettres, majuscule, espace, retour
+   arrière, `Clear`, `Done`, et rien d'autre. La majuscule ne change que la
+   casse, et le champ n'ajoute pas les points tout seul : taper `10671` affiche
+   `10671`. Une adresse IPv4 est donc impossible à saisir, par nous comme par le
+   joueur. C'est un défaut en amont — voir `docs/PHASE1_SCOUT_PS2_ARMSX2.md`.
+
+## ARMSX2 se lance par composant nommé, jamais par filtrage
+
+Contrairement à Dolphin, on peut lui passer la ROM — mais pas comme on
+l'imagine. Son activité est exportée avec un filtre `VIEW` sur les schémas
+`content` et `file`, **sans aucun type MIME**, et c'est le piège : pour un
+`content://`, Android *déduit* le type du fournisseur, et un filtre qui n'en
+déclare aucun ne correspond alors à rien.
+
+Une URI SAF ne peut donc jamais être résolue par filtrage. Mesuré sur la Thor le
+2026-08-17 : l'intention est partie, `ActivityTaskManager` l'a journalisée, et
+aucune activité n'a démarré — même avec ARMSX2 arrêté au préalable.
+
+D'où le composant explicitement nommé : une intention qui nomme sa cible ne passe
+pas par le filtrage. C'est exactement ce que fait `AzaharLauncher` avec
+`EmulationActivity`, et pour la même raison.
+
+La préparation doit toujours se faire **avant** le démarrage du jeu : l'écran
+Réseau est dans les réglages de l'app, pas dans un jeu qui tourne, et l'adaptateur
+DEV9 s'initialise au démarrage du jeu (`Local Link host ready on port 19072`). Un
+port ou un code posés après ne seraient pas relus.
+
+## Une build se choisit, elle ne se devine plus
+
+Le cas est ordinaire, pas exotique : Azahar s'installe sous trois
+`applicationId` selon le canal, Eden se décline en mainline / Optimized /
+legacy, chacune doublée d'une nightly, et rien n'empêche d'en avoir trois à la
+fois. Jusqu'ici chaque lanceur tranchait tout seul, avec deux heuristiques
+différentes : le premier de la liste pour cinq d'entre eux, la dernière mise à
+jour pour Eden.
+
+Ces heuristiques restent — elles sont le défaut, et le bon : sans choix
+explicite, la build installée le plus récemment est celle qu'on voulait ouvrir.
+Mais elles cessent d'être la seule réponse possible. Le commentaire d'Eden
+l'avait écrit noir sur blanc : « le jour où ça devient une gêne, ce qu'il faudra
+est un réglage explicite, pas une heuristique plus fine. »
+
+**Un choix ne survit pas à la désinstallation de ce qu'il désigne.** Une
+préférence qui pointe un paquet absent ne doit jamais rendre une console
+injouable : elle est ignorée, le défaut reprend, et le choix est effacé à la
+première lecture pour ne pas ressusciter si le paquet revient un jour sans qu'on
+l'ait demandé.
+
+## Azahar n'a pas fini de changer d'identifiant
+
+Il vient de Lime3DS, qui venait de Citra, et le renommage s'est arrêté à
+mi-chemin : ses classes sont toujours `org.citra.citra_emu.*`, et une partie de
+ses canaux publie encore sous l'`applicationId` de Lime3DS,
+`io.github.lime3ds.android`.
+
+Constaté sur la Thor le 2026-08-26 : le build installé (`263745c1d-vanilla`)
+porte ce nom-là, expose bien `btn_create`, `btn_join`, `ip_address`,
+`btn_confirm` et `menu_multiplayer`, et lance bien
+`org.citra.citra_emu.activities.EmulationActivity` — c'est Azahar en tout point
+sauf le nom du paquet. Emufii ne cherchait que `org.azahar_emu.*` et annonçait
+donc « pas installé » devant un émulateur parfaitement pilotable.
+
+**Ne jamais remplacer un nom par un autre** : les trois cohabitent selon d'où
+vient l'installation, et un joueur peut en avoir deux. L'ordre est celui de la
+préférence — le nom Azahar d'abord, l'héritage en dernier.
+
+Ce qui décide *vraiment* si un build est pilotable n'est pas son nom mais la
+sonde de § Demander aux ressources, pas au numéro de version. Ajouter un nom ici
+ne fait donc courir aucun risque.
+
+## Demander aux ressources, pas au numéro de version
+
+Emufii pilote le netplay en remplissant le dialogue de l'émulateur par le service
+d'accessibilité. Ça ne marche que si le dialogue existe, et ce n'est pas toujours
+le cas. Azahar 2125.1.3-vanilla, une version officielle signée par l'équipe
+Lime3DS et livrée sur l'AYN Thor, porte tout le moteur réseau dans sa
+bibliothèque native — `Network::RoomMember`, ENet, gestion des paquets wifi —
+mais aucune des vues Android qui l'atteignent. Ses 36 765 ressources ne
+contiennent ni `menu_multiplayer`, ni `btn_join`, ni `ip_address` ; la seule
+occurrence du mot « multiplayer » est la description d'un réglage LLE sans
+rapport.
+
+Armée contre un tel build, l'automatisation attend un écran qui ne viendra
+jamais, et la panne ressemble à Emufii qui ne fait rien du tout. D'où cette
+sonde, lancée **avant** l'armement.
+
+Elle demande ses ressources à l'émulateur plutôt que de comparer des numéros de
+version. Un seuil de version demanderait une constante magique par canal de
+distribution et serait faux pour n'importe quel fork ; demander si l'identifiant
+de vue se résout est **la même question** que le service d'accessibilité posera à
+l'exécution, donc elle ne peut pas être en désaccord avec lui.
+
+## Eden : la dernière installée gagne
+
+Eden se livre en matrice de paquets — mainline, « Optimized » sous l'identité de
+Genshin Impact, legacy — chacune doublée d'une nightly, et rien n'empêche
+quelqu'un d'en avoir trois à la fois. Un ordre codé en dur choisissait alors
+toujours la même, alors que celle qu'on vient d'installer est précisément celle
+qu'on voulait utiliser : sur la Thor, la stable de la semaine passée battait
+l'Optimized installée quelques instants plus tôt, et Emufii ouvrait l'émulateur
+que le joueur n'avait pas choisi.
+
+`lastUpdateTime` plutôt que `firstInstallTime` : réinstaller ou mettre à jour une
+variante est un geste aussi délibéré que l'installer la première fois.
+L'inconvénient est accepté — mettre à jour une variante oubliée peut prendre la
+main sans le dire. C'est ce qui a mené au réglage explicite, § Une build se
+choisit, elle ne se devine plus.
+
+À dates égales, l'ordre de `NetplayTarget.EDEN.packages` tranche, ce qui garde
+notre fork devant, étant le seul à laisser choisir l'interface réseau.
+
+## Dolphin ne reçoit pas de ROM, et ça ne le gêne pas
+
+Dolphin ne peut pas se faire dire de démarrer un fichier précis depuis
+l'extérieur : son `AppLinkActivity` prend un chemin de système de fichiers par
+`AutoStartFile`, et une URI SAF `content:` est exactement ce qu'un chemin ne peut
+pas être. Emufii le sait depuis l'époque du tapserver.
+
+Le netplay rend le point sans objet : le jeu n'est pas choisi au lancement, il
+est choisi **dans le salon**, par l'hôte, dans la bibliothèque de Dolphin, et
+chaque client se voit dire lequel c'est. Le parcours dont Emufii a besoin est
+donc celui que Dolphin offre déjà — ouvrir l'app, atterrir dans le salon, choisir
+le jeu là. Ce que les autres backends font en deux étapes, celui-ci le fait en
+une, et la ROM que la session porte ne sert jamais qu'à nommer le jeu sur nos
+propres écrans.
+
+La conséquence à garder en tête : les deux joueurs doivent déjà avoir ce jeu dans
+Dolphin, avec un contenu identique. Le netplay le vérifie par une empreinte et le
+dit à voix haute quand ils diffèrent.
+
+## Le silence total n'est pas un échec
+
+Un pilote qui a tourné et renoncé rapporte un échec et dit quoi taper à la place.
+Le cas ici est le **silence**, et il a une cause qui mérite d'être nommée : le
+service d'accessibilité est toujours listé et toujours lié, mais ne reçoit plus
+un seul événement — ce que réinstaller l'app par-dessus elle-même laisse
+derrière.
+
+Mesuré sur la Thor le 2026-08-23 après un `install -r` : chaque lancement ouvrait
+l'émulateur et ne faisait rien, sans erreur, sans progression et sans ligne de
+journal, et éteindre puis rallumer le service dans les réglages d'Android le
+ramenait aussitôt. Les joueurs rencontrent la même réinstallation par le canal de
+mise à jour.
+
+La question est posée **au retour du joueur dans Emufii** : c'est le seul moment
+où l'on sait à la fois que l'émulateur a eu son tour et qu'on est vivant pour le
+dire. Le seuil de silence est ce qui sépare « n'a jamais démarré » de « est
+encore en train d'ouvrir le menu », pour qu'un joueur qui revient aussitôt ne
+s'entende pas dire que quelque chose ne va pas.

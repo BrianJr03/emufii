@@ -251,6 +251,10 @@ android {
 
 dependencies {
     implementation(platform(libs.androidx.compose.bom))
+    // Installe le profil de compilation au premier lancement. Sans lui,
+    // `src/main/baseline-prof.txt` voyage dans l'APK et n'est jamais lu.
+    // pourquoi : le profil, et ce qu'il change — voir `baseline-prof.txt`
+    implementation(libs.androidx.profileinstaller)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.ui)

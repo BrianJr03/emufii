@@ -1,5 +1,6 @@
 package eu.emufii.app.ui.screens.settings
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -26,9 +28,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -37,21 +41,28 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.focus.onFocusEvent
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import eu.emufii.app.library.Console
 import eu.emufii.app.library.Rom
 import eu.emufii.app.library.emulatorInfo
+import eu.emufii.app.ui.components.CardBounds
 import eu.emufii.app.ui.components.ChevronRight
+import eu.emufii.app.ui.components.LocalCardBounds
+import eu.emufii.app.ui.components.cardSliceFill
 import eu.emufii.app.ui.components.RomArtwork
 import eu.emufii.app.ui.components.DetailTone
 import eu.emufii.app.ui.components.EmufiiScaffold
@@ -60,20 +71,28 @@ import eu.emufii.app.ui.components.padEntry
 import eu.emufii.app.ui.controlRing
 import eu.emufii.app.ui.theme.ArtworkShape
 import eu.emufii.app.ui.theme.CardShape
+import eu.emufii.app.ui.theme.Coral
+import eu.emufii.app.ui.theme.ErrorDark
+import eu.emufii.app.ui.theme.ErrorLight
+import eu.emufii.app.ui.theme.GoodDark
+import eu.emufii.app.ui.theme.GoodLight
+import eu.emufii.app.ui.theme.InfoDark
+import eu.emufii.app.ui.theme.InfoLight
 import eu.emufii.app.ui.theme.LocalEmufiiDarkTheme
 import eu.emufii.app.ui.theme.LocalEmufiiOledTheme
-import eu.emufii.app.ui.theme.ShellRed
+import eu.emufii.app.ui.theme.Teal
+import eu.emufii.app.ui.theme.WarnDark
+import eu.emufii.app.ui.theme.WarnLight
 import eu.emufii.app.ui.theme.plateColors
 import eu.emufii.app.ui.components.StateBead
 import eu.emufii.app.ui.theme.socket
+import eu.emufii.app.ui.tap
 
 /**
  * Les briques communes aux reglages : la coquille d'une page, un bloc de
  * contenu, une entree du hub, une pastille d'etat, un choix.
  *
- * Ce fichier existe parce que les reglages ne sont plus un ecran mais huit :
- * sans un seul endroit qui dise a quoi ressemble une page de reglages, les
- * huit divergeraient au premier ajout.
+ * Un seul endroit qui dise a quoi ressemble une page, sinon les huit divergent.
  * pourquoi : docs/decisions/reglages-ecran.md § Un hub et sept pages, plus un accordéon
  */
 
@@ -90,8 +109,32 @@ internal val ROW_INSET = 18.dp
 /** La forme d'un choix pose dans un bloc. */
 internal val ROW_SHAPE = RoundedCornerShape(14.dp)
 
-/** Le rouge des gestes qu'on ne rattrape pas. */
-internal val DANGER = ShellRed
+/**
+ * Le rouge des gestes qu'on ne rattrape pas : l'erreur du theme, corail-tiree,
+ * jamais un hex en dur. Coupe light ; la coupe dark se lit via [dangerInk].
+ * pourquoi : docs/decisions/theme-duotone-shelves.md § Sémantique
+ */
+internal val DANGER = ErrorLight
+
+/** La coupe theme-aware du meme rouge, pour les ecrans qui la dessinent. */
+@Composable
+internal fun dangerInk(): Color = if (LocalEmufiiDarkTheme.current) ErrorDark else ErrorLight
+
+/**
+ * Ce qu'une entree du hub appartient : systeme (turquoise) ou social (corail).
+ * pourquoi : docs/decisions/theme-duotone-shelves.md § Réglages
+ */
+internal enum class EntryDomain { SYSTEM, SOCIAL }
+
+/** La coupe lisible de l'axe sur la plaque : deep sur clair, dark bright sur sombre. */
+@Composable
+internal fun domainInk(domain: EntryDomain): Color {
+    val dark = LocalEmufiiDarkTheme.current
+    return when (domain) {
+        EntryDomain.SYSTEM -> if (dark) Teal.darkBright else Teal.deep
+        EntryDomain.SOCIAL -> if (dark) Coral.darkBright else Coral.deep
+    }
+}
 
 /**
  * La largeur en dessous de laquelle une page reste sur une colonne.
@@ -115,9 +158,14 @@ internal fun SettingsPage(
     title: String,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    /**
+     * Ce qui se pose au bout du titre : l'etat d'une page qui n'a qu'un sujet.
+     * pourquoi : docs/decisions/reglages-ecran.md § Ce qui se pose au bout du titre d'une page
+     */
+    trailing: (@Composable () -> Unit)? = null,
     content: @Composable () -> Unit
 ) {
-    EmufiiScaffold(title = title, onBack = onBack, modifier = modifier) { topPadding ->
+    EmufiiScaffold(title = title, onBack = onBack, trailing = trailing, modifier = modifier) { topPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -143,25 +191,24 @@ internal fun SettingsPage(
 /**
  * Les blocs d'une page, en deux colonnes des que l'ecran les porte.
  *
- * La colonne unique etait la bonne reponse tant que les rangees se depliaient :
- * une hauteur qui change rouvre un trou entre deux colonnes a chaque geste.
- * Une page ne change plus de hauteur, et le paysage de la Thor offre 850 dp
- * dont une seule colonne bornee a 620 n'utilisait que les trois quarts, en
- * faisant defiler trois ecrans la ou il en faut un.
- *
- * Les blocs sont distribues en alternance et non coupes au milieu : un bloc
- * appartient a une colonne entiere, sinon son etat et ses boutons finissent de
- * part et d'autre de la gouttiere.
+ * Distribues en alternance et jamais coupes au milieu : un bloc appartient a une
+ * colonne entiere, sinon son etat et ses boutons finissent de part et d'autre de
+ * la gouttiere.
  * pourquoi : docs/decisions/reglages-ecran.md § Deux colonnes, une fois l'accordéon parti
  */
 @Composable
 internal fun SettingsColumns(vararg blocks: @Composable () -> Unit) {
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
         if (maxWidth < TWO_COLUMN_FROM || blocks.size < 2) {
-            Column(
-                modifier = Modifier.widthIn(max = ONE_COLUMN_MAX).fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) { blocks.forEach { it() } }
+            // Sur une colonne, deux blocs ne sont plus cote a cote : les
+            // appairer n'alignerait plus rien et ne ferait qu'ajouter du vide
+            // sous le plus court.
+            CompositionLocalProvider(LocalBlocksArePaired provides false) {
+                Column(
+                    modifier = Modifier.widthIn(max = ONE_COLUMN_MAX).fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) { blocks.forEach { it() } }
+            }
         } else {
             Row(
                 modifier = Modifier.widthIn(max = TWO_COLUMN_MAX).fillMaxWidth(),
@@ -182,22 +229,54 @@ internal fun SettingsColumns(vararg blocks: @Composable () -> Unit) {
     }
 }
 
+/**
+ * Vrai quand les blocs sont dresses en deux colonnes, donc quand deux d'entre
+ * eux se regardent en travers de la gouttiere. Faux sur une colonne.
+ */
+internal val LocalBlocksArePaired = compositionLocalOf { true }
+
+/**
+ * Deux blocs de colonnes differentes qui doivent finir a la meme hauteur.
+ *
+ * Ils vivent dans deux `Column` distinctes : rien ne les mesure ensemble, donc
+ * ils se le disent. Le **maximum**, jamais la hauteur de l'un des deux.
+ * pourquoi : docs/decisions/reglages-ecran.md § Aligner deux colonnes demande de mesurer, pas d'intrinsèque
+ */
+@Stable
+internal class BlockHeights {
+    var tallestPx by mutableIntStateOf(0)
+        private set
+
+    fun offer(heightPx: Int) {
+        if (heightPx > tallestPx) tallestPx = heightPx
+    }
+}
+
+@Composable
+internal fun rememberBlockHeights(): BlockHeights = remember { BlockHeights() }
+
+/**
+ * Pose un bloc dans un groupe de hauteur egale. A mettre sur le `modifier` du
+ * bloc, jamais dans son contenu : c'est la carte qui s'aligne, pas son texte.
+ */
+@Composable
+internal fun Modifier.sameHeightAs(group: BlockHeights): Modifier {
+    if (!LocalBlocksArePaired.current) return this
+    val floor = with(LocalDensity.current) { group.tallestPx.toDp() }
+    return this
+        .heightIn(min = floor)
+        // Apres `heightIn` : ce qui remonte est alors la hauteur tenue, qui est
+        // deja le maximum du groupe — le plus court ne fait donc jamais grandir
+        // le plancher, et la mesure se stabilise au premier passage.
+        .onSizeChanged { group.offer(it.height) }
+}
+
 /** L'etat d'un bloc, tel que son en-tete l'affiche. */
 internal data class BlockState(val tone: DetailTone, val label: String)
 
 /**
  * Un bloc d'une page : un en-tete qui porte le nom **et l'etat**, puis le
- * contenu.
- *
- * L'ordre est le renversement de celui de l'accordeon, et c'est le coeur de
- * cette page. Une rangee depliee commencait par un paragraphe d'explication,
- * puis les boutons, puis l'etat tout en bas : on avait demande a ouvrir, donc
- * on voulait d'abord apprendre. Sur une page, tout est deja ouvert, et ce que
- * le joueur vient verifier c'est **ou ca en est** — quatre lignes de methode
- * posees devant lui sont un mur a traverser pour atteindre un mot.
- *
- * Donc : le nom et l'etat en en-tete, ce qu'on peut faire ensuite, et
- * l'explication en dernier — et seulement tant qu'elle apprend quelque chose.
+ * contenu, puis l'explication — et seulement tant qu'elle apprend quelque chose.
  * pourquoi : docs/decisions/reglages-ecran.md § Sur une page, l'état passe devant l'explication
  */
 @Composable
@@ -212,10 +291,8 @@ internal fun SettingsBlock(
     /** La marque du bloc : l'icone de l'emulateur concerne, quand il y en a un. */
     mark: (@Composable () -> Unit)? = null,
     /**
-     * Vrai quand le bloc doit occuper toute la hauteur qu'on lui donne et
-     * repartir son contenu dedans : son en-tete en haut, ses actions en bas.
-     * Sert a aligner le pied d'une colonne d'un seul bloc sur celui d'une
-     * colonne qui en compte deux.
+     * Vrai quand le bloc doit occuper toute la hauteur qu'on lui donne : son
+     * en-tete en haut, ses actions en bas.
      * pourquoi : docs/decisions/reglages-ecran.md § Deux colonnes, une fois l'accordéon parti
      */
     spread: Boolean = false,
@@ -225,10 +302,17 @@ internal fun SettingsBlock(
      * texte de son titre, et le bloc avait un trou au milieu.
      */
     footer: (@Composable () -> Unit)? = null,
+    /**
+     * Non nul quand le bloc se replie. Reserve a ce qu'on regle une fois.
+     * pourquoi : docs/decisions/reglages-ecran.md § Le repli est réservé à ce qu'on règle une fois
+     */
+    onToggleExpanded: (() -> Unit)? = null,
+    /** Vrai quand le bloc repliable est ouvert. Ignore sans [onToggleExpanded]. */
+    expanded: Boolean = true,
     content: @Composable () -> Unit
 ) {
     var bounds by remember { mutableStateOf(CardBounds(0f, 0f)) }
-    SoftCard(modifier = modifier) {
+    SoftCard(modifier = modifier, onClick = onToggleExpanded) {
         CompositionLocalProvider(LocalCardBounds provides bounds) {
             Column(
                 modifier = Modifier
@@ -240,6 +324,9 @@ internal fun SettingsBlock(
                         )
                     }
                     .then(if (spread) Modifier.fillMaxHeight() else Modifier)
+                    // Le repli change la hauteur de la carte : sans ca, la
+                    // colonne d'a cote saute d'un coup au lieu de suivre.
+                    .then(if (onToggleExpanded != null) Modifier.animateContentSize() else Modifier)
                     .padding(ROW_INSET),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
@@ -256,7 +343,41 @@ internal fun SettingsBlock(
                             color = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.weight(1f)
                         )
-                        state?.let { StatePill(it.tone, it.label) }
+                        // **Sans poids, et c'est le point.** La pastille en
+                        // portait un — `weight(1f, fill = false)` — pour qu'une
+                        // etiquette longue ne laisse pas zero pixel au titre.
+                        // Mais deux enfants ponderes se partagent la place
+                        // restante **a parts egales** : la pastille se voyait
+                        // allouer la moitie de la rangee et commencait donc au
+                        // milieu de la carte, loin du bord droit ou elle doit
+                        // etre. Le `fill = false` ne la retrecissait qu'apres
+                        // coup, sans lui rendre sa place.
+                        //
+                        // Non ponderee, elle est mesuree la premiere, a sa
+                        // largeur propre, et le titre prend tout le reste. La
+                        // borne de largeur remplace le poids pour la protection
+                        // qu'il apportait : une etiquette de deux mots tient
+                        // largement dedans, et au-dela l'ellipse de [StatePill]
+                        // fait le reste.
+                        // pourquoi : docs/decisions/reglages-ecran.md § Une pastille d'état porte deux mots, jamais une phrase
+                        state?.let {
+                            Box(modifier = Modifier.widthIn(max = STATE_PILL_MAX)) {
+                                StatePill(it.tone, it.label)
+                            }
+                        }
+                        if (onToggleExpanded != null) {
+                            // Vers le bas ferme, vers le haut ouvert : le
+                            // chevron montre ou va le contenu, pas ou il est.
+                            val turn by animateFloatAsState(
+                                if (expanded) -90f else 90f,
+                                label = "block-chevron"
+                            )
+                            ChevronRight(
+                                size = 18.dp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                modifier = Modifier.rotate(turn)
+                            )
+                        }
                     }
                 }
                 content()
@@ -274,12 +395,8 @@ internal fun SettingsBlock(
 }
 
 /**
- * Une explication qui se donne en etapes, et jamais en paragraphe.
- *
- * Quatre phrases techniques d'affilee — le cas de PPSSPP, mesure a quatre
- * lignes pleine largeur — ne se lisent pas, elles se sautent. Les memes faits
- * numerotes se parcourent : on trouve l'etape ou l'on en est, on fait celle
- * d'apres. C'est aussi ce qui force a les ecrire courtes.
+ * Une explication qui se donne en etapes, et jamais en paragraphe : quatre
+ * phrases techniques d'affilee ne se lisent pas, elles se sautent.
  * pourquoi : docs/decisions/reglages-ecran.md § Sur une page, l'état passe devant l'explication
  */
 @Composable
@@ -321,11 +438,8 @@ private fun SettingsStep(number: Int, text: String) {
 
 /**
  * Un fait du bloc : une etiquette a gauche, sa valeur a droite, sur une ligne.
- *
- * Sans le creux de [eu.emufii.app.ui.components.DetailStatus] autour. Le creux
- * dit « voila ce qui est » et le meritait quand l'etat arrivait en bas d'une
- * rangee depliee ; en en-tete de bloc, l'etat est deja dit par la pastille, et
- * un creux de plus par bloc empilait trois niveaux de conteneur.
+ * Sans creux autour.
+ * pourquoi : docs/decisions/reglages-ecran.md § Un fait de bloc n'a pas de creux autour
  */
 @Composable
 internal fun BlockFact(label: String, value: String) {
@@ -349,12 +463,8 @@ internal fun BlockFact(label: String, value: String) {
 }
 
 /**
- * Ce qui a echoue. Rouge, et court.
- *
- * Le rouge coque n'apparait que deux fois dans toute l'app, et c'est pour ca
- * qu'il se lit quand il apparait. Une note de six lignes en rouge sous une
- * pastille verte fait relire la pastille pour savoir laquelle des deux ment :
- * ce qui n'est pas un echec passe par [BlockNotice].
+ * Ce qui a echoue. Rouge, et court : le rouge coque n'apparait que deux fois
+ * dans toute l'app, et c'est pour ca qu'il se lit. Le reste passe par [BlockNotice].
  * pourquoi : docs/decisions/reglages-ecran.md § Un avertissement n'est pas une erreur, et ne porte pas le rouge
  */
 @Composable
@@ -367,16 +477,8 @@ internal fun BlockCaveat(text: String) {
 }
 
 /**
- * La chose que le joueur doit savoir, alors que tout va bien.
- *
- * Le cas qui l'a fait naitre : la carte dossier de la PS2. Ce n'est ni une
- * erreur ni un remplacement — c'est la raison pour laquelle aucune sauvegarde
- * du joueur n'a ete clonee, donc la seule chose qu'il doit absolument lire, et
- * ca prend six lignes. En rouge, sous une pastille verte, ces six lignes
- * annulaient la pastille.
- *
- * Dans un creux, avec la perle d'avertissement : le creux dit « voila ce qui
- * est », la perle dit de quel poids, et le texte garde l'encre ordinaire.
+ * La chose que le joueur doit savoir alors que tout va bien : un creux, la perle
+ * d'avertissement, et l'encre ordinaire.
  * pourquoi : docs/decisions/reglages-ecran.md § Un avertissement n'est pas une erreur, et ne porte pas le rouge
  */
 @Composable
@@ -405,16 +507,10 @@ internal fun BlockNotice(text: String) {
 /**
  * Une entree du hub : une marque, un nom, ce que la page contient, et l'etat.
  *
- * Chacune est sa **propre plaque** et non une rangee dans une carte commune.
- * C'est ce qui a fait disparaitre la machinerie de coins qui se morphaient et
- * de remplissage opaque tranche dans le degrade de la carte : une plaque est
- * deja opaque, et [SoftCard] pose deja l'anneau du curseur dans sa forme.
- *
- * Et ce n'est **pas** une tuile : la grille de tuiles est la grammaire de la
- * bibliotheque, ou le contenu est la jaquette. Une page de reglages n'a pas de
- * contenu a montrer, elle a des noms a lire, et une rangee se lit a la vitesse
- * ou on cherche un nom.
+ * Chacune est sa **propre plaque** et non une rangee dans une carte commune, et
+ * elles sont rangees en tableau plutot qu'en liste.
  * pourquoi : docs/decisions/reglages-ecran.md § Une entrée du hub est une plaque, pas une rangée
+ * pourquoi : docs/decisions/reglages-ecran.md § Le hub est une grille, et le panneau montre la case visée
  */
 @Composable
 internal fun SettingsEntry(
@@ -426,19 +522,33 @@ internal fun SettingsEntry(
     entry: Boolean = false,
     state: EntryState? = null,
     icon: (@Composable (Color) -> Unit)? = null,
+    /** Le domaine decide la teinte de l'encoche : turquoise systeme, corail social. */
+    domain: EntryDomain = EntryDomain.SYSTEM,
     leading: (@Composable () -> Unit)? = null,
+    /**
+     * Appelee quand le curseur arrive sur l'entree ou la quitte. C'est par la
+     * que le hub dit au second ecran quelle case est visee ; nulle part
+     * ailleurs le focus ne traverse les deux fenetres.
+     * pourquoi : docs/decisions/reglages-ecran.md § Le hub est une grille, et le panneau montre la case visée
+     */
+    onFocused: ((Boolean) -> Unit)? = null,
 ) {
     SoftCard(
         onClick = onOpen,
-        modifier = modifier.then(if (entry) Modifier.padEntry() else Modifier)
+        modifier = modifier
+            .then(if (entry) Modifier.padEntry() else Modifier)
+            .then(
+                if (onFocused != null) Modifier.onFocusEvent { onFocused(it.hasFocus) }
+                else Modifier
+            )
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp),
-            modifier = Modifier.fillMaxWidth().padding(horizontal = ROW_INSET, vertical = 11.dp)
+            modifier = Modifier.fillMaxSize().padding(horizontal = ROW_INSET, vertical = 11.dp)
         ) {
             if (leading != null) leading()
-            else if (icon != null) IconSocket(icon)
+            else if (icon != null) IconSocket(icon, domain)
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
@@ -466,45 +576,42 @@ internal fun SettingsEntry(
 internal data class EntryState(val tone: DetailTone, val label: String)
 
 /**
- * La marque d'une page, dans son creux rond.
- *
- * Le creux tient a une chose : une icone posee a nu sur la plaque flotte, et
- * sept icones flottantes alignees se lisent comme de la decoration. Dans un
- * creux, chacune est un objet moule de plus.
- *
- * Elle est a l'encre attenuee et **jamais a l'accent** : l'accent ne veut dire
- * qu'une chose, « c'est ici », et sept marques cyan le lui retireraient.
- * pourquoi : docs/decisions/direction-visuelle.md § Trois sols, un accent, et rien d'autre n'a de teinte
+ * La marque d'une page, dans son encoche ronde teintee par domaine : une icone
+ * posee a nu flotte, et sept icones flottantes se lisent comme de la decoration.
+ * pourquoi : docs/decisions/theme-duotone-shelves.md § Réglages
  */
 @Composable
-private fun IconSocket(icon: @Composable (Color) -> Unit) {
-    val dark = LocalEmufiiDarkTheme.current
-    val ink = MaterialTheme.colorScheme.onSurfaceVariant
+private fun IconSocket(icon: @Composable (Color) -> Unit, domain: EntryDomain) {
+    val ink = domainInk(domain)
+    val axis: Color = if (domain == EntryDomain.SOCIAL) Coral.bright else Teal.bright
     Box(
         modifier = Modifier
             .size(34.dp)
-            .socket(CircleShape, dark),
+            .clip(CircleShape)
+            .background(axis.copy(alpha = 0.16f)),
         contentAlignment = Alignment.Center
     ) { icon(ink) }
 }
 
 /**
- * L'etat d'une page, en une pastille.
- *
- * Le meme vocabulaire que la perle de [eu.emufii.app.ui.components.DetailStatus]
- * — memes quatre tons, memes quatre glyphes — parce qu'une application n'a le
- * droit de dire « c'est bon » que d'une seule facon. La pastille ajoute le mot
- * que la perle seule ne porte pas, parce qu'une rangee de hub doit se lire sans
- * qu'on l'ouvre.
+ * Ce qu'une pastille d'etat peut prendre de la rangee du titre. Deux mots y
+ * tiennent avec de la marge ; c'est un garde-fou, pas une mesure.
+ */
+private val STATE_PILL_MAX = 190.dp
+
+/**
+ * L'etat d'une page, en une pastille : le meme vocabulaire que la perle de
+ * [eu.emufii.app.ui.components.DetailStatus], plus le mot qu'elle ne porte pas.
  * pourquoi : docs/decisions/reglages-ecran.md § La pastille du hub reprend la perle, elle n'en invente pas une seconde
  */
 @Composable
 internal fun StatePill(tone: DetailTone, label: String) {
+    val dark = LocalEmufiiDarkTheme.current
     val ink = when (tone) {
-        DetailTone.GOOD -> Color(0xFF12A55C)
-        DetailTone.BUSY -> Color(0xFF3C82C4)
-        DetailTone.WARN -> Color(0xFFC78005)
-        DetailTone.BAD -> Color(0xFFEB5D47)
+        DetailTone.GOOD -> if (dark) GoodDark else GoodLight
+        DetailTone.BUSY -> if (dark) InfoDark else InfoLight
+        DetailTone.WARN -> if (dark) WarnDark else WarnLight
+        DetailTone.BAD -> if (dark) ErrorDark else ErrorLight
     }
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -520,7 +627,10 @@ internal fun StatePill(tone: DetailTone, label: String) {
             label,
             style = MaterialTheme.typography.labelSmall,
             color = ink,
-            maxLines = 1
+            maxLines = 1,
+            // Voir SessionFinderScreen : la coupe par defaut tranche le glyphe,
+            // l'ellipse dit qu'il manque quelque chose.
+            overflow = TextOverflow.Ellipsis
         )
     }
 }
@@ -554,7 +664,7 @@ internal fun ChoiceRow(
                 tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f * emphasis)
             )
             .clip(ROW_SHAPE)
-            .clickable(onClick = onClick)
+            .tap(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 12.dp)
     ) {
         Box(
@@ -582,6 +692,7 @@ internal fun ChoiceRow(
 /** Une rangee rouge : le geste qu'on ne fait qu'une fois dans la vie de l'app. */
 @Composable
 internal fun DangerRow(label: String, onClick: () -> Unit) {
+    val danger = dangerInk()
     SoftCard(onClick = onClick) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -592,59 +703,17 @@ internal fun DangerRow(label: String, onClick: () -> Unit) {
             Text(
                 label,
                 style = MaterialTheme.typography.bodyLarge,
-                color = DANGER
+                color = danger
             )
             Spacer(Modifier.weight(1f))
-            ChevronRight(size = 18.dp, color = DANGER.copy(alpha = 0.6f))
+            ChevronRight(size = 18.dp, color = danger.copy(alpha = 0.6f))
         }
     }
 }
 
-/** Ou se trouve une carte de reglages et quelle hauteur elle fait, en coordonnees fenetre. */
-internal data class CardBounds(val top: Float, val height: Float)
-
 /**
- * La carte dans laquelle l'appelant dessine. Coordonnees **racine**, pas celles
- * d'un parent : ce qui en a besoin n'est pas a la meme profondeur.
- * pourquoi : docs/decisions/reglages-ecran.md § Le remplissage opaque existe pour le curseur, pas pour le look
- */
-internal val LocalCardBounds = compositionLocalOf { CardBounds(0f, 0f) }
-
-/**
- * Un remplissage opaque qui est, au pixel pres, ce que la carte peignait deja
- * ici. **Il existe pour le curseur, pas pour le look** : une lueur est une
- * ombre, et elle traverse tout ce qui n'est pas opaque.
- * pourquoi : docs/decisions/reglages-ecran.md § Le remplissage opaque existe pour le curseur, pas pour le look
- */
-@Composable
-internal fun Modifier.cardSliceFill(shape: Shape, tint: Color = Color.Transparent): Modifier {
-    val card = LocalCardBounds.current
-    val colors = plateColors(
-        dark = LocalEmufiiDarkTheme.current,
-        oled = LocalEmufiiOledTheme.current
-    )
-    var top by remember { mutableFloatStateOf(Float.NaN) }
-    return this
-        .onGloballyPositioned { top = it.positionInRoot().y }
-        .background(
-            brush = if (card.height <= 0f || top.isNaN()) SolidColor(colors.first())
-            else Brush.verticalGradient(
-                colors = colors,
-                startY = card.top - top,
-                endY = card.top - top + card.height
-            ),
-            shape = shape
-        )
-        .then(if (tint == Color.Transparent) Modifier else Modifier.background(tint, shape))
-}
-
-/**
- * La marque d'un bloc d'emulateur : l'icone de l'application installee.
- *
- * C'est la seule image que ces pages peuvent montrer honnetement, et elle
- * repond a une question que le texte posait mal : « PPSSPP » en titre ne dit
- * pas si PPSSPP est la. Son icone, oui — et le creux vide, quand elle manque,
- * le dit aussi bien.
+ * La marque d'un bloc d'emulateur : l'icone de l'application installee, qui dit
+ * si elle est la — ce que son nom en titre ne dit pas.
  * pourquoi : docs/decisions/reglages-ecran.md § Les images des pages viennent de l'appareil, pas d'une banque
  */
 @Composable
@@ -679,13 +748,8 @@ internal fun EmulatorMark(console: Console, size: Dp = 34.dp) {
 }
 
 /**
- * Un echantillon de jaquettes reelles, pris dans la bibliotheque du joueur.
- *
- * Le bloc des icones de jeu parlait de deux sources d'images sans jamais en
- * montrer une seule : le joueur lisait « Cocoon est en vigueur » et devait
- * aller verifier dans la grille. Ici il voit **ce que sa grille affiche**, a
- * l'endroit ou il en change la source. C'est aussi la seule couleur de tout cet
- * ecran, et elle vient du contenu, comme le veut la direction.
+ * Un echantillon de jaquettes reelles, pris dans la bibliotheque du joueur : il
+ * voit **ce que sa grille affiche**, la ou il en change la source.
  * pourquoi : docs/decisions/reglages-ecran.md § Les images des pages viennent de l'appareil, pas d'une banque
  */
 @Composable

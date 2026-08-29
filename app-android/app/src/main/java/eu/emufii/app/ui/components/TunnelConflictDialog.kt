@@ -4,7 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import eu.emufii.app.R
 import eu.emufii.app.tunnel.TunnelHolder
-import eu.emufii.app.ui.theme.ShellRed
+import androidx.compose.material3.MaterialTheme
 
 /**
  * Asked before one tunnel takes the VPN slot from the other.
@@ -36,13 +36,13 @@ fun TunnelConflictDialog(
                 label = stringResource(R.string.common_cancel),
                 onClick = onDismiss
             )
-            // Red, because confirming ends a session someone is inside. One of
-            // the two places in the app where the shell red appears at all.
-            GhostButton(
-                label = stringResource(R.string.tunnel_conflict_confirm),
-                onClick = onConfirm,
-                tint = ShellRed
-            )
+                // The error tone, because confirming ends a session someone is
+                // inside: the centralized coral-leaning error, never a raw red.
+                GhostButton(
+                    label = stringResource(R.string.tunnel_conflict_confirm),
+                    onClick = onConfirm,
+                    tint = MaterialTheme.colorScheme.error
+                )
         }
     ) {
         PadDialogText(stringResource(body))

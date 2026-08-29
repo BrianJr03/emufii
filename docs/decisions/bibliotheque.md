@@ -431,3 +431,222 @@ ouvre toujours ce qu'il ouvre.
 Le dossier ouvert est remis à zéro dès que le mode de classement change : garder un
 dossier ouvert en repassant en A-Z laisserait la bibliothèque silencieusement
 amputée d'une console, sans rien à l'écran pour l'expliquer.
+
+## L'air sous la barre est celui du curseur, et il se calcule
+
+Deux constantes sortent du même calcul et doivent se refaire ensemble :
+`SHELF_INSET`, la marge des pastilles dans leur creux, et `HEADER_GAP`, l'air
+entre la barre flottante et la première rangée.
+
+Le curseur néon **déborde** de ce qu'il entoure. Sur une pastille de 46 dp :
+`band` vaut `TILE_BAND` de son côté, plus le halo qui rayonne encore de 0,8 fois
+son flou par-dessus — environ 8,7 dp. Le creux ne lui en laissait que 6, et le
+halo des pastilles des deux bouts se coupait net sur le bord de la pilule.
+
+Deux choses le rognaient d'ailleurs, pas une : le creux se découpe à sa forme,
+**et** `animateContentSize` — sur l'étagère de gauche — est un `clipToBounds`
+suivi d'une animation de taille. Aucune des deux ne se retire sans conséquence,
+et aucune n'a besoin de l'être : il suffit que le creux soit assez large pour
+contenir le curseur qu'il est censé montrer.
+
+Même calcul pour la première rangée de la grille, sur une tuile de 130 dp :
+environ 20 dp au-dessus de sa boîte de mise en page, l'agrandissement de 7 %
+compris. Les 14 dp d'avant ne suffisaient déjà pas ; ils tenaient parce que
+l'étagère s'arrêtait 8 dp plus haut, et le compte est tombé à découvert le jour
+où le creux a fait de la place au curseur.
+
+Si le néon change de calibre (`TILE_BAND`, `minBand`, le flou de `CursorRing`),
+refaire cette addition — le symptôme, lui, est silencieux.
+
+## Amener la cible : les deux bords se lisent dans le même repère
+
+`item.offset.y` compte depuis le début du contenu. La marge du haut vit donc
+*avant* zéro, en offsets négatifs, et `viewportStartOffset` vaut précisément
+moins cette marge. Le bord utile du haut est zéro, celui du bas
+`viewportEndOffset` moins la marge du bas.
+
+Le calcul précédent ajoutait la marge du haut aux deux bords :
+`beforeContentPadding` en haut, et `viewportEndOffset - viewportStartOffset` en
+bas — qui vaut la *hauteur* du viewport et non son bord. En haut, la générosité
+ne se voyait pas : la tuile arrivait plus bas que nécessaire, ce qui est
+agréable. En bas, la grille se croyait cent pixels plus haute qu'elle n'est :
+elle s'arrêtait avant d'avoir amené la tuile, qui restait collée au bord ou
+mordait dessus.
+
+D'où une descente franchement moins bonne qu'une montée, pour un seul terme de
+trop, et une asymétrie que personne ne pouvait deviner en lisant la ligne.
+
+## Ce que la tuile lit ne doit changer que pour elle
+
+`selected` et `padHeld` étaient calculés dans le lambda d'item : les deux états
+étaient donc lus par les quatorze tuiles à l'écran, et un pas de curseur les
+recomposait toutes — quatorze plaques, moulages, ombres et jaquettes reconstruits
+pour que deux changent d'état. En descente rapide, un pas toutes les cinquante
+millisecondes, c'est ce qui mangeait le budget d'image.
+
+Un état **dérivé** ne prévient ses lecteurs que si son résultat change. La valeur
+reste calculée à chaque pas — c'est une comparaison d'entiers — mais seules la
+tuile qui s'allume et celle qui s'éteint se recomposent. Même traitement pour la
+liste et le carrousel.
+
+Corollaire : ni `cursor` ni `padFocused` ne doivent être lus dans le **corps**
+d'un composable de cette page, sinon tout ce qui s'y trouve se réabonne au
+curseur. Ils sont gardés comme objets d'état et délégués juste après ; les
+lectures qui restent sont dans des rappels d'événement ou des effets, qui ne
+s'abonnent à rien. `PublishHovered` est la seule exception, et elle est voulue :
+ce composable ne rend rien, donc sa recomposition ne coûte qu'elle-même.
+
+## Une seule animation pour les trois marques du curseur
+
+L'agrandissement de la tuile visée et ses deux pas d'escalier partagent une
+horloge — un curseur ne se fend pas en morceaux qui arrivent chacun à leur heure.
+Ils étaient pourtant tenus par trois animations distinctes, donc trois
+`Animatable`, trois effets et trois abonnements **par tuile à l'écran**, pour une
+valeur unique. Ils n'en font plus qu'un, dont les trois se déduisent.
+
+## Ce qui réveille le second écran a un seuil, et il était trop court
+
+Publier réveille la seconde fenêtre : elle recompose une face entière, ouvre son
+fondu de 220 ms et demande la jaquette. À 110 ms, une descente à un pas toutes
+les deux dixièmes — déjà rapide, pas frénétique — repassait le seuil à chaque
+pas, et refaisait donc ce travail à chaque pas.
+
+Porté à 200 ms le 2026-08-29 : une descente soutenue ne publie plus rien tant
+qu'elle dure, et le panneau n'annonce que ce sur quoi le joueur s'arrête. C'était
+déjà l'intention écrite ; le seuil ne la tenait pas.
+
+## Une ligne de menu, pas deux copies au pixel près
+
+Elle existait en deux exemplaires identiques : `MenuRow` dans le menu d'une tuile
+et `ChipMenuRow` dans les menus Affichage et Tri — même source d'interaction,
+même surlignage à 7 %, même rayon de 14, mêmes marges, même glyphe de 18. Deux
+copies d'une même pièce ne restent identiques que tant que personne n'en retouche
+une, et c'est exactement ce qui allait arriver : l'une des deux venait de recevoir
+un point d'arrivée pour le curseur que l'autre n'avait pas.
+
+Ce qui différait vraiment tient en deux paramètres : une coche à droite pour
+l'option en cours, et le porte-curseur que le menu pose sur cette ligne-là. Le
+menu d'une tuile n'a ni l'une ni l'autre — on n'y « est » pas, on y agit — et les
+laisse nuls.
+
+Le surlignage est un **fond**, jamais un anneau : ces menus font trois lignes, se
+lisent d'un coup d'œil, et un anneau y aurait le poids d'un contrôle isolé alors
+qu'il s'agit d'une liste.
+
+## Les insets se lisent en « ignoring visibility »
+
+L'écran de chargement cache les barres système le temps du logo et les rend en
+partant : leurs insets valent donc zéro pendant tout le logo, et reviennent à
+l'instant précis où il s'efface. Toute mise en page qui lisait l'inset ordinaire
+se posait faux pendant quatre secondes puis se recomptait sous les yeux du joueur
+— la grille passait de six colonnes à sept.
+
+La variante « ignoring visibility » donne la place que la barre *prendrait*,
+qu'elle soit affichée ou non. La mise en page est donc la même avant et après, et
+rien ne bouge. La valeur finale ne change pas d'un pixel : c'est la seule façon
+de corriger le saut sans toucher à la densité de la grille.
+
+Et le voile du bas repeint le plateau par-dessus sa bande : ce qui est disposé
+dessous est invisible bien que Compose le considère à l'écran. Mesurer contre la
+seule hauteur disponible est ce qui mettait les titres d'une rangée sous ce voile.
+
+## La dalle de recherche est large, donc basse
+
+À 72 % de large, les dix touches d'une rangée étaient étroites, donc hautes pour
+rester cliquables, donc le panneau mangeait la moitié de l'écran — celle où
+vivent les résultats qu'on est en train de filtrer. L'élargir rend chaque touche
+plus large à surface égale, et les quatre rangées tiennent dans 42 % de la
+hauteur au lieu de 50 %. Une rangée entière de jaquettes revient.
+
+**La sortie par le haut se nomme aussi**, et par `onKeyEvent` plutôt que
+`onPreviewKeyEvent` : celui-ci ne se déclenche que si personne dessous n'a
+consommé la touche. Une direction qui fait bouger le curseur *est* consommée par
+le système de focus ; celle-ci ne remonte donc que depuis la rangée du haut, où
+il n'y a plus rien au-dessus dans la dalle. C'est exactement le moment où l'on
+veut revenir au champ de recherche.
+
+## Le panneau cesse de parler du jeu quand on quitte la grille
+
+La grille tient son propre curseur, et le panneau s'abonnait à lui seul : le
+curseur montait dans l'en-tête et le panneau continuait d'afficher la fiche du
+dernier jeu visé, avec sa légende « B · Ouvrir » et « Maintenir · Menu du jeu ».
+Or B, là-haut, ouvre le profil ou la recherche, et le maintien n'ouvre rien.
+C'était la seule légende de commandes de l'app, et elle mentait dès qu'on sortait
+de la grille.
+
+La face de repos est **posée par-dessus** plutôt que publiée : le publieur de la
+grille ne repasserait pas au retour, sa clé étant le jeu visé, qui n'a pas changé.
+
+## La lampe de service s'éteint quand le panneau est allumé
+
+Cachée tant que la recherche tient l'étagère : le champ prend toute la largeur
+qu'on lui laisse, et deux mots à sa droite le rognaient au moment où l'on tape.
+
+**Et cachée quand le panneau arrière est allumé**, où la même lampe brûle déjà en
+haut de la face de repos. Ce n'est pas une information qui quitte l'écran
+principal — la règle du mono-écran tient — c'est la seule chose que les deux
+écrans diraient en même temps, au mot près, à trente centimètres l'une de l'autre.
+
+## La pastille de console est à 9 dp du bord, pas à 6
+
+La tuile porte un moulage — une arête claire de 1,5 dp suivie d'un biseau — et à
+6 dp la pastille mordait dedans. Ça ne se voyait pas comme un chevauchement mais
+comme un liseré blanc entamé sur deux ou trois pixels, ce qui suffit à faire lire
+la tuile comme mal découpée.
+
+Le marqueur lui-même existe parce que seuls les fichiers 3DS portent une icône :
+sans lui, une tuile GameCube n'est qu'un carré coloré, et la grille mélange les
+consoles.
+
+## Les deux réglages de la bibliothèque ont pris le coin du logo
+
+Un logotype ne fait rien ; ces deux boutons changent ce qu'on a devant soi. La
+barre du haut se lit donc « ce que je regarde » à gauche, « qui je suis » à
+droite.
+
+**Le glyphe montre l'état, pas la fonction.** La pilule d'affichage dessine la
+disposition en cours plutôt qu'une icône de réglages générique : sans ça, rien à
+l'écran ne dirait dans quel mode on est une fois le menu fermé — et en carrousel,
+où un seul jeu est visible, c'est précisément la question qu'on se pose. Chaque
+glyphe dessine sa propre disposition : trois carrés pour la grille, une grande
+carte flanquée de deux tranches pour le carrousel, des lignes vignettées pour la
+liste.
+
+Le tri tient en trois symboles. A-Z et date partagent l'échelle de barres
+descendantes, signe universel du tri, et se distinguent par ce qui les
+accompagne : rien pour l'ordre alphabétique, une horloge pour la date. « Par
+console » est un dossier, parce que ce n'est pas un ordre mais un rangement, et
+le glyphe doit le dire avant qu'on l'essaie.
+
+## Le curseur d'un menu se pose sur l'option en cours
+
+Un menu de trois lignes où l'on est déjà quelque part : poser le curseur en haut
+oblige à relire les trois pour retrouver où l'on en était, alors que la coche le
+dit déjà. Posé sur la ligne cochée, le menu s'ouvre en répondant à « c'est quoi,
+maintenant ? » et une pression suffit pour aller au voisin.
+
+Et sans cette pose, il n'y avait **aucun anneau du tout** à l'ouverture : une
+couche modale s'ouvre par-dessus un scaffold qui a déjà posé son curseur ailleurs,
+et rien ne le lui reprend.
+
+La carte qui se déroule sous une pilule réutilise la matière et le mouvement du
+menu de tuile — deux menus qui s'ouvrent différemment dans le même écran se
+lisent comme deux mécanismes, quand il n'y en a qu'un. La fenêtre survit à la
+fermeture le temps que le déroulé s'inverse : retirée à l'instant du clic, il ne
+resterait rien à animer.
+
+## La recherche, et la croix qui la ferme
+
+Les résultats traversent toutes les consoles : « où est ce jeu » est exactement
+la question à laquelle les dossiers de console ne peuvent pas répondre, puisque
+la réponse est souvent une console que le joueur ne regardait pas.
+
+Toucher le champ relève le clavier. La dalle peut être posée pour lire les
+résultats sans terminer la recherche, donc le champ doit être le chemin de retour
+vers la frappe ; **la croix reste le seul contrôle qui termine la recherche**.
+
+D'où sa zone : elle était cliquable sur ses 18 dp de tracé, largement sous le
+minimum tactile, et la rater renvoie l'appui sur le champ, qui rouvre le clavier —
+l'inverse exact de ce qu'on demandait. La barre ne fait que 36 dp de haut, donc
+48 n'y tiendrait pas ; 32 est ce que la pièce permet, et c'est déjà trois fois la
+surface d'avant. **La zone grandit, le glyphe non.**

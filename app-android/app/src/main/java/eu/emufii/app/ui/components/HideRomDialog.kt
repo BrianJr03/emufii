@@ -7,7 +7,7 @@ import androidx.compose.ui.res.stringResource
 import eu.emufii.app.R
 import eu.emufii.app.library.HiddenRoms
 import eu.emufii.app.library.Rom
-import eu.emufii.app.ui.theme.ShellRed
+import androidx.compose.material3.MaterialTheme
 
 /**
  * Taking a game out of the library, with the one sentence that has to be read.
@@ -41,7 +41,9 @@ fun HideRomDialog(
                     hidden.hide(rom)
                     onHidden()
                 },
-                tint = ShellRed
+                // The destructive answer, from the centralized semantic set:
+                // error pulled towards coral, never a hand-written red.
+                tint = MaterialTheme.colorScheme.error
             )
         }
     ) {

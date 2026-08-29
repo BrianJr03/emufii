@@ -7,23 +7,10 @@ import eu.emufii.app.library.Console
 /**
  * How Emufii plays together on one machine, in as few words as it takes.
  *
- * Written per console because the answer genuinely differs per console, and the
- * differences are the part a player has to know before they invite anybody: the
- * Switch joins a room raised on our server, the DS is a redirection towards a
- * fan-run service with no session at all, the PS2 wants an address typed into
- * the game by hand. Saying "Emufii connects you" everywhere would be shorter
- * and would be a lie four times out of seven.
- *
- * Two lines and at most one warning, and that ceiling is the design. This is
- * read at arm's length while a cursor is moving across a shelf of folders; a
- * third line would not be read by anybody, and the manual already exists on the
- * front screen where it can be scrolled.
- *
- * [warning] is for what will otherwise be discovered as a failure — an emulator
- * whose stable build has no multiplayer UI, a VPN that has to be up or the
- * console silently calls servers that were switched off in 2014. Not for
- * caveats: a console with nothing to warn about carries none, and the absence
- * is what makes the ones that are there mean something.
+ * Deux lignes et au plus un avertissement, et ce plafond est le dessin.
+ * [warning] est reserve a ce qui se decouvrirait autrement comme une panne, pas
+ * aux nuances : son absence est ce qui donne du sens a sa presence.
+ * pourquoi : docs/decisions/second-ecran.md § Une fiche console tient en deux lignes et un avertissement
  */
 data class ConsoleBrief(
     @StringRes val first: Int,

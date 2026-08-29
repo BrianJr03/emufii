@@ -65,6 +65,39 @@ glissait à l'intérieur du curseur, dérivait, et laissait un trou mouvant au
 milieu de l'élément même qu'elle devait désigner. Un curseur dont l'intérieur
 bouge est pire qu'un curseur qui ne respire pas.
 
+## L'anneau entoure, il ne rogne pas
+
+`focusRing` pose son halo avec `Modifier.shadow(elevation, shape)`, et Compose y
+fait défaut à **`clip = elevation > 0.dp`**. Le halo étant animé de zéro à sa
+pleine valeur, l'anneau se mettait donc à découper le contrôle à sa propre forme
+au moment précis où il s'allumait.
+
+Invisible partout où la forme de l'anneau est celle du contrôle — c'est-à-dire
+partout sauf un endroit. Sur l'avatar du profil, l'anneau est un cercle et la
+pastille crayon est posée au coin d'une boîte carrée, donc **hors** de ce cercle :
+elle disparaissait à moitié dès que le curseur arrivait dessus, et c'est
+exactement l'élément qui doit ressortir.
+
+`clip = false`, partout et sans condition. Un curseur signale, il ne redécoupe
+pas ce qu'il signale — et un contrôle qui déborde de sa forme de focus est une
+composition légitime, pas une erreur à rattraper au ciseau.
+
+### Ce qui doit ressortir de l'anneau se déclare après lui
+
+`clip = false` a rendu la pastille entière, mais pas visible : `Modifier.border`
+dessine **par-dessus** le contenu du nœud qui le porte, donc le trait de l'anneau
+lui passait toujours au travers. Un enfant de la boîte annelée est sous
+l'anneau, quoi qu'on fasse.
+
+Sur l'avatar du profil, l'anneau est donc posé sur la boîte de la photo seule, et
+la pastille crayon est déclarée **après** — sœur, pas fille — donc dessinée
+au-dessus. Le focus reste sur la boîte extérieure, qui contient les deux : un seul
+arrêt de curseur, et le doigt atteint aussi la pastille. `controlRing` y est
+gardé mais silencieux (`enabled = false`) pour son seul `bringIntoView` ; c'est
+`focusRing` qui trace, en dessous.
+
+Règle générale : un élément qui doit franchir le contour du focus n'est pas dedans.
+
 ## L'anneau garde le même poids partout
 
 `controlRing` est exactement `focusRing`, celui des tuiles, aux mêmes bornes et
@@ -116,3 +149,110 @@ Le rayon des grands boutons d'action est nommé à part et partagé : deviné à
 chaque appel, il finissait par ne plus coïncider avec le bouton qu'il entoure.
 L'anneau a besoin du **nombre**, pas de la forme — il trace son propre contour,
 plus large, et doit pouvoir y ajouter l'écart qui les sépare.
+
+## Un seul rectangle arrondi par chemin, jamais deux
+
+La bande de l'anneau a d'abord été un anneau **rempli** : deux rectangles
+arrondis concentriques en `EVEN_ODD`, le grand moins le petit. La forme était
+juste et le coût invisible à la lecture.
+
+Skia ne reconnaît un chemin comme rectangle arrondi que s'il n'en contient
+**qu'un**, et rastérise tout le reste sur le processeur, dans un masque qu'il
+téléverse ensuite en texture. Or l'épaisseur s'anime à l'arrivée du curseur :
+chaque image donnait une forme inédite, donc un masque neuf. Mesuré sur la Thor
+le 2026-08-29, en descendant vite dans la grille : le cache de masques logiciels
+montait à **27 Mo en 372 entrées** et continuait de grimper, pour un curseur.
+
+La même surface se trace en un trait — la ligne médiane de la bande, épaisse de
+`band`. Couverture identique au pixel, les bords interne et externe tombent
+exactement où ils tombaient, et le GPU la trace sans repasser par le processeur.
+Après correction : **0,4 Mo en 5 entrées**.
+
+C'est la même leçon que le halo, passé du flou gaussien aux traits empilés,
+appliquée cette fois à la bande elle-même. **Ne pas réintroduire un chemin à
+plusieurs sous-formes dans ce fichier.**
+
+## `Modifier.alpha` rogne, et c'est ce qui rendait le curseur carré
+
+`Modifier.alpha()` n'est pas qu'une opacité : sous 1, il pose `clip = true`, un
+découpage **rectangulaire** aux bornes de l'élément. L'anneau entoure la tuile
+par l'extérieur ; pendant l'arrivée des tuiles, il se faisait donc trancher à
+l'équerre, et le curseur paraissait carré.
+
+Ça ne se voyait qu'au retour vers la bibliothèque, la seule occasion où une tuile
+**déjà visée** rejoue son arrivée. Et l'écart dure le dernier centième du
+ressort : l'anneau s'allume dès que l'arrivée dépasse 0,99, le découpage ne lâche
+qu'à 1,00 pile. Deux seuils différents pour deux effets qu'on croyait liés.
+
+Remède : `graphicsLayer { alpha = … }`, dont `clip` vaut faux par défaut. Ce qui
+doit être découpé à la forme de la tuile l'est plus bas, par le `clip(TileShape)`
+qui suit.
+
+Deux autres endroits portent la même construction et sont laissés tels quels : le
+carrousel, où l'opacité ne descend que sur une carte non visée donc sans curseur,
+et le dialogue de lancement, où ce découpage est aujourd'hui la seule chose qui
+retient le contenu pendant l'apparition.
+
+## Le contrôle visé passe devant ses voisins
+
+L'anneau déborde de ses bornes de mise en page — c'est sa définition. Entre
+frères, c'est le dernier dessiné qui gagne : une rangée de tuiles recouvrait la
+moitié droite de l'anneau de chacune, et la dernière était la seule à montrer le
+sien en entier. Vu sur la grille des consoles, dans les réglages comme dans
+l'onboarding.
+
+La tuile de bibliothèque avait déjà son `zIndex` posé à la main pour cette raison
+exacte. La règle étant la même partout, elle vit désormais dans `controlRing`.
+
+Elle ne vaut qu'**entre frères** : une grille sur plusieurs rangs doit encore
+lever le *rang* qui porte le curseur, ce que fait `ConsoleGrid`. Les deux
+ensemble dégagent l'anneau dans les quatre directions.
+
+## Le curseur ne peut pas passer devant la barre du haut
+
+Essayé le 2026-08-29, en deux variantes, et abandonné les deux fois.
+
+La barre du haut de la bibliothèque flotte au-dessus de la grille : elle passe
+donc devant tout ce que la grille dessine, et l'anneau appartient à la tuile,
+donc à la grille. Un `zIndex` n'y peut rien — en Compose, un enfant ne passe
+jamais devant la sœur de son parent.
+
+La tentative : sortir l'anneau de la tuile, publier le rectangle de celle-ci en
+coordonnées de la racine, et le redessiner dans une couche posée après la barre.
+Il passait bien devant — et **traînait d'une image derrière sa tuile** dès qu'on
+défilait. Deux variantes, deux fois le même retard : replacement par
+recomposition d'abord, puis lecture différée en phase de mise en page. Une couche
+qui court après des coordonnées les apprend toujours *après* la mise en page qui
+les a produites.
+
+L'anneau se dessine avec sa tuile, dans la même passe : c'est ce qui le rend
+exact, et c'est ce qui l'enferme dans la grille. **L'exactitude du suivi et le
+passage devant la barre s'excluent.** Le passage derrière l'étagère se règle donc
+par la place — voir `bibliotheque.md` § L'air sous la barre est celui du curseur.
+
+## Les quatre couches du curseur néon
+
+Ce que l'ancien anneau faisait en deux traits — un `border` de 4 dp plus une
+`shadow` détournée en halo — se fait ici en quatre couches, et c'est l'empilement
+qui produit l'effet, pas la couleur :
+
+1. **La lueur** : trois traits concentriques du plus large et pâle au plus fin et
+   dense, posés sur la ligne médiane de la bande. C'est le profil d'un flou,
+   échantillonné en trois points. Ça **a été** un vrai `BlurMaskFilter`, et c'est
+   ce qui le rendait juste ; il a été retiré parce qu'il n'a pas d'équivalent
+   GPU, donc Android dessinait le chemin sur le processeur à chaque image, en
+   permanence, puisque le curseur est toujours à l'écran.
+2. **La bande** : un trait à la ligne médiane, épais de `band`, portant le
+   dégradé qui coule. Ça a été un anneau *rempli* en `EVEN_ODD` — voir § Un seul
+   rectangle arrondi par chemin.
+3. **Le liseré extérieur** : blanc, en dégradé vertical de 50 % à 30 %.
+4. **Le liseré intérieur** : blanc plat à 40 %.
+
+Les deux liserés sont ce qui fait lire la bande comme un objet de verre posé sur
+l'écran plutôt que comme un aplat. Ils sont fixes, jamais teintés : leur rôle est
+de capter la lumière, pas de dire une couleur.
+
+Toutes les mesures sont des fractions de la largeur de bande, elle-même une
+fraction de la taille du contrôle : le curseur grossit avec ce qu'il entoure, au
+lieu de garder une épaisseur qui écrase les petits contrôles et disparaît sur les
+grands.

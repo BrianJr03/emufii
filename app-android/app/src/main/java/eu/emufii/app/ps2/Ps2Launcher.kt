@@ -11,27 +11,16 @@ import eu.emufii.app.azahar.PlanStore
 import eu.emufii.app.session.RomRef
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import eu.emufii.app.library.Console
+import eu.emufii.app.library.EmulatorPick
 
 /**
  * Opens ARMSX2 with the Local Link autofill armed.
  *
- * Unlike Dolphin, it can be handed the ROM, but not in the way you would think.
- * Its activity is exported with a `VIEW` filter on the `content` and `file`
- * schemes, with no MIME type at all, and that is the trap: for a `content://`,
- * Android *infers* the type from the provider, and a filter declaring none then
- * matches nothing. A SAF uri can therefore never be resolved by filtering,
- * measured on the Thor on 2026-08-17: the intent went out,
- * `ActivityTaskManager` logged it, and no activity started, even with ARMSX2
- * stopped beforehand.
- *
- * Hence the explicitly named component: an intent that names its target does not
- * go through filtering. That is exactly what `AzaharLauncher` does with
- * `EmulationActivity`, and for the same reason.
- *
- * The setup still has to happen before the game starts: the Network screen is in
- * the app's settings, not in a running game, and the DEV9 adapter initialises
- * when the game boots (`Local Link host ready on port 19072`). A port or a code
- * set afterwards would not be read back.
+ * Par composant nomme : son filtre `VIEW` ne declare aucun type MIME, donc une
+ * URI SAF ne peut jamais y etre resolue. Et la preparation se fait avant le
+ * demarrage du jeu, ou DEV9 ne relirait rien.
+ * pourquoi : docs/decisions/pilotes-emulateurs.md § ARMSX2 se lance par composant nommé, jamais par filtrage
  */
 class Ps2Launcher(private val context: Context) {
 
@@ -43,9 +32,7 @@ class Ps2Launcher(private val context: Context) {
      * Thor, and that is exactly the kind of neighbourhood that would have us
      * driving the wrong one.
      */
-    fun installedPackage(): String? = Ps2Target.packages.firstOrNull { pkg ->
-        runCatching { context.packageManager.getPackageInfo(pkg, 0) }.isSuccess
-    }
+    fun installedPackage(): String? = EmulatorPick.packageFor(context, Console.PS2)
 
     fun isInstalled(): Boolean = installedPackage() != null
 

@@ -118,6 +118,70 @@ L'écart est serré entre deux entrées d'une même famille (10 dp) et ouvert en
 deux familles, intitulé compris (18 dp) : c'est le groupement qui porte la
 lecture, l'intitulé ne fait que le nommer.
 
+## Le hub est une grille, et le panneau montre la case visée
+
+Posé le 2026-08-28, sur une référence apportée par l'utilisateur : le menu de
+réglages d'un autre frontend de console portable, deux rangs de grandes cases
+qui défilent latéralement, et l'écran du bas qui montre en grand la case visée.
+
+**Ce qui change n'est pas la rangée, c'est sa disposition.** La section
+« Une entrée du hub est une plaque, pas une rangée » reste vraie mot pour mot :
+une entrée est toujours une plaque avec son icône à gauche, son nom, sa ligne de
+description et son chevron à droite, parce qu'une page de réglages n'a pas de
+contenu à montrer mais des noms à lire. Ce qui était faux, c'est la **colonne** :
+sept plaques empilées sur un écran de 1080 de large laissaient les deux tiers de
+la largeur vides et faisaient défiler ce qui pouvait tenir d'un coup.
+
+Deux colonnes de largeur égale, remplies rang par rang, et le trop-plein en bas.
+Trois dispositions ont été essayées sur la Thor, qui ne fait que ~800 dp de
+large :
+
+- **Quatre cases de front** : le nom tient, la ligne de description et la
+  pastille ne tiennent plus ensemble.
+- **Deux rangs qui débordent à droite**, comme la référence : la case reste
+  grande, mais la page se pousse de côté. Refusé par l'utilisateur, et pour une
+  raison de machine plutôt que de goût — sur un appareil dont le pouce droit
+  tombe sur une croix, on descend une page de réglages, on ne la pousse pas
+  latéralement.
+- **Deux colonnes qui descendent** : chaque case prend la moitié de la largeur,
+  les sept se remplissent rang par rang, et ce qui dépasse se déroule vers le
+  bas. C'est la disposition retenue.
+
+Les intitulés de famille sont partis avec la colonne. Ils coiffaient des groupes
+empilés ; une grille n'a pas de rayons, elle a des cases, et sept cases visibles
+d'un coup se cherchent au nom. C'est le même argument que celui de la section
+« Le hub tient sur un écran, sans intitulés de groupe », que la colonne avait
+fini par rendre faux et que la grille rend vrai à nouveau.
+
+**Rien de paresseux ici, et c'est le point.** Les sept cases sont composées, donc
+la traversée de focus de Compose trouve toujours sa destination et amène
+elle-même la case visée dans le champ. C'est l'inverse exact de la bibliothèque,
+qui tient son propre curseur parce qu'une `LazyVerticalGrid` ne compose pas la
+tuile qu'une direction vise (`CLAUDE.md`, « la grille tient son propre
+curseur »). Sept cases ne valent pas cette machinerie, et l'écrire aurait été
+recopier un remède sans avoir la maladie.
+
+### Le panneau montre la case visée, il ne la remplace pas
+
+`SecondScreenModel.SettingsEntry` porte le nom, la ligne, la racine du chemin et
+un nom de marque. Le panneau les dessine en grand : la marque dans son encoche
+teintée par domaine, le nom, la description, puis « Paramètres › <nom> » en
+petit.
+
+Deux règles, toutes deux déjà écrites ailleurs et qui s'appliquent ici :
+
+- **Il ne délègue rien.** La tuile de face porte déjà les trois informations ; un
+  joueur à un seul écran ne perd pas un mot (`CLAUDE.md`, « le mono-écran reste
+  la mise en page principale »). Ce que le panneau ajoute, c'est la taille.
+- **La marque voyage sous forme de nom, pas de composable.** Le modèle vit à
+  portée de processus et survit à l'activité ; une lambda de composition retenue
+  là-dedans retiendrait avec elle l'arbre qui l'a créée. Le panneau fait la
+  correspondance chez lui — même parti pris que les libellés d'étapes de session.
+
+Le fondu entre deux entrées est croisé, jamais glissé : les cases du hub ne sont
+pas une suite ordonnée qu'on remonte, elles sont un tableau, et une direction
+inventée dirait un ordre qui n'existe pas.
+
 ## La pastille du hub reprend la perle, elle n'en invente pas une seconde
 
 Une entrée qui mène à quelque chose à préparer porte une pastille : la **perle
@@ -509,6 +573,24 @@ coordonnées racine et non celles d'un parent : les choses qui en ont besoin son
 des profondeurs différentes — une rangée est fille directe de la carte, un choix
 dans un détail déplié est trois niveaux plus bas.
 
+### Il a quitté les réglages, parce que le défaut n'y était pas enfermé
+
+Déplacé le 2026-08-28 de `SettingsPieces.kt` vers `ui/components/CardSlice.kt`.
+Il y était `internal` au paquet des réglages, alors que le problème qu'il résout
+— une lueur est une ombre, et une ombre traverse tout ce qui n'est pas opaque —
+se pose partout où un contrôle transparent porte l'anneau.
+
+Le premier à en avoir eu besoin ailleurs est `PadTextField`, qui n'appartient à
+aucun écran : son cadre ne peignait rien, il laissait voir la carte derrière, et
+la lueur du curseur se voyait donc *dedans*. Le champ peint maintenant la
+tranche exacte du dégradé que la carte peignait déjà là, donc rien ne change à
+l'œil — le remplissage existe pour le curseur, pas pour le look, et c'est encore
+vrai hors des réglages.
+
+L'ordre dans la chaîne de modificateurs est ce qui fait tenir les trois couches :
+l'ombre dessine en premier, le fond opaque par-dessus, et le trait de l'anneau
+par-dessus encore.
+
 ## Deux pièges de focus, et leurs contournements
 
 **Le drapeau « première rangée » est un drapeau, pas un modificateur passé de
@@ -609,3 +691,138 @@ un joueur qui a retiré trois copies régionales d'un même jeu ne gagne rien à
 entre trois lignes identiques.
 
 Tout ramener coûte une suppression de plus à refaire, **et ça marche toujours**.
+
+## Une pastille d'état porte deux mots, jamais une phrase
+
+Dans l'en-tête d'un bloc, le titre porte le poids et la pastille non — or en
+Compose, dans une rangée, **ce qui n'a pas de poids se sert en premier**. Une
+pastille dont l'étiquette était une phrase entière (« SteamGridDB, pour ce que
+Cocoon ne couvre pas », 665 px) prenait toute la ligne et laissait **zéro pixel**
+au titre. La carte « Images de secours » n'affichait plus son nom : juste une
+phrase flottante au milieu du vide.
+
+Deux corrections, parce qu'une seule ne suffit pas. L'étiquette est redevenue
+courte, et l'explication est repartie dans la note du bloc, qui est sa place. Et
+la pastille reçoit un poids sans remplissage, ce qui la borne à la moitié de la
+rangée : une étiquette courte garde sa largeur naturelle, une trop longue
+s'ellipse au lieu d'effacer le titre.
+
+Le remède reste d'écrire court ; le garde-fou empêche seulement que la faute soit
+invisible la prochaine fois. Vérifié le 2026-08-29 : aucune autre pastille de
+l'app ne dépasse quinze caractères.
+
+## La tuile de console a une version courte
+
+Sans numéro de version, avec une icône plus petite, elle passe de 124 à 92 dp de
+haut et de 118 à 92 dp de large minimum. Écrite pour l'onboarding, où sept tuiles
+pleines ne tiennent pas sur une ligne — il leur faut 118 dp chacune pour que
+« GameCube » et un numéro tiennent chacun sur sa ligne, et la Thor n'en offre que
+709 une fois les marges payées.
+
+Ce qu'on retire est le numéro de version. À l'installation, la question posée est
+« à quelles machines joues-tu », pas « quelle version de l'émulateur ai-je » —
+cette dernière se pose plus tard, sur cette page, où la tuile pleine la porte
+toujours. L'icône et le nom de l'émulateur restent : ils disent déjà s'il est
+installé, qui est l'autre moitié de la réponse.
+
+## Deux colonnes, et ça descend — jamais de côté
+
+La colonne unique avait été choisie parce qu'une page de réglages n'a pas de
+contenu à montrer, seulement des noms à lire. C'était vrai de la *rangée* et faux
+de la *colonne* : sept plaques empilées sur un écran de 1080 de large laissaient
+les deux tiers de la largeur vides.
+
+Deux colonnes de largeur égale, remplies rang par rang, et le trop-plein en bas.
+Le débordement latéral a été essayé d'abord — deux rangs qui défilent en travers,
+comme la référence — et refusé : sur une machine dont le pouce droit tombe sur une
+croix, on **descend** une page de réglages, on ne la pousse pas de côté.
+
+Rien de paresseux dans ce hub, et c'est le point : les sept cases sont composées,
+la traversée de focus trouve donc toujours sa destination et amène elle-même la
+case visée dans le champ. C'est l'inverse exact de la bibliothèque, qui tient son
+propre curseur parce qu'une `LazyVerticalGrid` ne compose pas la tuile qu'une
+direction vise. **Sept cases ne valent pas cette machinerie.**
+
+## Une console porte une rangée, pas une tuile
+
+Trois refontes en un jour, et c'est la question ajoutée — « avec quelle build » —
+qui a tranché la forme. La page était une grille de tuiles carrées : bonne pour
+« qu'est-ce qui joue quoi », faible pour « laquelle est allumée » (sept tuiles au
+même traitement, l'état porté par un écart d'encre), et sans place pour la build,
+qui ne rentre pas dans un carré déjà plein de quatre lignes centrées.
+
+Une console porte donc une **rangée** : icône, nom, build, interrupteur, sur un
+seul axe de lecture, et le choix de build dessous quand il y en a un à faire.
+Deux colonnes dès que l'écran les porte — sept rangées à la file gâcheraient la
+moitié d'un écran paysage et dépasseraient quand même.
+
+Ce que la carte enveloppante portait est reparti là où ça coûte zéro hauteur : le
+compte au bout du **titre de la page**, la phrase juste au-dessus des rangées
+qu'elle commande. Une carte qui ne groupe rien contre rien n'est pas un groupe,
+c'est un cadre.
+
+## L'anneau et la pastille du crayon sont frères, pas parent et enfant
+
+Un seul arrêt de curseur sur l'avatar, pas deux : la photo et le crayon
+déclenchent la même chose, et deux nœuds focalisables pour un geste faisaient deux
+pressions de direction sans que rien ne bouge à l'écran.
+
+`Modifier.border` dessine **par-dessus le contenu du nœud qui le porte** : tant
+que la pastille du crayon était dedans, le trait de l'anneau lui passait au
+travers — elle est posée au coin d'une boîte carrée, donc à cheval sur le cercle.
+L'anneau est donc sur la boîte de l'avatar seule, et la pastille déclarée après,
+donc dessinée au-dessus. C'est la seule chose qui doit ressortir du cercle, et
+elle en ressort entière.
+
+Le focus reste sur la boîte extérieure — un seul arrêt, et le doigt atteint aussi
+la pastille — mais `controlRing` y est silencieux et ne sert qu'à amener la photo
+dans le champ ; c'est `focusRing` qui trace, en dessous.
+
+## Ce qui se pose au bout du titre d'une page
+
+Pour l'état d'une page qui n'a **qu'un** sujet. Le poser dans un en-tête de bloc
+obligerait à inventer un second titre sous le premier, et deux titres à 40 dp
+d'écart disent la même chose deux fois.
+
+## Un fait de bloc n'a pas de creux autour
+
+Le creux dit « voilà ce qui est », et il le méritait quand l'état arrivait en bas
+d'une rangée dépliée. En en-tête de bloc, l'état est déjà dit par la pastille, et
+un creux de plus par bloc empilait trois niveaux de conteneur.
+
+## Le repli est réservé à ce qu'on règle une fois
+
+Une clé de service, pas un état qu'on vient vérifier. Un bloc replié ne dit plus
+que son titre et sa pastille ; si ce qu'il cache est ce que le joueur venait
+lire, le repli lui a juste ajouté un geste.
+
+## Combien de tuiles par ligne, et la largeur qui le décide
+
+Le compte se mesure sur la **largeur réellement donnée à la grille**, jamais sur
+celle de l'écran. L'onboarding lui donne la largeur entière ; la page des
+réglages est le même écran mais quelque 90 dp plus étroit une fois la carte et
+ses marges payées, et un compte pris sur l'écran y mettait sept tuiles quand
+même : « GameCube » sortait en « GameCu » et une version en « v2126.0-va ». Une
+tuile qui doit abréger sa propre console a cessé de faire son travail.
+
+La largeur minimale est celle où une tuile tient encore le plus long nom de
+console et la plus longue version, chacun sur sa ligne. En dessous de trois
+colonnes la grille cesse d'être une grille, donc c'est le plancher.
+
+Et on ne prend **pas** le maximum qui tient : c'était le réflexe, et il donne le
+pire résultat du lot — sept consoles dans une carte qui en porte six, ça faisait
+six tuiles puis **une seule** sur la ligne suivante. Une orpheline se lit comme un
+oubli, pas comme une grille. On choisit le nombre qui remplit le mieux le dernier
+rang, du plus large au plus étroit : sept dans six colonnes devient quatre plus
+trois.
+
+La hauteur d'une tuile est **fixe** : les alvéoles du dernier rang doivent faire
+la même, et une hauteur intrinsèque ne se partage pas entre frères sans mesurer.
+
+## La version d'un émulateur se coupe à l'affichage, pas à la source
+
+PPSSPP nomme ses builds « v1.20.4 », portant déjà la lettre que l'étiquette
+ajoute, et « vv1.20.4 » est ce qui est sorti sur la Thor. On coupe donc à
+l'affichage plutôt que de retirer le préfixe de la chaîne : les cinq autres
+rapportent un nombre nu, et une colonne de versions dont une seule serait
+démarquée se lit plus mal que l'une ou l'autre.

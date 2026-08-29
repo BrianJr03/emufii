@@ -1,7 +1,12 @@
 package eu.emufii.app.secondscreen
 
 import eu.emufii.app.BuildConfig
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -13,11 +18,12 @@ import java.net.URL
 /**
  * Whether the machine that makes multiplayer possible is answering, live.
  *
- * The panel is the one place in the app where this belongs. On the front screen
- * a permanent indicator would be chrome: the player finds out the coordinator
- * is down the moment they try to create a session, and the error says so
- * plainly. Here there is nothing to interrupt, the panel is already reporting,
- * and the answer is worth having *before* inviting someone.
+ * Le panneau arriere a longtemps ete le seul endroit ou cela avait sa place :
+ * sur l'ecran principal, un temoin permanent etait tenu pour du chrome, le
+ * joueur apprenant la panne au moment de creer une session. **Revenu dans la
+ * barre de la bibliotheque le 2026-08-28** : la plupart des joueurs n'ont qu'un
+ * ecran, et la reponse vaut d'etre connue *avant* d'inviter quelqu'un — ce qui
+ * etait deja l'argument, il ne tenait simplement qu'au panneau.
  *
  * Three states and not two. [UNKNOWN] is the truth before the first answer and
  * after a probe that never returned in time, and it is drawn as grey rather
@@ -43,6 +49,32 @@ object VpsStatus {
      * Slow on purpose. A dot that flickers between two shades every second is
      * an alarm, and the thing it reports changes on the scale of minutes.
      */
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private var watchers = 0
+    private var job: Job? = null
+
+    /**
+     * Sonde tant que l'appelant vit, et **une seule boucle** quels que soient
+     * les lecteurs : la barre de la bibliotheque et le panneau arriere affichent
+     * la meme lampe, souvent en meme temps, et deux boucles feraient deux fois
+     * la requete permanente de l'app. Le dernier a partir eteint la boucle.
+     */
+    suspend fun keepPolling() {
+        synchronized(this) {
+            if (watchers++ == 0) job = scope.launch { poll() }
+        }
+        try {
+            awaitCancellation()
+        } finally {
+            synchronized(this) {
+                if (--watchers == 0) {
+                    job?.cancel()
+                    job = null
+                }
+            }
+        }
+    }
+
     suspend fun poll(baseUrl: String = BuildConfig.COORDINATOR_BASE_URL) {
         while (true) {
             _state.value = probe(baseUrl)

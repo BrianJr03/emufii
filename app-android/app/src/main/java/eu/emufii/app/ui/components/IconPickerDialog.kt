@@ -55,7 +55,11 @@ import eu.emufii.app.artwork.SgdbIcon
 import eu.emufii.app.artwork.SteamGridDb
 import eu.emufii.app.library.Rom
 import eu.emufii.app.ui.theme.ArtworkShape
+import eu.emufii.app.ui.theme.EdgeLight
 import eu.emufii.app.ui.theme.PillShape
+import eu.emufii.app.ui.theme.PlateLightLow
+import eu.emufii.app.ui.tap
+import eu.emufii.app.ui.SilenceSystemSfx
 
 /**
  * Choosing a game's icon yourself.
@@ -126,6 +130,7 @@ fun IconPickerDialog(
         // gave a column of icons lost in the middle of the emptiness.
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
+        SilenceSystemSfx()
         SoftCard(
             modifier = Modifier
                 .padding(24.dp)
@@ -273,7 +278,7 @@ private fun GameChip(label: String, selected: Boolean, onClick: () -> Unit) {
                 lift = if (selected) 0.dp else 4.dp,
                 pressed = pressed || selected
             )
-            .clickable(interactionSource = interaction, indication = null, onClick = onClick)
+            .tap(interactionSource = interaction, indication = null, onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 10.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -304,9 +309,11 @@ private fun IconChoice(icon: SgdbIcon, onClick: () -> Unit) {
                 // was sliced at the tile's own outline.
                 .controlRing(ArtworkShape, width = 3.dp, glowRadius = 18.dp)
                 .clip(ArtworkShape)
-                .background(Color(0xFFE9ECF2))
-                .border(1.dp, Color(0x1A000000), ArtworkShape)
-                .clickable(onClick = onClick)
+                // The checkerboard ground: the plate's own low cut rather than a
+                // hand-picked grey, so it follows the theme.
+                .background(PlateLightLow)
+                .border(1.dp, EdgeLight, ArtworkShape)
+                .tap(onClick = onClick)
         ) {
             AsyncImage(
                 model = icon.thumb,

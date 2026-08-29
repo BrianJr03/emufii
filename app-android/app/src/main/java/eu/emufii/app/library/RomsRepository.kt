@@ -6,12 +6,21 @@ import android.net.Uri
 import android.provider.DocumentsContract
 import android.util.Log
 import eu.emufii.app.library.psp.PspUmdReader
-import eu.emufii.app.library.switchfs.SwitchKeys
 import eu.emufii.app.library.switchfs.SwitchReader
 
 private const val TAG = "RomsRepository"
 private const val PREFS = "emufii_library"
 private const val KEY_FOLDER_URI = "roms_folder_uri"
+
+/**
+ * Le second dossier, optionnel, ajoute le 2026-08-28.
+ *
+ * Une cle distincte plutot qu'un ensemble de N dossiers : le premier dossier est
+ * deja ecrit chez tout le monde sous [KEY_FOLDER_URI], et une migration vers une
+ * liste rendrait une bibliotheque vide a qui ouvrirait une build anterieure. Deux
+ * cles, deux arbres marches a la suite, et rien a migrer.
+ */
+private const val KEY_FOLDER_URI_2 = "roms_folder_uri_2"
 
 /**
  * How deep to walk: every extra level costs a query per directory.
@@ -21,9 +30,6 @@ private const val MAX_DEPTH = 6
 
 /** Guards against a folder pick that lands on something enormous. */
 private const val MAX_FILES = 5000
-
-/** What every Switch emulator calls the key file, and where players already keep it. */
-private const val PROD_KEYS = "prod.keys"
 
 /**
  * The containers the PSP shares with other consoles: one of these enters the
@@ -42,48 +48,84 @@ class RomsRepository(private val context: Context) {
     private val switchReader = SwitchReader(context)
     private val pspReader = PspUmdReader(context)
 
-    /**
-     * The player's own console keys, found during the scan, kept only in memory.
-     * Emufii never ships keys and never fetches any.
-     * pourquoi : docs/decisions/scan-bibliotheque.md § Les clés Switch : ramassées, jamais fournies
-     */
-    private var switchKeys: SwitchKeys? = null
-
-    /** Keys the player pointed Emufii at from the settings, when the folder has none. */
-    private val keysStore = ConsoleKeysStore(context)
     private val iconCache = IconCache(context)
 
     fun savedFolderUri(): Uri? = prefs.getString(KEY_FOLDER_URI, null)?.let(Uri::parse)
+
+    /** Le second dossier, ou null tant que le joueur n'en a pas ajoute. */
+    fun secondFolderUri(): Uri? = prefs.getString(KEY_FOLDER_URI_2, null)?.let(Uri::parse)
+
+    /**
+     * Les arbres a parcourir, dans l'ordre. Le second n'existe pas sans le
+     * premier : c'est un ajout, pas un remplacement.
+     */
+    private fun folderUris(): List<Uri> = listOfNotNull(savedFolderUri(), secondFolderUri())
 
     /**
      * Something the user can recognise, not the raw tree URI.
      * pourquoi : docs/decisions/scan-bibliotheque.md § Ce que le joueur voit du dossier choisi
      */
-    fun savedFolderLabel(): String? {
-        val uri = savedFolderUri() ?: return null
+    fun savedFolderLabel(): String? = label(savedFolderUri())
+
+    fun secondFolderLabel(): String? = label(secondFolderUri())
+
+    private fun label(uri: Uri?): String? {
+        if (uri == null) return null
         val docId = runCatching { DocumentsContract.getTreeDocumentId(uri) }.getOrNull()
         return docId?.substringAfter(':')?.takeIf { it.isNotBlank() }
             ?: uri.lastPathSegment
     }
 
-    fun setFolder(uri: Uri) {
+    fun setFolder(uri: Uri) = setFolder(KEY_FOLDER_URI, uri)
+
+    /**
+     * Ajoute ou remplace le second dossier. Choisir le meme arbre que le premier
+     * est refuse : les deux marches se croiseraient sur chaque fichier, et le
+     * joueur croirait avoir ajoute quelque chose.
+     */
+    fun setSecondFolder(uri: Uri): Boolean {
+        if (uri == savedFolderUri()) return false
+        setFolder(KEY_FOLDER_URI_2, uri)
+        return true
+    }
+
+    private fun setFolder(key: String, uri: Uri) {
         runCatching {
             context.contentResolver.takePersistableUriPermission(
                 uri,
                 Intent.FLAG_GRANT_READ_URI_PERMISSION
             )
         }
-        prefs.edit().putString(KEY_FOLDER_URI, uri.toString()).apply()
+        // L'ancien arbre de cette cle n'est plus lu : on lui rend sa permission,
+        // sauf si l'autre cle s'en sert encore.
+        val previous = prefs.getString(key, null)?.let(Uri::parse)
+        prefs.edit().putString(key, uri.toString()).apply()
+        if (previous != null && previous != uri) release(previous)
         cachedRoms = null
     }
 
     fun clear() {
-        savedFolderUri()?.let { uri ->
-            runCatching {
-                context.contentResolver.releasePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
-        }
+        val kept = secondFolderUri()
+        savedFolderUri()?.takeIf { it != kept }?.let(::release)
         prefs.edit().remove(KEY_FOLDER_URI).apply()
+        cachedRoms = null
+    }
+
+    /** Retire le second dossier ; le premier, lui, reste la bibliotheque. */
+    fun clearSecondFolder() {
+        val kept = savedFolderUri()
+        secondFolderUri()?.takeIf { it != kept }?.let(::release)
+        prefs.edit().remove(KEY_FOLDER_URI_2).apply()
+        cachedRoms = null
+    }
+
+    private fun release(uri: Uri) {
+        runCatching {
+            context.contentResolver.releasePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
+        }
     }
 
     /**
@@ -124,12 +166,21 @@ class RomsRepository(private val context: Context) {
         // read, and re-read each scan, because changing it is what triggers one.
         TitleLanguage.apply(context)
         scannedLanguage = TitleLanguage.tag
-        val folderUri = savedFolderUri() ?: return emptyList()
-        val found = runCatching { walk(folderUri) }
-            .onFailure { Log.w(TAG, "scan failed", it) }
-            .getOrDefault(emptyList())
+        val folders = folderUris()
+        if (folders.isEmpty()) return emptyList()
+        // Un dossier illisible ne doit pas emporter l'autre : chaque arbre est
+        // marche pour lui-meme, et celui qui echoue ne rend rien.
+        val found = folders.flatMap { uri ->
+            runCatching { walk(uri) }
+                .onFailure { Log.w(TAG, "scan failed for $uri", it) }
+                .getOrDefault(emptyList())
+        }
+            // Le second dossier peut etre un sous-dossier du premier, ou le meme
+            // volume monte deux fois : un jeu vu deux fois est un doublon dans la
+            // grille, et deux entrees pour la meme partie a l'ecran des sessions.
+            .distinctBy { it.uri.toString() }
 
-        Log.i(TAG, "walked ${found.size} candidate file(s), titles in ${TitleLanguage.tag}")
+        Log.i(TAG, "walked ${found.size} candidate file(s) in ${folders.size} folder(s), titles in ${TitleLanguage.tag}")
 
         return found
             .mapNotNull { it.toRom() }
@@ -142,10 +193,16 @@ class RomsRepository(private val context: Context) {
      * deliberately *not* baked into the cache. The sort belongs here too.
      * pourquoi : docs/decisions/scan-bibliotheque.md § Les noms choisis par le joueur sont posés à la sortie, jamais dans le cache
      */
-    private fun named(roms: List<Rom>): List<Rom> =
-        roms.filterNot(hiddenRoms::isHidden)
+    private fun named(roms: List<Rom>): List<Rom> {
+        // The index titles come before the player's choices, like every other
+        // source of a name: they only ever replace a filename, never a title
+        // read out of the file or a name someone typed.
+        val titles = GameTitles.cached(context)
+        return roms.filterNot(hiddenRoms::isHidden)
+            .map { GameTitles.apply(titles, it) }
             .map(romNames::apply)
             .sortedWith(compareBy({ it.console.ordinal }, { it.displayName.lowercase() }))
+    }
 
     private data class Candidate(
         val uri: Uri,
@@ -163,7 +220,6 @@ class RomsRepository(private val context: Context) {
     private fun walk(treeUri: Uri): List<Candidate> {
         val resolver = context.contentResolver
         val out = mutableListOf<Candidate>()
-        var keysUri: Uri? = null
         // The third element is the folder's own name, "" at the root: it is
         // what settles a file's console before any byte is read.
         val queue = ArrayDeque<Triple<String, Int, String>>()
@@ -209,11 +265,6 @@ class RomsRepository(private val context: Context) {
                         continue
                     }
 
-                    if (name.equals(PROD_KEYS, ignoreCase = true)) {
-                        keysUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, docId)
-                        continue
-                    }
-
                     val ext = name.substringAfterLast('.', "")
                     val byName = Console.forExtension(ext) ?: continue
                     val uri = DocumentsContract.buildDocumentUriUsingTree(treeUri, docId)
@@ -243,16 +294,6 @@ class RomsRepository(private val context: Context) {
                 }
             }
         }
-
-        // The folder wins when it has one, that copy is the one the emulators
-        // are using, so it is the one the player maintains, and the file
-        // imported from the settings covers everyone whose keys live elsewhere.
-        switchKeys = keysUri?.let { uri ->
-            runCatching {
-                resolver.openInputStream(uri)?.use { SwitchKeys.parse(it.reader().readText()) }
-            }.onFailure { Log.w(TAG, "prod.keys unreadable", it) }.getOrNull()
-        }?.takeIf { it.isUsable } ?: keysStore.load()
-        if (switchKeys?.isUsable == true) Log.i(TAG, "console keys available — Switch icons enabled")
 
         if (out.size >= MAX_FILES) {
             Log.w(TAG, "stopped at $MAX_FILES files — library larger than expected")
@@ -290,7 +331,10 @@ class RomsRepository(private val context: Context) {
         // it cannot put into a game.
         if (console != Console.THREE_DS) return null
 
-        val header = headerReader.read(uri)
+        // A CIA is told apart here rather than in the reader: the cartridge
+        // formats announce themselves by magic, the CIA does not, and only the
+        // caller knows what the file claimed to be.
+        val header = headerReader.read(uri, cia = name.substringAfterLast('.', "").equals("cia", true))
         val smdh = header?.let { readSmdhWithCache(uri, it) }
         val iconFile = header?.let { h -> iconCache.fileFor(h.titleIdHex).takeIf { it.exists() } }
 
@@ -407,11 +451,6 @@ class RomsRepository(private val context: Context) {
     }
 
     /**
-     * The Switch path. "Won't talk" is the *common* case here: it means the
-     * player has no keys.
-     * pourquoi : docs/decisions/scan-bibliotheque.md § Les clés Switch : ramassées, jamais fournies
-     */
-    /**
      * A GameCube or Wii disc image: title from the filename, disc id from the
      * header. Filed under `productCode`, never `titleIdHex`.
      * pourquoi : docs/decisions/scan-bibliotheque.md § `productCode` et `titleIdHex` ne jouent pas le même rôle
@@ -434,6 +473,12 @@ class RomsRepository(private val context: Context) {
         )
     }
 
+    /**
+     * The Switch path: a title id off the plaintext table of contents, and
+     * nothing else out of the file — the name comes from the index
+     * ([GameTitles]) and the icon from the artwork sources. Icons cached from
+     * an era of console keys keep showing: they are on disk and still true.
+     */
     private fun Candidate.toSwitchRom(): Rom {
         val fallback = Rom(
             uri = uri,
@@ -456,20 +501,12 @@ class RomsRepository(private val context: Context) {
             }
         }
 
-        val data = switchReader.read(uri, switchKeys)
-        val key = data.cacheKey ?: return fallback
+        val key = switchReader.titleId(uri) ?: return fallback
         ndsKeyCache[uri.toString()] = key
 
-        data.icon?.let { bitmap ->
-            iconCache.writeIcon(key, bitmap)
-            IconAccent.fromBitmap(bitmap)?.let { iconCache.writeAccent(key, it) }
-        }
-        data.title?.let { iconCache.writeTitle(key, it) }
-
         return fallback.copy(
-            displayName = data.title ?: fallback.displayName,
-            iconFile = iconCache.fileFor(key).takeIf { it.exists() },
             titleIdHex = key,
+            iconFile = iconCache.fileFor(key).takeIf { it.exists() },
             accentArgb = iconCache.readAccent(key)
         )
     }

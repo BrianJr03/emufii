@@ -6,26 +6,16 @@ import eu.emufii.app.azahar.LaunchResult
 import eu.emufii.app.azahar.NetplayAutomation
 import eu.emufii.app.azahar.NetplayPlan
 import eu.emufii.app.azahar.PlanStore
+import eu.emufii.app.library.Console
+import eu.emufii.app.library.EmulatorPick
 
 /**
  * Opens Dolphin with the netplay autofill armed.
  *
- * There is no ROM to hand over, and that is not a limitation here. Dolphin
- * cannot be told to boot a particular file from outside, its `AppLinkActivity`
- * takes a filesystem path through `AutoStartFile`, and a SAF `content:` uri is
- * exactly what a path cannot be. Emufii has known that since the tapserver
- * days.
- *
- * Netplay makes the point moot: the game is not chosen at launch, it is chosen
- * in the lobby, by the host, from Dolphin's own library, and every client
- * gets told which one it is. So the flow Emufii needs is the one Dolphin
- * already offers, open the app, land in the room, pick the game there. What
- * the other backends do in two steps, this one does in one, and the ROM the
- * session carries is only ever used to name the game on our own screens.
- *
- * The consequence to keep in mind: both players must already have that game in
- * Dolphin, with matching contents. Netplay verifies it with a hash and says so
- * out loud when they differ.
+ * Aucune ROM ne lui est passee : le jeu se choisit dans le salon, pas au
+ * lancement. Consequence : les deux joueurs doivent deja avoir ce jeu, avec un
+ * contenu identique — le netplay le verifie par empreinte.
+ * pourquoi : docs/decisions/pilotes-emulateurs.md § Dolphin ne reçoit pas de ROM, et ça ne le gêne pas
  */
 class DolphinLauncher(private val context: Context) {
 
@@ -36,9 +26,10 @@ class DolphinLauncher(private val context: Context) {
      * share one package name and one signing key, so there is at most one to
      * find, and the dev build simply updates the release in place.
      */
-    fun installedPackage(): String? = DolphinTarget.packages.firstOrNull { pkg ->
-        runCatching { context.packageManager.getPackageInfo(pkg, 0) }.isSuccess
-    }
+    // La GameCube porte le choix pour les deux : Dolphin est un seul paquet
+    // qui joue les deux consoles, et deux preferences pour un binaire feraient
+    // deux reponses possibles a une question qui n'en a qu'une.
+    fun installedPackage(): String? = EmulatorPick.packageFor(context, Console.GAMECUBE)
 
     fun isInstalled(): Boolean = installedPackage() != null
 

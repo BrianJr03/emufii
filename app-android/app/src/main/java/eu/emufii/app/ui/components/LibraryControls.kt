@@ -50,12 +50,26 @@ import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.input.ImeAction
+import eu.emufii.app.ui.components.LandOn
+import eu.emufii.app.ui.components.CheckIcon
+import eu.emufii.app.ui.components.CrossIcon
+import eu.emufii.app.ui.components.LensMark
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
 import eu.emufii.app.R
 import eu.emufii.app.library.LibraryLayout
 import eu.emufii.app.library.LibrarySort
+import eu.emufii.app.ui.theme.CardShape
+import eu.emufii.app.ui.theme.InkText
 import eu.emufii.app.ui.theme.LocalEmufiiDarkTheme
 import eu.emufii.app.ui.theme.PlateDark
 import eu.emufii.app.ui.theme.PlateLight
@@ -65,32 +79,24 @@ import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.ui.graphics.SolidColor
 import eu.emufii.app.ui.theme.PillShape
 import eu.emufii.app.ui.theme.socket
+import eu.emufii.app.ui.tap
 
 /**
  * The library's two settings, in the same family of pills as the profile and the
- * friends.
- *
- * They took the logo's place in the top left, and it is a better use of the
- * corner: a wordmark does nothing, whereas these two buttons change what is in
- * front of you. The top bar now reads as "what I am looking at" on the left,
- * "who I am" on the right.
- *
- * The glyph shows the state, not the function. The display pill draws the
- * current layout rather than a generic settings icon: without that, nothing on
- * screen would say which mode you are in once the menu is closed, and in
- * carousel, where only one game is visible, that is precisely the question you
- * ask.
+ * friends. Le glyphe montre **l'etat**, pas la fonction.
+ * pourquoi : docs/decisions/bibliotheque.md § Les deux réglages de la bibliothèque ont pris le coin du logo
  */
 @Composable
 fun LayoutChip(
     current: LibraryLayout,
     onPick: (LibraryLayout) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onFocused: (Boolean) -> Unit = {}
 ) {
     var open by remember { mutableStateOf(false) }
 
     Box(modifier = modifier) {
-        TopBarChip(onClick = { open = true }) {
+        TopBarChip(onClick = { open = true }, onFocused = onFocused) {
             val tint = MaterialTheme.colorScheme.onSurface
             Canvas(Modifier.size(21.dp)) { drawLayoutGlyph(current, tint) }
         }
@@ -100,11 +106,21 @@ fun LayoutChip(
             onDismiss = { open = false }
         ) {
             LibraryLayout.entries.forEach { layout ->
-                ChipMenuRow(
+                val selected = layout == current
+                TrayMenuRow(
                     label = stringResource(layout.labelRes),
-                    selected = layout == current,
                     onClick = { open = false; onPick(layout) },
-                    glyph = { tint -> drawLayoutGlyph(layout, tint) }
+                    glyph = { tint -> drawLayoutGlyph(layout, tint) },
+                    // La ligne cochee porte le point d'arrivee du curseur ; les
+                    // autres n'ont rien a demander.
+                    landing = LocalMenuLanding.current.takeIf { selected },
+                    trailing = {
+                        // Une coche, pas un fond colore : le surlignage bouge
+                        // avec le curseur, et deux surlignages superposes se
+                        // lisent comme un seul, mal place.
+                        if (selected) CheckIcon(size = 14.dp, color = MaterialTheme.colorScheme.primary)
+                        else Spacer(Modifier.size(14.dp))
+                    }
                 )
             }
         }
@@ -115,12 +131,13 @@ fun LayoutChip(
 fun SortChip(
     current: LibrarySort,
     onPick: (LibrarySort) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onFocused: (Boolean) -> Unit = {}
 ) {
     var open by remember { mutableStateOf(false) }
 
     Box(modifier = modifier) {
-        TopBarChip(onClick = { open = true }) {
+        TopBarChip(onClick = { open = true }, onFocused = onFocused) {
             val tint = MaterialTheme.colorScheme.onSurface
             Canvas(Modifier.size(21.dp)) { drawSortGlyph(current, tint) }
         }
@@ -130,11 +147,21 @@ fun SortChip(
             onDismiss = { open = false }
         ) {
             LibrarySort.entries.forEach { sort ->
-                ChipMenuRow(
+                val selected = sort == current
+                TrayMenuRow(
                     label = stringResource(sort.labelRes),
-                    selected = sort == current,
                     onClick = { open = false; onPick(sort) },
-                    glyph = { tint -> drawSortGlyph(sort, tint) }
+                    glyph = { tint -> drawSortGlyph(sort, tint) },
+                    // La ligne cochee porte le point d'arrivee du curseur ; les
+                    // autres n'ont rien a demander.
+                    landing = LocalMenuLanding.current.takeIf { selected },
+                    trailing = {
+                        // Une coche, pas un fond colore : le surlignage bouge
+                        // avec le curseur, et deux surlignages superposes se
+                        // lisent comme un seul, mal place.
+                        if (selected) CheckIcon(size = 14.dp, color = MaterialTheme.colorScheme.primary)
+                        else Spacer(Modifier.size(14.dp))
+                    }
                 )
             }
         }
@@ -156,17 +183,16 @@ private val LibrarySort.labelRes: Int
     }
 
 /**
- * The card that unrolls under a pill.
- *
- * The same material and the same movement as [TileMenu], a rounded card revealed
- * by a sweep from the edge touching its point of origin, here the top. Reusing
- * its animation rather than inventing a second one is not thrift: two menus that
- * open differently within the same screen read as two mechanisms, when there is
- * only one.
- *
- * The window outlives the close long enough for the unroll to reverse: if the
- * parent removed it the instant of the click, there would be nothing left to
- * animate.
+ * Le porte-curseur du menu ouvert, que la ligne active vient prendre. En local :
+ * la ligne sait deja si elle est cochee, c'est la seule chose a savoir.
+ * pourquoi : docs/decisions/bibliotheque.md § Le curseur d'un menu se pose sur l'option en cours
+ */
+private val LocalMenuLanding = compositionLocalOf<FocusRequester?> { null }
+
+/**
+ * The card that unrolls under a pill : la meme matiere et le meme mouvement que
+ * [TileMenu]. La fenetre survit a la fermeture le temps que le deroule s'inverse.
+ * pourquoi : docs/decisions/bibliotheque.md § Le curseur d'un menu se pose sur l'option en cours
  */
 @Composable
 private fun ChipMenu(
@@ -200,7 +226,14 @@ private fun ChipMenu(
             label = "chip-menu-reveal"
         )
 
-        val shape = RoundedCornerShape(22.dp)
+        // Le curseur se pose sur l'option en cours, pas sur la premiere — et sans
+        // cette pose il n'y avait aucun anneau du tout a l'ouverture.
+        // pourquoi : docs/decisions/bibliotheque.md § Le curseur d'un menu se pose sur l'option en cours
+        // pourquoi : docs/decisions/coquille-ecrans.md § Le curseur arrive avec l'écran
+        val landing = remember { FocusRequester() }
+        LandOn(landing, key = title, enabled = opening)
+
+        val shape = CardShape
         Column(
             modifier = Modifier
                 .graphicsLayer {
@@ -220,8 +253,9 @@ private fun ChipMenu(
                     elevation = if (dark) 0.dp else 26.dp,
                     shape = shape,
                     clip = false,
-                    ambientColor = Color.Black.copy(alpha = 0.10f),
-                    spotColor = Color.Black.copy(alpha = 0.14f)
+                    // Warm black, the duotone world's shadow ink.
+                    ambientColor = InkText.copy(alpha = 0.10f),
+                    spotColor = InkText.copy(alpha = 0.14f)
                 )
                 .clip(shape)
                 .background(surface)
@@ -234,60 +268,7 @@ private fun ChipMenu(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 20.dp).padding(top = 4.dp, bottom = 6.dp)
             )
-            content()
-        }
-    }
-}
-
-/**
- * A menu entry, with a tick on the current option.
- *
- * A tick and not a coloured background: these menus have three lines, they are
- * read at a glance, and a tinted background on the active line would conflict
- * with the focus highlight, which moves. Two superimposed highlights read as one,
- * badly placed.
- */
-@Composable
-private fun ChipMenuRow(
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-    glyph: DrawScope.(Color) -> Unit
-) {
-    val interaction = remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
-    val focused by interaction.collectIsFocusedAsState()
-    val highlighted = pressed || focused
-    val tint = MaterialTheme.colorScheme.onSurface
-    // Read here and not inside the Canvas: the drawing lambda is not composable,
-    // so the theme is not reachable from it.
-    val checkTint = MaterialTheme.colorScheme.primary
-
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp)
-            .clip(RoundedCornerShape(14.dp))
-            .background(
-                if (highlighted) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f)
-                else Color.Transparent
-            )
-            .clickable(interactionSource = interaction, indication = null, onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 10.dp)
-    ) {
-        Canvas(Modifier.size(18.dp)) { glyph(tint) }
-        Text(
-            label,
-            style = MaterialTheme.typography.bodyMedium,
-            color = tint,
-            modifier = Modifier.weight(1f)
-        )
-        if (selected) {
-            Canvas(Modifier.size(14.dp)) { drawCheckGlyph(checkTint) }
-        } else {
-            Spacer(Modifier.size(14.dp))
+            CompositionLocalProvider(LocalMenuLanding provides landing) { content() }
         }
     }
 }
@@ -311,12 +292,9 @@ private object BelowChip : PopupPositionProvider {
 }
 
 /**
- * The glyphs, drawn by hand like the tile menu's.
- *
- * Each one draws its own layout: three squares for the grid, a large card
- * flanked by two slices for the carousel, thumbnailed lines for the list. An
- * abstract icon (a cog, three dots) would force the menu open just to find out
- * where you are.
+ * The glyphs, drawn by hand like the tile menu's : chacun dessine sa propre
+ * disposition. Une icone abstraite forcerait a ouvrir le menu pour se situer.
+ * pourquoi : docs/decisions/bibliotheque.md § Les deux réglages de la bibliothèque ont pris le coin du logo
  */
 private fun DrawScope.drawLayoutGlyph(layout: LibraryLayout, color: Color) {
     val s = size.minDimension
@@ -384,12 +362,9 @@ private fun DrawScope.drawLayoutGlyph(layout: LibraryLayout, color: Color) {
 }
 
 /**
- * Sorting, in three symbols.
- *
- * A-Z and date share the descending bar scale, the universal sign for sorting,
- * and are told apart by what accompanies them: nothing for alphabetical order, a
- * clock for date. "By console" is a folder, because it is not an order but a
- * filing, and the glyph has to say so before it is tried.
+ * Sorting, in three symbols. « Par console » est un dossier : ce n'est pas un
+ * ordre mais un rangement, et le glyphe doit le dire avant qu'on l'essaie.
+ * pourquoi : docs/decisions/bibliotheque.md § Les deux réglages de la bibliothèque ont pris le coin du logo
  */
 private fun DrawScope.drawSortGlyph(sort: LibrarySort, color: Color) {
     val s = size.minDimension
@@ -451,45 +426,35 @@ private fun DrawScope.drawSortGlyph(sort: LibrarySort, color: Color) {
     }
 }
 
-private fun DrawScope.drawCheckGlyph(color: Color) {
-    val s = size.minDimension
-    val path = Path().apply {
-        moveTo(s * 0.14f, s * 0.54f)
-        lineTo(s * 0.40f, s * 0.80f)
-        lineTo(s * 0.88f, s * 0.22f)
-    }
-    drawPath(path, color, style = Stroke(width = s * 0.16f, cap = StrokeCap.Round))
-}
-
 /**
- * Opens the search, leftmost of the "what am I looking at" pills.
- *
- * A library runs past a screenful quickly, and the console folders answer
- * "which shelf", never "which game". The glyph is the field's own lens, so
- * the button and what it opens read as one control in two states.
+ * Opens the search, leftmost of the « what am I looking at » pills. Le glyphe est
+ * la loupe du champ : le bouton et ce qu'il ouvre sont un controle en deux etats.
+ * pourquoi : docs/decisions/bibliotheque.md § La recherche, et la croix qui la ferme
  */
 @Composable
 fun SearchChip(
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onFocused: (Boolean) -> Unit = {}
 ) {
-    TopBarChip(onClick = onClick, modifier = modifier) {
+    TopBarChip(onClick = onClick, modifier = modifier, onFocused = onFocused) {
         val tint = MaterialTheme.colorScheme.onSurface
-        Canvas(Modifier.size(21.dp)) { drawLensGlyph(tint) }
+        LensMark(size = 21.dp, color = tint)
     }
 }
 
 /**
  * The search itself, in the shelf the layout and sort pills live in.
  *
- * Results span every console: the question "where is that game" is exactly the
- * one the console folders cannot answer, since the answer is often a console
- * the player was not looking at. Closed by its cross, by the system back, or
- * by emptying the field, and never by the grid moving under it.
+ * Toucher le champ releve le clavier ; la croix reste le seul controle qui
+ * termine la recherche.
  *
- * Tapping the field itself raises the keyboard again. The panel can be put down
- * to read the results without ending the search, so the field has to be the way
- * back to typing; the cross stays the only control that ends the search.
+ * **C'est le clavier du systeme qui ecrit ici**, depuis le 2026-08-29 : la dalle
+ * de l'app ne servait qu'a eviter le mode extract du paysage, et le prix etait
+ * un clavier qui n'est celui de personne — ni la correction, ni les langues, ni
+ * la disposition apprise. Le champ prend donc le focus et demande l'IME des
+ * qu'il apparait.
+ * pourquoi : docs/decisions/bibliotheque.md § La recherche, et la croix qui la ferme
  */
 @Composable
 fun SearchField(
@@ -500,6 +465,14 @@ fun SearchField(
     modifier: Modifier = Modifier
 ) {
     val dark = LocalEmufiiDarkTheme.current
+    val field = remember { FocusRequester() }
+    val keyboard = LocalSoftwareKeyboardController.current
+    // Le champ n'existe que pendant la recherche : il arrive, il prend le
+    // curseur, l'IME monte. Rien a retenir d'un etat a l'autre.
+    LaunchedEffect(Unit) {
+        runCatching { field.requestFocus() }
+        keyboard?.show()
+    }
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -511,25 +484,27 @@ fun SearchField(
         val tint = MaterialTheme.colorScheme.onSurface
         // The lens and the text share one tap target: anywhere on the field
         // that is not the cross brings the keyboard back.
-        val raise = Modifier.clickable(
+        val raise = Modifier.tap(
             interactionSource = remember { MutableInteractionSource() },
             indication = null,
-            onClick = onTap
+            onClick = {
+                runCatching { field.requestFocus() }
+                keyboard?.show()
+                onTap()
+            }
         )
-        Canvas(Modifier.size(18.dp).then(raise)) { drawLensGlyph(tint) }
+        LensMark(size = 18.dp, color = tint, modifier = raise)
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
             singleLine = true,
-            // Read-only on purpose: the app's own keyboard does the typing.
-            // The system IME in landscape takes the whole screen in extract
-            // mode, and the grid the player is searching for goes away exactly
-            // when they need to see it. The cursor stays, so the field still
-            // shows where the next key lands.
-            readOnly = true,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            // Chercher ferme le clavier sans fermer la recherche : la liste est
+            // deja filtree a chaque frappe, il ne reste qu'a la regarder.
+            keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }),
             textStyle = MaterialTheme.typography.bodyMedium.copy(color = tint),
             cursorBrush = SolidColor(tint),
-            modifier = Modifier.width(170.dp).then(raise)
+            modifier = Modifier.width(170.dp).focusRequester(field).then(raise)
         ) {
             if (value.isEmpty()) {
                 Text(
@@ -540,38 +515,21 @@ fun SearchField(
             }
             it()
         }
-        // The cross, drawn like the lens rather than imported as an icon: the
-        // shelf carries no symbol that did not come from this file's own hand.
-        Canvas(
-            Modifier
-                .size(18.dp)
-                .clickable(
+        // La croix, dessinee comme la loupe. **La zone grandit, le glyphe non** :
+        // 32 dp est ce que la barre de 36 permet, et c'est trois fois la surface
+        // d'avant.
+        // pourquoi : docs/decisions/bibliotheque.md § La recherche, et la croix qui la ferme
+        Box(
+            modifier = Modifier
+                .size(32.dp)
+                .tap(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
                     onClick = onClose
-                )
+                ),
+            contentAlignment = Alignment.Center
         ) {
-            val s = size.width
-            drawLine(tint, Offset(s * 0.25f, s * 0.25f), Offset(s * 0.75f, s * 0.75f), strokeWidth = s * 0.09f, cap = StrokeCap.Round)
-            drawLine(tint, Offset(s * 0.75f, s * 0.25f), Offset(s * 0.25f, s * 0.75f), strokeWidth = s * 0.09f, cap = StrokeCap.Round)
+            CrossIcon(size = 18.dp, color = tint)
         }
     }
-}
-
-/** A lens: a circle and a handle, the one glyph every search box owns. */
-private fun DrawScope.drawLensGlyph(color: Color) {
-    val s = size.width
-    drawCircle(
-        color,
-        radius = s * 0.32f,
-        center = Offset(s * 0.42f, s * 0.42f),
-        style = Stroke(width = s * 0.10f)
-    )
-    drawLine(
-        color,
-        start = Offset(s * 0.66f, s * 0.66f),
-        end = Offset(s * 0.92f, s * 0.92f),
-        strokeWidth = s * 0.12f,
-        cap = StrokeCap.Round
-    )
 }

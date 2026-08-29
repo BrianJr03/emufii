@@ -27,34 +27,24 @@ import androidx.compose.ui.unit.dp
 import eu.emufii.app.ui.theme.LocalEmufiiDarkTheme
 import eu.emufii.app.ui.theme.LocalEmufiiOledTheme
 import eu.emufii.app.ui.theme.socket
+import eu.emufii.app.ui.theme.EdgeOled
+import eu.emufii.app.ui.theme.GoodLight
+import eu.emufii.app.ui.theme.GoodDark
+import eu.emufii.app.ui.theme.InfoLight
+import eu.emufii.app.ui.theme.InfoDark
+import eu.emufii.app.ui.theme.WarnLight
+import eu.emufii.app.ui.theme.WarnDark
+import eu.emufii.app.ui.theme.ErrorLight
+import eu.emufii.app.ui.theme.ErrorDark
 
 /**
  * The inside of an unfolded settings row, and the reason this file exists.
  *
- * Closed, the settings list is a stack of moulded plates and reads at arm's
- * length. Open, every section had grown its own habits: a paragraph, then two
- * buttons of equal weight, then three or four sentences in four different
- * colours saying what had happened. Each line was defensible and the result was
- * a wall — the PS2 profile ended up with eleven stacked texts, the most
- * important of them last.
- *
- * So an unfolded section is now made of three things and nothing else:
- *
- *  1. [DetailNote] — at most one paragraph, and only while it still teaches
- *     something. Once the thing is done, the explanation yields to the state.
- *  2. [DetailActions] — the actions, the first one filled, the rest ghosts.
- *     Two peer pills side by side said "these are the same kind of thing",
- *     which was never true.
- *  3. [DetailStatus] — what the app currently knows, in a recess: a moulded
- *     bead for the state, one sentence, and the facts as aligned rows rather
- *     than as prose with middle dots.
- *
- * The recess is the tray's own vocabulary — the same hole the library grid uses
- * for an empty slot — so a settings screen made of plates now has exactly one
- * kind of hollow, and it means "this is what is, not what you can do".
+ * Trois choses et rien d'autre : [DetailNote], [DetailActions], [DetailStatus].
+ * Le creux de l'etat est le vocabulaire du plateau — un ecran de reglages n'a
+ * qu'une sorte de creux, et elle veut dire « voila ce qui est ».
+ * pourquoi : docs/decisions/coquille-ecrans.md § Une rangée dépliée est faite de trois choses, et de rien d'autre
  */
-
-/** The one paragraph an unfolded section is allowed. */
 @Composable
 fun DetailNote(text: String, modifier: Modifier = Modifier) {
     Text(
@@ -122,7 +112,7 @@ fun DetailStatus(
             // else lands on black and vanishes. There the edge does the whole
             // job, and it is drawn stronger, exactly as the design system says
             // for that theme.
-            .then(if (oled) Modifier.border(1.dp, Color(0x33FFFFFF), shape) else Modifier)
+            .then(if (oled) Modifier.border(1.dp, EdgeOled, shape) else Modifier)
             .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
@@ -192,17 +182,18 @@ private fun FactRow(fact: DetailFact) {
  */
 @Composable
 fun StateBead(tone: DetailTone, size: Dp = 14.dp) {
+    val dark = LocalEmufiiDarkTheme.current
     val fill = when (tone) {
-        DetailTone.GOOD -> listOf(Color(0xFF12A55C), Color(0xFF0C6A3B))
-        DetailTone.BUSY -> listOf(Color(0xFF3C82C4), Color(0xFF255C93))
-        DetailTone.WARN -> listOf(Color(0xFFC78005), Color(0xFF865603))
-        DetailTone.BAD -> listOf(Color(0xFFEB5D47), Color(0xFFD83218))
+        DetailTone.GOOD -> if (dark) GoodDark else GoodLight
+        DetailTone.BUSY -> if (dark) InfoDark else InfoLight
+        DetailTone.WARN -> if (dark) WarnDark else WarnLight
+        DetailTone.BAD -> if (dark) ErrorDark else ErrorLight
     }
     Box(
         modifier = Modifier
             .shadow(3.dp, CircleShape)
             .clip(CircleShape)
-            .background(Brush.verticalGradient(fill))
+            .background(fill)
             .border(1.5.dp, Color.White, CircleShape)
             .padding(3.dp),
         contentAlignment = Alignment.Center

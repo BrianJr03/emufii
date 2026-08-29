@@ -23,6 +23,7 @@ import coil3.request.ImageRequest
 import eu.emufii.app.artwork.rememberTileArt
 import eu.emufii.app.library.Rom
 import eu.emufii.app.ui.theme.ArtworkShape
+import eu.emufii.app.ui.theme.InkText
 import eu.emufii.app.ui.theme.TileShape
 
 /**
@@ -46,10 +47,10 @@ fun RomArtwork(rom: Rom, size: Dp, modifier: Modifier = Modifier) {
             .shadow(
                 elevation = if (accent != null) 18.dp else 8.dp,
                 shape = TileShape,
-                // Ambient stays neutral so the glow reads as light under the
-                // artwork rather than as a coloured outline around it.
-                ambientColor = Color.Black.copy(alpha = 0.22f),
-                spotColor = accent ?: Color.Black.copy(alpha = 0.30f)
+                // Ambient stays neutral (warm ink) so the glow reads as light
+                // under the artwork rather than as a coloured outline around it.
+                ambientColor = InkText.copy(alpha = 0.22f),
+                spotColor = accent ?: InkText.copy(alpha = 0.30f)
             )
             .clip(TileShape)
             .background(tilePlate())

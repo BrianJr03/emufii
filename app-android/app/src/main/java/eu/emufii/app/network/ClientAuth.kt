@@ -8,33 +8,11 @@ import javax.crypto.spec.SecretKeySpec
 /**
  * What tells Emufii apart from `curl` in the coordinator's eyes.
  *
- * ## What this protects, and what it does not
- *
- * The coordinator's address travels in the clear inside the APK, `strings` on
- * the dex is enough to read it, and the API required nothing of its callers. A
- * session could therefore be created in production with a plain `curl`, measured
- * on 2026-08-09. Anyone holding the public APK could run their games on a VPS
- * they do not pay for.
- *
- * This is not proof of identity and cannot be. The client is in the hands of the
- * very person we want to keep out: the key is in the binary, so it is
- * extractable, and claiming otherwise would be a lie. What the signature changes
- * is the cost: reading a URL is no longer enough, the APK has to be taken apart,
- * the key found, and this computation reimplemented. And since the key changes
- * at every version, the exercise has to be redone each time.
- *
- * The rest of the defence is server-side, where it really lies: the coordinator
- * logs the version calling it, which makes a stale or foreign client visible,
- * hence blockable.
- *
- * ## The shape
- *
- * `HMAC-SHA256(secret, method + "\n" + path + "\n" + timestamp + "\n" +
- * SHA-256(body))`, in lowercase hexadecimal.
- *
- * The body enters the computation, otherwise a signature valid for one request
- * would be valid for any other at the same path. The timestamp bounds the
- * replayability of an intercepted signature to a few minutes.
+ * `HMAC-SHA256(secret, methode + "\n" + chemin + "\n" + horodatage + "\n" +
+ * SHA-256(corps))`, en hexadecimal minuscule. Le corps entre dans le calcul ;
+ * l'horodatage borne le rejeu. **Ce n'est pas une preuve d'identite** : la cle
+ * est dans le binaire, donc extractible.
+ * pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § La signature du client change le coût, pas l'identité
  */
 object ClientAuth {
 

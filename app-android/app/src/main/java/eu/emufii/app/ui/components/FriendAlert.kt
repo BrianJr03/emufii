@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -28,6 +29,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import eu.emufii.app.R
 import eu.emufii.app.notify.FriendEvent
+import eu.emufii.app.ui.LocalRingTone
+import eu.emufii.app.ui.RingTone
 import kotlinx.coroutines.delay
 
 /**
@@ -67,6 +70,10 @@ fun FriendAlert(
             // the text the moment it goes null, and the card would slide away
             // empty.
             val shown = lastNonNull(event)
+            // A friend coming online is the social axis: the card's ring and
+            // its accents speak coral, never teal.
+            // pourquoi : docs/decisions/theme-duotone-shelves.md § Deux axes sémantiques
+            CompositionLocalProvider(LocalRingTone provides RingTone.CORAL) {
             SoftCard(
                 onClick = onOpen,
                 modifier = Modifier
@@ -102,6 +109,7 @@ fun FriendAlert(
                         )
                     }
                 }
+            }
             }
         }
     }

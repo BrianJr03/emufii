@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -22,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.foundation.Canvas
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.geometry.CornerRadius
@@ -43,6 +45,7 @@ import eu.emufii.app.ui.theme.LocalAccent
 import eu.emufii.app.ui.theme.LocalEmufiiDarkTheme
 import eu.emufii.app.ui.theme.PlateDark
 import eu.emufii.app.ui.theme.PlateLight
+import eu.emufii.app.ui.tap
 
 /**
  * The top bar's buttons all share one size, or the row reads as misaligned.
@@ -62,6 +65,14 @@ private val CHIP_SIZE = 46.dp
 fun TopBarChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    /**
+     * Appelee quand la pastille prend ou rend le curseur. C'est par la que le
+     * panneau arriere apprend ce qui est vise : la barre du haut est la seule
+     * couche de la bibliotheque a n'avoir rien a dire de son cote, et le
+     * panneau y montrait le repos.
+     * pourquoi : docs/decisions/second-ecran.md § Ce qui voyage jusqu'au panneau
+     */
+    onFocused: (Boolean) -> Unit = {},
     content: @Composable () -> Unit
 ) {
     val dark = LocalEmufiiDarkTheme.current
@@ -77,6 +88,7 @@ fun TopBarChip(
     // without a ring the cursor simply became invisible there and the screen had
     // to be touched to find out where you were.
     val focused by interaction.collectIsFocusedAsState()
+    LaunchedEffect(focused) { onFocused(focused) }
 
     Box(
         modifier = modifier
@@ -90,7 +102,7 @@ fun TopBarChip(
                 lift = 5.dp,
                 pressed = pressed
             )
-            .clickable(interactionSource = interaction, indication = null, onClick = onClick),
+            .tap(interactionSource = interaction, indication = null, onClick = onClick),
         contentAlignment = Alignment.Center
     ) { content() }
 }
@@ -104,9 +116,10 @@ fun TopBarChip(
 fun ProfileChip(
     profile: Profile,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onFocused: (Boolean) -> Unit = {}
 ) {
-    TopBarChip(onClick = onClick, modifier = modifier) {
+    TopBarChip(onClick = onClick, modifier = modifier, onFocused = onFocused) {
         Box(modifier = Modifier.padding(3.dp)) {
             Avatar(
                 name = playerDisplayName(profile.name),
@@ -127,9 +140,10 @@ fun ProfileChip(
 @Composable
 fun FriendsChip(
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onFocused: (Boolean) -> Unit = {}
 ) {
-    TopBarChip(onClick = onClick, modifier = modifier) {
+    TopBarChip(onClick = onClick, modifier = modifier, onFocused = onFocused) {
         // La silhouette du systeme d'icones, celle que l'etat vide du chercheur
         // porte deja.
         //
@@ -152,10 +166,11 @@ fun FriendsChip(
 @Composable
 fun SessionsChip(
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onFocused: (Boolean) -> Unit = {}
 ) {
     val tint = MaterialTheme.colorScheme.onSurface
-    TopBarChip(onClick = onClick, modifier = modifier) {
+    TopBarChip(onClick = onClick, modifier = modifier, onFocused = onFocused) {
         Canvas(Modifier.size(23.dp)) {
             val w = size.width
             val h = size.height
@@ -208,11 +223,26 @@ private fun FriendsAvatars(modifier: Modifier = Modifier) {
     // whole point of the shape.
     // pourquoi : docs/decisions/direction-visuelle.md § Les glyphes disent « d'autres joueurs » comme le reste de l'app
     Box(modifier = modifier.size(34.dp), contentAlignment = Alignment.Center) {
-        // Behind: muted, up and to the right. Cooler and lower-contrast so the
-        // two read as depth rather than as two things of equal weight.
+        // Behind: muted, up and to the right, so the two read as depth rather
+        // than as two things of equal weight.
+        //
+        // **La profondeur vient de la valeur, plus de la temperature.**
+        //
+        // C'etait la seule palette parallele qui restait dans l'app : quatre hex
+        // ecrits ici, avec leur propre paire clair/sombre, et gris-bleu froids
+        // dans un monde dont tous les neutres sont chauds. Le contrat du projet
+        // dit « plus aucun hex hors des fichiers de theme », et un accent qui
+        // change ne les aurait jamais suivis.
+        //
+        // La teinte se prend donc a l'encre de second plan du theme, ramenee
+        // vers la surface : on garde exactement ce que le froid cherchait a
+        // obtenir — quelque chose de plus sourd que la pastille de devant — sans
+        // introduire une temperature que rien d'autre ne parle.
+        // pourquoi : docs/decisions/theme-duotone-shelves.md § Deux axes sémantiques
+        val muted = MaterialTheme.colorScheme.onSurfaceVariant
+        val ground = MaterialTheme.colorScheme.surfaceVariant
         Disc(
-            colors = if (dark) listOf(Color(0xFF515A6B), Color(0xFF3E4757))
-                     else listOf(Color(0xFFB9C0CF), Color(0xFF9AA3B6)),
+            colors = listOf(lerp(ground, muted, 0.52f), lerp(ground, muted, 0.34f)),
             ring = ring,
             modifier = Modifier.offset(x = 6.dp, y = (-4).dp)
         )

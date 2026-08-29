@@ -115,22 +115,10 @@ object NetplayAutomation {
     /**
      * Was the automation armed, given its chance, and never heard from?
      *
-     * This is not the same thing as failing. A driver that ran and gave up
-     * reports [NetplayProgress.Failed] and says what to type instead; the case
-     * here is total silence, and it has one cause worth naming out loud: the
-     * accessibility service is still listed and still bound, but no longer
-     * receives a single event, which is what reinstalling the app over itself
-     * leaves behind. Measured on the Thor on 2026-08-23 after an `install -r`:
-     * every launch opened the emulator and did nothing, with no error, no
-     * progress and no log line, and toggling the service off and on in
-     * Android's settings brought it straight back. Players meet the same
-     * reinstall through the update channel.
-     *
-     * Asked when the player comes back to Emufii: that is the one moment we
-     * know both that the emulator has had its turn and that we are alive to
-     * say so. [SILENCE_MS] is what separates "never started" from "still
-     * opening the menu", so a player who flicks back immediately is not told
-     * anything is wrong.
+     * Le silence total n'est pas un echec : sa cause est un service
+     * d'accessibilite lie mais muet, ce que laisse un `install -r`. Demande au
+     * retour du joueur, et borne par [SILENCE_MS].
+     * pourquoi : docs/decisions/pilotes-emulateurs.md § Le silence total n'est pas un échec
      */
     fun neverStarted(now: Long = System.currentTimeMillis()): Boolean =
         _plan.value != null &&

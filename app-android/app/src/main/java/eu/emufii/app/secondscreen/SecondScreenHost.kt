@@ -9,13 +9,16 @@ import android.view.Display
 import android.view.WindowManager
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import eu.emufii.app.notify.AppForeground
 import eu.emufii.app.settings.SettingsStore
 import eu.emufii.app.ui.theme.EmufiiTheme
@@ -37,10 +40,11 @@ fun SecondScreenHost(enabled: Boolean) {
 
     val wanted = secondScreenWanted(enabled, foreground, model)
 
-    // The service light is only asked about while there is a panel to draw it
-    // on. Polling a server for a dot nobody can see would be a handheld's
-    // battery spent on nothing, and this is the app's only permanent request.
-    LaunchedEffect(wanted) { if (wanted) VpsStatus.poll() }
+    // Le sondage n'est plus attache au panneau : la lampe est aussi dans la
+    // barre de la bibliotheque depuis le 2026-08-28, et l'ecran principal ne
+    // depend de rien qui vive derriere. Il est lance la ou la lampe est lue —
+    // ici pour le panneau, dans la bibliotheque pour la barre — et le premier
+    // arrive suffit, l'etat etant partage.
 
     // Keyed on all of it: turning the setting off, leaving the app, or the panel
     // going away must take the window down the same way, and a new display gets
@@ -84,6 +88,19 @@ private class EmufiiPresentation(
 ) : Presentation(context, display) {
 
     private val owner = SecondScreenWindowOwner()
+
+    /**
+     * **Retour ne ferme pas le panneau.** Un `Presentation` est un `Dialog`, et
+     * un `Dialog` qui reçoit retour se ferme — or la Thor livre la touche a
+     * l'ecran qui a le focus, et le panneau est tactile : l'avoir touche une
+     * fois suffisait donc a ce que A l'eteigne, jusqu'a la recomposition
+     * suivante. Le panneau n'est pas une boite de dialogue qu'on annule ; sa
+     * duree de vie est celle de l'ecran qu'il decrit (cf. [SecondScreenHost]).
+     */
+    @Deprecated("Deprecated in Java")
+    override fun onBackPressed() {
+        // Deliberately empty.
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -144,17 +161,48 @@ private fun SecondScreenSurface() {
     val context = LocalContext.current
     val settings = remember(context) { SettingsStore.get(context) }
     val theme by settings.theme.collectAsState()
-    val accent by settings.accent.collectAsState()
-    val model by SecondScreen.model.collectAsState()
+    val published by SecondScreen.model.collectAsState()
+    val aside by SecondScreen.aside.collectAsState()
+
+    /**
+     * La face de repos attend [IDLE_GRACE] : changer d'ecran de face n'est pas
+     * atomique, et le panneau repassait par le logo entre les deux. Ici et non
+     * dans [SecondScreen], qui n'a pas de portee de coroutine.
+     * pourquoi : docs/decisions/second-ecran.md § La face de repos attend son tour
+     */
+    var model by remember { mutableStateOf(published) }
+    LaunchedEffect(published, aside) {
+        // Le sursis ne vaut que pour un repos **subi** : un écran est parti et
+        // le suivant n'a pas encore parlé. Un repos **posé** — le curseur qui
+        // quitte la grille pour l'en-tête, qui pose délibérément la face de
+        // repos par-dessus — est déjà la réponse, et l'attendre faisait traîner
+        // le panneau d'une demi-seconde derrière le curseur.
+        if (published is SecondScreenModel.Idle &&
+            model !is SecondScreenModel.Idle &&
+            aside == null
+        ) {
+            delay(IDLE_GRACE_MS)
+        }
+        model = published
+    }
 
     // Resolved against this window's own configuration, which is the second
     // display's: a player on the system theme should see both panels agree,
     // and hard-coding either value here would make them disagree at dusk.
     EmufiiTheme(
         darkTheme = theme.isDark(androidx.compose.foundation.isSystemInDarkTheme()),
-        oled = theme.isOled,
-        accent = accent
+        oled = theme.isOled
     ) {
         SecondScreenContent(model)
     }
 }
+
+/**
+ * Le sursis avant que le panneau ne retombe au repos.
+ *
+ * Regle sur la seule chose qu'il doit couvrir : le temps qu'un ecran de face
+ * se compose et pose son curseur. Mesure sur la Thor a moins de 100 ms entre
+ * le `clear` des reglages et la face de la bibliotheque ; 400 laisse de la
+ * marge sans qu'une vraie mise au repos se fasse attendre.
+ */
+private const val IDLE_GRACE_MS = 400L

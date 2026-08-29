@@ -1,6 +1,7 @@
 package eu.emufii.app.ui.components
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -22,21 +23,30 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusEvent
+import androidx.compose.ui.zIndex
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextOverflow
 import eu.emufii.app.R
-import eu.emufii.app.settings.AppAccent
 import eu.emufii.app.settings.AppTheme
 import eu.emufii.app.ui.controlRing
 import eu.emufii.app.ui.theme.AccentCuts
 import eu.emufii.app.ui.theme.ArtworkShape
+import eu.emufii.app.ui.theme.Coral
 import eu.emufii.app.ui.theme.EdgeDark
 import eu.emufii.app.ui.theme.EdgeLight
 import eu.emufii.app.ui.theme.InsetShape
@@ -49,10 +59,11 @@ import eu.emufii.app.ui.theme.ShellDarkLow
 import eu.emufii.app.ui.theme.ShellLight
 import eu.emufii.app.ui.theme.ShellLightLow
 import eu.emufii.app.ui.theme.ShellOled
-import eu.emufii.app.ui.theme.accentCuts
+import eu.emufii.app.ui.theme.TealCuts
+import eu.emufii.app.ui.tap
 
 /**
- * L'apparence de l'app : quatre plateaux a comparer, puis les accents en perles.
+ * L'apparence de l'app : quatre plateaux a comparer.
  *
  * Ca remplacait une rangee depliante qui empilait neuf lignes nommees — quatre
  * luminosites puis cinq couleurs — dans une carte que le reste des reglages
@@ -68,13 +79,13 @@ import eu.emufii.app.ui.theme.accentCuts
 @Composable
 fun ThemeSwatches(
     theme: AppTheme,
-    accent: AppAccent,
     onTheme: (AppTheme) -> Unit,
     modifier: Modifier = Modifier,
     /** Vrai quand le premier plateau est le premier controle de la page. */
     firstIsEntry: Boolean = false
 ) {
-    val cuts = accentCuts(accent)
+    // L'axe du jeu, en dur : l'accent configurable n'existe plus.
+    val cuts = TealCuts
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -93,69 +104,10 @@ fun ThemeSwatches(
 }
 
 /**
- * Les accents, en rangee de perles de leur propre couleur.
+ * The theme's names, at two lengths, and the accent's.
  *
- * Les noms vivent **sous** la rangee plutot que sous chaque perle : cinq
- * libelles en travers de 420 dp donnent trois lignes a « Couleur systeme » et la
- * rangee cesse d'etre une rangee de couleurs. Seule celle qui est choisie a
- * besoin d'etre nommee.
- */
-@Composable
-fun AccentBeads(
-    accent: AppAccent,
-    onAccent: (AppAccent) -> Unit,
-    modifier: Modifier = Modifier,
-    /** Combien de perles par rangee. Quatre en colonne etroite, huit en large. */
-    perRow: Int = 4
-) {
-    Column(
-        modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        AppAccent.entries.chunked(perRow).forEach { row ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                row.forEach { option ->
-                    Box(
-                        modifier = Modifier.weight(1f),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        AccentBead(
-                            cuts = accentCuts(option),
-                            selected = option == accent,
-                            onClick = { onAccent(option) }
-                        )
-                    }
-                }
-                // Une derniere rangee moins fournie garde ses colonnes au lieu
-                // de s'etaler : la grille doit survivre a un neuvieme accent
-                // ajoute un jour, et une demi-rangee qui se recentre ressemble
-                // a une autre mise en page.
-                repeat(perRow - row.size) { Spacer(Modifier.weight(1f)) }
-            }
-        }
-        Text(
-            stringResource(accent.labelRes),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth()
-        )
-    }
-}
-
-/**
- * A theme, drawn rather than named: a little tray with a plate on it and the
- * accent where the cursor would be.
- *
- * The proportions are the app's own — a dark plate on a dark tray, a white plate
- * on a silver one — so the swatch answers the only question being asked, which
- * is what the screen will look like. [AppTheme.SYSTEM] is split down the middle,
- * light on the left and dark on the right: it is the one option that is not a
- * look but a promise to follow the phone, and half of each says that without a
- * word.
+ * They live here rather than on the settings screen because the panel is now
+ * where they are read; the settings row borrows them back for its value.
  */
 @Composable
 private fun ThemeSwatch(
@@ -167,15 +119,32 @@ private fun ThemeSwatch(
     entry: Boolean = false
 ) {
     val panelDark = LocalEmufiiDarkTheme.current
-    // The selected outline animates, because picking a theme also repaints the
-    // whole panel behind it: a border that snapped while the surfaces crossfaded
-    // read as two unrelated things happening.
-    val outline by animateColorAsState(
-        targetValue = if (selected) accent.bright else Color.Transparent,
-        label = "theme-swatch-outline"
+    /**
+     * Le choix ne porte pas d'anneau : l'anneau appartient au curseur, et garde
+     * le meme poids partout. Le choix se dit par une marque, qu'un contour ne
+     * peut pas imiter.
+     * pourquoi : docs/decisions/navigation-manette.md § L'anneau garde le même poids partout
+     */
+    // Le curseur est lu ici en plus de [controlRing], qui le garde pour lui :
+    // la vignette doit passer devant ses voisines *avant* que la bande soit
+    // dessinée, et seule la mise en page peut le faire.
+    var ringed by remember { mutableStateOf(false) }
+    val mark by animateFloatAsState(
+        targetValue = if (selected) 1f else 0f,
+        label = "theme-swatch-mark"
     )
     Column(
-        modifier = modifier,
+        // **Au-dessus de ses voisines quand le curseur est dessus.**
+        //
+        // La bande du curseur déborde de la vignette, et une `Row` dessine ses
+        // enfants dans l'ordre : la vignette de droite passe par-dessus la
+        // bande de celle de gauche, qui s'y retrouve tranchée net sur un côté.
+        // Invisible avec l'ancien anneau, qui se dessinait à l'intérieur.
+        //
+        // Le `zIndex` va **ici**, sur l'enfant de la `Row`, et non sur la boîte
+        // à l'intérieur : il ne réordonne qu'entre frères, et posé sur la boîte
+        // il ne départageait que la boîte et son libellé — c'est-à-dire rien.
+        modifier = modifier.zIndex(if (ringed) 1f else 0f),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Box(
@@ -183,9 +152,18 @@ private fun ThemeSwatch(
                 .fillMaxWidth()
                 .aspectRatio(1.3f)
                 .then(if (entry) Modifier.padEntry() else Modifier)
-                .controlRing(InsetShape, width = 3.dp, glowRadius = 18.dp)
+                .onFocusEvent { ringed = it.hasFocus }
+                // Une bande plus fine qu'ailleurs : les vignettes sont a 10 dp
+                // l'une de l'autre et portent leur nom juste dessous, donc la
+                // part par defaut la faisait mordre sur les deux.
+                .controlRing(
+                    InsetShape,
+                    width = 3.dp,
+                    glowRadius = 18.dp,
+                    bandFraction = 0.042f
+                )
                 .clip(InsetShape)
-                .clickable(onClick = onClick)
+                .tap(onClick = onClick)
         ) {
             when (theme) {
                 AppTheme.SYSTEM -> {
@@ -221,16 +199,34 @@ private fun ThemeSwatch(
                 Modifier
                     .fillMaxSize()
                     .border(
-                        width = if (selected) 2.dp else 1.dp,
+                        width = 1.dp,
                         // The resting outline follows the panel it sits on, not
                         // the theme it depicts. `EdgeLight` is a dark hairline:
                         // on the dark panel the unselected swatches lost their
                         // bounds entirely and the dark one became a hole.
-                        color = if (selected) outline
-                        else if (panelDark) EdgeDark else EdgeLight,
+                        color = if (panelDark) EdgeDark else EdgeLight,
                         shape = InsetShape
                     )
             )
+            // Le jeton, dans le coin ou rien d'autre ne se pose. Il grandit en
+            // s'installant : choisir un theme repeint tout le panneau derriere
+            // lui, et une marque qui apparaitrait d'un coup pendant que les
+            // surfaces se croisent se lirait comme un second evenement.
+            if (mark > 0f) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(6.dp)
+                        .scale(mark)
+                        .size(20.dp)
+                        .shadow(3.dp, CircleShape)
+                        .clip(CircleShape)
+                        .background(accent.bright),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CheckIcon(size = 13.dp, color = accent.ink)
+                }
+            }
         }
         Text(
             stringResource(theme.labelShortRes),
@@ -240,7 +236,9 @@ private fun ThemeSwatch(
             else MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
             maxLines = 1,
-            modifier = Modifier.padding(top = 6.dp)
+            // 12 dp et non 6 : la bande du curseur descend sous la vignette,
+            // et le nom se lisait au travers.
+            modifier = Modifier.padding(top = 12.dp)
         )
     }
 }
@@ -306,39 +304,7 @@ private fun TrayHalf(
  * outer ring would speak the cursor's language, and on a row where the cursor is
  * also present that gives two rings meaning two different things.
  */
-@Composable
-private fun AccentBead(
-    cuts: AccentCuts,
-    selected: Boolean,
-    onClick: () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .size(46.dp)
-            .controlRing(CircleShape, width = 3.dp, glowRadius = 18.dp)
-            .clip(CircleShape)
-            .background(cuts.bright)
-            .border(1.dp, cuts.ink.copy(alpha = 0.5f), CircleShape)
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center
-    ) {
-        if (selected) {
-            Box(
-                Modifier
-                    .size(14.dp)
-                    .clip(CircleShape)
-                    .background(cuts.ink)
-            )
-        }
-    }
-}
 
-/**
- * The theme's names, at two lengths, and the accent's.
- *
- * They live here rather than on the settings screen because the panel is now
- * where they are read; the settings row borrows them back for its value.
- */
 internal val AppTheme.labelRes: Int
     get() = when (this) {
         AppTheme.SYSTEM -> R.string.settings_theme_system
@@ -356,14 +322,3 @@ internal val AppTheme.labelShortRes: Int
         AppTheme.OLED -> R.string.settings_theme_short_oled
     }
 
-internal val AppAccent.labelRes: Int
-    get() = when (this) {
-        AppAccent.SYSTEM -> R.string.settings_accent_system
-        AppAccent.CYAN -> R.string.settings_accent_cyan
-        AppAccent.AMBER -> R.string.settings_accent_amber
-        AppAccent.VIOLET -> R.string.settings_accent_violet
-        AppAccent.ROSE -> R.string.settings_accent_rose
-        AppAccent.YELLOW -> R.string.settings_accent_yellow
-        AppAccent.RED -> R.string.settings_accent_red
-        AppAccent.WHITE -> R.string.settings_accent_white
-    }

@@ -17,17 +17,9 @@ import androidx.compose.ui.unit.dp
 /**
  * The app's icons, drawn rather than typed.
  *
- * They used to be text: `‹` for back, `✕` to remove a friend, an emoji in
- * every empty state. Three problems with that, and the third is the one that
- * decided it — a character is positioned by the font's metrics, so it never sits
- * quite in the centre of the button it is in; a character inherits the system
- * font on a device whose emoji set is not yours; and an emoji is somebody else's
- * illustration, at somebody else's weight, in the middle of a world that is
- * otherwise entirely moulded.
- *
- * All of them are built the same way: a 24-unit square, round caps, round joins,
- * one stroke weight. That is the whole icon system, and anything added later
- * must be drawn to the same three rules.
+ * Un carre de 24 unites, bouts ronds, jonctions rondes, une seule graisse : tout
+ * ce qu'on ajoute se dessine aux trois memes regles.
+ * pourquoi : docs/decisions/lancement-et-navigation.md § Les icônes de l'app sont dessinées, pas tapées
  */
 
 /** The stroke every icon here is drawn with, relative to its box. */
@@ -85,11 +77,8 @@ fun CheckIcon(size: Dp = 18.dp, color: Color, modifier: Modifier = Modifier) =
     }
 
 /**
- * The signal mark: two arcs leaving a point.
- *
- * Stands where "📡" stood, in the empty and unreachable states of the session
- * finder. Two arcs and a dot is what every radio has been drawn as since the
- * first modem light, and unlike the emoji it is the app's own line weight.
+ * The signal mark: two arcs leaving a point. Remplace « 📡 » dans les etats vides
+ * du chercheur de sessions.
  */
 @Composable
 fun SignalMark(size: Dp = 40.dp, color: Color, modifier: Modifier = Modifier) =
@@ -112,18 +101,12 @@ fun SignalMark(size: Dp = 40.dp, color: Color, modifier: Modifier = Modifier) =
     }
 
 /**
- * The sleep mark: a crescent.
- *
- * Stands where "🌙" stood, on the finder with nobody playing. Drawn as one
- * closed path so the stroke traces a real crescent instead of two arcs that
- * happen to meet.
+ * The sleep mark: a crescent. Un seul chemin ferme, sinon le trait donne deux
+ * arcs qui se rencontrent.
  */
 /**
- * The folder mark: a tab and a body.
- *
- * Stands where "📁" stood, on a library with no ROM folder chosen yet. That
- * empty state is the first thing a new player sees, and it was showing them the
- * system's emoji set rather than the app.
+ * The folder mark: a tab and a body. Remplace « 📁 » sur une bibliotheque sans
+ * dossier — le premier ecran qu'un joueur voit.
  */
 @Composable
 fun FolderMark(size: Dp = 44.dp, color: Color, modifier: Modifier = Modifier) =
@@ -138,20 +121,9 @@ fun FolderMark(size: Dp = 44.dp, color: Color, modifier: Modifier = Modifier) =
     }
 
 /**
- * Caution: this game runs, with something to know first.
- *
- * Just the mark, with no triangle around it.
- *
- * The triangle was there first and it was the wrong shape for the place it sits
- * in: the badge is already a round bead with a white rim, so an outlined shape
- * inside an outlined shape reads as cramped, and it left the caution mark itself
- * too small to see. Its two neighbours are single stroke figures that fill the
- * bead — a tick, a cross — and this is the third of that set rather than a
- * different kind of drawing.
- *
- * The dot is a stroke of no length: a round cap renders it as a disc of exactly
- * the icon weight, so it stays part of the same drawing instead of being a
- * filled shape smuggled into a stroke-only system.
+ * Caution: this game runs, with something to know first. Juste la marque, sans
+ * triangle autour : un contour dans un contour se lit a l'etroit.
+ * pourquoi : docs/decisions/lancement-et-navigation.md § Les icônes de l'app sont dessinées, pas tapées
  */
 @Composable
 fun WarnIcon(size: Dp = 14.dp, color: Color, modifier: Modifier = Modifier) =
@@ -174,13 +146,8 @@ fun BlockedIcon(size: Dp = 14.dp, color: Color, modifier: Modifier = Modifier) =
     }
 
 /**
- * Not tried yet: a wave, meaning "roughly, maybe".
- *
- * Deliberately the quietest of the four marks. A tick, a cross and a caution
- * mark are all verdicts somebody stands behind; this one says only that the
- * game has a multiplayer mode and nobody has taken it out for a run. Drawn as
- * two joined curves rather than a straight line so it reads as the `~` it is
- * meant to be at nine pixels across.
+ * Not tried yet: a wave, meaning « roughly, maybe ». Deliberement la plus
+ * discrete des quatre marques — les trois autres sont des verdicts.
  */
 @Composable
 fun TildeIcon(size: Dp = 14.dp, color: Color, modifier: Modifier = Modifier) =
@@ -323,13 +290,10 @@ fun PencilMark(size: Dp = 14.dp, color: Color, modifier: Modifier = Modifier) =
     }
 
 /**
- * La loupe : un cercle et un manche, le glyphe que toute recherche porte.
- *
- * Elle vivait en deux exemplaires — un `DrawScope` prive dans la barre de la
- * bibliotheque, dessine a des proportions a lui — et le chercheur en aurait
- * fait un troisieme. Un glyphe est le meme partout ou il apparait, sinon ce
- * n'est plus le meme glyphe.
- * pourquoi : docs/decisions/lancement-et-navigation.md § La recherche ouvre le clavier de l'app
+ * La loupe : un cercle et un manche. Elle vivait en deux exemplaires a des
+ * proportions differentes ; un glyphe est le meme partout, sinon ce n'en est
+ * plus le meme.
+ * pourquoi : docs/decisions/lancement-et-navigation.md § Les icônes de l'app sont dessinées, pas tapées
  */
 @Composable
 fun LensMark(size: Dp = 20.dp, color: Color, modifier: Modifier = Modifier) =

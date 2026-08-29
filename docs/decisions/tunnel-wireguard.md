@@ -148,3 +148,23 @@ plutôt que suivi séparément. Trois règles :
   coûte quelque chose au joueur.
 - **Demander le créneau qu'on tient déjà est gratuit** : déplacer le tunnel de
   session vers un autre jeu est un redémarrage, pas un conflit.
+
+## Balayer l'app hors des récents coupe le tunnel
+
+Sans ça, le tunnel survivait à l'app indéfiniment. `START_STICKY` rendait la
+chose pire qu'un simple oubli : tuer le processus et Android ramène le service,
+tunnel compris, sans aucune Emufii à l'écran pour l'arrêter. L'icône de clé reste
+dans la barre d'état et la seule issue passe par les réglages VPN d'Android.
+
+`onDestroy` ne suffisait pas seul : balayer la tâche ne détruit pas un service de
+premier plan démarré, ce qui est tout l'intérêt d'en avoir un. `onTaskRemoved`
+est le seul signal qu'Android donne pour « l'utilisateur en a fini avec cette
+app », donc c'est là que la décision appartient.
+
+**Délibérément inconditionnel.** Balayer l'app pendant que melonDS est encore en
+session coupera la résolution de noms WFC sous lui, mais un tunnel que rien ne
+peut atteindre est la pire des deux pannes — et l'émulateur garde sa propre tâche
+dans les récents, donc le geste vise Emufii précisément.
+
+`stopSelf` compte autant que couper le tunnel : il efface le redémarrage
+collant, donc le service reste à terre au lieu d'être ressuscité.

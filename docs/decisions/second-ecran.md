@@ -88,6 +88,45 @@ physique, celui que donne `dumpsys SurfaceFlinger --display-id`. Sans ça on cod
 au jugé, et ces deux mises en page ratées ont été livrées sans que personne les
 voie.
 
+### Le curseur du panneau tient à deux choses, et une sonde mal placée m'a fait chercher ailleurs
+
+Signalé le 2026-08-28 : « je suis obligé de descendre deux fois pour atteindre le
+bouton sur l'écran du bas, alors qu'une seule fois suffit pour remonter. »
+
+Deux causes, indépendantes, et il fallait les deux pour que le compte tombe juste.
+
+**À l'ouverture, personne ne posait le curseur.** Le pilote le faisait depuis un
+`onFocusChanged` seul, qui courait une course qu'il perdait : le focus se pose
+avant que `publishSteps` n'ait envoyé les étapes au panneau, donc « il y a des
+étapes » était faux au seul instant où la question était posée. Le panneau
+s'ouvrait sans curseur, et la première pression sur Bas ne servait qu'à le faire
+apparaître. Un effet réveillé par `panelLive` **et** par les étapes le pose
+maintenant sans dépendre d'un ordre d'arrivée.
+
+**Au retour de la croix, rien ne le reposait.** L'en-tête consomme Bas et demande
+le focus au pilote ; le pilote le prenait bien, mais plus rien ne désignait
+d'étape, puisque l'effet d'ouverture ne se rejoue pas (ses clés n'ont pas
+changé). D'où la seconde pression. La sélection est donc aussi accrochée au
+retour du focus, qui est le chemin dont il s'agit.
+
+**Et une sonde mal placée m'a fait accuser le mauvais coupable.** J'avais mis
+l'`onFocusChanged` *après* le `focusable()` pour tracer : un `onFocusChanged`
+observe ce qui le **suit** dans la chaîne, donc il ne voyait rien du nœud qu'il
+était censé surveiller, et la trace annonçait « le pilote ne prend jamais le
+focus » alors qu'il le prenait. J'ai bâti sur ce mensonge un correctif qui
+retirait la condition de focus — le seul chemin par lequel le retour depuis la
+croix pouvait marcher. Une sonde se place avant ce qu'elle observe, sans quoi
+elle ment plus sûrement qu'elle n'informe.
+
+Au passage, la demande de focus du pilote a cessé d'être un `delay(150)` — un
+pari sur le calendrier — au profit de la même boucle bornée image par image que
+la coquille, et les deux `focusRequester` empilés sur ce nœud sont redevenus un
+seul : une destination n'a qu'une adresse.
+
+Mesuré à la trace, sur la Thor : à l'ouverture `selectStep(0)` part sans qu'une
+touche soit pressée ; Haut donne `clearStepCursor` et rend le focus ; Bas donne
+`focus=true` puis `selectStep(0)`. Une pression dans chaque sens.
+
 ## R tourne la page depuis les deux écrans
 
 La touche R est la seule commande de la face de survol : elle retourne la
@@ -184,6 +223,24 @@ Il est indexé sur **l'identité du jeu**, pas sur le modèle : la pastille de
 compatibilité et la fiche du catalogue sont publiées un instant après, contre la
 même ROM. Fondre sur le modèle entier dissoudrait une face dans une face presque
 identique à chaque fois, ce qui se voit comme un bégaiement.
+
+### Le fondu occupe toute la place, sinon la face qui part glisse
+
+Ajouté le 2026-08-28. Sans `fillMaxSize`, le conteneur du fondu se dimensionne
+sur son contenu : pendant qu'il dure, les deux faces sont composées, il prend la
+taille de la plus grande, et celle qui part se retrouve centrée dans une boîte
+qui n'est plus la sienne — elle glisse alors qu'elle ne fait que disparaître. Le
+défaut est resté invisible tant que les faces échangées faisaient la même taille
+(deux fiches de jeu) ; il s'est vu en passant de la bibliothèque aux réglages,
+qui n'en font pas. Le fondu remplit donc l'espace, et chaque face se centre
+dedans.
+
+**Corollaire pour toute face à venir : sa hauteur ne doit pas dépendre de son
+contenu.** La face des réglages fige le nombre de lignes de chaque texte — deux
+pour le résumé, remplies ou non. Sans ça, le résumé de « Bibliothèque » passe sur
+deux lignes là où celui de « Profil » tient sur une, le bloc change de hauteur, et
+comme il est centré, la marque et le titre remontent à chaque mouvement du
+curseur dans la grille.
 
 ## La console se lit en direct, les autres faces sont gelées
 
@@ -502,3 +559,323 @@ réponses :
   l'écran avant a été cédé au jeu.
 
 La règle est **pure**, donc lisible et testable sans second écran.
+
+## Les deux bandes sont permanentes, la légende comprise
+
+La légende des touches lit `model.legend` en direct, hors du fondu, et la face au
+repos n'en a aucune. Elle disparaissait donc purement et simplement.
+
+Elle est le dernier enfant de la colonne, et le fondu occupe ce qui reste. En
+s'effaçant, elle lui rendait ses 58 dp d'un coup : le centre du fondu descendait
+de 29 dp, emportant la fiche du jeu encore entièrement visible. **Puis** le fondu
+de 220 ms commençait. Vu de l'extérieur, tout s'adaptait à l'écran d'après avant
+même qu'il y ait une transition.
+
+C'est la troisième fois que ce fichier apprend la même chose : **un fondu croisé
+ne tolère pas deux géométries.** La bande garde donc sa hauteur même vide, comme
+celle du haut, et ce que la face au repos y perd en centrage est le prix d'une
+transition qui ne bouge pas.
+
+La hauteur est celle d'une touche de la légende ; les deux valeurs doivent rester
+d'accord, sans quoi la bande vide et la bande pleine n'ont plus la même taille et
+le saut revient.
+
+## Le panneau arrière s'anime, finalement
+
+Il a été figé pour ne pas payer le fond deux fois : une fenêtre qui se redessine
+coûte le même prix qu'elle soit regardée ou non, et on ne contemple pas le
+panneau — on y jette un œil pour lire un code ou un état.
+
+L'immobilité se remarquait quand même : deux fonds identiques dont un seul
+respire, ça se voit. Et depuis que le lustre est parti, ce qui reste à redessiner
+tient en deux ondes tracées à douze images par seconde — la moitié qu'on
+économisait était déjà la plus petite. Le drapeau `animated` reste pour la
+prochaine surface qui devra vraiment se taire ; plus aucun appelant ne le passe.
+
+## Les coins de la jaquette suivent son échelle, pas sa mesure
+
+La jaquette du panneau est la même tuile que celles de la grille, dessinée bien
+plus grand : 196 dp de côté contre 117 pour une cellule sur la Thor. Elle portait
+pourtant les mêmes formes en dp — et un rayon fixe posé sur une surface 1,7 fois
+plus large paraît 1,7 fois moins arrondi. Le contour blanc du panneau se lisait
+comme un carré à coins cassés à côté du même contour sur l'écran de face.
+
+Les deux formes sont donc exprimées en part de leur côté, la part que les formes
+en dp valent sur une tuile de la grille. L'arrondi est alors le même à l'œil sur
+les deux écrans, quelle que soit la taille que chacun donne à sa tuile. L'écran
+de face n'est pas touché : c'est lui la référence.
+
+## Les trois propriétaires sont autonomes dès la première ligne
+
+Une `ComposeView` refuse de composer si son arbre de vues ne porte pas un
+`LifecycleOwner`, un `ViewModelStoreOwner` et un `SavedStateRegistryOwner`. Sur
+l'écran principal, l'activité fournit les trois et c'est un travail invisible.
+Sur une fenêtre qui n'est pas la sienne, personne ne les fournit, et la panne est
+un plantage à la première image plutôt que quelque chose qu'un compilateur
+attrape.
+
+Le raccourci évident est de prêter les propriétaires de l'activité à la fenêtre
+du second écran. Ça compile, ça tourne, et c'est une impasse : l'hôte pour lequel
+toute cette fonctionnalité existe — un service de premier plan qui garde le
+panneau vivant **pendant que l'émulateur possède l'écran de face** — n'a aucune
+activité à qui emprunter. Écrire le raccourci maintenant reviendrait à écrire
+cette classe plus tard de toute façon, une fois la fonctionnalité livrée dessus.
+
+Le propriétaire est donc autonome dès la première ligne. Les deux hôtes en
+attachent un à leur propre fenêtre, et le second hôte est un abonné plutôt qu'une
+réécriture.
+
+## La face de repos attend son tour
+
+Changer d'écran de face n'est pas atomique : celui qui part rend la main
+(`SecondScreen.clear()`), et celui qui arrive ne publie la sienne qu'une fois
+composé et son curseur posé. Entre les deux, le panneau repassait par
+« Emufii 1.12.7 » — revenir des réglages à la bibliothèque montrait donc le logo
+un instant, puis le jeu visé. Deux fondus de 220 ms pour un mouvement qui n'en
+demandait aucun.
+
+Le repos est retenu le temps d'un délai de grâce. Toute face qui arrive pendant
+ce délai annule l'attente, et le panneau passe directement de l'une à l'autre. Si
+rien ne vient, le repos s'installe, avec un retard que personne ne peut voir
+puisqu'il n'y a alors rien d'autre à regarder.
+
+Ça vit dans l'hôte et non dans `SecondScreen` : l'objet n'a pas de portée de
+coroutine, et lui en donner une sur le fil principal fait tomber les tests
+unitaires de la JVM. La composition en a déjà une.
+
+## Un panneau qui affirme le faux est une panne
+
+Le panneau ne s'abonnait qu'à deux curseurs, celui de la grille et celui du hub
+des réglages. Tout le reste lui était invisible : le curseur monte dans
+l'en-tête, une carte de lancement s'ouvre, une confirmation de fermeture demande
+à trancher — et il continuait d'afficher la dernière chose qu'il connaissait,
+légende comprise. Il annonçait donc « B · Ouvrir » pendant que B ouvrait le
+profil, et il affichait le code d'une session au moment même où l'écran de face
+demandait s'il fallait la fermer.
+
+Un panneau muet aurait été un manque. Un panneau qui affirme le faux est une
+panne, et c'est la différence qui justifie la face `Asking` : elle ne sert pas à
+montrer quelque chose de plus, elle sert à **cesser de montrer quelque chose de
+faux**. Ce qu'elle porte est donc exactement la question posée devant, jamais un
+résumé ni un raccourci.
+
+## Une fiche console tient en deux lignes et un avertissement
+
+Écrite par console parce que la réponse diffère vraiment par console, et que les
+différences sont ce qu'un joueur doit savoir avant d'inviter quelqu'un : la
+Switch rejoint un salon levé sur notre serveur, la DS est une redirection vers un
+service associatif sans aucune session, la PS2 veut une adresse tapée dans le jeu
+à la main. Dire « Emufii te connecte » partout serait plus court et serait un
+mensonge quatre fois sur sept.
+
+**Deux lignes et au plus un avertissement**, et ce plafond est le dessin. Ça se
+lit à bout de bras pendant qu'un curseur traverse une étagère de dossiers ; une
+troisième ligne ne serait lue par personne, et le manuel existe déjà sur l'écran
+de face, où il peut défiler.
+
+L'avertissement est réservé à ce qui se découvrirait autrement comme une panne —
+un émulateur dont la version stable n'a pas d'interface multijoueur, un VPN qui
+doit être levé sans quoi la console appelle en silence des serveurs éteints en
+2014. Pas pour des nuances : une console qui n'a rien à signaler n'en porte
+aucun, et c'est cette absence qui donne du sens à ceux qui sont là.
+
+## Le curseur du panneau ne dépend pas du focus, qui n'arrive jamais
+
+Deux versions fausses avant la bonne. C'était d'abord un `onFocusChanged` seul,
+qui courait une course qu'il perdait à l'ouverture : le focus arrive avant que
+les étapes n'aient été publiées, donc « il y a des étapes » était faux au seul
+instant où la question était posée.
+
+La correction suivante réveillait la sélection sur le focus **ou** sur l'arrivée
+des étapes — sauf que la trace le dit sans ambiguïté : `pilot focus=false` à la
+composition, et plus jamais rien. **Le pilote ne prend pas le focus.** Il reçoit
+les touches parce qu'il est près de la racine et qu'un événement clavier remonte
+la chaîne, pas parce qu'il est désigné.
+
+La bonne condition n'a donc jamais rien eu à voir avec le focus : c'est « le
+panneau porte les commandes, et elles sont publiées ». Le curseur y est dès
+l'ouverture, et la première pression sur Bas n'est plus dépensée à le faire
+apparaître. Il ne se rejoue pas après un départ volontaire vers la croix : ses
+clés n'ont pas changé.
+
+## En session, la légende du pad est vide
+
+`goBack` est nul pour l'écran de session et la pression est **avalée** plutôt que
+transmise : la laisser remonter au système fermait l'app en pleine partie et
+laissait derrière une session que personne ne referme. Quitter est le bouton de
+l'écran, à dessein. Le pad ne fait donc réellement rien sur retour ici, et
+l'imprimer serait un mensonge au seul endroit où le joueur ne peut pas vérifier
+sans quitter la chose qu'on lui explique comment quitter.
+
+Et **plus rien du tout** depuis que le panneau porte les étapes : « B · Ouvrir »
+y restait affiché alors que B, en session, agit sur le contrôle sélectionné de
+l'écran de face, pas sur ce panneau. Une légende qui nomme une touche que la face
+ne prend pas est le seul défaut que cette légende existe pour éviter. Les
+commandes du panneau se pressent au doigt, et un bouton qui porte son nom n'a pas
+besoin qu'on légende le doigt.
+
+## R tourne la page depuis les deux écrans
+
+La touche était écoutée par la grille de l'écran de face, et c'était juste tant
+que le panneau ne pouvait rien recevoir. Depuis qu'il est tactile, une pression
+dessus lui donne le focus de son écran — et R n'atteignait plus personne : la
+commande du panneau cessait de marcher dès qu'on avait touché le panneau.
+
+Les deux écoutes coexistent, chacune sur son écran, et elles appellent la même
+chose. Le focus clavier va à une **fenêtre**, pas à l'appareil : celle qui l'a
+répond, l'autre ne voit rien.
+
+## Toutes les faces se centrent au même endroit
+
+La face au repos a eu droit, une heure durant, à une marge basse qui la remontait
+au milieu du panneau entier plutôt qu'au milieu de ce qui reste sous l'en-tête.
+Elle était mieux centrée, et le remède était pire : pendant le fondu, les deux
+faces sont composées en même temps, l'une avec la marge et l'autre sans — tout
+glissait au moment même où le curseur passait de la grille à l'en-tête, qui est
+précisément le passage le plus fréquent de l'app.
+
+Le fondu occupe donc toute la place, et chaque face se centre dedans. Sans
+`fillMaxSize`, le conteneur du fondu se dimensionne sur son contenu : pendant
+qu'il dure, il prend la taille de la plus grande des deux faces, et celle qui
+part se retrouve centrée dans une boîte qui n'est plus la sienne — elle glisse
+alors qu'elle ne fait que disparaître. Ça ne se voyait pas entre deux fiches de
+jeu, qui font la même taille ; ça s'est vu en passant de la bibliothèque aux
+réglages, qui n'en font pas.
+
+Et la face des réglages a une hauteur **constante par construction** : chaque
+texte a son compte de lignes figé, deux lignes réservées pour le résumé même
+quand il n'en remplit qu'une. Sans ça, le résumé de « Bibliothèque » passe sur
+deux lignes là où celui de « Profil » tient sur une, le bloc change de hauteur,
+et comme il est centré, la marque et le titre remontent ou redescendent à chaque
+mouvement du curseur.
+
+## La marque au repos est une marque, pas un vide avec un numéro dedans
+
+Cette face ne servait qu'aux premières secondes d'un lancement, où personne ne la
+regardait. Elle sert désormais chaque fois que le curseur quitte la grille pour
+l'en-tête — donc plusieurs fois par minute — et le nom de l'app perdu au centre
+de 1240 sur 1080 de noir s'y lisait comme un écran qui n'a pas fini de charger.
+
+Ce qu'on lui ajoute est le motif du fond arrêté à son plus petit format :
+l'escalier de deux tuiles, corail puis turquoise, celui du logo. Rien de neuf à
+apprendre, rien qui bouge, rien qui demande à être lu — et la face au repos
+redevient ce qu'elle prétend être, une machine allumée qui attend.
+
+**Le vrai logo, pas une citation dessinée à la main.** C'était deux tuiles
+tracées au `Canvas`. Ça tenait tant que la face au repos ne paraissait qu'au
+lancement ; elle paraît maintenant plusieurs fois par minute, et une marque
+approchée posée à côté de la vraie sur l'écran de face se lit comme un logo raté,
+pas comme un rappel.
+
+## La face d'une question répète, elle n'en pose pas une autre
+
+Le panneau ne prend aucune décision et n'offre aucun bouton pendant qu'une couche
+modale attend une réponse devant : la réponse se donne sur l'écran de face, où
+vivent les contrôles et où est le curseur. Sa seule tâche est de cesser
+d'afficher la scène précédente — la fiche du jeu, le code de la session — au
+moment où celle-ci est devenue fausse.
+
+D'où la sobriété : un rond, un titre, une ligne. Une face riche ici demanderait au
+joueur de choisir lequel des deux écrans lire pendant qu'on lui demande de
+trancher, et c'est exactement le partage d'attention qu'une modale existe pour
+supprimer.
+
+## La face du hub complète, elle ne prend rien
+
+La marque au-dessus, le nom, sa ligne de description, puis le chemin qui y mène.
+Rien que la tuile de face ne dise déjà : le panneau **complète**, il ne prend rien
+à personne. Ce qu'il ajoute, c'est la taille — un nom lu à bout de bras, sous les
+pouces, pendant que l'œil est encore sur la grille.
+
+Un fondu croisé entre deux entrées, et pas un glissement : les cases du hub ne
+sont pas une suite ordonnée qu'on remonte, elles sont un tableau, et une direction
+inventée dirait un ordre qui n'existe pas.
+
+## Une seule colonne, et le code prend toute la largeur
+
+La version précédente coupait la face de session en deux — l'identité à gauche,
+les commandes à droite — pour gagner de la hauteur. Vu en vrai, c'était pire que
+le problème : chaque colonne tombait à 268 dp, le code se cassait en « NRX- » et
+« 572 », et le port s'écrivait **un chiffre par ligne**.
+
+Le panneau est large (537 dp) et court (320 dp). Ce qui doit s'étaler s'étale
+donc en largeur, et ce qui se répète se met côte à côte : les deux commandes
+partagent une rangée au lieu d'empiler 130 dp. Elles disent la même chose l'une
+que l'autre — « fais ceci, puis cela ». La manette en désigne une par un curseur
+virtuel conduit depuis l'écran de face : le focus ne traverse pas les fenêtres,
+mais l'index sélectionné voyage par le singleton, comme la page de R.
+
+## Chaque face se centre pour elle-même
+
+Le creux du bas remonte **cette face-là, et elle seule**. La face de session est
+centrée dans ce qui reste entre l'en-tête et la légende, et sa légende est vide
+alors que celle des autres ne l'est pas : son centre géométrique tombe donc plus
+bas que le leur, et elle paraissait posée trop bas quand les autres étaient
+justes.
+
+Le creux a d'abord été posé sur la boîte commune, ce qui a remonté les faces du
+menu qui n'avaient rien demandé. Un décalage qui corrige une face se pose sur
+cette face.
+
+## Une étape verrouillée doit rester lisible à bout de bras
+
+Les couleurs désactivées de Material sont réglées pour un bouton qu'on survole à
+trente centimètres : sur le noir du panneau, à la distance où l'on tient une
+console, « 2. Lancer l'émulation » devenait un gris illisible.
+
+Or cette étape n'est pas hors service, elle est **la suivante** — c'est même tout
+ce que la face a à dire sur ce qui va arriver. Elle garde donc une plaque et une
+encre franches, et c'est l'absence d'anneau qui dit qu'on ne peut pas encore la
+presser.
+
+## Une pile plutôt qu'une publication de plus
+
+Les publieurs de fond — la grille, le hub, la session — règlent leur face dans un
+`LaunchedEffect` dont la clé est ce qu'ils observent : le curseur, le code de
+session. Une modale qui aurait simplement publié aurait donc écrasé leur face
+sans qu'aucun d'eux ait de raison de la reposer en repartant, et le panneau serait
+resté sur la question après la réponse.
+
+Le fond est donc conservé intact dessous, et la modale ne fait que le masquer le
+temps qu'elle vit. **Rien à restaurer, donc rien à oublier de restaurer.** Le
+jeton rendu à la pose évite la panne classique de ce genre de pile : deux couches
+ouvertes coup sur coup, la première se ferme en dernier et retire la face de la
+seconde. Ici elle ne retire que la sienne, ou rien.
+
+Il faut distinguer **deux repos** : celui qu'un écran laisse en partant, où il
+faut attendre que le suivant parle, et celui qu'une couche pose délibérément — le
+curseur qui monte dans l'en-tête. Le premier se retient, le second est la réponse
+et doit paraître tout de suite.
+
+Le fond est recalculé à chaque écriture plutôt que dérivé par `combine` : un flux
+dérivé demande une portée, et une portée sur `Dispatchers.Main` construite dans
+l'initialiseur d'un objet fait tomber les tests unitaires de la JVM, qui n'ont pas
+de boucle principale.
+
+## Ce qui voyage au panneau voyage déjà résolu
+
+Les étapes, les amis, les marques : libellé, état, action, tout est calculé sur
+l'écran de face. Deux raisons, et la seconde est mesurée.
+
+L'état qui décide d'un libellé vit dans la composition de l'écran de session.
+Et la fenêtre du panneau a **son propre contexte d'affichage**, qui a déjà fait
+parler l'app en français dans une interface en anglais une fois.
+
+Corollaire pour les marques : un nom, pas un composable. Le modèle vit à portée
+de processus et survit à l'activité ; une lambda de composition retenue là-dedans
+retiendrait avec elle l'arbre qui l'a créée. Le panneau fait la correspondance
+chez lui.
+
+## Le curseur ne s'arrête que sur une étape pressable
+
+Il s'arrêtait sur toutes, verrouillées comprises : « 2. Lancer l'émulation »
+prenait l'anneau alors qu'elle était désactivée tant que l'étape 1 n'avait pas
+abouti, et son libellé restait dans le gris de l'état désactivé. L'élément
+sélectionné était donc le moins lisible de la face, et il annonçait qu'il ne se
+passerait rien.
+
+Une étape verrouillée reste **affichée** — elle dit ce qui vient ensuite, et
+c'est la moitié de l'intérêt d'une liste numérotée — mais elle cesse d'être un
+arrêt. On avance dans le sens demandé jusqu'à la première étape ouverte ; s'il
+n'y en a pas, le curseur ne bouge pas plutôt que d'aller se poser sur un bouton
+mort.

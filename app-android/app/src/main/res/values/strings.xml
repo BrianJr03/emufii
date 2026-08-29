@@ -15,6 +15,14 @@
     <string name="netplay_service_description">Permet à Emufii de remplir l\'adresse de connexion dans le menu multijoueur d\'Azahar ou d\'Eden, pour t\'éviter de la recopier à la main. Emufii n\'observe que ces deux émulateurs, et uniquement pendant une session en cours.</string>
 
     <!-- Library layout and sorting -->
+    <!-- Le panneau arriere, quand le curseur est sur une pastille de la barre du haut. -->
+    <string name="bar_root">Bibliothèque</string>
+    <string name="bar_search_summary">Filtre la bibliothèque au fil de la frappe, toutes consoles confondues.</string>
+    <string name="bar_layout_summary">Grille, carrousel ou liste. La liste est celle qui distingue deux dumps d\'un même jeu.</string>
+    <string name="bar_sort_summary">A → Z, ajouté récemment, ou par console — le tri par console range la bibliothèque en dossiers.</string>
+    <string name="bar_sessions_summary">Les sessions ouvertes, à rejoindre d\'un code ou d\'une touche.</string>
+    <string name="bar_friends_summary">Tes amis, qui est en ligne, et la session où ils jouent.</string>
+    <string name="bar_profile_summary">Ton pseudo, ton avatar et ton code ami. Et tous les réglages de l\'app.</string>
     <string name="lib_layout">Affichage</string>
     <string name="lib_layout_grid">Grille</string>
     <string name="lib_layout_carousel">Carrousel</string>
@@ -35,6 +43,7 @@
     <string name="lib_choose_folder">Choisir un dossier</string>
     <string name="lib_scanning">Scan en cours…</string>
     <string name="lib_create_session">Créer une session</string>
+    <string name="lib_open_session">Session ouverte</string>
     <string name="lib_private_session">Session privée</string>
     <string name="lib_private_session_on">Elle n\'apparaîtra pas dans la liste des sessions : il faudra ton code pour entrer.</string>
     <string name="lib_private_session_off">Elle apparaîtra dans la liste des sessions, où n\'importe qui peut la rejoindre.</string>
@@ -97,6 +106,10 @@
     <string name="session_no_rom">Tu n\'as pas ce jeu</string>
     <string name="session_launch_emulation">Lancer l\'émulation</string>
     <string name="session_launch_step2">2. Lancer l\'émulation</string>
+    <!-- L'etape de lancement une fois passee : le panneau arriere est le seul
+         ecran qui reste visible quand l'emulateur prend celui de devant. -->
+    <string name="session_launch_done">Émulation lancée</string>
+    <string name="session_launch_done_step2">2. Émulation lancée</string>
     <string name="session_netplay_open">1. Paramétrage automatique de %1$s</string>
     <string name="session_netplay_waiting_host">1. En attente de l\'hôte…</string>
     <string name="session_netplay_again">1. Refaire le paramétrage de %1$s</string>
@@ -202,35 +215,17 @@
     <string name="settings_theme_light">Clair</string>
     <string name="settings_theme_dark">Sombre</string>
     <string name="settings_theme_oled">OLED (noir pur)</string>
-    <string name="compat_perfect">Validé, fonctionne</string>
-    <string name="compat_untested">Compatible, pas encore testé</string>
-    <string name="compat_partial">Fonctionne partiellement</string>
-    <string name="compat_broken">Ne fonctionne pas</string>
+    <string name="compat_perfect">Compatible</string>
+    <string name="compat_untested">Pas encore testé</string>
+    <string name="compat_partial">Partiellement compatible</string>
+    <string name="compat_broken">Non compatible</string>
     <string name="common_done">Terminé</string>
     <string name="settings_theme_short_system">Système</string>
     <string name="settings_theme_short_light">Clair</string>
     <string name="settings_theme_short_dark">Sombre</string>
     <string name="settings_theme_short_oled">OLED</string>
-    <string name="settings_accent">Couleur d\'accentuation</string>
-    <string name="settings_accent_system">Couleur système</string>
-    <string name="settings_accent_cyan">Cyan</string>
-    <string name="settings_accent_amber">Ambre</string>
-    <string name="settings_accent_violet">Violet</string>
-    <string name="settings_accent_yellow">Jaune</string>
-    <string name="settings_accent_red">Rouge</string>
-    <string name="settings_accent_white">Blanc</string>
-    <string name="settings_accent_rose">Rose</string>
     <string name="settings_library_fact_folder">Dossier</string>
     <string name="settings_library_note">Les sous-dossiers sont explorés aussi, quelle que soit la console.</string>
-    <string name="settings_library_change">Changer de dossier</string>
-    <string name="settings_keys_fact_effect">Effet</string>
-    <string name="settings_keys_none">Aucune clé. Les jeux Switch et Wii gardent leurs initiales.</string>
-    <string name="settings_keys_ok">Clés en place. Les icônes Switch sont lues.</string>
-    <string name="settings_keys_note">Emufii ne fournit aucune clé et n\'en télécharge aucune : indique ton propre prod.keys, celui que ton émulateur Switch utilise déjà. Il reste sur ton téléphone.</string>
-    <string name="settings_keys_pick">Choisir un fichier de clés</string>
-    <string name="settings_keys_replace">Remplacer les clés</string>
-    <string name="settings_keys_forget">Oublier les clés</string>
-    <string name="settings_keys_bad">Ce fichier ne contient pas les clés attendues.</string>
     <string name="settings_library_rescan">Relancer le scan</string>
     <string name="settings_about_body">Emufii monte le multijoueur distant entre émulateurs : elle partage un réseau, elle ne réimplémente aucun jeu. Distribuée sous licence AGPL 3.0, elle ne route jamais vers les serveurs officiels de Nintendo et ne distribue ni ROM, ni BIOS, ni clés.</string>
     <!-- Settings: the hub and its seven pages -->
@@ -256,14 +251,11 @@
     <string name="settings_about_fact_build">Build</string>
     <!-- Settings screen sections and rows -->
     <string name="settings_row_identity">Pseudo et photo</string>
-    <string name="settings_row_folder">Dossier de ROMs</string>
-    <string name="settings_row_keys">Clés de console</string>
+    <string name="settings_row_folder">Dossiers de ROMs</string>
     <string name="settings_row_artwork">Icônes de jeu</string>
     <string name="settings_row_autofill">Remplissage automatique</string>
     <string name="settings_value_autofill_on">Activé</string>
     <string name="settings_value_autofill_off">Désactivé</string>
-    <string name="settings_keys_state_ok">Clés en place</string>
-    <string name="settings_keys_state_none">Aucune clé</string>
     <string name="settings_autofill_on">Emufii peut écrire l\'adresse dans le menu multijoueur de l\'émulateur : tu n\'as rien à recopier.</string>
     <string name="settings_autofill_off">Emufii ne peut pas remplir le formulaire de l\'émulateur. Les sessions marchent quand même, l\'adresse est juste à saisir à la main.</string>
     <string name="settings_autofill_note">Android peut le couper tout seul, après une mise à jour ou un changement d\'appareil. C\'est ici qu\'on le rallume.</string>
@@ -324,7 +316,7 @@
     <string name="err_not_installed">%1$s n\'est pas installé</string>
     <string name="err_no_netplay_ui">Cette version de %1$s (%2$s) n\'a pas le multijoueur. Mets-la à jour pour jouer en ligne.</string>
     <string name="onb_name_title">Ton pseudo</string>
-    <string name="onb_name_body">Il t\'identifie auprès des autres joueurs, et sert de pseudo dans le multijoueur de l\'émulateur.</string>
+    <string name="onb_name_body">C\'est le nom que tes amis verront. Emufii le donne aussi à l\'émulateur au moment de te connecter à une partie.</string>
     <string name="onb_name_too_short">%1$d caractères minimum : les émulateurs refusent un pseudo plus court.</string>
     <string name="azahar_automation_stopped">Automatisation interrompue, saisis %1$s dans Azahar</string>
     <string name="azahar_fields_filled">Champs remplis, valide dans Azahar</string>
@@ -338,23 +330,18 @@
     <string name="netplay_fields_filled">Champs remplis, valide dans %1$s</string>
     <!-- First run -->
     <string name="onb_welcome_title">Bienvenue dans Emufii</string>
-    <string name="onb_welcome_body">Emufii monte le multijoueur à distance entre émulateurs. Elle partage un réseau entre tes appareils, puis laisse l\'émulateur faire le reste, comme si vous étiez dans la même pièce.</string>
+    <string name="onb_welcome_body">Joue en ligne avec tes amis, sur les émulateurs que tu as déjà. Emufii met vos appareils sur un même réseau : les jeux croient que vous êtes côte à côte, et leur mode multijoueur local marche à travers Internet.</string>
     <string name="onb_start">Commencer</string>
     <string name="onb_next">Continuer</string>
     <string name="onb_skip">Plus tard</string>
     <string name="onb_finish">Terminer</string>
     <string name="onb_folder_title">Où sont tes jeux ?</string>
-    <string name="onb_folder_body">Choisis le dossier de tes ROMs. Les sous-dossiers sont explorés aussi, quelle que soit la console, tu peux garder ton rangement.</string>
-    <string name="onb_folder_done">Dossier choisi</string>
     <string name="onb_notif_title">Te prévenir pendant la partie</string>
     <string name="onb_notif_body">Emufii affiche l\'état du tunnel et du réseau local dans une notification, pendant que tu joues dans l\'émulateur. Sans elle, Android peut couper le réseau quand Emufii passe en arrière-plan.</string>
     <string name="onb_notif_enable">Autoriser les notifications</string>
-    <string name="onb_notif_done">Notifications autorisées</string>
     <string name="onb_notif_refused">Refusé. Tu peux l\'activer plus tard dans les réglages d\'Android.</string>
-    <string name="onb_fill_title">Remplir le netplay à ta place</string>
-    <string name="onb_fill_body">Azahar réclame l\'adresse et le port de l\'hôte à la main, à chaque partie. Si tu l\'autorises, Emufii les saisit pour toi. Elle ne voit que l\'écran d\'Azahar, rien d\'autre.</string>
+    <string name="onb_fill_title">Saisir les adresses à ta place</string>
     <string name="onb_fill_enable">Ouvrir les réglages Android</string>
-    <string name="onb_fill_done">Emufii peut remplir le netplay</string>
 
     <!-- Friends -->
     <string name="friends_title">Amis</string>
@@ -388,18 +375,18 @@
     <string name="profile_reset_confirm">Supprimer ton profil ? C\'est irréversible : ton code ami change, et ta liste d\'amis est effacée.</string>
     <string name="profile_reset_done">Profil supprimé</string>
     <string name="settings_artwork_fact_fallback">Secours</string>
-    <string name="settings_artwork_fallback_on">SteamGridDB, pour ce que Cocoon ne couvre pas</string>
-    <string name="settings_artwork_fallback_off">Aucun</string>
+    <!-- Deux mots, jamais une phrase : une pastille d'etat partage sa ligne avec
+         le titre du bloc, et une etiquette longue efface ce titre. -->
+    <string name="settings_artwork_fallback_on">Clé enregistrée</string>
+    <string name="settings_artwork_fallback_off">Aucune clé</string>
     <string name="settings_cocoon_body">Si tu utilises Cocoon, Emufii peut reprendre les images que tu y as déjà, y compris celles que tu as retouchées. Aucune clé, aucun téléchargement : tes jeux ont ici le visage que tu leur as donné là-bas.</string>
     <string name="settings_cocoon_choose">Choisir le dossier Cocoon</string>
     <string name="settings_cocoon_change">Changer de dossier</string>
     <string name="settings_cocoon_forget">Ne plus utiliser</string>
-    <string name="settings_artwork_body">Les ROMs ne portent qu\'une icône de 32 ou 48 pixels. Avec une clé SteamGridDB, la bibliothèque va chercher de vraies icônes, nettes.</string>
+    <string name="settings_artwork_body">Une ROM ne contient qu\'une icône de 32 ou 48 pixels. Avec une clé SteamGridDB, Emufii va chercher de vraies jaquettes pour les jeux que Cocoon ne couvre pas.</string>
     <string name="settings_artwork_field">Clé SteamGridDB</string>
     <string name="settings_artwork_where">Clé gratuite sur steamgriddb.com, dans les préférences de ton compte. Sans elle, les icônes des ROMs restent affichées.</string>
     <string name="onb_artwork_title">Une belle bibliothèque</string>
-    <string name="onb_artwork_body">Les ROMs ne portent qu\'une icône minuscule. Une clé SteamGridDB, gratuite, remplace ça par de vraies icônes de jeu.</string>
-    <string name="onb_artwork_where">À créer sur steamgriddb.com, dans les préférences de ton compte. Tu peux passer et la donner plus tard dans les réglages.</string>
     <string name="tile_menu_icon">Changer l\'icône</string>
     <string name="icon_pick_title">Choisir une icône</string>
     <string name="icon_pick_search">Nom du jeu</string>
@@ -499,6 +486,7 @@
     <string name="pad_hint_back">Retour</string>
     <string name="pad_hint_hold">Maintenir · Menu du jeu</string>
     <string name="pad_hint_details">Détails</string>
+    <string name="pad_hint_erase">Supprimer</string>
     <string name="panel_vps">Serveur Emufii</string>
     <string name="panel_vps_online">En ligne</string>
     <string name="panel_vps_offline">Hors ligne</string>
@@ -570,6 +558,10 @@
     <string name="settings_notify_updates">Mises à jour</string>
     <string name="settings_second_screen_switch">Afficher sur le panneau arrière</string>
     <string name="settings_library_subfolders">Sous-dossiers explorés aussi, quelle que soit la console.</string>
+    <string name="settings_row_fallback">Images de secours</string>
+    <string name="settings_library_second_note">Second dossier, exploré avec le premier.</string>
+    <string name="settings_library_add_second">Ajouter un 2e dossier</string>
+    <string name="settings_library_remove_second">Retirer le 2e</string>
     <string name="settings_about_fact_licence">Licence</string>
     <string name="settings_about_licence_value" translatable="false">AGPL 3.0</string>
     <string name="settings_about_join">Rejoindre</string>
@@ -589,4 +581,80 @@
     </plurals>
     <string name="friends_panel_title">Liste d\'amis</string>
     <string name="friends_count_online">%1$d en ligne</string>
+    <plurals name="join_code_remaining">
+        <item quantity="one">Encore %d caractère</item>
+        <item quantity="other">Encore %d caractères</item>
+    </plurals>
+    <string name="prep_taking_long">C\'est plus long que d\'habitude. Le tunnel ou le serveur ne répond peut-être pas.</string>
+    <string name="prep_give_up">Laisser tomber</string>
+    <string name="panel_asking_launch">Choisis comment lancer la partie sur l\'écran de devant.</string>
+
+    <!-- ONBOARDING — le parcours du premier lancement.
+         Il n'a pas de longueur fixe : les pages d'emulateur ne paraissent que
+         pour les consoles que le joueur garde. Voir OnboardingScreen.kt. -->
+
+    <!-- Le nom de l'etape, sous les points. Court : c'est un reperage, pas un titre. -->
+    <string name="onb_rail_welcome">Bienvenue</string>
+    <string name="onb_rail_name">Ton pseudo</string>
+    <string name="onb_rail_folder">Tes jeux</string>
+    <string name="onb_rail_consoles">Tes consoles</string>
+    <string name="onb_rail_cocoon">Jaquettes locales</string>
+    <string name="onb_rail_artwork">Jaquettes en ligne</string>
+    <string name="onb_rail_ppsspp">PSP · PPSSPP</string>
+    <string name="onb_rail_ps2">PS2 · ARMSX2</string>
+    <string name="onb_rail_autofill">Remplissage auto</string>
+    <string name="onb_rail_notif">Notifications</string>
+    <string name="onb_rail_done">C\'est prêt</string>
+
+    <string name="onb_name_field">Pseudo</string>
+    <string name="onb_name_note">Tu pourras en changer à tout moment dans Réglages → Profil.</string>
+
+    <string name="onb_folder_body">Emufii lit tes ROMs là où elles sont déjà. Elle ne les déplace pas, ne les renomme pas, n\'écrit rien dedans.</string>
+    <string name="onb_folder_step1">Appuie sur Choisir le dossier : le sélecteur d\'Android s\'ouvre.</string>
+    <string name="onb_folder_step2">Va jusqu\'au dossier qui contient tes jeux, puis valide avec Utiliser ce dossier.</string>
+    <string name="onb_folder_step3">Emufii regarde aussi dans les sous-dossiers. Tu peux garder ton classement habituel, toutes consoles mélangées.</string>
+    <string name="onb_folder_after">Emufii cherchera tes jeux dès que tu auras terminé. Compte quelques secondes, même pour plusieurs centaines de jeux.</string>
+    <string name="onb_folder_change">Choisir un autre dossier</string>
+
+    <string name="onb_consoles_body">Choisis les consoles auxquelles tu joues. Les autres n\'apparaîtront pas dans ta bibliothèque, et on ne t\'embêtera pas avec leurs réglages.</string>
+    <string name="onb_consoles_note">Tu peux changer d\'avis à tout moment dans Réglages → Consoles.</string>
+
+    <string name="onb_cocoon_title">Tu utilises déjà Cocoon ?</string>
+    <string name="onb_cocoon_body">Cocoon a téléchargé de vraies jaquettes pour tes jeux. Emufii peut les lire directement : pas de compte, pas de clé, pas de réseau.</string>
+    <string name="onb_cocoon_pill_on">Dossier lié</string>
+    <string name="onb_cocoon_pill_off">Facultatif</string>
+    <string name="onb_cocoon_step1">Appuie sur Choisir le dossier de Cocoon.</string>
+    <string name="onb_cocoon_step2">Va dans Android → data → le dossier de Cocoon, puis valide.</string>
+    <string name="onb_cocoon_step3">Emufii n\'y lit que les images. Elle n\'écrit jamais dans le dossier de Cocoon.</string>
+    <string name="onb_cocoon_after">Emufii utilisera en priorité les jaquettes de Cocoon. Seule une image que tu as choisie toi-même passe avant.</string>
+
+    <string name="onb_artwork_body">Sans Cocoon, tes jeux n\'ont que la minuscule icône rangée dans la ROM. Une clé SteamGridDB, gratuite, la remplace par une vraie jaquette.</string>
+    <string name="onb_artwork_step1">Crée un compte sur steamgriddb.com — c\'est gratuit.</string>
+    <string name="onb_artwork_step2">Va dans les préférences de ton compte, section API, et génère une clé.</string>
+    <string name="onb_artwork_step3">Colle-la ci-dessous. Elle ne sert qu\'à chercher des images, et reste sur l\'appareil.</string>
+
+    <string name="onb_ppsspp_title">La PSP demande un réglage</string>
+    <string name="onb_ppsspp_body">PPSSPP n\'accepte pas qu\'on lui donne une adresse de l\'extérieur. Emufii doit donc l\'écrire elle-même dans ses fichiers, avant chaque partie — d\'où le dossier à lui indiquer une bonne fois.</string>
+
+    <string name="onb_ps2_title">La PS2 demande un profil réseau</string>
+    <string name="onb_ps2_body">Comme sur la vraie console, les jeux PS2 vont chercher leurs réglages réseau sur la carte mémoire. Emufii y installe un profil une bonne fois pour toutes : ensuite, tu n\'y touches plus.</string>
+
+    <string name="onb_fill_body">Avant chaque partie, l\'émulateur demande l\'adresse et le port de l\'hôte, à taper à la main. Si tu l\'autorises, Emufii les remplit pour toi. Elle ne voit que l\'écran de l\'émulateur qu\'elle remplit, rien d\'autre.</string>
+
+    <string name="onb_notif_pill_on">Autorisées</string>
+    <string name="onb_notif_pill_off">À décider</string>
+    <string name="onb_notif_step1">Appuie sur Autoriser : Android pose la question.</string>
+    <string name="onb_notif_step2">Réponds Autoriser. C\'est ce qui garde le tunnel ouvert pendant que tu joues.</string>
+    <string name="onb_notif_after">Pendant une partie, une notification affiche l\'état du tunnel et le code de session.</string>
+
+    <string name="onb_done_title">Tout est en place</string>
+    <string name="onb_done_body">Ta bibliothèque s\'ouvre juste après. Vise un jeu, appuie sur B pour le lancer, ou crée une session pour y jouer à plusieurs.</string>
+    <string name="onb_done_where">Tout ce que tu as passé se retrouve dans les Réglages, avec les mêmes explications.</string>
+    <string name="onb_recap_folder">Dossier de jeux</string>
+    <string name="onb_recap_artwork">Jaquettes</string>
+    <string name="onb_recap_ppsspp">PPSSPP configuré</string>
+    <string name="onb_recap_ps2">Profil réseau PS2</string>
+    <string name="onb_recap_autofill">Remplissage automatique</string>
+    <string name="onb_recap_notif">Notifications</string>
+    <string name="onb_recap_later">Plus tard</string>
 </resources>

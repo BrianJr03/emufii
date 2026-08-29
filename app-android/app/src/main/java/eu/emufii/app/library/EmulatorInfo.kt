@@ -37,9 +37,21 @@ data class EmulatorInfo(
     val installedPackage: String?,
     /** What the installed build calls itself, when it says. */
     val version: String?,
-    val icon: ImageBitmap?
+    val icon: ImageBitmap?,
+    /**
+     * Toutes les builds installees, pas seulement celle qui va s'ouvrir.
+     *
+     * Vide ou a un seul element dans le cas ordinaire ; c'est au-dela que la
+     * page des consoles a quelque chose a demander.
+     */
+    val variants: List<EmulatorVariant> = emptyList(),
+    /** Vrai quand cette build est un choix du joueur et non le defaut. */
+    val chosenExplicitly: Boolean = false
 ) {
     val installed: Boolean get() = installedPackage != null
+
+    /** La build qui va s'ouvrir, telle que le systeme la nomme. */
+    val variant: EmulatorVariant? get() = variants.firstOrNull { it.packageName == installedPackage }
 }
 
 /**
@@ -71,9 +83,10 @@ val Console.emulatorPackages: List<String>
  */
 fun emulatorInfo(context: Context, console: Console): EmulatorInfo {
     val pm = context.packageManager
-    val pkg = console.emulatorPackages.firstOrNull { candidate ->
-        runCatching { pm.getPackageInfo(candidate, 0) }.isSuccess
-    }
+    // La meme fonction que les lanceurs appellent : ce que cette page annonce
+    // est, par construction, ce qui s'ouvrira.
+    val variants = EmulatorPick.variants(context, console)
+    val pkg = EmulatorPick.packageFor(context, console)
     val version = pkg?.let {
         runCatching { pm.getPackageInfo(it, 0).versionName }.getOrNull()
     }
@@ -87,7 +100,9 @@ fun emulatorInfo(context: Context, console: Console): EmulatorInfo {
         name = console.backend.emulatorName,
         installedPackage = pkg,
         version = version,
-        icon = icon
+        icon = icon,
+        variants = variants,
+        chosenExplicitly = EmulatorPick.chosen(context, console) != null
     )
 }
 

@@ -424,3 +424,64 @@ remplissage. D'où un titre, et un corps à pleine force.
 « You, Bibi and Théo ») : l'écrire à la main allait tant que l'app parlait une
 seule langue, mais la conjonction et la place des virgules changent avec la
 locale.
+
+## Un seul `focusRequester` par nœud, et c'est celui de la coquille
+
+Il y en avait deux empilés sur le même nœud — celui du pilote et celui de la
+coquille — et la trace disait que le nœud ne prenait **jamais** le focus : ni
+`focus=true`, ni même `hasFocus=true`, pas une fois. Conséquence, la demande que
+l'en-tête envoie sur Bas tombait dans le vide, la touche était consommée quand
+même, et il en fallait une seconde pour revenir au panneau — pendant que Haut,
+qui ne demande rien à personne, marchait du premier coup.
+
+Le pilote *reçoit* les touches sans avoir le focus, parce qu'il est près de la
+racine et qu'un événement clavier remonte la chaîne. Mais recevoir n'est pas être
+désigné : pour qu'on puisse lui **rendre** le curseur, il faut qu'il soit une
+destination, et une destination n'a qu'une adresse.
+
+Le pilote réclame ensuite le curseur image par image. Une seule demande après
+150 ms tenait avant : le focus initial de Compose désigne l'en-tête, déclaré avant
+le contenu, et il gagnait contre elle. Le délai était un pari sur le calendrier ;
+la boucle est la même réponse que celle de la coquille — redemander tant que le
+nœud n'est pas placé, sans regarder si ça a marché, et borner.
+
+## Le retour ferme la session, donc il porte une croix et il demande
+
+Il y avait deux contrôles pour un seul geste : le bouton de retour, qui quittait
+sur-le-champ, et « Fermer la session » à l'autre bout de l'en-tête. Un seul reste
+— celui qu'on trouve sans le chercher, parce qu'il est là sur tous les autres
+écrans — et il cesse de promettre un retour en arrière : une croix rouge, et une
+question avant de couper le tunnel.
+
+## Ce que le panneau porte, l'écran de face le rend en place
+
+Trois endroits appliquent la même règle, et chacun rend sa place à autre chose :
+
+- **La pastille du code** ne paraît de face que si le panneau ne la porte pas :
+  il l'affiche en 64 sp au dos, la redire en 19 sp ne sert personne.
+- **Le volet d'état** est plus étroit panneau allumé — il ne reste que la
+  présence — et les 52 dp rendus vont à la colonne de droite, où l'explication
+  passe alors sur moins de lignes.
+- **Le jeu encadré** ne s'affiche **que** dans le vide que le panneau a laissé.
+  Rendu dans les deux cas, il cassait la carte de présence en mono-écran : deux
+  enfants pondérés se partagent l'espace libre, donc la carte des joueurs se
+  retrouvait plafonnée à la moitié d'une colonne. Sans panneau, il n'y a pas de
+  vide à remplir — c'est le panneau qui le crée en prenant l'adresse.
+
+Et le fondu du bas **n'existe qu'en mono-écran**. Il est là pour qu'un texte trop
+long se dissolve au lieu d'être coupé au milieu d'un mot, ce qui est le cas quand
+les deux commandes vivent sous lui et lui prennent sa hauteur. Panneau allumé,
+elles sont au dos, la colonne a l'écran entier — et un dégradé qui éteint le bas
+d'une carte pleine se lit alors comme un défaut d'affichage.
+
+## Copier l'adresse n'a plus de sens depuis qu'Emufii la remplit
+
+Les boutons « copier » venaient d'une époque où le joueur remplissait le
+formulaire de l'émulateur à la main. Emufii le remplit pour lui, et quand elle ne
+peut pas — Android ayant coupé le service — la carte au-dessus dit quoi taper.
+
+Le presse-papier ne saurait de toute façon porter la chose qu'à moitié : il ne
+tient qu'une valeur à la fois et la boîte de dialogue en veut deux.
+
+Ils coûtaient 62 dp, et c'est exactement ce qui manquait pour que ce panneau
+tienne sans défiler.

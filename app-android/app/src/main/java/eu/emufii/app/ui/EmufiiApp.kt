@@ -4,6 +4,11 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.runtime.CompositionLocalProvider
 import eu.emufii.app.compat.LocalCompatDb
 import eu.emufii.app.compat.CompatCheck
@@ -11,11 +16,13 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import eu.emufii.app.LocalEnsureVpnPermission
@@ -29,6 +36,9 @@ import eu.emufii.app.azahar.PlanStore
 import eu.emufii.app.network.CoordinatorError
 import eu.emufii.app.network.CreatedSession
 import eu.emufii.app.library.Console
+import eu.emufii.app.library.GameTitles
+import eu.emufii.app.artwork.ArtworkPreload
+import eu.emufii.app.library.allEmulators
 import eu.emufii.app.notify.AppForeground
 import eu.emufii.app.notify.FriendEvent
 import eu.emufii.app.notify.FriendWatcher
@@ -114,12 +124,18 @@ private fun Rom.toRef() =
     )
 
 /**
- * The splash screen's token, at process scope — a `rememberSaveable` is
- * restored with the activity, so the logo would come back.
- * pourquoi : docs/decisions/lancement-et-navigation.md § Le logo, une fois par processus et jamais au premier lancement
+ * The splash screen's token, at process scope — un `rememberSaveable` revient
+ * avec l'activite. [rearm] est appele a chaque demarrage reel, sauf en session.
+ * pourquoi : docs/decisions/lancement-et-navigation.md § Le préchargement tourne, et l'app se compose derrière lui
  */
-private object SplashGate {
-    var pending = true
+internal object SplashGate {
+    var pending by mutableStateOf(true)
+    var sessionAlive = false
+
+    fun rearm() {
+        if (!sessionAlive) pending = true
+    }
+
 }
 
 private const val DEFAULT_PORT = 24872
@@ -157,6 +173,7 @@ private suspend fun pollHostIp(client: CoordinatorClient, code: String): String?
 
 @Composable
 fun EmufiiApp(settings: SettingsStore) {
+    SilenceSystemSfx()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val client = remember { CoordinatorClient() }
@@ -176,12 +193,16 @@ fun EmufiiApp(settings: SettingsStore) {
     var screen by remember {
         mutableStateOf<Screen>(if (onProfilePage) Screen.ProfileAndSettings else Screen.Library)
     }
-    // Ce que le panneau recoit est derive de `screen` — jamais pousse depuis un
-    // site d'appel — pour qu'il ne puisse pas etre en desaccord avec l'app. Le
-    // bloc vit ici, apres l'etat des amis, parce qu'une des faces en depend.
-    // pourquoi : docs/decisions/lancement-et-navigation.md § Ce que le second écran reçoit
-    // The panel must not survive the app that feeds it: a stale code glowing
-    // on a handheld's back is the failure this feature gets blamed for.
+    // The gate must not re-arm while a session lives: coming back from the
+    // emulator has to land back in the session's screen, not in front of the
+    // logo. Preparation counts too — the VPN prompt and the emulator's launch
+    // both pass through activity stops on their way there.
+    SideEffect {
+        SplashGate.sessionAlive =
+            screen is Screen.InSession || screen is Screen.Preparing
+    }
+    // Derive de `screen`, jamais pousse depuis un site d'appel : le panneau ne
+    // peut pas etre en desaccord avec l'app, et il ne lui survit pas.
     // pourquoi : docs/decisions/lancement-et-navigation.md § Ce que le second écran reçoit
     DisposableEffect(Unit) { onDispose { SecondScreen.clear() } }
 
@@ -190,12 +211,14 @@ fun EmufiiApp(settings: SettingsStore) {
     var onboarding by remember { mutableStateOf(!settingsStore.onboardingDone) }
 
     /**
-     * The splash screen, once per process and never on the first launch.
-     * pourquoi : docs/decisions/lancement-et-navigation.md § Le logo, une fois par processus et jamais au premier lancement
+     * The splash screen, never on the first launch: the onboarding owns that
+     * moment. Read straight off the gate's snapshot state rather than copied
+     * into a `remember`, so a re-arm from the activity is picked up without
+     * waiting for a recomposition the gate cannot itself cause.
      */
-    var splashing by remember {
-        mutableStateOf(SplashGate.pending && settingsStore.onboardingDone)
-    }
+    val splashing = SplashGate.pending && settingsStore.onboardingDone
+
+
     val ensureVpn = LocalEnsureVpnPermission.current
 
 
@@ -205,6 +228,8 @@ fun EmufiiApp(settings: SettingsStore) {
      * pourquoi : docs/decisions/lancement-et-navigation.md § Ce qui est hissé au niveau de l'app, et pourquoi
      */
     var libraryFolder by remember { mutableStateOf(romsRepo.savedFolderLabel()) }
+    /** Le second dossier, optionnel : null tant que le joueur n'en a pas ajoute. */
+    var librarySecondFolder by remember { mutableStateOf(romsRepo.secondFolderLabel()) }
     var libraryScanning by remember { mutableStateOf(false) }
     var libraryCount by remember { mutableStateOf<Int?>(null) }
     var libraryRevision by remember { mutableStateOf(0) }
@@ -230,6 +255,28 @@ fun EmufiiApp(settings: SettingsStore) {
         // do it anyway, but then the settings page has no count to report.
         rescanLibrary()
     }
+
+    /** Le second dossier s'ajoute au premier ; le refus dit qu'ils etaient le meme. */
+    fun changeSecondLibraryFolder(uri: Uri) {
+        if (!romsRepo.setSecondFolder(uri)) return
+        librarySecondFolder = romsRepo.secondFolderLabel()
+        libraryCount = null
+        rescanLibrary()
+    }
+
+    fun removeSecondLibraryFolder() {
+        romsRepo.clearSecondFolder()
+        librarySecondFolder = null
+        libraryCount = null
+        rescanLibrary()
+    }
+
+    /**
+     * Le numero de la tentative en cours : renoncer l'incremente, ce qui rend
+     * orpheline toute tentative en vol sans savoir ou elle en est.
+     * pourquoi : docs/decisions/lancement-et-navigation.md § Une tentative en vol ne doit pas téléporter quelqu'un qui a renoncé
+     */
+    var prepEpoch by remember { mutableIntStateOf(0) }
 
     fun fail(message: String, back: Screen = Screen.Library) {
         Toast.makeText(context, message, Toast.LENGTH_LONG).show()
@@ -321,6 +368,7 @@ fun EmufiiApp(settings: SettingsStore) {
 
             ensureVpn(
                 onGranted = {
+                    val epoch = prepEpoch
                     screen = Screen.Preparing(context.getString(R.string.flow_connecting_tunnel))
                     scope.launch {
                         // Claiming the address also publishes host_ip: the
@@ -348,6 +396,7 @@ fun EmufiiApp(settings: SettingsStore) {
                         // pourquoi : docs/decisions/lancement-et-navigation.md § Le créneau VPN unique d'Android
                         val netplayPort = rom.console.backend.defaultNetplayPort
                         client.patchSession(code, info.address, netplayPort, hostToken)
+                        if (prepEpoch != epoch) return@launch
                         screen = Screen.InSession(
                             Session(
                                 code = code,
@@ -411,6 +460,7 @@ fun EmufiiApp(settings: SettingsStore) {
 
                 ensureVpn(
                     onGranted = {
+                        val epoch = prepEpoch
                         screen = Screen.Preparing(context.getString(R.string.flow_connecting_tunnel))
                         scope.launch {
                             // Full is not broken: 503 means full, 429 means
@@ -447,6 +497,7 @@ fun EmufiiApp(settings: SettingsStore) {
                             // pourquoi : docs/decisions/lancement-et-navigation.md § Le créneau VPN unique d'Android
                             val memberToken = client.heartbeat(code, profile.id, profile.name)
                                 .getOrNull()?.memberToken
+                            if (prepEpoch != epoch) return@launch
                             screen = Screen.InSession(
                                 Session(
                                     code = code,
@@ -636,19 +687,31 @@ fun EmufiiApp(settings: SettingsStore) {
         return
     }
 
-    if (splashing) {
-        // The scan happens here, not in the library: it fills the shared cache
-        // so the grid finds it warm and never shows a loader.
-        var libraryReady by remember { mutableStateOf(false) }
-        LaunchedEffect(Unit) {
-            withContext(Dispatchers.IO) { runCatching { romsRepo.cachedOrScan() } }
-            libraryReady = true
+    /**
+     * Le prechargement tourne, et l'app se compose **derriere** le logo : quand
+     * il s'en va, il decouvre une image deja finie.
+     * pourquoi : docs/decisions/lancement-et-navigation.md § Le préchargement tourne, et l'app se compose derrière lui
+     */
+    var libraryReady by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        val roms = withContext(Dispatchers.IO) {
+            runCatching { romsRepo.cachedOrScan() }.getOrDefault(emptyList())
         }
-        SplashScreen(
-            ready = libraryReady,
-            onDone = { SplashGate.pending = false; splashing = false }
-        )
-        return
+        val warm = launch(Dispatchers.IO) {
+            // Les noms que les fichiers chiffrés ne donnent pas.
+            runCatching { GameTitles.refresh(context, roms) }
+            // Les pastilles, pour qu'elles soient sur la première image.
+            runCatching { CompatCheck.refresh(context) }
+            // Les paquets d'émulateurs et leurs icônes : sept requêtes au
+            // système et autant de tramages, payés une fois ici plutôt qu'à
+            // l'ouverture de la page des consoles.
+            runCatching { allEmulators(context) }
+            // Et les jaquettes : les index de dossier, les adresses, puis le
+            // décodage des deux premiers écrans de grille.
+            runCatching { ArtworkPreload.warm(context, roms) }
+        }
+        withTimeoutOrNull(PRELOAD_MS) { warm.join() }
+        libraryReady = true
     }
 
     /**
@@ -670,8 +733,9 @@ fun EmufiiApp(settings: SettingsStore) {
     BackHandler(enabled = screen != Screen.Library) { goBack?.invoke() }
 
     /**
-     * The compatibility ratings: cache read *synchronously* so the badges are on
-     * the first frame, network behind it, never replacing with less.
+     * The compatibility ratings: cache lu *synchroniquement* pour que les
+     * pastilles soient sur la premiere image, reseau derriere, et jamais de
+     * remplacement par moins.
      * pourquoi : docs/decisions/lancement-et-navigation.md § Ce qui est hissé au niveau de l'app, et pourquoi
      */
     var compat by remember { mutableStateOf(CompatCheck.cached(context)) }
@@ -724,7 +788,16 @@ fun EmufiiApp(settings: SettingsStore) {
             onJoin = { code, romTitleId, romTitle -> joinKnownSession(code, romTitleId, romTitle) },
             onBack = { screen = Screen.Library }
         )
-        is Screen.Preparing -> PreparingScreen(label = s.label)
+        is Screen.Preparing -> PreparingScreen(
+            label = s.label,
+            onGiveUp = {
+                // Le compteur d'abord, le tunnel ensuite : la tentative en vol
+                // devient orpheline avant qu'on lui retire le sol.
+                prepEpoch++
+                EmufiiWgManager.stop(context)
+                screen = Screen.Library
+            }
+        )
         is Screen.Join -> JoinScreen(
             rom = s.rom,
             client = client,
@@ -738,9 +811,12 @@ fun EmufiiApp(settings: SettingsStore) {
             settingsStore = settingsStore,
             romsRepo = romsRepo,
             libraryFolder = libraryFolder,
+            librarySecondFolder = librarySecondFolder,
             libraryScanning = libraryScanning,
             libraryCount = libraryCount,
             onFolderPicked = { uri -> changeLibraryFolder(uri) },
+            onSecondFolderPicked = { uri -> changeSecondLibraryFolder(uri) },
+            onSecondFolderRemoved = { removeSecondLibraryFolder() },
             onRescan = { rescanLibrary() },
             onBack = {
                 onProfilePage = false
@@ -780,6 +856,17 @@ fun EmufiiApp(settings: SettingsStore) {
     }
     }
 
+    // **Le logo, par-dessus tout le reste et en dernier.**
+    //
+    // Opaque et plein écran : rien de ce qui est composé dessous ne se voit, et
+    // tout y est déjà mesuré et peint quand il s'efface.
+    if (splashing) {
+        SplashScreen(
+            ready = libraryReady,
+            onDone = { SplashGate.pending = false }
+        )
+    }
+
     // Over every screen, and before the conflict dialog in source order: the
     // dialog covers it, which is the right way round when both happen.
     FriendAlert(
@@ -816,3 +903,11 @@ private fun friendNoteText(context: android.content.Context, event: FriendEvent)
             ?: context.getString(R.string.notify_friend_in_game, name)
     }
 }
+
+/**
+ * Ce qu'on accorde aux prechauffages : quatre secondes gratuites, deux de plus
+ * pour un demarrage a froid. Le plafond du splash reste au-dessus.
+ * pourquoi : docs/decisions/lancement-et-navigation.md § Le préchargement tourne, et l'app se compose derrière lui
+ */
+private const val PRELOAD_MS = 6_000L
+

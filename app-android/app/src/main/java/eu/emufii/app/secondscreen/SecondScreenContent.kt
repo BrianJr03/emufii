@@ -1,5 +1,6 @@
 package eu.emufii.app.secondscreen
 
+import eu.emufii.app.ui.sounded
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.SizeTransform
@@ -16,11 +17,16 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -33,6 +39,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.foundation.Image
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -45,13 +52,20 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -68,19 +82,24 @@ import eu.emufii.app.meta.GameMeta
 import eu.emufii.app.session.Session
 import eu.emufii.app.ui.components.CompatBadge
 import eu.emufii.app.ui.components.compatLabel
+import eu.emufii.app.ui.components.VpsLamp
 import eu.emufii.app.ui.theme.ArtworkShape
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import eu.emufii.app.ui.theme.AccentGreen
+import eu.emufii.app.ui.theme.GoodLight
+import eu.emufii.app.ui.theme.GoodDark
 import eu.emufii.app.secondscreen.PanelFriend
 import eu.emufii.app.ui.components.Avatar
 import androidx.compose.runtime.setValue
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import eu.emufii.app.ui.components.CrossIcon
 import eu.emufii.app.ui.components.GhostButton
-import eu.emufii.app.ui.theme.ShellRed
+import eu.emufii.app.ui.theme.ErrorLight
+import eu.emufii.app.ui.theme.ErrorDark
+import eu.emufii.app.ui.theme.InkText
 import eu.emufii.app.ui.ActionShape
+import eu.emufii.app.ui.focusRing
 import eu.emufii.app.ui.theme.CardShape
 import eu.emufii.app.ui.theme.LocalAccent
 import eu.emufii.app.ui.theme.LocalEmufiiDarkTheme
@@ -104,6 +123,19 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import eu.emufii.app.ui.wallpaper.TrayBackdrop
+import eu.emufii.app.ui.components.InfoMark
+import eu.emufii.app.ui.components.SlidersMark
+import eu.emufii.app.ui.components.PaintMark
+import eu.emufii.app.ui.components.ChipMark
+import eu.emufii.app.ui.components.GridMark
+import eu.emufii.app.ui.components.LensMark
+import eu.emufii.app.ui.components.SignalMark
+import eu.emufii.app.ui.components.ShelfMark
+import eu.emufii.app.ui.components.PersonMark
+import eu.emufii.app.ui.theme.Teal
+import eu.emufii.app.ui.theme.Coral
+import eu.emufii.app.ui.tap
+import eu.emufii.app.ui.SilenceSystemSfx
 
 /**
  * What the second panel draws, whoever is holding the window.
@@ -112,20 +144,12 @@ import eu.emufii.app.ui.wallpaper.TrayBackdrop
  */
 @Composable
 fun SecondScreenContent(model: SecondScreenModel) {
+    SilenceSystemSfx()
     val dark = LocalEmufiiDarkTheme.current
     val page by SecondScreen.page.collectAsState()
 
-    // **R tourne la page, quel que soit l'ecran qui a le focus.**
-    //
-    // La touche etait ecoutee par la grille de l'ecran de face, et c'etait juste
-    // tant que le panneau ne pouvait rien recevoir. Depuis qu'il est tactile,
-    // une pression dessus lui donne le focus de son ecran — et R n'atteignait
-    // plus personne : la commande du panneau cessait de marcher des qu'on avait
-    // touche le panneau.
-    //
-    // Les deux ecoutes coexistent, chacune sur son ecran, et elles appellent la
-    // meme chose. Le focus clavier va a une fenetre, pas a l'appareil : celle
-    // qui l'a repond, l'autre ne voit rien.
+    // Deux ecoutes, une par ecran : le focus clavier va a une fenetre, pas a
+    // l'appareil, et le panneau est tactile depuis qu'il porte les etapes.
     // pourquoi : docs/decisions/second-ecran.md § R tourne la page depuis les deux écrans
     val keys = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { keys.requestFocus() } }
@@ -153,6 +177,9 @@ fun SecondScreenContent(model: SecondScreenModel) {
         // than shown through.
         TrayBackdrop(modifier = Modifier.fillMaxSize(), dark = dark)
 
+        // Toutes les faces se centrent au meme endroit : un fondu croise ne
+        // tolere pas deux geometries.
+        // pourquoi : docs/decisions/second-ecran.md § Toutes les faces se centrent au même endroit
         Column(modifier = Modifier.fillMaxSize()) {
             // The panel reports on the app as well as on the game, and both
             // bands are permanent: the eye learns where a thing appears once
@@ -168,40 +195,63 @@ fun SecondScreenContent(model: SecondScreenModel) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
+
                     .padding(start = 36.dp, end = 36.dp, top = 10.dp)
             ) {
-                // Keyed on the game's identity, not on the model: late facts
-                // must fill in without dissolving a face into itself.
+                // Cle sur l'identite du jeu, pas sur le modele : les faits
+                // tardifs se remplissent sans dissoudre une face en elle-meme.
+                // Et `fillMaxSize`, sinon la face qui part se recentre dans une
+                // boite qui n'est plus la sienne.
                 // pourquoi : docs/decisions/second-ecran.md § Le fondu entre deux faces n'est pas une décoration
+                // pourquoi : docs/decisions/second-ecran.md § Toutes les faces se centrent au même endroit
                 Crossfade(
                     targetState = faceKey(model),
                     animationSpec = tween(220),
-                    label = "panel-face"
+                    label = "panel-face",
+                    modifier = Modifier.fillMaxSize()
                 ) { key ->
                     // The model is read here rather than captured with the key:
                     // during a fade the outgoing face is still composed, and it
                     // must not redraw itself with the incoming face's content.
                     val shown = remember(key) { model }
-                    when (shown) {
-                        is SecondScreenModel.Idle -> Idle()
-                        // Live, not frozen: every console shares one key, so
-                        // the remembered value would never change its text.
-                        // pourquoi : docs/decisions/second-ecran.md § La console se lit en direct, les autres faces sont gelées
-                        is SecondScreenModel.ConsoleFolder -> ConsoleCard(
-                            (model as? SecondScreenModel.ConsoleFolder)?.console
-                                ?: shown.console
-                        )
-                        is SecondScreenModel.Browsing -> BrowsingPages(shown, page)
-                        is SecondScreenModel.Friends -> FriendsFace(
-                            // En direct, comme la fiche console : la liste
-                            // change pendant qu'on la regarde — quelqu'un se
-                            // connecte, quelqu'un lance un jeu — et la valeur
-                            // gelee sur la cle de face resterait sur l'etat du
-                            // moment de l'ouverture.
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        when (shown) {
+                            is SecondScreenModel.Idle -> Idle()
+                            // Live, not frozen: every console shares one key, so
+                            // the remembered value would never change its text.
                             // pourquoi : docs/decisions/second-ecran.md § La console se lit en direct, les autres faces sont gelées
-                            (model as? SecondScreenModel.Friends) ?: shown
-                        )
-                        is SecondScreenModel.InSession -> InSession(shown)
+                            is SecondScreenModel.ConsoleFolder -> ConsoleCard(
+                                (model as? SecondScreenModel.ConsoleFolder)?.console
+                                    ?: shown.console
+                            )
+                            is SecondScreenModel.Browsing -> BrowsingPages(shown, page)
+                            // En direct, comme la fiche console : toutes les
+                            // entrees partagent une cle de face, donc la valeur
+                            // gelee resterait sur la premiere visee.
+                            // pourquoi : docs/decisions/second-ecran.md § La console se lit en direct, les autres faces sont gelées
+                            is SecondScreenModel.SettingsEntry -> SettingsFace(
+                                (model as? SecondScreenModel.SettingsEntry) ?: shown
+                            )
+                            is SecondScreenModel.Friends -> FriendsFace(
+                                // En direct, comme la fiche console : la liste
+                                // change pendant qu'on la regarde — quelqu'un se
+                                // connecte, quelqu'un lance un jeu — et la valeur
+                                // gelee sur la cle de face resterait sur l'etat du
+                                // moment de l'ouverture.
+                                // pourquoi : docs/decisions/second-ecran.md § La console se lit en direct, les autres faces sont gelées
+                                (model as? SecondScreenModel.Friends) ?: shown
+                            )
+                            is SecondScreenModel.Asking -> AskingFace(
+                                // En direct : la question peut changer sans que
+                                // la couche modale se ferme — l'interrupteur de
+                                // session privee reecrit sa propre consequence.
+                                (model as? SecondScreenModel.Asking) ?: shown
+                            )
+                            is SecondScreenModel.InSession -> InSession(shown)
+                        }
                     }
                 }
             }
@@ -226,8 +276,16 @@ private fun faceKey(model: SecondScreenModel): String = when (model) {
     // cursor moves from one folder to the next, because it animates that change
     // itself — see [ConsoleCard]. The outer fade is for changing *face*.
     is SecondScreenModel.ConsoleFolder -> "console"
+    // Une seule cle pour toutes les entrees : la face ne doit pas etre
+    // remplacee quand le curseur passe d'une case a la voisine — c'est le
+    // meme objet qui change de contenu, pas une autre face.
+    is SecondScreenModel.SettingsEntry -> "settings"
     is SecondScreenModel.Browsing -> "rom:${model.rom.uri}"
     is SecondScreenModel.Friends -> "friends"
+    // Une seule cle : le contenu de la question change en place (l'interrupteur
+    // de session privee reecrit sa consequence), et remplacer la face a chaque
+    // mot ferait clignoter le panneau.
+    is SecondScreenModel.Asking -> "asking"
     is SecondScreenModel.InSession -> "session:${model.code}"
 }
 
@@ -242,68 +300,8 @@ private fun PanelHeader(modifier: Modifier = Modifier) {
         verticalAlignment = Alignment.Top,
         horizontalArrangement = Arrangement.spacedBy(24.dp)
     ) {
-        VpsMark()
+        VpsLamp()
         NoteStrip(modifier = Modifier.weight(1f))
-    }
-}
-
-/**
- * The service light: a lit dot and two words.
- *
- * Its own colour, never the app accent.
- * pourquoi : docs/decisions/second-ecran.md § La lumière de service a sa propre couleur
- */
-@Composable
-private fun VpsMark() {
-    val state by VpsStatus.state.collectAsState()
-    val dark = LocalEmufiiDarkTheme.current
-
-    val tone = when (state) {
-        VpsState.ONLINE -> if (dark) Color(0xFF3DDC84) else Color(0xFF14A05A)
-        VpsState.OFFLINE -> if (dark) Color(0xFFFF6B5E) else Color(0xFFD1382B)
-        // Grey while nothing is known. Printing "down" because a handheld is in
-        // a tunnel would blame our machine for the train.
-        VpsState.UNKNOWN -> MaterialTheme.colorScheme.onSurfaceVariant
-    }
-
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .size(15.dp)
-                // A lit lamp, not a printed circle: it carries its own glow the
-                // way the tray's plates carry their own shadow. Off on OLED,
-                // where there is nothing behind it to catch the light.
-                .shadow(
-                    elevation = if (state == VpsState.UNKNOWN) 0.dp else 12.dp,
-                    shape = CircleShape,
-                    clip = false,
-                    ambientColor = tone,
-                    spotColor = tone
-                )
-                .clip(CircleShape)
-                .background(tone)
-        )
-        Column {
-            Text(
-                stringResource(R.string.panel_vps),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                stringResource(
-                    when (state) {
-                        VpsState.ONLINE -> R.string.panel_vps_online
-                        VpsState.OFFLINE -> R.string.panel_vps_offline
-                        VpsState.UNKNOWN -> R.string.panel_vps_unknown
-                    }
-                ),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
     }
 }
 
@@ -364,25 +362,43 @@ private const val NOTE_LIFETIME_MS = 12_000L
 
 @Composable
 private fun Idle() {
+    val dark = LocalEmufiiDarkTheme.current
+    val axis = if (dark) Teal.darkBright else Teal.deep
+
+    // Une marque, pas un vide avec un numero dedans : cette face parait
+    // plusieurs fois par minute depuis que le curseur monte dans l'en-tete.
+    // pourquoi : docs/decisions/second-ecran.md § La marque au repos est une marque, pas un vide avec un numéro dedans
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(6.dp)
+        verticalArrangement = Arrangement.spacedBy(22.dp)
     ) {
-        Text(
-            stringResource(R.string.app_name),
-            style = MaterialTheme.typography.headlineMedium,
-            // Dimmed on purpose: at rest this panel is the least interesting
-            // thing in the room, not a second logo competing with the front
-            // screen.
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+        // Le vrai logo, pas une citation dessinee a la main : une marque
+        // approchee posee a cote de la vraie se lit comme un logo rate.
+        Image(
+            painter = painterResource(R.drawable.emufii_logo_v3),
+            contentDescription = null,
+            modifier = Modifier.size(108.dp)
         )
-        // A step smaller and dimmer than the name: a footnote to it.
-        // pourquoi : docs/decisions/second-ecran.md § La version s'affiche sur la face au repos
-        Text(
-            stringResource(R.string.panel_idle_version, BuildConfig.VERSION_NAME),
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-        )
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text(
+                stringResource(R.string.app_name),
+                style = MaterialTheme.typography.headlineMedium,
+                // Dimmed on purpose: at rest this panel is the least interesting
+                // thing in the room, not a second logo competing with the front
+                // screen.
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            // A step smaller and dimmer than the name: a footnote to it.
+            // pourquoi : docs/decisions/second-ecran.md § La version s'affiche sur la face au repos
+            Text(
+                stringResource(R.string.panel_idle_version, BuildConfig.VERSION_NAME),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+            )
+        }
     }
 }
 
@@ -457,6 +473,177 @@ private fun ConsoleCard(console: Console) {
                 }
             }
         }
+    }
+}
+
+/**
+ * Le curseur est sur une case du hub des reglages : la meme chose, en grand.
+ *
+ * Le panneau complete, il ne prend rien a personne. Un fondu croise et pas un
+ * glissement : le hub est un tableau, pas une suite ordonnee.
+ * pourquoi : docs/decisions/second-ecran.md § La face du hub complète, elle ne prend rien
+ */
+@Composable
+private fun SettingsFace(model: SecondScreenModel.SettingsEntry) {
+    val dark = LocalEmufiiDarkTheme.current
+    val ink = if (model.social) {
+        if (dark) Coral.darkBright else Coral.deep
+    } else {
+        if (dark) Teal.darkBright else Teal.deep
+    }
+    val axis = if (model.social) Coral.bright else Teal.bright
+
+    // Hauteur constante par construction : chaque texte a son compte de lignes
+    // fige, sinon la marque remonte a chaque mouvement du curseur.
+    // pourquoi : docs/decisions/second-ecran.md § Toutes les faces se centrent au même endroit
+    Crossfade(
+        targetState = model,
+        animationSpec = tween(180),
+        label = "settings-face"
+    ) { shown ->
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+            modifier = Modifier.fillMaxWidth(0.86f)
+        ) {
+            // La marque dans son encoche, comme sur la tuile de face — a la
+            // taille du panneau. Une icone nue a cette echelle flotte.
+            Box(
+                modifier = Modifier
+                    .size(84.dp)
+                    .clip(CircleShape)
+                    .background(axis.copy(alpha = 0.16f)),
+                contentAlignment = Alignment.Center
+            ) { PanelMarkGlyph(shown.mark, ink) }
+
+            Text(
+                shown.title,
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                shown.summary,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                minLines = SUMMARY_LINES,
+                maxLines = SUMMARY_LINES,
+                overflow = TextOverflow.Ellipsis
+            )
+            // Le chemin, en dernier et en petit : il situe, il ne titre pas.
+            Text(
+                shown.root + "  ›  " + shown.title,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+
+/**
+ * Ce que le panneau montre pendant qu'une couche modale attend devant :
+ * **il repete la question, il n'en pose pas une autre**. Un rond, un titre,
+ * une ligne — la reponse se donne sur l'ecran de face.
+ * pourquoi : docs/decisions/second-ecran.md § La face d'une question répète, elle n'en pose pas une autre
+ */
+@Composable
+private fun AskingFace(model: SecondScreenModel.Asking) {
+    val dark = LocalEmufiiDarkTheme.current
+    val ink = if (model.social) {
+        if (dark) Coral.darkBright else Coral.deep
+    } else {
+        if (dark) Teal.darkBright else Teal.deep
+    }
+    val axis = if (model.social) Coral.bright else Teal.bright
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(18.dp),
+        modifier = Modifier.fillMaxWidth(0.78f)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(76.dp)
+                .clip(CircleShape)
+                .background(axis.copy(alpha = 0.16f)),
+            contentAlignment = Alignment.Center
+        ) { AskGlyph(ink) }
+
+        Text(
+            model.title,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
+        Text(
+            model.detail,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            maxLines = 3,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+/**
+ * Le point d'interrogation, dessine plutot qu'ecrit : un caractere prendrait
+ * la police du texte, son italique et ses metriques, dans une pastille ou les
+ * trois se voient. Chaque symbole de cette app est trace par son fichier.
+ */
+@Composable
+private fun AskGlyph(tint: Color) {
+    Canvas(Modifier.size(30.dp)) {
+        val w = size.width
+        val h = size.height
+        val stroke = w * 0.11f
+        val hook = Path().apply {
+            moveTo(w * 0.30f, h * 0.32f)
+            cubicTo(w * 0.30f, h * 0.10f, w * 0.76f, h * 0.10f, w * 0.72f, h * 0.34f)
+            cubicTo(w * 0.69f, h * 0.52f, w * 0.50f, h * 0.50f, w * 0.50f, h * 0.68f)
+        }
+        drawPath(hook, tint, style = Stroke(width = stroke, cap = StrokeCap.Round))
+        drawCircle(tint, radius = stroke * 0.62f, center = Offset(w * 0.50f, h * 0.86f))
+    }
+}
+
+/**
+ * Combien de lignes le resume occupe, remplies ou non.
+ *
+ * Deux : c'est le plus long des sept resumes des reglages une fois mis a la
+ * largeur du panneau. Une troisieme ne servirait a personne et creuserait un
+ * trou sous les six autres.
+ */
+private const val SUMMARY_LINES = 2
+
+/** La marque nommee par le modele, dessinee ici. Voir [PanelMark]. */
+@Composable
+private fun PanelMarkGlyph(mark: PanelMark, tint: Color) {
+    val size = 38.dp
+    when (mark) {
+        PanelMark.PROFILE -> PersonMark(color = tint, size = size)
+        PanelMark.LIBRARY -> ShelfMark(color = tint, size = size)
+        PanelMark.CONSOLES -> GridMark(color = tint, size = size)
+        PanelMark.EMULATORS -> ChipMark(color = tint, size = size)
+        PanelMark.APPEARANCE -> PaintMark(color = tint, size = size)
+        PanelMark.GENERAL -> SlidersMark(color = tint, size = size)
+        PanelMark.ABOUT -> InfoMark(color = tint, size = size)
+        PanelMark.SEARCH -> LensMark(color = tint, size = size)
+        PanelMark.LAYOUT -> GridMark(color = tint, size = size)
+        PanelMark.SORT -> SlidersMark(color = tint, size = size)
+        PanelMark.SESSIONS -> SignalMark(color = tint, size = size)
+        PanelMark.FRIENDS -> PersonMark(color = tint, size = size)
     }
 }
 
@@ -590,7 +777,11 @@ private fun Details(model: SecondScreenModel.Browsing) {
             model.tags.line(),
         )
         if (facts.isNotEmpty()) {
-            Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+            // `FlowRow`, not `Row`: the French genre of a game can be twice the
+            // length of its English one ("jeu de construction de paquet de
+            // cartes roguelike"), and a plain row sent the date pill off the
+            // panel instead of onto the line below.
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                 facts.forEach { fact ->
                     Text(
                         fact,
@@ -799,6 +990,14 @@ private fun ArrowGlyph(tint: Color, up: Boolean) {
  * nothing else changes.
  * pourquoi : docs/decisions/second-ecran.md § La jaquette est moulée dans le plateau, et son ombre est de sa couleur
  */
+/**
+ * Les coins de la jaquette du panneau, en part de son cote et non en dp : elle
+ * est la meme tuile que celles de la grille, dessinee 1,7 fois plus grand.
+ * pourquoi : docs/decisions/second-ecran.md § Les coins de la jaquette suivent son échelle, pas sa mesure
+ */
+private val CoverShape = RoundedCornerShape(17)
+private val CoverArtworkShape = RoundedCornerShape(15)
+
 @Composable
 private fun Cover(model: SecondScreenModel.Browsing, modifier: Modifier = Modifier) {
     val context = LocalContext.current
@@ -807,7 +1006,7 @@ private fun Cover(model: SecondScreenModel.Browsing, modifier: Modifier = Modifi
     val art by rememberTileArt(model.rom)
 
     val tone = model.rom.accentArgb?.let { Color(it) }
-    val shadow = tone ?: Color(0xFF0A1220)
+    val shadow = tone ?: InkText
 
     Box(
         modifier = modifier
@@ -819,7 +1018,7 @@ private fun Cover(model: SecondScreenModel.Browsing, modifier: Modifier = Modifi
                 // On OLED the tray is truly off and a shadow draws nothing; the
                 // edge and bevel below carry the separation alone.
                 elevation = if (oled) 0.dp else 20.dp,
-                shape = TileShape,
+                shape = CoverShape,
                 clip = false,
                 ambientColor = shadow.copy(alpha = if (dark) 0.55f else 0.30f),
                 spotColor = shadow.copy(alpha = if (dark) 0.75f else 0.42f)
@@ -827,20 +1026,20 @@ private fun Cover(model: SecondScreenModel.Browsing, modifier: Modifier = Modifi
             // A plate with the picture inset, not a rim: measured, a rim
             // survives 0.38% of the cover's width here and vanishes.
             // pourquoi : docs/decisions/second-ecran.md § La jaquette est moulée dans le plateau, et son ombre est de sa couleur
-            .plate(TileShape, dark = dark, oled = oled, lift = 0.dp)
+            .plate(CoverShape, dark = dark, oled = oled, lift = 0.dp)
             .padding(9.dp)
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .clip(ArtworkShape)
+                .clip(CoverArtworkShape)
                 // White under the artwork in daylight, as the tiles do: box art
                 // of any colour has to read against something, and the tray is
                 // not it.
                 .background(tilePlateBrush(dark, oled))
                 // The picture keeps its own contour inside the frame, drawn over
                 // the image the way a tile does it.
-                .moldedRim(ArtworkShape, dark = dark, oled = oled)
+                .moldedRim(CoverArtworkShape, dark = dark, oled = oled)
         ) {
             val cover = art.model
             if (cover != null) {
@@ -858,7 +1057,7 @@ private fun Cover(model: SecondScreenModel.Browsing, modifier: Modifier = Modifi
                 // the shape this tray already uses for nothing.
                 Box(
                     contentAlignment = Alignment.Center,
-                    modifier = Modifier.fillMaxSize().socket(ArtworkShape, dark)
+                    modifier = Modifier.fillMaxSize().socket(CoverArtworkShape, dark)
                 ) {
                     Text(
                         model.rom.console.shortLabel,
@@ -896,30 +1095,21 @@ private fun InSession(model: SecondScreenModel.InSession) {
     val accent = LocalAccent.current
     val steps by SecondScreen.steps.collectAsState()
 
-    // **Une seule colonne, et le code prend toute la largeur.**
-    //
-    // La version precedente coupait la face en deux — l'identite a gauche, les
-    // commandes a droite — pour gagner de la hauteur. Vu en vrai, c'etait pire
-    // que le probleme : chaque colonne tombait a 268 dp, le code se cassait en
-    // « NRX- » et « 572 », et le port s'ecrivait **un chiffre par ligne**.
-    //
-    // Le panneau est large (537 dp) et court (320 dp). Ce qui doit s'etaler
-    // s'etale donc en largeur, et ce qui se repete se met cote a cote : les
-    // deux commandes partagent une rangee au lieu d'empiler 130 dp.
-    // pourquoi : docs/decisions/second-ecran.md § Le panneau prend les etapes, parce qu'il est tactile
+    // Une seule colonne : coupee en deux, chaque moitie tombait a 268 dp et le
+    // port s'ecrivait un chiffre par ligne.
+    // pourquoi : docs/decisions/second-ecran.md § Une seule colonne, et le code prend toute la largeur
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(14.dp),
-        // Le creux du bas remonte **cette face-la, et elle seule**.
-        //
-        // Elle est centree dans ce qui reste entre l'en-tete et la legende, et
-        // sa legende est vide alors que celle des autres faces ne l'est pas :
-        // son centre geometrique tombe donc plus bas que le leur, et elle
-        // paraissait posee trop bas quand les autres etaient justes. Le creux a
-        // d'abord ete pose sur la boite commune, ce qui a remonte les faces du
-        // menu qui n'avaient rien demande.
-        // pourquoi : docs/decisions/second-ecran.md § Chaque face se centre pour elle-même
-        modifier = Modifier.fillMaxWidth().padding(bottom = 62.dp)
+        // **Aucune compensation de hauteur.** Il y en avait une — 62 dp de creux
+        // en bas — au motif que la legende de cette face est vide et que son
+        // centre tombait donc plus bas que celui des autres. Ce n'est plus vrai :
+        // la bande de legende garde sa hauteur meme vide, et la boite qui centre
+        // les faces l'exclut deja. Les 62 dp remontaient donc la colonne de 31,
+        // mesures a la capture du panneau : le contenu tenait dans les deux tiers
+        // hauts et laissait un vide de la hauteur d'un bouton sous lui.
+        // pourquoi : docs/decisions/second-ecran.md § Les deux bandes sont permanentes, la légende comprise
+        modifier = Modifier.fillMaxWidth()
     ) {
         // La console et le jeu sur une meme ligne : deux etiquettes de ce que
         // la session est, et aucune des deux ne merite sa rangee.
@@ -954,6 +1144,9 @@ private fun InSession(model: SecondScreenModel.InSession) {
                 model.code,
                 fontSize = codeSize,
                 lineHeight = codeSize * 1.05f,
+                // Monospace : a distance, un 2 et un Z se distinguent par la
+                // largeur de leur trace autant que par sa forme.
+                fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Black,
                 letterSpacing = 3.sp,
                 color = accent.bright,
@@ -972,16 +1165,24 @@ private fun InSession(model: SecondScreenModel.InSession) {
             }
         }
 
-        // Les commandes, cote a cote : deux plaques empilees prenaient 130 dp
-        // de la hauteur qui manque, et elles disent la meme chose l'une que
-        // l'autre — « fais ceci, puis cela ».
+        // Les commandes cote a cote, et la manette en designe une par un index
+        // qui voyage par le singleton : le focus ne traverse pas les fenetres.
+        // pourquoi : docs/decisions/second-ecran.md § Une seule colonne, et le code prend toute la largeur
         if (steps.isNotEmpty()) {
+            val stepCursor by SecondScreen.stepCursor.collectAsState()
+            // `IntrinsicSize.Min` : les deux plaques prennent la hauteur du plus
+            // long des deux libelles. C'etait une hauteur fixe, pour qu'un
+            // libelle sur deux lignes ne fasse pas grandir sa plaque a cote de sa
+            // voisine — la paire se serait lue comme deux boutons de rangs
+            // differents. La hauteur commune tient cette promesse sans plafonner
+            // le texte : « 1. Paramétrage automatique de Dolphin » ne rentrait pas
+            // et se coupait en plein mot.
             Row(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxWidth().padding(top = 2.dp)
+                modifier = Modifier.fillMaxWidth().padding(top = 2.dp).height(IntrinsicSize.Min)
             ) {
-                steps.forEach { step ->
-                    StepButton(step, modifier = Modifier.weight(1f))
+                steps.forEachIndexed { index, step ->
+                    StepButton(step, selected = index == stepCursor, modifier = Modifier.weight(1f))
                 }
             }
         }
@@ -1076,8 +1277,8 @@ private fun PanelConfirm(friend: PanelFriend, onCancel: () -> Unit, onConfirm: (
         modifier = Modifier
             .fillMaxSize()
             // Le plateau s'assombrit, il ne se givre pas.
-            .background(Color(0xFF060A12).copy(alpha = if (dark) 0.74f else 0.62f))
-            .clickable(
+            .background(InkText.copy(alpha = if (dark) 0.74f else 0.62f))
+            .tap(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
                 onClick = onCancel
@@ -1111,7 +1312,7 @@ private fun PanelConfirm(friend: PanelFriend, onCancel: () -> Unit, onConfirm: (
                 GhostButton(
                     label = stringResource(R.string.friends_remove),
                     onClick = onConfirm,
-                    tint = ShellRed
+                    tint = if (dark) ErrorDark else ErrorLight
                 )
             }
         }
@@ -1150,7 +1351,7 @@ private fun PanelFriendRow(friend: PanelFriend, onRemove: () -> Unit) {
                         .size(9.dp)
                         .clip(CircleShape)
                         .background(
-                            if (friend.online) AccentGreen
+                            if (friend.online) if (dark) GoodDark else GoodLight
                             else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
                         )
                 )
@@ -1158,17 +1359,20 @@ private fun PanelFriendRow(friend: PanelFriend, onRemove: () -> Unit) {
             Text(
                 friend.line,
                 style = MaterialTheme.typography.bodySmall,
-                color = if (friend.inSession) AccentGreen
+                color = if (friend.inSession) if (dark) GoodDark else GoodLight
                         else MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
         }
+        // 48 dp : la cible faisait 38, sous le minimum, et c'est le seul endroit
+        // du panneau ou une erreur de visee retire quelqu'un de la liste d'amis.
+        // La croix reste a 16 — on agrandit la zone, pas le symbole.
         Box(
             modifier = Modifier
-                .size(38.dp)
+                .size(48.dp)
                 .clip(CircleShape)
-                .clickable(onClick = onRemove),
+                .tap(onClick = onRemove),
             contentAlignment = Alignment.Center
         ) {
             CrossIcon(size = 16.dp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -1185,29 +1389,66 @@ private fun PanelFriendRow(friend: PanelFriend, onRemove: () -> Unit) {
  * pourquoi : docs/decisions/second-ecran.md § Le panneau prend les etapes, parce qu'il est tactile
  */
 @Composable
-private fun StepButton(step: PanelStep, modifier: Modifier = Modifier) {
-    Button(
-        onClick = step.onPress,
-        enabled = step.enabled,
-        shape = ActionShape,
-        colors = if (step.done) {
-            ButtonDefaults.buttonColors(containerColor = AccentGreen)
-        } else {
-            ButtonDefaults.buttonColors()
-        },
-        // Hauteur fixe, et la meme pour les deux : un libelle qui passe sur deux
-        // lignes ne doit pas faire grandir sa plaque a cote de sa voisine, sinon
-        // la paire se lit comme deux boutons de rangs differents.
-        modifier = modifier.height(64.dp)
+private fun StepButton(step: PanelStep, selected: Boolean, modifier: Modifier = Modifier) {
+    val dark = LocalEmufiiDarkTheme.current
+    // L'anneau de selection est **le meme dessin que partout ailleurs** —
+    // trait et halo de focusRing — pose autour de la plaque, dans une marge
+    // reservee. Un contour maison colle au bouton mordait le libelle ; ici
+    // l'anneau flotte a distance comme il flotte autour des commandes de
+    // l'ecran de face.
+    Box(
+        modifier = modifier
+            .padding(6.dp)
+            .focusRing(selected, ActionShape)
     ) {
-        Text(
-            step.label,
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis
-        )
+        Button(
+            onClick = sounded(step.onPress),
+            enabled = step.enabled,
+            shape = ActionShape,
+            // Une etape verrouillee garde une plaque et une encre franches :
+            // elle n'est pas hors service, elle est **la suivante**. C'est
+            // l'absence d'anneau qui dit qu'on ne peut pas encore la presser.
+            // pourquoi : docs/decisions/second-ecran.md § Une étape verrouillée doit rester lisible à bout de bras
+            colors = if (step.done) {
+                ButtonDefaults.buttonColors(containerColor = if (dark) GoodDark else GoodLight)
+            } else {
+                ButtonDefaults.buttonColors(
+                    disabledContainerColor =
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f),
+                    disabledContentColor =
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f)
+                )
+            },
+            // Les 24 dp de Material de chaque cote sont regles pour un bouton de
+            // dialogue, pas pour deux plaques qui se partagent la largeur d'un
+            // panneau : ils prenaient un tiers de la place du libelle.
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+            // Le plancher, pas la mesure : la rangee donne la hauteur commune.
+            modifier = Modifier.fillMaxWidth().fillMaxHeight().heightIn(min = 64.dp)
+        ) {
+            // **La coche, que le vert seul ne remplace pas.** Une plaque verte
+            // dit « c'est fait » a qui connait le code couleur ; la coche le dit
+            // a tout le monde, et elle survit aux deux themes comme au coup
+            // d'oeil de trois quarts qu'on jette a un panneau pose a plat.
+            // pourquoi : docs/decisions/second-ecran.md § Le panneau prend les etapes, parce qu'il est tactile
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (step.done) StepCheck(color = LocalContentColor.current, size = 20.dp)
+                Text(
+                    step.label,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    // Trois, parce qu'un libelle en porte deja deux et qu'une
+                    // langue plus longue que le francais n'a pas a se faire
+                    // couper.
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
     }
 }
 
@@ -1251,12 +1492,16 @@ private fun Fact(label: String, value: String) {
  */
 @Composable
 private fun Legend(legend: PadLegend, modifier: Modifier = Modifier) {
-    if (legend.isEmpty) return
     Row(
-        modifier = modifier,
+        // Elle garde sa hauteur meme vide : la face au repos n'a pas de legende,
+        // et sa disparition faisait plonger le fondu de 29 dp avant qu'il ne
+        // commence.
+        // pourquoi : docs/decisions/second-ecran.md § Les deux bandes sont permanentes, la légende comprise
+        modifier = modifier.heightIn(min = LEGEND_CAP),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
+        if (legend.isEmpty) return@Row
         Cluster(legend.left)
         Cluster(legend.right)
     }
@@ -1265,106 +1510,26 @@ private fun Legend(legend: PadLegend, modifier: Modifier = Modifier) {
 @Composable
 private fun Cluster(hints: List<PadHint>) {
     Row(horizontalArrangement = Arrangement.spacedBy(18.dp), verticalAlignment = Alignment.CenterVertically) {
-        hints.forEach { hint ->
-            Row(horizontalArrangement = Arrangement.spacedBy(7.dp), verticalAlignment = Alignment.CenterVertically) {
-                KeyCap(hint)
-                Text(
-                    stringResource(hint.label),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+        hints.forEach { hint -> PadHintRow(hint) }
+    }
+}
+
+/**
+ * La coche d'une etape faite, dessinee plutot qu'importee : elle se pose ou on
+ * la met, la ou un glyphe se centre sur sa boite de ligne et non sur son encre.
+ * Le meme trace que celle de l'ecran de face — c'est la meme etape.
+ * pourquoi : docs/decisions/second-ecran.md § Le panneau prend les etapes, parce qu'il est tactile
+ */
+@Composable
+private fun StepCheck(color: Color, size: Dp) {
+    Canvas(Modifier.size(size)) {
+        val w = this.size.width
+        val stroke = Stroke(width = w * 0.16f, cap = StrokeCap.Round)
+        val path = Path().apply {
+            moveTo(w * 0.16f, w * 0.55f)
+            lineTo(w * 0.40f, w * 0.79f)
+            lineTo(w * 0.86f, w * 0.24f)
         }
-    }
-}
-
-/**
- * One button, moulded like the machine's own: a plate, never a recess.
- * pourquoi : docs/decisions/second-ecran.md § La légende, et pourquoi les symboles sont dessinés
- */
-@Composable
-private fun KeyCap(hint: PadHint) {
-    val dark = LocalEmufiiDarkTheme.current
-    val oled = LocalEmufiiOledTheme.current
-    val tint = MaterialTheme.colorScheme.onSurface
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = Modifier
-            .size(26.dp)
-            .plate(
-                PillShape,
-                dark = dark,
-                oled = oled,
-                lift = 2.dp,
-                // A hint about holding shows a held button: no lift, no lit edge.
-                // pourquoi : docs/decisions/second-ecran.md § La légende, et pourquoi les symboles sont dessinés
-                pressed = hint.held
-            )
-    ) {
-        val glyph = hint.glyph
-        if (glyph == null) DPadGlyph(tint) else CapLetter(glyph, tint)
-    }
-}
-
-/**
- * The letter, centred on its own ink.
- *
- * Laying the text out cannot do this: the glyph is drawn and placed from
- * [android.graphics.Paint.getTextBounds], pen at `w/2 - (left + right)/2`.
- * pourquoi : docs/decisions/second-ecran.md § Une lettre est centrée sur son encre, pas sur sa boîte
- */
-@Composable
-private fun CapLetter(glyph: String, tint: Color) {
-    val context = LocalContext.current
-    val density = LocalDensity.current
-    val paint = remember(context, tint, density) {
-        android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
-            typeface = runCatching { ResourcesCompat.getFont(context, R.font.rounded_bold) }
-                .getOrNull() ?: android.graphics.Typeface.DEFAULT_BOLD
-            textSize = with(density) { 14.sp.toPx() }
-            // LEFT, not CENTER: the pen is positioned from the ink bounds below,
-            // and CENTER would subtract half an advance on top of it.
-            textAlign = android.graphics.Paint.Align.LEFT
-            color = tint.toArgb()
-        }
-    }
-    val bounds = remember(paint, glyph) {
-        android.graphics.Rect().also { paint.getTextBounds(glyph, 0, glyph.length, it) }
-    }
-    Canvas(Modifier.size(26.dp)) {
-        drawContext.canvas.nativeCanvas.drawText(
-            glyph,
-            size.width / 2f - (bounds.left + bounds.right) / 2f,
-            size.height / 2f - (bounds.top + bounds.bottom) / 2f,
-            paint
-        )
-    }
-}
-
-/**
- * The d-pad, drawn rather than typed.
- * pourquoi : docs/decisions/second-ecran.md § La légende, et pourquoi les symboles sont dessinés
- */
-@Composable
-private fun DPadGlyph(tint: Color) {
-    Canvas(Modifier.size(10.dp)) {
-        // Arms a touch wider than a third, the proportion a moulded d-pad
-        // actually has: thinner reads as a mathematical plus.
-        val arm = size.width * 0.38f
-        val radius = CornerRadius(size.width * 0.06f, size.width * 0.06f)
-        // Two bars crossing, each centred: the overlap is the hub, so the cross
-        // has no seam and needs no third shape.
-        drawRoundRect(
-            color = tint,
-            topLeft = Offset((size.width - arm) / 2f, 0f),
-            size = Size(arm, size.height),
-            cornerRadius = radius
-        )
-        drawRoundRect(
-            color = tint,
-            topLeft = Offset(0f, (size.height - arm) / 2f),
-            size = Size(size.width, arm),
-            cornerRadius = radius
-        )
+        drawPath(path, color = color, style = stroke)
     }
 }

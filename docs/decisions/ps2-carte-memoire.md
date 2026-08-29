@@ -152,3 +152,114 @@ adresse distincte dérivée de son identifiant de pair
 (`pcsx2/DEV9/LocalLinkAdapter.cpp:167`). La console demande donc un bail et
 l'émulateur la distingue de tous les autres joueurs. **Une IP statique écrite à la
 main ici mettrait au contraire tous les joueurs sur la même adresse.**
+
+## Les sauvegardes du dossier viennent sur l'image, pas l'inverse
+
+Une carte mémoire « dossier » de PCSX2 ne peut pas porter le profil réseau :
+PCSX2 l'indexe filtrée par le jeu qui tourne, et `BWNETCNF` ne correspond à aucun
+serial, donc le profil serait écrit là où la console ne peut jamais le lire. Le
+profil vit donc sur une image générée en emplacement 1, et la question qui reste
+est ce que deviennent les sauvegardes du joueur.
+
+**Laisser la carte dossier en emplacement 2 n'est pas la réponse**, et la raison
+mérite d'être dite précisément, parce que la lecture évidente du journal est
+fausse. ARMSX2 ouvre la carte avant de savoir ce qui démarre :
+
+```
+McdSlot 0 [File]: EmuFii-Network.ps2 [8 MB, Formatted]
+McdSlot 1: [Folder] /storage/emulated/0/Armsx2/memcards/MemoryCard
+FolderMcd: Indexing slot 1 with filter "".
+```
+
+Ce filtre vide n'est pas une carte que le jeu ne peut pas lire — mesuré sur la
+Thor le 2026-08-23, le jeu y trouve bien son profil. Ce qui ne marche pas, c'est
+tout le reste : le navigateur du BIOS montre cette carte comme vide, donc une
+sauvegarde ne peut pas être recopiée à la main, et les deux cartes restent
+séparées sans moyen de les réunir. Copier les sauvegardes sur la carte qui porte
+le profil est ce qui met tout au même endroit, celui sur lequel la console est
+d'accord.
+
+## `_pcsx2_index` se lit, ne se copie jamais
+
+La disposition qu'ARMSX2 écrit :
+
+```
+memcards/<carte>/_pcsx2_superblock
+memcards/<carte>/<SAUVEGARDE>/_pcsx2_index
+memcards/<carte>/<SAUVEGARDE>/<les fichiers de la sauvegarde>
+```
+
+`_pcsx2_index` est la comptabilité de PCSX2 et ne doit **jamais** atterrir dans
+une image de carte : la console n'en sait rien, et une sauvegarde qui porte un
+fichier en trop est une sauvegarde que le jeu peut refuser.
+
+Ce pour quoi on le lit est l'**ordre** des fichiers — celui dans lequel la
+console les a écrits, et celui qu'un répertoire d'une vraie carte porte. Un
+fichier que l'index ne mentionne pas n'est pas jeté : il passe après les autres,
+par ordre alphabétique. Perdre un octet de la sauvegarde de quelqu'un pour une
+discordance de comptabilité n'est pas un échange qui vaut la peine.
+
+Le fichier est une correspondance YAML en flux écrite par rapidyaml, pas du JSON,
+donc il se lit au balayage tolérant plutôt qu'avec un analyseur : les noms
+portent des points et des tirets, et le seul champ qui compte ici est `order`.
+
+## Opérer la carte du joueur plutôt que lui en donner une neuve
+
+L'image source du joueur est lue, `BWNETCNF` inséré ou remplacé, et un nouveau
+tableau d'octets rendu pour que la couche de provisionnement le publie en clone.
+Le tableau d'entrée n'est jamais modifié. Les charges utiles des sauvegardes
+existantes survivent à la réécriture du système de fichiers sans changer, donc
+aucune cérémonie de copie par le BIOS n'est nécessaire.
+
+**La carte se lit par son propre superbloc** — géométrie, FAT indirecte, chaînes
+de la FAT, répertoire racine — jamais par supposition : une carte de 8 Mo et une
+de 64, un formatage BIOS et un formatage PCSX2, tous se déclarent.
+
+Un `BWNETCNF` existant, s'il y en a un, est libéré : ses chaînes de fichier et
+ses grappes de répertoire rendues à la FAT, son entrée racine compactée, les
+sauvegardes qui le suivaient remontées avec leurs références arrière corrigées.
+Une sauvegarde neuve est écrite pour l'identifiant de console visé, allouée au
+premier trou libre de la FAT — la fragmentation est sans conséquence — et chaque
+page touchée est réécrite avec ses données et un ECC recalculé.
+
+Aucune somme de contrôle n'existe nulle part dans le format qu'il faudrait
+maintenir, et le superbloc ne tient aucun compte de l'espace libre : rien hors de
+la FAT et des deux répertoires ne change.
+
+Une carte entièrement à `0xFF` — ce qu'ARMSX2 fabrique à l'installation, avant
+que le BIOS ne l'ait jamais formatée — n'a pas de système de fichiers à lire.
+Elle est donc formatée d'abord, avec les constantes du générateur, à la taille du
+fichier reçu.
+
+## Retrouver l'identifiant d'une carte déjà écrite
+
+`recoverConsoleId` est un outil de diagnostic et de migration, pas un chemin
+normal. Tout fichier YNCF commence par le même en-tête de 38 octets : un
+`BWNETCNF` que la console a écrit livre donc son propre flux de chiffrement, et
+ce flux vaut trois décalages par octet d'identifiant.
+
+Ça couvre le joueur qui a déjà fait une configuration réseau avec n'importe quel
+jeu compatible. **Il ne doit jamais l'emporter sur une identité contradictoire
+prouvée par la NVM active.** Une carte que cette app a déjà écrite se décode sous
+le même identifiant, ce qui rend aussi l'outil utile en validation.
+
+## Une carte prête ne se vérifie pas octet par octet
+
+C'est ce qui a été fait d'abord, et c'était faux d'une façon qui ne se voit qu'à
+l'usage : une carte mémoire est un disque **vivant**. Dès qu'un jeu sauvegarde —
+ou qu'ARMSX2 la monte simplement — ses octets changent, la somme de contrôle
+cesse de correspondre, et on annonce au joueur que sa préparation a disparu
+pendant que sa carte est là, parfaitement bonne, dans le bon emplacement. Ça a
+coûté ses jeux PS2 à un joueur entre deux lancements de l'app.
+
+Ce qui doit tenir est plus étroit et survit au jeu normal :
+
+- l'emplacement 1 est toujours actif et nomme toujours cette carte ;
+- la carte est toujours là ;
+- la configuration réseau y est toujours, et la relire rend l'identifiant de
+  console pour lequel elle a été écrite.
+
+Ce dernier point est la vraie preuve : la sauvegarde est chiffrée par console,
+donc en retrouver le bon identifiant signifie à la fois que notre profil est
+présent et qu'il est à sa place. Les nouvelles sauvegardes à côté ne nous
+regardent pas, et c'est précisément le but.

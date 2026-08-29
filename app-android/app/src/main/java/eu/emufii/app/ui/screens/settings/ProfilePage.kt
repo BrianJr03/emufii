@@ -13,8 +13,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusEvent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -30,10 +35,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.draw.clip
 import eu.emufii.app.ui.components.DetailNote
 import eu.emufii.app.ui.components.PencilMark
-import eu.emufii.app.ui.theme.AccentGreen
+import eu.emufii.app.ui.theme.GoodDark
+import eu.emufii.app.ui.theme.GoodLight
 import eu.emufii.app.ui.theme.LocalEmufiiDarkTheme
 import eu.emufii.app.ui.theme.socket
+import eu.emufii.app.ui.focusRing
 import eu.emufii.app.ui.controlRing
+import eu.emufii.app.ui.tap
 
 /**
  * La page du profil : la photo, le pseudo, et ce que les autres en voient.
@@ -73,25 +81,32 @@ internal fun ProfilePage(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            // Un seul arret de curseur, pas deux : la photo et le
-                            // crayon declenchent la meme chose, et deux noeuds
-                            // focalisables pour un geste faisaient deux pressions
-                            // de direction sans que rien ne bouge a l'ecran.
+                            // Un seul arret de curseur, et la pastille du crayon
+                            // est declaree **apres** l'anneau : `border` dessine
+                            // par-dessus le contenu du noeud qui le porte.
+                            // pourquoi : docs/decisions/reglages-ecran.md § L'anneau et la pastille du crayon sont frères, pas parent et enfant
+                            var photoFocused by remember { mutableStateOf(false) }
                             Box(
                                 contentAlignment = Alignment.BottomEnd,
                                 modifier = Modifier
                                     .padEntry()
-                                    .controlRing(CircleShape)
-                                    .clickable(onClick = onPickPhoto)
+                                    .controlRing(CircleShape, enabled = false)
+                                    .onFocusEvent { photoFocused = it.hasFocus }
+                                    .tap(onClick = onPickPhoto)
                             ) {
-                                Avatar(
-                                    name = playerDisplayName(name.ifBlank { Profile.DEFAULT_NAME }),
-                                    imageFile = profile.avatarFile,
-                                    size = 78.dp
-                                )
+                                Box(modifier = Modifier.focusRing(photoFocused, CircleShape)) {
+                                    Avatar(
+                                        name = playerDisplayName(
+                                            name.ifBlank { Profile.DEFAULT_NAME }
+                                        ),
+                                        imageFile = profile.avatarFile,
+                                        size = 78.dp
+                                    )
+                                }
                                 Surface(
                                     shape = CircleShape,
-                                    color = MaterialTheme.colorScheme.primary,
+                                    // Corail : le profil est le domaine social.
+                                    color = domainInk(EntryDomain.SOCIAL),
                                     modifier = Modifier.size(28.dp)
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
@@ -103,7 +118,7 @@ internal fun ProfilePage(
                                 GhostButton(
                                     label = stringResource(R.string.profile_remove_photo),
                                     onClick = onClearPhoto,
-                                    tint = DANGER
+                                    tint = dangerInk()
                                 )
                             }
                         }
@@ -183,6 +198,8 @@ internal fun ProfilePage(
 @Composable
 private fun SeenByOthers(name: String) {
     val dark = LocalEmufiiDarkTheme.current
+    // Le vert du « en ligne », pris du theme : Good tire vers le turquoise.
+    val online = if (dark) GoodDark else GoodLight
     val displayName = playerDisplayName(name.ifBlank { Profile.DEFAULT_NAME })
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -202,14 +219,14 @@ private fun SeenByOthers(name: String) {
             Text(
                 stringResource(R.string.friends_online),
                 style = MaterialTheme.typography.bodySmall,
-                color = AccentGreen
+                color = online
             )
         }
         Box(
             Modifier
                 .size(10.dp)
                 .clip(CircleShape)
-                .background(AccentGreen)
+                .background(online)
         )
     }
 }

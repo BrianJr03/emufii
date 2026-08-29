@@ -50,6 +50,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
+import eu.emufii.app.ui.theme.CardShape
+import eu.emufii.app.ui.theme.InkText
 import eu.emufii.app.ui.theme.LocalEmufiiDarkTheme
 import eu.emufii.app.ui.theme.PlateDark
 import eu.emufii.app.ui.theme.PlateLight
@@ -195,7 +197,7 @@ private fun MenuCard(
     onRename: () -> Unit,
     onHide: () -> Unit
 ) {
-    val shape = RoundedCornerShape(22.dp)
+    val shape = CardShape
     Column(
         modifier = Modifier
             .width(206.dp)
@@ -203,8 +205,9 @@ private fun MenuCard(
                 elevation = if (dark) 0.dp else 26.dp,
                 shape = shape,
                 clip = false,
-                ambientColor = Color.Black.copy(alpha = 0.10f),
-                spotColor = Color.Black.copy(alpha = 0.14f)
+                // Warm black, the duotone world's shadow ink.
+                ambientColor = InkText.copy(alpha = 0.10f),
+                spotColor = InkText.copy(alpha = 0.14f)
             )
             .clip(shape)
             .background(surface)
@@ -219,41 +222,9 @@ private fun MenuCard(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(horizontal = 20.dp).padding(top = 4.dp, bottom = 6.dp)
         )
-        MenuRow(label = changeIconLabel, onClick = onChangeIcon) { drawImageGlyph(it) }
-        MenuRow(label = renameLabel, onClick = onRename) { drawPencilGlyph(it) }
-        MenuRow(label = hideLabel, onClick = onHide) { drawHideGlyph(it) }
-    }
-}
-
-/** One menu entry: a glyph, a word, a full-width touch area. */
-@Composable
-private fun MenuRow(
-    label: String,
-    onClick: () -> Unit,
-    glyph: DrawScope.(Color) -> Unit
-) {
-    val interaction = remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
-    val focused by interaction.collectIsFocusedAsState()
-    val highlighted = pressed || focused
-    val tint = MaterialTheme.colorScheme.onSurface
-
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp)
-            .clip(RoundedCornerShape(14.dp))
-            .background(
-                if (highlighted) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f)
-                else Color.Transparent
-            )
-            .clickable(interactionSource = interaction, indication = null, onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 10.dp)
-    ) {
-        Canvas(Modifier.size(18.dp)) { glyph(tint) }
-        Text(label, style = MaterialTheme.typography.bodyMedium, color = tint)
+        TrayMenuRow(label = changeIconLabel, onClick = onChangeIcon, glyph = { drawImageGlyph(it) })
+        TrayMenuRow(label = renameLabel, onClick = onRename, glyph = { drawPencilGlyph(it) })
+        TrayMenuRow(label = hideLabel, onClick = onHide, glyph = { drawHideGlyph(it) })
     }
 }
 

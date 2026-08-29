@@ -3,25 +3,11 @@ package eu.emufii.app.library
 import android.content.Context
 
 /**
- * Which language a cartridge should say its name in.
+ * Which language a cartridge should say its name in : celle que l'app parle.
  *
- * Every format Emufii reads carries its title several times over, a DS banner in
- * six languages, a 3DS SMDH in twelve, a Switch control in sixteen, and each
- * reader used to pick from a list frozen at "French, then English, then
- * Japanese". So an app running in English showed "Pokémon Version Blanche 2",
- * and there was no way to ask for anything else. The cartridge knows both
- * names; the only question is which one to read, and the answer is the language
- * the app itself is speaking.
- *
- * The app is bilingual, so each order names its own language first and the
- * other second, then keeps the old tail: a Japanese cartridge that carries no
- * French and no English still has to produce *something*, and a Japanese title
- * beats a filename.
- *
- * [tag] exists because titles are cached on disk. Two languages of the same
- * cartridge are two different strings under the same game code, so the cache
- * key has to carry the language or switching the app's language would show the
- * previous one until the next rescan.
+ * [tag] existe parce que les titres sont mis en cache sur disque — deux langues
+ * de la meme cartouche sont deux chaines sous le meme code de jeu.
+ * pourquoi : docs/decisions/scan-bibliotheque.md § La langue d'une cartouche est celle de l'app
  */
 object TitleLanguage {
 

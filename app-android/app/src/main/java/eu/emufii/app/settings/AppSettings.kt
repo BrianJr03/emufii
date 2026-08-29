@@ -50,20 +50,6 @@ enum class AppTheme {
 }
 
 /**
- * Which colour the accent is — which hue plays the part, never how many are on
- * screen. [SYSTEM] exists but is deliberately **not** the default.
- * pourquoi : docs/decisions/reglages-et-consoles.md § Suivre le téléphone est le bon défaut, sauf pour l'accent
- */
-enum class AppAccent {
-    CYAN, SYSTEM, AMBER, YELLOW, RED, ROSE, VIOLET, WHITE;
-
-    companion object {
-        fun fromName(name: String?): AppAccent =
-            entries.firstOrNull { it.name == name } ?: CYAN
-    }
-}
-
-/**
  * App-wide preferences. Small on purpose. The language goes through the
  * platform's per-app API, never a hand-juggled `Configuration`.
  * pourquoi : docs/decisions/reglages-et-consoles.md § La langue passe par la plateforme, le thème ne peut pas
@@ -78,9 +64,6 @@ class SettingsStore private constructor(context: Context) {
 
     private val _theme = MutableStateFlow(AppTheme.fromName(prefs.getString(KEY_THEME, null)))
     val theme: StateFlow<AppTheme> = _theme.asStateFlow()
-
-    private val _accent = MutableStateFlow(AppAccent.fromName(prefs.getString(KEY_ACCENT, null)))
-    val accent: StateFlow<AppAccent> = _accent.asStateFlow()
 
     /**
      * The player's SteamGridDB key. Every player brings their own — a key frozen
@@ -209,11 +192,6 @@ class SettingsStore private constructor(context: Context) {
     }
 
     /** Read by the theme, like [setTheme], so the change is instant. */
-    fun setAccent(accent: AppAccent) {
-        prefs.edit { putString(KEY_ACCENT, accent.name) }
-        _accent.value = accent
-    }
-
     private fun readLanguage(): AppLanguage {
         // The platform is the source of truth once a choice has been made, so a
         // change from Android's own settings screen is reflected here too.
@@ -261,7 +239,6 @@ class SettingsStore private constructor(context: Context) {
         private const val PREFS = "emufii_settings"
         private const val KEY_LANGUAGE = "language"
         private const val KEY_THEME = "theme"
-        private const val KEY_ACCENT = "accent"
         private const val KEY_ONBOARDING_DONE = "onboarding_done"
         private const val KEY_SGDB = "steamgriddb_key"
         private const val KEY_COCOON = "cocoon_folder"

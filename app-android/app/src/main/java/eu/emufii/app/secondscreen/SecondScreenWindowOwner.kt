@@ -16,23 +16,10 @@ import android.view.View
 /**
  * The three owners Compose insists on, owned by nobody in particular.
  *
- * A `ComposeView` refuses to compose unless its view tree carries a
- * [LifecycleOwner], a [ViewModelStoreOwner] and a [SavedStateRegistryOwner].
- * On the main screen the activity supplies all three and it is invisible work.
- * On a window that is not the activity's, nothing supplies them, and the
- * failure is a runtime crash on first frame rather than anything a compiler
- * catches.
- *
- * The obvious shortcut is to lend the activity's owners to the second screen's
- * window. It compiles, it runs, and it is a dead end: the host that this whole
- * feature is for, a foreground service that keeps the panel alive **while the
- * emulator owns the front display**, has no activity to borrow from. Writing
- * the shortcut now would mean writing this class later anyway, after the
- * feature had already shipped on top of it.
- *
- * So the owner is standalone from the first line. Both hosts attach one of
- * these to their own window, and the second host is a subscriber rather than a
- * rewrite.
+ * Autonome des la premiere ligne : le service de premier plan qui garde le
+ * panneau vivant pendant que l'emulateur possede l'ecran de face n'a aucune
+ * activite a qui emprunter les siens.
+ * pourquoi : docs/decisions/second-ecran.md § Les trois propriétaires sont autonomes dès la première ligne
  */
 class SecondScreenWindowOwner : LifecycleOwner, ViewModelStoreOwner, SavedStateRegistryOwner {
 

@@ -71,6 +71,49 @@ premier contrôle est conditionnel peut n'en avoir aucun, et l'avaler là
 emprisonnerait le curseur, alors que la rendre laisse sa chance à la traversée
 ordinaire.
 
+## Le curseur arrive avec l'écran
+
+Posé le 2026-08-28, sur une gêne signalée par l'utilisateur : « 90 % du temps le
+sélecteur n'est nulle part, donc on doit appuyer au moins une fois pour qu'il
+apparaisse ». Une pression de direction sur deux était dépensée à ne rien faire.
+
+`padEntry()` nommait la destination — c'est là que le curseur descend depuis
+l'en-tête, et c'est de là qu'il y remonte — mais **personne ne la demandait à
+l'ouverture**. `EmufiiScaffold` le fait maintenant, et ça couvre tous les écrans
+sauf la bibliothèque, qui n'est pas scaffoldée et tient son propre curseur.
+
+Deux pièges, tous deux découverts en le mesurant sur la Thor, et l'ordre compte :
+
+- **Il faut demander le mode clavier avant de demander le focus.** Compose tient
+  deux modes de saisie, et en `InputMode.Touch` aucun élément ne retient le
+  focus : `requestFocus` y est un appel qui ne lève rien et ne fait rien. Un
+  écran ouvert au doigt laissait la machine en mode tactile et toutes les
+  demandes tombaient dans le vide — pendant que le même appel, lancé depuis
+  l'en-tête en réponse à une touche, marchait, parce qu'une touche fait passer
+  Compose en mode clavier toute seule. C'est aussi la réponse à « le curseur
+  n'est nulle part » quand on entre dans une page en la touchant.
+- **Il faut redemander sur plusieurs images, sans regarder si ça a marché.** Un
+  `LaunchedEffect` part dès la fin de la composition, quand le nœud porteur de
+  `padEntry` est composé mais pas encore *placé* ; la demande n'y lève rien et
+  ne fait rien non plus. Une première version s'est arrêtée sur ce silence en le
+  prenant pour un succès, et le curseur restait introuvable — exactement le
+  défaut qu'elle devait corriger. Six images, soit une centaine de
+  millisecondes : redemander sur un nœud qui a déjà le focus ne coûte rien, donc
+  rien ne sert de tester, et la fenêtre est trop courte pour arracher le curseur
+  à quelqu'un qui aurait déjà appuyé.
+
+La boucle est bornée parce qu'un écran a le droit de n'avoir aucun premier
+contrôle, et qu'une boucle qui l'attendrait ne s'arrêterait jamais. Le paramètre
+`autoFocus` existe pour qu'un écran qui placerait son curseur lui-même puisse
+refuser sans qu'on retire l'arrivée du curseur à tous les autres ; personne ne
+s'en sert aujourd'hui.
+
+**Aucun `padEntry` ne tombe sur un champ de saisie** — vérifié sur les sept
+écrans qui en posent un, ce sont tous des boutons ou des zones cliquables. C'est
+la condition pour que l'arrivée du curseur n'ouvre pas un clavier au visage du
+joueur, et elle rejoint la règle de « Un champ de texte ne doit pas être un arrêt
+du curseur ».
+
 ## L'anneau entoure la pastille, il ne mord pas dedans
 
 Posé sur la pastille elle-même, son trait mordait dans le fond teinté et écrasait
@@ -192,6 +235,41 @@ après, il ne voyait jamais le focus du cadre et restait éteint alors que le cu
 était bien là — le champ défilant vers le centre de l'écran sans rien afficher, ce
 qui se lit comme un curseur disparu.
 
+### L'étiquette se pose au-dessus du cadre, jamais dedans
+
+`OutlinedTextField` réserve en haut la place où son étiquette ira flotter, même
+quand elle est encore au repos : le texte s'assied nettement sous le milieu,
+beaucoup d'air au-dessus, peu en dessous. Dans un cadre dont l'anneau *est* le
+contour, cette asymétrie se lit comme un anneau mal dimensionné — c'est ce qui a
+été signalé sur le pseudo du profil.
+
+La réserve ne servait d'ailleurs à rien ici : une étiquette qui flotte se pose
+dans l'encoche du contour de Material, contour que ce champ efface au profit de
+l'anneau. Elle serait donc allée flotter **sur l'anneau lui-même** dès le premier
+caractère tapé.
+
+`PadTextField` rend donc l'étiquette lui-même, au-dessus du cadre, et passe
+`label = null` à Material. Le texte retrouve son centre, et l'étiquette reste
+lisible en permanence — y compris une fois le champ rempli, où la version
+flottante se serait perdue dans le trait.
+
+### Les quatre contours s'effacent, pas trois
+
+Le champ éteint son propre contour quand le cadre porte le curseur, pour qu'il
+n'y en ait jamais deux à la fois. Trois couleurs le faisaient — `unfocused`,
+`disabled`, `focused` — et la quatrième manquait : **`errorBorderColor`**, que
+Material fait passer devant les autres dès que `isError` est vrai.
+
+Un champ en erreur gardait donc son trait rouge sous l'anneau : deux contours de
+tailles différentes l'un dans l'autre, ce qui se lit comme un anneau mal
+dimensionné. Ça se voyait à chaque ouverture du profil, où le pseudo est vide
+donc en erreur dès l'arrivée — et l'arrivée automatique du curseur l'a rendu
+visible en permanence.
+
+`framed` est faux pendant l'édition, le curseur étant alors *dans* le champ et
+non sur son cadre : le rouge revient donc exactement quand l'anneau s'éteint,
+règle que les trois autres suivaient déjà.
+
 ## Le doigt n'atteignait pas le cadre
 
 Signalé sur l'écran d'accueil, vrai partout où ce champ sert.
@@ -256,3 +334,143 @@ Le bloc est centré **sur l'écran, pas sous l'en-tête** : réserver la marge h
 centrait dans ce qui restait sous le titre, soit 90 px trop bas. Rien ici n'atteint
 l'en-tête, le bloc faisant 212 dp des 468 de l'appareil, donc il n'y a pas de place à
 lui réserver.
+
+## Le clavier de l'app est une dalle gravée, pas une planche à boutons
+
+L'IME du système est fait pour un téléphone tenu droit : sur un portable en
+paysage, son mode plein écran prend toute la dalle, et la bibliothèque qu'on
+cherche disparaît exactement au moment où il faut la voir. Celui-ci ne monte
+jamais au-delà de la moitié de l'écran.
+
+Chaque touche a d'abord été un creux à elle : son contour, son coin arrondi,
+sept points d'écart avec sa voisine. Trente-huit objets posés côte à côte, donc
+trente-huit contours à suivre pour l'œil, et un objet ne se distinguait du
+suivant que par la rainure qui l'en séparait — la même rainure partout. Le
+panneau se lisait comme un tas.
+
+Il n'y a plus qu'une pièce. Les touches sont des cases découpées **dedans**,
+séparées par une gravure d'un point — un trait sombre puis un trait clair,
+exactement ce que le plastique moulé fait déjà partout ailleurs. Rien ne flotte,
+rien n'a de coin propre, et le contour du panneau est le seul contour de
+l'ensemble. C'est la sérigraphie d'une coque de console, qui est l'objet que ce
+clavier imite depuis le début.
+
+Ce qui allume une case, c'est l'**état**, plus jamais la forme : le curseur posé
+dessus, le doigt qui appuie, ou la majuscule verrouillée. Une case au repos n'a
+aucun dessin à elle, donc une case allumée est la seule chose que l'œil trouve.
+
+La majuscule verrouille comme un caps lock au lieu de ne tirer qu'un coup : une
+majuscule qui se défait après une lettre est un comportement que personne ne peut
+prévoir sans le regarder. La recherche ignore la casse de toute façon — la touche
+sert à ce que le joueur se regarde taper, pas à ce qu'il trouve.
+
+## La dalle tient son propre curseur
+
+Première tentative : rendre chaque touche focalisable et laisser la traversée
+bidimensionnelle faire le reste. Elle ne le fait pas. Les rangées sont des `Row`
+distinctes, et un `focusGroup` n'y a rien changé — vérifié deux fois sur la
+Thor : « A » puis haut sortait du clavier au lieu de monter sur « Q ». Le
+déplacement échouait, la touche remontait non consommée, et la sortie de secours
+prévue pour la première rangée s'appliquait à toutes.
+
+C'est exactement la leçon de la bibliothèque, écrite noir sur blanc dans
+`CLAUDE.md` : sur une grille, on ne confie pas la navigation à la traversée de
+focus. Un seul nœud focalisable — la dalle — un index (rangée, colonne) qu'elle
+calcule elle-même, et des touches à qui l'on **dit** si elles portent le curseur.
+
+Trois conséquences, toutes voulues :
+
+- **Les touches ne sont plus focalisables.** Trente-huit arrêts invisibles en
+  moins, et plus aucun moyen pour le curseur de se perdre entre deux.
+- **Les bords rendent la main.** Haut depuis la première rangée, bas depuis la
+  dernière : la touche n'est pas consommée et l'écran qui héberge la dalle en
+  fait ce qu'il veut. Une dalle qui avalerait tout serait un piège.
+- **La colonne se souvient.** En changeant de rangée, on garde l'index de
+  colonne, ramené dans les bornes de la rangée d'arrivée ; sans ça, passer de la
+  rangée des dix lettres à celle des quatre touches de service ramenait le
+  curseur au bord à chaque aller-retour.
+
+## Une rangée dépliée est faite de trois choses, et de rien d'autre
+
+Fermée, la liste des réglages est une pile de plaques moulées et se lit à bout de
+bras. Ouverte, chaque section avait pris ses habitudes : un paragraphe, puis deux
+boutons de poids égal, puis trois ou quatre phrases en quatre couleurs
+différentes disant ce qui s'était passé. Chaque ligne était défendable et le
+résultat était un mur — le profil PS2 finissait avec onze textes empilés, le plus
+important en dernier.
+
+1. **La note** — au plus un paragraphe, et seulement tant qu'elle apprend encore
+   quelque chose. Une fois la chose faite, l'explication cède la place à l'état.
+2. **Les actions** — la première remplie, les autres en fantômes. Deux pilules
+   côte à côte à poids égal disaient « ce sont deux choses de même nature », ce
+   qui n'a jamais été vrai.
+3. **L'état** — ce que l'app sait, dans un creux : une perle moulée, une phrase,
+   et les faits en rangées alignées plutôt qu'en prose à points médians.
+
+Le creux est le vocabulaire du plateau — le même trou que la grille utilise pour
+une alvéole vide — donc un écran de réglages fait de plaques n'a **qu'une** sorte
+de creux, et elle veut dire « voilà ce qui est, pas ce que tu peux faire ».
+
+## Rejoindre : le clavier de l'app plutôt qu'un champ invisible
+
+Il y avait six encoches, un caret, un exemple en petit, et sous le tout un champ
+de saisie invisible qui attendait le clavier système. Sur une console à manette,
+ce clavier ne s'ouvrait jamais : rien à l'écran ne disait comment produire un
+caractère, et c'était le seul écran de l'app à en demander un. Le champ invisible
+apportait le collage et la sélection — deux gestes qui n'existent pas sans écran
+tactile ni curseur — au prix du seul geste qui compte ici.
+
+Il est remplacé par la dalle de la recherche. Le code se saisit donc de la même
+façon qu'on cherche un jeu, avec les mêmes touches et le même curseur, et l'écran
+n'a plus rien de spécial.
+
+**En deux colonnes, parce que la machine est couchée.** Empilé, le clavier aurait
+poussé les encoches sous l'en-tête. À gauche ce qu'on lit — le jeu, le gabarit,
+les six cases, l'action ; à droite ce avec quoi on écrit. C'est l'ordre de la
+main droite sur une console tenue à deux mains.
+
+## Le clavier de code n'est pas le clavier de recherche
+
+L'écran « Rejoindre par code » demandait six caractères à la manette et ne disait
+nulle part comment les produire. La réponse était déjà dans le dépôt : la même
+dalle, réglée autrement.
+
+Trois différences, et une seule raison à chacune — **un code n'est pas une
+phrase**. Pas de casse, donc pas de majuscule à verrouiller ; pas de mots, donc
+pas d'espace ; pas de bascule lettres/chiffres, parce qu'un code mélange les deux
+et qu'aller les chercher dans deux pages doublerait le nombre de gestes.
+L'alphabet entier et les dix chiffres tiennent en quatre rangées, ce qui est
+exactement la hauteur de l'autre.
+
+**L'alphabet, pas l'AZERTY.** On ne tape pas un code de mémoire musculaire mais
+caractère par caractère, en le lisant sur un écran ou dans un message. Sur une
+disposition de machine à écrire il faut chasser chaque lettre ; sur l'alphabet on
+sait où elle est avant de la chercher.
+
+## Une case de la dalle ne dessine rien au repos
+
+Trois états seulement l'allument, et ils se cumulent proprement parce qu'ils sont
+dans l'ordre de la certitude : la majuscule verrouillée (état durable, le plus
+discret), le curseur (où l'on est), l'appui (ce que l'on fait). La plus forte
+gagne. Le contour n'apparaît qu'avec le curseur : c'est lui qui doit se retrouver
+d'un coup d'œil sur trente-huit cases, l'appui se voit déjà sous le doigt.
+
+**Le curseur avait été oublié.** Une touche était `clickable`, donc focalisable,
+donc un arrêt du curseur — et rien ne le montrait. Sur une app pilotée à la
+manette, le clavier était le seul endroit où l'on tapait à l'aveugle. Le
+`focusable` est désormais explicite, avec le même `interactionSource` que le clic.
+
+Corollaire payé cher par la bibliothèque : **cliquable au doigt, jamais
+focalisable**. `clickable` rend focalisable par défaut, ce qui laisserait autant
+d'arrêts invisibles que de touches, en concurrence avec le curseur que la dalle
+tient. L'écran tactile garde son chemin, la manette a le sien, et les deux
+désignent la même case.
+
+Et la dalle n'affiche son curseur **que tant qu'elle l'a** : la case allumée est
+désignée par un index, pas par le focus, donc elle restait allumée après que le
+haut avait rendu la main au champ de recherche. L'index se souvient — c'est ce
+qu'on veut au retour — mais il ne se dessine que quand la dalle a le focus.
+
+La gravure qui sépare deux cases est un trait sombre puis un trait clair d'un
+point sous lui : la même paire que le biseau des plaques, à l'échelle d'un sillon.
+Un seul trait gris aurait fait un tableau ; la paire fait un sillon.

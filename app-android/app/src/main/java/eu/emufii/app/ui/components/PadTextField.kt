@@ -42,6 +42,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.text.KeyboardOptions
 import eu.emufii.app.ui.CONFIRM_KEYS
 import eu.emufii.app.ui.controlRing
+import eu.emufii.app.ui.ringColor
+import eu.emufii.app.ui.Sfx
 
 /**
  * A text field that waits to be asked before opening: **the field is not a step
@@ -109,6 +111,31 @@ fun PadTextField(
     }
 
     Column(modifier = modifier) {
+        // **L'etiquette est posee au-dessus du cadre, pas dedans.**
+        //
+        // `OutlinedTextField` reserve en haut la place ou son etiquette ira
+        // flotter, meme quand elle est encore au repos : le texte se retrouve
+        // assis nettement sous le milieu, avec beaucoup d'air au-dessus et peu
+        // en dessous. Dans un cadre dont l'anneau *est* le contour, cette
+        // asymetrie se lit comme un anneau mal dimensionne.
+        //
+        // Et la reserve ne servait a rien ici : une etiquette qui flotte se
+        // pose dans l'encoche du contour de Material, contour que ce champ
+        // efface au profit de l'anneau. Elle serait donc allee flotter sur
+        // l'anneau lui-meme des qu'on aurait tape un caractere.
+        //
+        // Au-dessus, elle reste lisible en permanence — y compris une fois le
+        // champ rempli, ou la version flottante disparaissait dans le trait.
+        // pourquoi : docs/decisions/coquille-ecrans.md § L'anneau *est* le contour du champ, et c'est le seul arrangement qui tienne
+        if (label != null) {
+            Text(
+                label,
+                style = MaterialTheme.typography.labelLarge,
+                color = if (isError) MaterialTheme.colorScheme.error
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 4.dp, bottom = 6.dp)
+            )
+        }
         Box(
             modifier = Modifier
                 // The ring *is* the field's outline here: one outline at a
@@ -116,6 +143,21 @@ fun PadTextField(
                 // `focusable`, or it never sees the frame's focus.
                 // pourquoi : docs/decisions/coquille-ecrans.md § L'anneau *est* le contour du champ, et c'est le seul arrangement qui tienne
                 .controlRing(shape, enabled = !editing)
+                // **Opaque, sinon la lueur passe au travers.**
+                //
+                // La lueur du curseur est une ombre, et une ombre traverse tout
+                // ce qui n'est pas opaque. Le cadre de ce champ ne peignait
+                // rien — il laissait voir la carte derriere — donc pendant les
+                // 140 ms ou l'elevation monte, l'ombre se voyait *dedans* : un
+                // halo qui se remplit puis se vide au milieu du champ.
+                //
+                // Le remplissage est la tranche exacte du degrade que la carte
+                // peignait deja ici, donc rien ne change a l'oeil. Pose apres
+                // l'anneau : dans une chaine de modificateurs, l'ombre dessine
+                // en premier, ce fond par-dessus, et le trait de l'anneau
+                // par-dessus encore.
+                // pourquoi : docs/decisions/reglages-ecran.md § Le remplissage opaque existe pour le curseur, pas pour le look
+                .cardSliceFill(shape)
                 .focusRequester(frame)
                 .focusable(interactionSource = interaction)
                 .onKeyEvent { event ->
@@ -124,7 +166,7 @@ fun PadTextField(
                         // Opened on release, as everywhere else in the app; the
                         // key-down is swallowed so one press does not count
                         // twice.
-                        if (event.type == KeyEventType.KeyUp) editing = true
+                        if (event.type == KeyEventType.KeyUp) { Sfx.click(); editing = true }
                         true
                     } else {
                         false
@@ -134,7 +176,8 @@ fun PadTextField(
             OutlinedTextField(
                 value = value,
                 onValueChange = onValueChange,
-                label = label?.let { { Text(it) } },
+                // Nulle : voir le commentaire de l'etiquette, plus haut.
+                label = null,
                 placeholder = placeholder?.let { { Text(it) } },
                 isError = isError,
                 singleLine = singleLine,
@@ -144,13 +187,37 @@ fun PadTextField(
                 // show at once. Editing puts the cursor inside the field, the
                 // ring goes out, and Material's own outline comes back to say
                 // where the caret is.
+                //
+                // The caret speaks the zone's axis: teal by default, coral
+                // wherever the field feeds the social domain (join codes,
+                // session names) — the caller wraps itself in
+                // `LocalRingTone provides CORAL` and the field follows.
+                // pourquoi : docs/decisions/theme-duotone-shelves.md § Session / Join — domaine corail
                 colors = OutlinedTextFieldDefaults.colors(
+                    cursorColor = ringColor(),
+                    focusedBorderColor = ringColor(),
                     unfocusedBorderColor =
                         if (framed) Color.Transparent
                         else MaterialTheme.colorScheme.outline,
                     disabledBorderColor =
                         if (framed) Color.Transparent
-                        else MaterialTheme.colorScheme.outline
+                        else MaterialTheme.colorScheme.outline,
+                    // **Le contour d'erreur s'efface comme les autres.**
+                    //
+                    // Il manquait, et Material le fait passer devant les trois
+                    // autres : un champ en erreur gardait donc son trait rouge
+                    // sous l'anneau, deux contours de tailles differentes l'un
+                    // dans l'autre. Ca se voyait a chaque ouverture du profil,
+                    // ou le pseudo est vide donc en erreur des l'arrivee.
+                    //
+                    // `framed` est faux pendant l'edition — le curseur est alors
+                    // dans le champ, pas sur son cadre — donc le rouge revient
+                    // exactement quand l'anneau s'eteint, ce qui est la regle
+                    // que les trois autres suivaient deja.
+                    // pourquoi : docs/decisions/coquille-ecrans.md § L'anneau *est* le contour du champ, et c'est le seul arrangement qui tienne
+                    errorBorderColor =
+                        if (framed) Color.Transparent
+                        else MaterialTheme.colorScheme.error
                 ),
                 modifier = Modifier
                     .fillMaxWidth()

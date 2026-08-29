@@ -42,6 +42,9 @@ import kotlinx.coroutines.withContext
  * et une session est refusee tant qu'ils ne sont pas faits. C'est la seule
  * page des reglages ou l'app a quelque chose a **demander** au joueur, et
  * c'est ce qui lui vaut la sienne.
+ *
+ * Les trois blocs sont `internal` : l'onboarding les pose tels quels.
+ * pourquoi : docs/decisions/onboarding.md § Les rituels d'émulateur sont les blocs des réglages, pas des copies
  * pourquoi : docs/decisions/reglages-ecran.md § Les émulateurs ne sont pas un réglage de l'application
  */
 @Composable
@@ -85,7 +88,7 @@ internal fun EmulatorsPage(
 }
 
 @Composable
-private fun PpssppBlock(
+internal fun PpssppBlock(
     store: PpssppConfigStore,
     ready: Boolean,
     onReadyChanged: (Boolean) -> Unit,
@@ -164,7 +167,7 @@ private fun PpssppBlock(
 }
 
 @Composable
-private fun Ps2Block(
+internal fun Ps2Block(
     ready: Boolean,
     profileName: String,
     onReadyChanged: (Boolean) -> Unit,
@@ -359,7 +362,7 @@ private fun Ps2Block(
  * pourquoi : docs/decisions/reglages-ecran.md § Le remplissage automatique a sa rangée parce qu'Android peut l'éteindre
  */
 @Composable
-private fun AutofillBlock(enabled: Boolean, onOpen: () -> Unit) {
+internal fun AutofillBlock(enabled: Boolean, onOpen: () -> Unit) {
     SettingsBlock(
         title = stringResource(R.string.settings_row_autofill),
         mark = { EmulatorMark(Console.THREE_DS) },
