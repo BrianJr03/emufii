@@ -133,8 +133,13 @@ android {
         // accessibility navigation; the old driver remains only as a codec
         // fallback. A PSP session is refused until the PPSSPP setup is done,
         // mirroring the PS2 gate.
-        versionCode = 45
-        versionName = "1.12.7"
+        // 46: the coordinator answers on a name of our own, `coord.emufii.xyz`,
+        // instead of an address that carried the machine's IP. This build is the
+        // first one that can survive a change of server: from here on, moving
+        // machines is a DNS record and nobody reinstalls anything. Builds up to
+        // 45 keep calling the old address, which is why that machine stays up.
+        versionCode = 46
+        versionName = "1.12.8"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
