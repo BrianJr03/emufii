@@ -172,8 +172,14 @@ android {
     // fallen behind in production stayed invisible during development.
     //
     // Override with -Pemufii.coordinatorUrl=… to point a build somewhere else.
+    //
+    // A name of our own since 2026-08-30, in place of `85-215-52-3.sslip.io`.
+    // That address carried the machine's IP, so moving machines changed it — and
+    // every APK already installed kept calling the old one, with no way back:
+    // the update they would need is served by the address they can no longer
+    // reach. A domain makes the next move a DNS record.
     val coordinatorUrl =
-        project.findProperty("emufii.coordinatorUrl") ?: "https://85-215-52-3.sslip.io"
+        project.findProperty("emufii.coordinatorUrl") ?: "https://coord.emufii.xyz"
 
     // The key that signs calls to the coordinator, see `network/ClientAuth.kt`.
     //
