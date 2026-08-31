@@ -21,6 +21,9 @@ scripts/
 docs/*
 !docs/decisions/
 !docs/STYLE_COMMENTAIRES.md
+# The README's screenshots. Same trap as above: the exception only bites
+# because the rule is `docs/*` and not `docs/`.
+!docs/images/
 CLAUDE.md
 .claude/
 .agents/
