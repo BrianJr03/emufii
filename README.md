@@ -36,7 +36,7 @@ fixed, and there will be problems.
 
 <br>
 
-<img src="docs/images/library.jpg" alt="The Emufii library on an AYN Thor: game tiles with a console badge and a compatibility bead" width="820">
+<img src="docs/images/library.jpg" alt="The Emufii library on an AYN Thor: game tiles carrying a console badge and a compatibility bead" width="820">
 
 <sub>The library on an AYN Thor. Every tile carries its console, and a bead saying whether that game is known to work.</sub>
 
@@ -99,13 +99,22 @@ do.
 - **A bead per game.** Compatible, partially compatible, not compatible, or not
   tested yet. Verdicts come from real games played on real devices, and they are
   shared with everyone rather than kept in one person's head.
-- **The second screen, on handhelds that have one.** On an AYN Thor the rear
-  panel shows the session code, who is hosting and what is being played, so the
-  code is readable without leaving the game. Nothing moves off the main screen
-  to get there: a player with one screen loses nothing.
 - **A gamepad, not a touchscreen.** Everything is reachable with the sticks and
   the d-pad, with a cursor that never disappears. Touch works too, it just isn't
   the target.
+- **The second screen, on handhelds that have one.** On an AYN Thor the rear
+  panel carries the game, the server's state and, during a session, the code and
+  who is hosting, so none of it has to sit on top of the game you are playing.
+  Nothing moves off the main screen to get there: a player with one screen loses
+  nothing.
+
+<div align="center">
+
+<img src="docs/images/second-screen.jpg" alt="The Thor's rear panel showing a game card: console, compatibility and the server's state" width="420">
+
+<sub>The rear panel of an AYN Thor, driven from the front screen.</sub>
+
+</div>
 
 ## Consoles
 
