@@ -306,10 +306,23 @@ devices, so a flaw here is worth taking seriously.
 
 ## How it was built
 
-Emufii is co-coded with [Claude Code](https://claude.com/claude-code). The
-design decisions, the testing on real hardware and the calls about what ships
-are the author's; a good deal of the code, the scouting of emulator internals
-and the reviews were done alongside the model.
+**Emufii is co-produced with [Claude Code](https://claude.com/claude-code), and I
+would rather tell you than let you work it out.** A good deal of the code was
+written alongside the model, and so was the digging through each emulator to
+find out how its multiplayer actually works.
 
-Said out loud because it is part of how this project is made, and you are
-entitled to know what is behind the build you install.
+What that does not mean is that nobody is steering. The design, the choices
+about how the project is built and tested, and every session played on real
+hardware are mine. So are the reviews: I read the code that goes in, and I check
+what the app really does on a device before it ships to anyone.
+
+**If you are not comfortable with software made this way, I understand, and I
+would rather you skipped it than installed it uneasy.** Two things are worth
+knowing before you decide. The app, the session broker and the relay have been
+through security reviews, [written up above](#security), and what they turned up
+was fixed rather than filed away. And the code will keep changing as experienced
+developers come to the project, one already and likely more.
+
+That is the honest state of it. If it sounds like something you want on your
+handheld, [the build is one click away](https://github.com/jojodogm-ctrl/emufii/releases/latest),
+and [Discord](https://discord.gg/tvWcb28vBZ) is where you tell me what broke.
