@@ -324,5 +324,4 @@ was fixed rather than filed away. And the code will keep changing as experienced
 developers come to the project, one already and likely more.
 
 That is the honest state of it. If it sounds like something you want on your
-handheld, [the build is one click away](https://github.com/jojodogm-ctrl/emufii/releases/latest),
-and [Discord](https://discord.gg/tvWcb28vBZ) is where you tell me what broke.
+handheld, [the build is one click away](https://github.com/jojodogm-ctrl/emufii/releases/latest)!
