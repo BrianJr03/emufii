@@ -8,13 +8,11 @@ import java.net.URL
 import java.net.URLEncoder
 
 /**
- * Where the app goes to find real game icons.
- *
- * Les icones, jamais les jaquettes verticales. Rien n'est empaquete dans l'APK,
- * et chaque joueur apporte sa cle : sans cle, aucune requete ne part et les
- * tuiles gardent leur icone embarquee.
- * pourquoi : docs/decisions/jaquettes.md § L'icône, jamais la jaquette verticale
- * pourquoi : docs/decisions/jaquettes.md § Chaque joueur apporte sa propre clé
+ * Where the app goes for real game icons. Icons, never vertical cover art. Nothing is
+ * bundled in the APK and each player brings their own key: with none, no request leaves
+ * and the tiles keep their built-in icon.
+ * pourquoi : docs/decisions/jaquettes.md § The icon, never the box art
+ * pourquoi : docs/decisions/jaquettes.md § Every player brings their own key
  */
 /** A game from the catalogue, as offered to the player fixing the match. */
 data class SgdbGame(val id: Int, val name: String)

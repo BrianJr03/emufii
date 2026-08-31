@@ -37,7 +37,7 @@ class ClientAuthTest {
     }
 
     @Test
-    fun `la signature d'un vecteur connu ne bouge pas`() {
+    fun `the signature of a known vector does not move`() {
         // If this value changes, the server will refuse every app. It is computed
         // by the same formula on the Node side; the two must move together or not
         // at all.
@@ -49,7 +49,7 @@ class ClientAuthTest {
     }
 
     @Test
-    fun `le corps entre dans le calcul`() {
+    fun `the body goes into the computation`() {
         // Without it, a signature valid for one request would be valid for every
         // request at the same path.
         val a = sign("POST", "/sessions", """{"code":"UN"}""", 1_770_000_000L)
@@ -58,21 +58,21 @@ class ClientAuthTest {
     }
 
     @Test
-    fun `le chemin entre dans le calcul`() {
+    fun `the path goes into the computation`() {
         val a = sign("POST", "/me", """{"id":"X"}""", 1_770_000_000L)
         val b = sign("POST", "/friends", """{"id":"X"}""", 1_770_000_000L)
         assertNotEquals(a, b)
     }
 
     @Test
-    fun `l'horodatage entre dans le calcul`() {
+    fun `the timestamp goes into the computation`() {
         val a = sign("POST", "/sessions", null, 1_770_000_000L)
         val b = sign("POST", "/sessions", null, 1_770_000_060L)
         assertNotEquals(a, b)
     }
 
     @Test
-    fun `un corps absent et un corps vide se signent pareil`() {
+    fun `an absent body and an empty body sign the same`() {
         // A GET request has no body, and the app then sends null where the server
         // reads the empty string.
         assertEquals(

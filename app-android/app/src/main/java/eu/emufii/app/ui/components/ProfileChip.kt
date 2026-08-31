@@ -49,7 +49,7 @@ import eu.emufii.app.ui.tap
 
 /**
  * The top bar's buttons all share one size, or the row reads as misaligned.
- * pourquoi : docs/decisions/direction-visuelle.md § Les pastilles de la barre du haut sont une famille
+ * pourquoi : docs/decisions/direction-visuelle.md § The top bar's chips are one family
  */
 private val CHIP_SIZE = 46.dp
 
@@ -57,20 +57,19 @@ private val CHIP_SIZE = 46.dp
  * The floating pill the top-bar buttons are cut from.
  *
  * The dark fill is deliberately lighter than it looks like it should be, and
- * there is **no Material indication** here: its state layer also covers focus,
+ * there is no Material indication here: its state layer also covers focus,
  * which a gamepad grants permanently, leaving a "disabled"-looking wash.
- * pourquoi : docs/decisions/direction-visuelle.md § Pas d'indication Material : une animation de pression
+ * pourquoi : docs/decisions/direction-visuelle.md § No Material indication: a press animation
  */
 @Composable
 fun TopBarChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     /**
-     * Appelee quand la pastille prend ou rend le curseur. C'est par la que le
-     * panneau arriere apprend ce qui est vise : la barre du haut est la seule
-     * couche de la bibliotheque a n'avoir rien a dire de son cote, et le
-     * panneau y montrait le repos.
-     * pourquoi : docs/decisions/second-ecran.md § Ce qui voyage jusqu'au panneau
+     * Called when the pill takes or gives back the cursor. That is how the rear panel
+     * learns what is aimed at: the top bar is the library's only layer with nothing to
+     * say for itself, and the panel showed the resting face there.
+     * pourquoi : docs/decisions/second-ecran.md § What travels to the panel
      */
     onFocused: (Boolean) -> Unit = {},
     content: @Composable () -> Unit
@@ -108,9 +107,9 @@ fun TopBarChip(
 }
 
 /**
- * The profile in the top bar: **just the avatar**, never a nudge that would
+ * The profile in the top bar: just the avatar, never a nudge that would
  * change the chip's width with its state.
- * pourquoi : docs/decisions/direction-visuelle.md § Les pastilles de la barre du haut sont une famille
+ * pourquoi : docs/decisions/direction-visuelle.md § The top bar's chips are one family
  */
 @Composable
 fun ProfileChip(
@@ -135,7 +134,7 @@ fun ProfileChip(
 /**
  * Friends, straight from the home screen: seeing who is online is something you
  * do *instead* of browsing, not a preference you adjust.
- * pourquoi : docs/decisions/direction-visuelle.md § Les pastilles de la barre du haut sont une famille
+ * pourquoi : docs/decisions/direction-visuelle.md § The top bar's chips are one family
  */
 @Composable
 fun FriendsChip(
@@ -144,24 +143,19 @@ fun FriendsChip(
     onFocused: (Boolean) -> Unit = {}
 ) {
     TopBarChip(onClick = onClick, modifier = modifier, onFocused = onFocused) {
-        // La silhouette du systeme d'icones, celle que l'etat vide du chercheur
-        // porte deja.
-        //
-        // C'etaient deux avatars empiles, au motif que l'app dit « d'autres
-        // joueurs » avec des disques et non avec un pictogramme. Le motif tenait
-        // tant qu'aucune autre marque ne disait « joueur » ; depuis que le
-        // chercheur en a une, deux dessins repondaient a la meme question — et
-        // deux avatars vides a 23 dp se lisaient de loin comme une tache, pas
-        // comme des gens.
-        // pourquoi : docs/decisions/direction-visuelle.md § Les glyphes disent « d'autres joueurs » comme le reste de l'app
+        // The icon system's silhouette, the one the finder's empty state already
+        // carries. It was two stacked avatars, on the grounds that the app says other
+        // players with discs rather than a pictogram; that held while no other mark
+        // said player.
+        // pourquoi : docs/decisions/direction-visuelle.md § The glyphs say "other players" the way the rest of the app does
         PersonMark(size = 22.dp, color = MaterialTheme.colorScheme.onSurface)
     }
 }
 
 /**
- * Open games, in the same family of pills as friends and profile — all three
+ * Open games, in the same family of pills as friends and profile: all three
  * are navigation. Two linked *screens*, not two people: discs are people here.
- * pourquoi : docs/decisions/direction-visuelle.md § Les glyphes disent « d'autres joueurs » comme le reste de l'app
+ * pourquoi : docs/decisions/direction-visuelle.md § The glyphs say "other players" the way the rest of the app does
  */
 @Composable
 fun SessionsChip(
@@ -210,9 +204,9 @@ fun SessionsChip(
 }
 
 /**
- * Two **blank** avatars, overlapped like [AvatarStack]. Filling them with real
+ * Two blank avatars, overlapped like [AvatarStack]. Filling them with real
  * friends was dropped: the empty state is what most installs show.
- * pourquoi : docs/decisions/direction-visuelle.md § Les glyphes disent « d'autres joueurs » comme le reste de l'app
+ * pourquoi : docs/decisions/direction-visuelle.md § The glyphs say "other players" the way the rest of the app does
  */
 @Composable
 private fun FriendsAvatars(modifier: Modifier = Modifier) {
@@ -221,24 +215,13 @@ private fun FriendsAvatars(modifier: Modifier = Modifier) {
 
     // By offset from the centre, never corner alignment: the overlap is the
     // whole point of the shape.
-    // pourquoi : docs/decisions/direction-visuelle.md § Les glyphes disent « d'autres joueurs » comme le reste de l'app
+    // pourquoi : docs/decisions/direction-visuelle.md § The glyphs say "other players" the way the rest of the app does
     Box(modifier = modifier.size(34.dp), contentAlignment = Alignment.Center) {
-        // Behind: muted, up and to the right, so the two read as depth rather
-        // than as two things of equal weight.
-        //
-        // **La profondeur vient de la valeur, plus de la temperature.**
-        //
-        // C'etait la seule palette parallele qui restait dans l'app : quatre hex
-        // ecrits ici, avec leur propre paire clair/sombre, et gris-bleu froids
-        // dans un monde dont tous les neutres sont chauds. Le contrat du projet
-        // dit « plus aucun hex hors des fichiers de theme », et un accent qui
-        // change ne les aurait jamais suivis.
-        //
-        // La teinte se prend donc a l'encre de second plan du theme, ramenee
-        // vers la surface : on garde exactement ce que le froid cherchait a
-        // obtenir — quelque chose de plus sourd que la pastille de devant — sans
-        // introduire une temperature que rien d'autre ne parle.
-        // pourquoi : docs/decisions/theme-duotone-shelves.md § Deux axes sémantiques
+        // Behind: muted, up and to the right, so the two read as depth rather than two
+        // things of equal weight. The depth comes from value, no longer from
+        // temperature. This was the last parallel palette left in the app, four hex
+        // values written here with their own light and dark pair.
+        // pourquoi : docs/decisions/theme-duotone-shelves.md § Two semantic axes
         val muted = MaterialTheme.colorScheme.onSurfaceVariant
         val ground = MaterialTheme.colorScheme.surfaceVariant
         Disc(
@@ -246,8 +229,8 @@ private fun FriendsAvatars(modifier: Modifier = Modifier) {
             ring = ring,
             modifier = Modifier.offset(x = 6.dp, y = (-4).dp)
         )
-        // In front: the accent **in force**, not a hardcoded colour.
-        // pourquoi : docs/decisions/direction-visuelle.md § Les glyphes disent « d'autres joueurs » comme le reste de l'app
+        // In front: the accent in force, not a hardcoded colour.
+        // pourquoi : docs/decisions/direction-visuelle.md § The glyphs say "other players" the way the rest of the app does
         val accent = LocalAccent.current
         Disc(
             colors = listOf(accent.bright, accent.deep),

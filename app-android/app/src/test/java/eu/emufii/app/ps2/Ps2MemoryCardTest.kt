@@ -10,8 +10,8 @@ import java.nio.ByteOrder
 /**
  * A generated card, judged the way the console judges one.
  *
- * The emulator proper inspects almost nothing — the checks that matter run on
- * the emulated side, against the bytes themselves — so the tests here read the
+ * The emulator proper inspects almost nothing: the checks that matter run on
+ * the emulated side, against the bytes themselves, so the tests here read the
  * image back with an independent parser (not the writer's own bookkeeping) and
  * hold it to the shape of the card the BIOS formatted on the bench: the same
  * superblock bytes, the same ECC on page 0, the same directory modes, and file
@@ -95,7 +95,7 @@ class Ps2MemoryCardTest {
             )
         }
         // Reserved block + IFD + FAT + directories + a few files: dozens, not
-        // thousands, and never zero — zero would mean nothing was ECC'd.
+        // thousands, and never zero: zero would mean nothing was ECC'd.
         assertTrue(written in 50..500)
     }
 

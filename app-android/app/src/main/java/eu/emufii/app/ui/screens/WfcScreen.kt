@@ -63,11 +63,11 @@ import eu.emufii.app.ui.theme.Coral
 import eu.emufii.app.ui.theme.Teal
 
 /**
- * Le liseré diagonal corail→turquoise : la signature des flux d'attente et de
- * connexion, un trait en biais sur le coin de la carte neutre.
+ * The diagonal coral-to-teal edge light: the signature of the waiting and connecting
+ * flows, a slanted stroke on the neutral card's corner.
  * pourquoi : docs/decisions/theme-duotone-shelves.md § Onboarding / Preparing
  */
-/** Le bon token, tire vers le turquoise. */
+/** The good token, leaning teal. */
 @Composable
 private fun good() = if (LocalEmufiiDarkTheme.current) GoodDark else GoodLight
 
@@ -128,8 +128,8 @@ fun WfcScreen(
         onBack()
     }
 
-    // Le domaine social : le curseur manette y devient corail.
-    // pourquoi : docs/decisions/theme-duotone-shelves.md § FOCUS MANETTE
+    // The social domain: the pad cursor turns coral here.
+    // pourquoi : docs/decisions/theme-duotone-shelves.md § GAMEPAD FOCUS
     CompositionLocalProvider(LocalRingTone provides RingTone.CORAL) {
     EmufiiScaffold(
         title = stringResource(R.string.wfc_title),

@@ -19,7 +19,7 @@
     <string name="bar_root">Bibliothèque</string>
     <string name="bar_search_summary">Filtre la bibliothèque au fil de la frappe, toutes consoles confondues.</string>
     <string name="bar_layout_summary">Grille, carrousel ou liste. La liste est celle qui distingue deux dumps d\'un même jeu.</string>
-    <string name="bar_sort_summary">A → Z, ajouté récemment, ou par console — le tri par console range la bibliothèque en dossiers.</string>
+    <string name="bar_sort_summary">A → Z, ajouté récemment, ou par console : le tri par console range la bibliothèque en dossiers.</string>
     <string name="bar_sessions_summary">Les sessions ouvertes, à rejoindre d\'un code ou d\'une touche.</string>
     <string name="bar_friends_summary">Tes amis, qui est en ligne, et la session où ils jouent.</string>
     <string name="bar_profile_summary">Ton pseudo, ton avatar et ton code ami. Et tous les réglages de l\'app.</string>
@@ -148,7 +148,7 @@
     <string name="hint_psp_title">Dans PPSSPP, une fois pour toutes</string>
     <string name="hint_psp_body">PPSSPP ne se laisse pas piloter par Emufii : il dessine sa propre interface. Ces quatre réglages sont donc à faire à la main, mais une seule fois, jamais à refaire.</string>
     <string name="hint_psp_automated">Emufii appliquera les quatre valeurs réseau de la session privée à ce jeu juste avant de le lancer. Tout le reste, y compris ton pseudo, reste inchangé.</string>
-    <string name="hint_psp_automatic_ready">Le paramétrage automatique PPSSPP est prêt — lance le jeu.</string>
+    <string name="hint_psp_automatic_ready">Le paramétrage automatique PPSSPP est prêt, lance le jeu.</string>
     <string name="hint_psp_exit_before_switch">Avant de passer d’une session privée au jeu public, ou l’inverse, quitte le jeu en cours jusqu’au menu de PPSSPP. Sinon PPSSPP peut réécrire en quittant les anciennes valeurs gardées en mémoire.</string>
     <string name="hint_psp_step1">Réseau → Activer le réseau/WLAN</string>
     <string name="hint_psp_step2">Réseau → Adresse du serveur ad hoc → Ajouter un serveur → colle %1$s</string>
@@ -589,7 +589,7 @@
     <string name="prep_give_up">Laisser tomber</string>
     <string name="panel_asking_launch">Choisis comment lancer la partie sur l\'écran de devant.</string>
 
-    <!-- ONBOARDING — le parcours du premier lancement.
+    <!-- ONBOARDING, le parcours du premier lancement.
          Il n'a pas de longueur fixe : les pages d'emulateur ne paraissent que
          pour les consoles que le joueur garde. Voir OnboardingScreen.kt. -->
 
@@ -629,12 +629,12 @@
     <string name="onb_cocoon_after">Emufii utilisera en priorité les jaquettes de Cocoon. Seule une image que tu as choisie toi-même passe avant.</string>
 
     <string name="onb_artwork_body">Sans Cocoon, tes jeux n\'ont que la minuscule icône rangée dans la ROM. Une clé SteamGridDB, gratuite, la remplace par une vraie jaquette.</string>
-    <string name="onb_artwork_step1">Crée un compte sur steamgriddb.com — c\'est gratuit.</string>
+    <string name="onb_artwork_step1">Crée un compte sur steamgriddb.com, c\'est gratuit.</string>
     <string name="onb_artwork_step2">Va dans les préférences de ton compte, section API, et génère une clé.</string>
     <string name="onb_artwork_step3">Colle-la ci-dessous. Elle ne sert qu\'à chercher des images, et reste sur l\'appareil.</string>
 
     <string name="onb_ppsspp_title">La PSP demande un réglage</string>
-    <string name="onb_ppsspp_body">PPSSPP n\'accepte pas qu\'on lui donne une adresse de l\'extérieur. Emufii doit donc l\'écrire elle-même dans ses fichiers, avant chaque partie — d\'où le dossier à lui indiquer une bonne fois.</string>
+    <string name="onb_ppsspp_body">PPSSPP n\'accepte pas qu\'on lui donne une adresse de l\'extérieur. Emufii doit donc l\'écrire elle-même dans ses fichiers, avant chaque partie, d\'où le dossier à lui indiquer une bonne fois.</string>
 
     <string name="onb_ps2_title">La PS2 demande un profil réseau</string>
     <string name="onb_ps2_body">Comme sur la vraie console, les jeux PS2 vont chercher leurs réglages réseau sur la carte mémoire. Emufii y installe un profil une bonne fois pour toutes : ensuite, tu n\'y touches plus.</string>

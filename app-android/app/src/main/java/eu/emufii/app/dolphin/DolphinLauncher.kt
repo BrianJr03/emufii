@@ -10,12 +10,10 @@ import eu.emufii.app.library.Console
 import eu.emufii.app.library.EmulatorPick
 
 /**
- * Opens Dolphin with the netplay autofill armed.
- *
- * Aucune ROM ne lui est passee : le jeu se choisit dans le salon, pas au
- * lancement. Consequence : les deux joueurs doivent deja avoir ce jeu, avec un
- * contenu identique — le netplay le verifie par empreinte.
- * pourquoi : docs/decisions/pilotes-emulateurs.md § Dolphin ne reçoit pas de ROM, et ça ne le gêne pas
+ * Opens Dolphin with the netplay autofill armed. No ROM is passed: the game is chosen
+ * in the lobby, not at launch. Consequently both players must already have that game
+ * with identical content, which netplay checks by hash.
+ * pourquoi : docs/decisions/pilotes-emulateurs.md § Dolphin gets no ROM, and it does not mind
  */
 class DolphinLauncher(private val context: Context) {
 
@@ -26,9 +24,9 @@ class DolphinLauncher(private val context: Context) {
      * share one package name and one signing key, so there is at most one to
      * find, and the dev build simply updates the release in place.
      */
-    // La GameCube porte le choix pour les deux : Dolphin est un seul paquet
-    // qui joue les deux consoles, et deux preferences pour un binaire feraient
-    // deux reponses possibles a une question qui n'en a qu'une.
+    // The GameCube carries the choice for both: Dolphin is one package playing two
+    // consoles, and two preferences for one binary would be two answers to a question
+    // that has one.
     fun installedPackage(): String? = EmulatorPick.packageFor(context, Console.GAMECUBE)
 
     fun isInstalled(): Boolean = installedPackage() != null

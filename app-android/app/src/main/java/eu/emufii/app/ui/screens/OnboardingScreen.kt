@@ -91,12 +91,10 @@ import eu.emufii.app.ui.wallpaper.TrayBackdrop
 import kotlinx.coroutines.delay
 
 /**
- * Le premier lancement : ce qu'il faut savoir, puis ce qu'il faut faire.
- *
- * Le parcours n'a pas de longueur fixe — les pages d'emulateur sont tirees de ce
- * que le joueur repond a la page des consoles — et chaque page a deux colonnes,
- * le pourquoi a gauche, le quoi faire a droite.
- * pourquoi : docs/decisions/onboarding.md § Le parcours n'a pas de longueur fixe
+ * First launch: what to know, then what to do. The run has no fixed length, the
+ * emulator pages being drawn from what the player answers on the consoles page, and
+ * each page has two columns, the why on the left and the what-to-do on the right.
+ * pourquoi : docs/decisions/onboarding.md § The walkthrough has no fixed length
  */
 @Composable
 fun OnboardingScreen(
@@ -127,8 +125,8 @@ fun OnboardingScreen(
         }
     }
 
-    // Lecture seule, comme dans les reglages : on regarde les images que Cocoon
-    // a deja telechargees, on n'ecrit rien dans son dossier.
+    // Read only, as in the settings: we look at the images Cocoon has already
+    // downloaded and write nothing into its folder.
     val cocoonPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocumentTree()
     ) { uri: Uri? ->
@@ -144,8 +142,8 @@ fun OnboardingScreen(
         }
     }
 
-    // Depuis la vraie permission, pas depuis « le joueur a-t-il appuye » : elle
-    // peut deja etre accordee, et le bouton ne ferait alors rien.
+    // From the real permission rather than from whether the player pressed: it may
+    // already be granted, and the button would then do nothing.
     var notificationsGranted by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
@@ -156,9 +154,9 @@ fun OnboardingScreen(
     val notificationPermission = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
-        // Un refus montrait le meme ✓ qu'un accord, ce qui etait un mensonge —
-        // et il compte, parce qu'apres deux refus Android cesse d'afficher la
-        // demande et le bouton ne ferait plus jamais rien.
+        // A refusal showed the same tick as a grant, which was a lie, and it counts:
+        // after two refusals Android stops showing the prompt and the button never does
+        // anything again.
         notificationsGranted = granted
         notificationsRefused = !granted
     }
@@ -168,13 +166,13 @@ fun OnboardingScreen(
     var ps2Ready by remember { mutableStateOf(Ps2NetworkProfile.isReadyQuick(context)) }
     LaunchedEffect(Unit) { ps2Ready = Ps2NetworkProfile.verifyReady(context) }
 
-    // Un aller-retour dans les reglages d'Android : pas de resultat a attendre,
-    // la reponse ne se voit qu'au retour, donc on sonde.
+    // A round trip through Android's settings: there is no result to await, the answer
+    // only shows on return, so we poll.
     val launcher = remember { AzaharLauncher(context) }
     var autofillOn by remember { mutableStateOf(launcher.isNetplayAutomationEnabled()) }
 
-    // Tenu par sa valeur et non par un index : masquer une console retire une
-    // page, et un index designerait alors la suivante.
+    // Held by value rather than index: hiding a console removes a page, and an index
+    // would then point at the next one.
     val steps = remember(hiddenConsoles) { onboardingSteps(hiddenConsoles) }
     var current by remember { mutableStateOf(OnbStep.WELCOME) }
     val index = steps.indexOf(current).coerceAtLeast(0)
@@ -199,12 +197,12 @@ fun OnboardingScreen(
         if (index > 0) current = steps[index - 1]
     }
 
-    // Le retour se fait au bouton systeme et a la touche B : un troisieme
-    // controle ferait trois choses a lire pour une decision.
+    // Back is the system button and B: a third control would be three things to read
+    // for one decision.
     BackHandler(enabled = index > 0) { goBack() }
 
-    // Les elements fixes se resserrent aussi : sur 468 dp de haut, leurs seules
-    // marges depassaient la place disponible.
+    // The fixed elements tighten too: at 468 dp tall their margins alone overflowed the
+    // room available.
     val configuration = LocalConfiguration.current
     val shortScreen = configuration.screenHeightDp < 520
     val wide = configuration.screenWidthDp >= 720
@@ -226,7 +224,7 @@ fun OnboardingScreen(
         ) {
             StepRail(current = index, total = steps.size, label = stringResource(current.railLabel))
 
-            // La page defile, le bouton reste : le poids sert le bouton d'abord.
+            // The page scrolls, the button stays: the weight serves the button first.
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -280,8 +278,8 @@ fun OnboardingScreen(
                 }
             }
 
-            // Les deux sorties sur une ligne : empilees, elles coutent une
-            // rangee de plus a une page qui n'en a pas.
+            // Both exits on one line: stacked, they cost one more row to a page that
+            // has none to spare.
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -296,16 +294,16 @@ fun OnboardingScreen(
                         }
                     ),
                     onClick = { goNext() },
-                    // La seule page qu'on ne traverse pas d'un geste : le pseudo
-                    // part tel quel dans le formulaire de l'emulateur.
-                    // pourquoi : docs/decisions/onboarding.md § Tout reste passable, sauf le pseudo
+                    // The one page you cannot skip past: the nickname goes into the
+                    // emulator's form exactly as typed.
+                    // pourquoi : docs/decisions/onboarding.md § Everything can be skipped, except the nickname
                     enabled = current != OnbStep.NAME || !nameTooShort,
                     modifier = Modifier.weight(1f).height(actionHeight)
                 )
 
-                // Offert seulement la ou l'on demande quelque chose : la page
-                // d'accueil n'invite pas a sauter une page qui ne demande rien,
-                // et le recapitulatif final n'a rien a sauter.
+                // Offered only where something is asked: the welcome page does not
+                // invite skipping a page that asks nothing, and the final summary has
+                // nothing to skip.
                 if (current.skippable) {
                     GhostButton(
                         label = stringResource(R.string.onb_skip),
@@ -318,10 +316,10 @@ fun OnboardingScreen(
     }
 }
 
-/** Le dossier ou Cocoon range ses images, pour ouvrir le selecteur au bon endroit. */
+/** Where Cocoon keeps its images, so the picker opens in the right place. */
 private val COCOON_DEFAULT_FOLDER: Uri? = null
 
-/** Une page du parcours. L'ordre de l'enum est l'ordre du parcours. */
+/** One page of the run. The enum's order is the run's order. */
 private enum class OnbStep(val railLabel: Int, val skippable: Boolean = true) {
     WELCOME(R.string.onb_rail_welcome, skippable = false),
     NAME(R.string.onb_rail_name, skippable = false),
@@ -337,9 +335,9 @@ private enum class OnbStep(val railLabel: Int, val skippable: Boolean = true) {
 }
 
 /**
- * Les consoles dont le multijoueur passe par le pilotage de l'emulateur. Ni la
- * PSP (tunnel) ni la DS (DNS) n'ont d'ecran a remplir.
- * pourquoi : docs/decisions/onboarding.md § Le parcours n'a pas de longueur fixe
+ * The consoles whose multiplayer goes through driving the emulator. Neither the PSP
+ * (tunnel) nor the DS (DNS) has a form to fill.
+ * pourquoi : docs/decisions/onboarding.md § The walkthrough has no fixed length
  */
 private val AUTOMATED = setOf(
     Console.THREE_DS,
@@ -349,7 +347,7 @@ private val AUTOMATED = setOf(
     Console.PS2,
 )
 
-/** Le parcours, taille sur les consoles que le joueur garde. */
+/** The run, cut to the consoles the player keeps. */
 private fun onboardingSteps(hidden: Set<Console>): List<OnbStep> = buildList {
     add(OnbStep.WELCOME)
     add(OnbStep.NAME)
@@ -365,9 +363,9 @@ private fun onboardingSteps(hidden: Set<Console>): List<OnbStep> = buildList {
 }
 
 /**
- * La mise en page d'une page : le *pourquoi* a gauche, le *quoi faire* a droite.
- * En etroit, la meme chose empilee. Une page sans travail centre sa colonne.
- * pourquoi : docs/decisions/onboarding.md § Deux colonnes, et elles ne disent pas la même chose
+ * The why on the left, the what-to-do on the right; stacked when narrow. A page with no
+ * work centres its column.
+ * pourquoi : docs/decisions/onboarding.md § Two columns, and they do not say the same thing
  */
 @Composable
 private fun StepLayout(
@@ -375,12 +373,12 @@ private fun StepLayout(
     mark: @Composable () -> Unit,
     title: String,
     body: String,
-    /** L'etat de ce que la page demande, quand il y en a un a montrer. */
+    /** The state of what the page asks for, when there is one to show. */
     state: (@Composable () -> Unit)? = null,
     /**
-     * Vrai quand le travail a besoin de toute la largeur : le pourquoi devient
-     * alors un bandeau. Une seule page le demande, celle des consoles.
-     * pourquoi : docs/decisions/onboarding.md § La page des consoles prend toute la largeur
+     * True when the work needs the full width, the why becoming a banner. One page asks
+     * for it, the consoles page.
+     * pourquoi : docs/decisions/onboarding.md § The consoles page takes the full width
      */
     fullWidthWork: Boolean = false,
     work: (@Composable () -> Unit)? = null,
@@ -447,8 +445,8 @@ private fun StepLayout(
             horizontalArrangement = Arrangement.spacedBy(26.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Sans plaque : elle parle par-dessus le plateau, comme un titre
-            // d'ecran, ce qui laisse la seule plaque a ce qui se fait.
+            // No plate: it speaks over the tray like a screen title, leaving the only
+            // plate to what is done.
             why(Modifier.weight(0.42f))
             Box(Modifier.weight(0.58f)) { work() }
         }
@@ -464,7 +462,7 @@ private fun StepLayout(
     }
 }
 
-/** La marque d'une page : le glyphe de l'app dans le meme creux que les icones d'emulateur. */
+/** A page's mark: the app's glyph in the same socket as the emulator icons. */
 @Composable
 private fun StepMark(size: Dp = 64.dp, glyph: @Composable (Color) -> Unit) {
     val dark = LocalEmufiiDarkTheme.current
@@ -476,7 +474,7 @@ private fun StepMark(size: Dp = 64.dp, glyph: @Composable (Color) -> Unit) {
     }
 }
 
-/** La marque de l'app elle-meme, pour l'accueil et l'adieu. */
+/** The app's own mark, for the welcome and the farewell. */
 @Composable
 private fun LogoMark(size: Dp = 96.dp) {
     Image(
@@ -486,7 +484,7 @@ private fun LogoMark(size: Dp = 96.dp) {
     )
 }
 
-/** La carte de travail. Les pages d'emulateur posent le bloc des reglages a la place. */
+/** The work card. Emulator pages lay the settings block there instead. */
 @Composable
 private fun WorkCard(content: @Composable () -> Unit) {
     SoftCard(modifier = Modifier.waitTrim()) {
@@ -497,7 +495,7 @@ private fun WorkCard(content: @Composable () -> Unit) {
     }
 }
 
-/** Le contenu d'une page, aiguille par [OnbStep]. */
+/** A page's content, dispatched by [OnbStep]. */
 @Composable
 private fun StepBody(
     step: OnbStep,
@@ -708,7 +706,7 @@ private fun StepBody(
         }
     )
 
-    // Les trois rituels d'emulateur : le bloc des reglages, pose tel quel.
+    // The three emulator rituals: the settings block, laid as it is.
     OnbStep.PPSSPP -> StepLayout(
         wide = wide,
         mark = { StepMark { ChipMark(size = 34.dp, color = it) } },
@@ -809,8 +807,8 @@ private fun StepBody(
 }
 
 /**
- * Le releve final. Les lignes qui ne concernent pas ce joueur ne paraissent pas.
- * pourquoi : docs/decisions/onboarding.md § Le récapitulatif nomme ce qui a été sauté
+ * The final summary. Rows that do not concern this player do not appear.
+ * pourquoi : docs/decisions/onboarding.md § The summary names what was skipped
  */
 @Composable
 private fun Recap(vararg rows: Pair<String, Boolean>, hidden: Set<Console>) {
@@ -846,16 +844,16 @@ private fun Recap(vararg rows: Pair<String, Boolean>, hidden: Set<Console>) {
     }
 }
 
-/** Le dernier segment d'un arbre de documents, ce que le joueur reconnait. */
+/** The last segment of a document tree, which is what the player recognises. */
 private fun folderLabel(uri: Uri): String {
     val raw = uri.lastPathSegment ?: return uri.toString()
     return raw.substringAfterLast(':').substringAfterLast('/').ifBlank { raw }
 }
 
 /**
- * Ou l'on en est, et de quoi il s'agit : les points seuls disaient une longueur
- * qui changeait sous les yeux du joueur.
- * pourquoi : docs/decisions/onboarding.md § Où l'on en est, et de quoi il s'agit
+ * Where you are and what it is about: dots alone announced a length that changed under
+ * the player's eyes.
+ * pourquoi : docs/decisions/onboarding.md § Where you are, and what it is about
  */
 @Composable
 private fun StepRail(current: Int, total: Int, label: String) {
@@ -873,8 +871,8 @@ private fun StepRail(current: Int, total: Int, label: String) {
                         .width(if (active) 20.dp else 7.dp)
                         .clip(if (active) PillShape else CircleShape)
                         .background(
-                            // L'onboarding parle jeu et systeme : les points
-                            // portent l'axe turquoise, deep pour tenir sur le creme.
+                            // The onboarding speaks play and system: the dots carry the
+                            // teal axis, deep to hold on the cream.
                             if (active) (if (dark) Teal.darkBright else Teal.deep)
                             else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.22f)
                         )

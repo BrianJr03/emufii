@@ -14,25 +14,20 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 
 /**
- * Ce qu'il faut avoir fait pour que la grille s'ouvre **complète**.
- *
- * **Rien ici n'est indispensable** : chaque étape est enveloppée, et un
- * préchauffage qui empêcherait d'entrer serait pire que pas de préchauffage.
- * pourquoi : docs/decisions/jaquettes.md § La grille s'ouvre complète, ou elle se remplit sous les yeux du joueur
+ * What has to be done for the grid to open complete. None of it is essential: every
+ * step is wrapped, and a warm-up that stopped you getting in would be worse than none.
+ * pourquoi : docs/decisions/jaquettes.md § The grid opens complete, or it fills in under the player's eyes
  */
 object ArtworkPreload {
 
     /**
-     * Combien de jaquettes sont décodées d'avance.
-     *
-     * Deux écrans de grille : ce que le joueur voit en arrivant, plus la rangée
-     * qu'il découvrira au premier mouvement. Au-delà on remplirait la mémoire
-     * d'images que personne ne regardera, et sur un handheld elle manque
-     * ailleurs.
+     * How many covers are decoded ahead. Two screens of grid: what the player sees on
+     * arrival, plus the row the first movement uncovers. Beyond that we would fill
+     * memory with images nobody looks at.
      */
     private const val DECODED_AHEAD = 24
 
-    /** La taille à laquelle une tuile de grille dessine sa jaquette, en pixels. */
+    /** The size, in pixels, a grid tile draws its cover art at. */
     private const val TILE_PX = 360
 
     suspend fun warm(context: Context, roms: List<Rom>) = withContext(Dispatchers.IO) {
@@ -43,9 +38,8 @@ object ArtworkPreload {
         val cocoon = settings.cocoonFolder.value.takeIf { it.isNotBlank() }?.toUri()
         val store = ArtworkStore(app)
 
-        // Les adresses, toutes : c'est ici que les index de dossier se
-        // construisent, une fois par console au lieu d'une fois par première
-        // tuile de chaque console.
+        // Every address: this is where the folder indexes are built, once per console
+        // rather than once per console's first tile.
         val models = roms.map { rom ->
             runCatching {
                 val local = if (store.chosenFor(rom) == null) {
@@ -57,13 +51,9 @@ object ArtworkPreload {
             }.getOrNull()
         }
 
-        // Le décodage. À la taille de la tuile et non `ORIGINAL` : le chargeur
-        // garde ce qu'il a décodé, et une jaquette pleine résolution par jeu
-        // remplirait la mémoire de bitmaps que la tuile réduira de toute façon.
-        // **Le chargeur unique, pas un nouveau.** `ImageLoader(app)` en
-        // construirait un second, avec son propre cache mémoire : on décoderait
-        // tout, et les tuiles ne trouveraient rien — le préchauffage aurait
-        // chauffé un cache que personne ne lit.
+        // Decoding, at the tile's size rather than `ORIGINAL`: the loader keeps what it
+        // decoded, and one full-resolution cover per game would fill memory with
+        // bitmaps the tile shrinks anyway. The single loader, never a new one.
         val loader = SingletonImageLoader.get(app)
         coroutineScope {
             models.take(DECODED_AHEAD).map { model ->

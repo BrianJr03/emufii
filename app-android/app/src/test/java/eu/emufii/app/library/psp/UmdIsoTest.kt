@@ -90,7 +90,7 @@ class UmdIsoTest {
     }
 
     @Test
-    fun `trouve un fichier dans un sous-dossier malgre le suffixe de version`() {
+    fun `finds a file in a subfolder despite the version suffix`() {
         val disc = Disc("PSP_GAME", mapOf("ICON0.PNG" to ByteArray(120) { 0x42 }))
 
         val found = UmdIso.find(sourceOf(disc.bytes), listOf("PSP_GAME", "ICON0.PNG"))
@@ -100,7 +100,7 @@ class UmdIsoTest {
     }
 
     @Test
-    fun `la casse du chemin demande n'a pas d'importance`() {
+    fun `the case of the requested path does not matter`() {
         val disc = Disc("PSP_GAME", mapOf("PARAM.SFO" to ByteArray(8)))
 
         assertEquals(
@@ -110,7 +110,7 @@ class UmdIsoTest {
     }
 
     @Test
-    fun `deux fichiers du meme dossier ne se confondent pas`() {
+    fun `two files in the same folder are not confused`() {
         val disc = Disc(
             "PSP_GAME",
             mapOf("PARAM.SFO" to ByteArray(64), "ICON0.PNG" to ByteArray(120))
@@ -122,7 +122,7 @@ class UmdIsoTest {
     }
 
     @Test
-    fun `un fichier absent rend null plutot que le premier venu`() {
+    fun `a missing file yields null rather than the first one along`() {
         val disc = Disc("PSP_GAME", mapOf("PARAM.SFO" to ByteArray(8)))
         val source = sourceOf(disc.bytes)
 
@@ -131,7 +131,7 @@ class UmdIsoTest {
     }
 
     @Test
-    fun `un dossier demande comme fichier ne passe pas`() {
+    fun `a folder requested as a file does not get through`() {
         val disc = Disc("PSP_GAME", mapOf("ICON0.PNG" to ByteArray(8)))
 
         // "PSP_GAME" exists, but it is a directory: reading it as an icon would
@@ -140,14 +140,14 @@ class UmdIsoTest {
     }
 
     @Test
-    fun `ce qui n'est pas un ISO9660 est refuse tout de suite`() {
+    fun `anything that is not ISO9660 is refused straight away`() {
         val notADisc = ByteArray(64 * sector) { 0x7F }
 
         assertNull(UmdIso.find(sourceOf(notADisc), listOf("PSP_GAME", "ICON0.PNG")))
     }
 
     @Test
-    fun `un disque PS2 n'a pas de PSP_GAME et se reconnait a ca`() {
+    fun `a PS2 disc has no PSP_GAME, and that is how it is recognised`() {
         // A PS2 burns a perfectly valid ISO9660, with `SYSTEM.CNF` at the root
         // and not a trace of a `PSP_GAME`. This null is what stops the library
         // listing its games: the `.iso` extension is the same as a UMD's and
@@ -160,7 +160,7 @@ class UmdIsoTest {
     }
 
     @Test
-    fun `une entree placee apres le remplissage de fin de secteur est vue quand meme`() {
+    fun `an entry placed after the end-of-sector padding is seen anyway`() {
         val disc = Disc("PSP_GAME", mapOf("ICON0.PNG" to ByteArray(120)), padded = true)
 
         val found = UmdIso.find(sourceOf(disc.bytes), listOf("PSP_GAME", "ICON0.PNG"))
@@ -196,7 +196,7 @@ class ParamSfoTest {
         for (i in fields.keys.indices) {
             val at = 20 + i * 16
             le16(at, keyAt)
-            le16(at + 2, 0x0204)         // chaîne terminée par un zéro
+            le16(at + 2, 0x0204)         // zero-terminated string
             le32(at + 4, valueBytes[i].size)
             le32(at + 8, valueBytes[i].size)
             le32(at + 12, dataAt)
@@ -209,7 +209,7 @@ class ParamSfoTest {
     }
 
     @Test
-    fun `lit le titre et l'identifiant de disque`() {
+    fun `reads the title and the disc identifier`() {
         val fields = ParamSfo.read(sfo(mapOf("DISC_ID" to "ULES01267", "TITLE" to "WipEout Pulse")))
 
         assertEquals("WipEout Pulse", fields["TITLE"])
@@ -217,14 +217,14 @@ class ParamSfoTest {
     }
 
     @Test
-    fun `un titre accentue survit a l'aller-retour`() {
+    fun `an accented title survives the round trip`() {
         val fields = ParamSfo.read(sfo(mapOf("TITLE" to "Astérix & Obélix")))
 
         assertEquals("Astérix & Obélix", fields["TITLE"])
     }
 
     @Test
-    fun `ce qui n'est pas une fiche rend une table vide`() {
+    fun `anything that is not an entry yields an empty table`() {
         assertEquals(emptyMap<String, String>(), ParamSfo.read(ByteArray(256)))
         assertEquals(emptyMap<String, String>(), ParamSfo.read(ByteArray(4)))
     }

@@ -10,7 +10,7 @@ import java.nio.channels.FileChannel
  * Reads the one thing a Switch dump says without any console key: its title id.
  *
  * The title and the icon live in an encrypted NCA, and reading them used to be
- * the whole point of this package — a few megabytes of AES per file, against a
+ * the whole point of this package: a few megabytes of AES per file, against a
  * key file the player had to be talked into providing. The titles now come from
  * the public index by title id (see `GameTitles`), in the app's language, and
  * the icons from the artwork sources; the decryption stack, and the `prod.keys`
@@ -18,7 +18,7 @@ import java.nio.channels.FileChannel
  *
  * What is left is the cheapest read in the library: the plaintext table of
  * contents at the head of an NSP, no decryption, one small read. A cartridge
- * dump (`.xci`) carries no ticket and says nothing without keys — its game is
+ * dump (`.xci`) carries no ticket and says nothing without keys: its game is
  * named by its filename, cleaned, and that is the honest limit.
  */
 class SwitchReader(private val context: Context) {

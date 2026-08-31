@@ -10,60 +10,33 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 /**
- * What the server says the current version is.
- *
- * [url] and [notes] are optional: a version can be announced without a link to
- * hand out, and that is already better than silence.
- *
- * The note cannot come from the app's resources: it describes the next version,
- * which the installed app knows nothing about. So it travels in both languages,
- * and [notesFor] decides at display time.
+ * The note cannot come from the app's resources, since it describes a version
+ * the installed app knows nothing about; it travels in both languages instead.
  */
 data class LatestVersion(
     val versionCode: Int,
     val versionName: String,
     val url: String?,
     val notes: String?,
-    /** The same note in English, when the server publishes it. */
     val notesEn: String? = null
 ) {
 
-    /**
-     * The note in [locale]'s language, failing that in whichever exists.
-     *
-     * French stays the fallback: it is the only one the old `latest.json` files
-     * carry, and a note in the wrong language beats a banner that announces a
-     * version without saying what it changes.
-     */
+    /** French stays the fallback: the only one old `latest.json` files carry. */
     fun notesFor(locale: java.util.Locale): String? =
         if (locale.language == "fr") notes ?: notesEn else notesEn ?: notes
 }
 
 /**
- * Telling the player a new version exists.
- *
- * This is S5 of `docs/SECURITY_REVIEW.md`, and it was the last open point: a
- * sideloaded application has no store behind it, so nothing warns anybody. A
- * flaw fixed on our side is only worth anything if it reaches the players, and
- * until now the only route was for one of them to ask for the APK again.
- *
- * Deliberately minimal, and the choice is owned: Emufii downloads nothing and
- * installs nothing. It says a version exists and shows where to get it. An app
- * that updates itself from a URL it read off the network is a code execution
- * path this project has no reason to open; the security review starts from the
- * assumption "strangers use the app", and it also holds against the day the
- * server is no longer ours.
- *
- * Silence is the default answer. Unreachable server, missing file, broken JSON:
- * we display nothing. "We do not know" must never reach the screen as "you are
- * behind".
+ * Tells the player a version exists and where to get it; downloads and installs
+ * nothing, since updating from a URL read off the network is a code execution
+ * path. Silence is the default answer: unreachable server, missing file or
+ * broken JSON all display nothing, because "we do not know" must never reach the
+ * screen as "you are behind".
+ * pourquoi : docs/SECURITY_REVIEW.md § S5
  */
 object UpdateCheck {
 
-    /**
-     * The published version, or null when the server announces none or does not
-     * answer. Never fails: the caller has no use for an error here.
-     */
+    /** Null when the server announces none or does not answer; never throws. */
     suspend fun fetch(baseUrl: String = BuildConfig.COORDINATOR_BASE_URL): LatestVersion? =
         withContext(Dispatchers.IO) {
             runCatching {
@@ -90,7 +63,6 @@ object UpdateCheck {
             }.getOrNull()
         }
 
-    /** Is there really something better than what is running here? */
     fun isNewer(latest: LatestVersion): Boolean = latest.versionCode > BuildConfig.VERSION_CODE
 }
 

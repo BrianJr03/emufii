@@ -83,8 +83,8 @@ import eu.emufii.app.ui.tap
 
 /**
  * The library's two settings, in the same family of pills as the profile and the
- * friends. Le glyphe montre **l'etat**, pas la fonction.
- * pourquoi : docs/decisions/bibliotheque.md § Les deux réglages de la bibliothèque ont pris le coin du logo
+ * friends. The glyph shows the state, not the function.
+ * pourquoi : docs/decisions/bibliotheque.md § The two library settings took the logo's corner
  */
 @Composable
 fun LayoutChip(
@@ -111,13 +111,13 @@ fun LayoutChip(
                     label = stringResource(layout.labelRes),
                     onClick = { open = false; onPick(layout) },
                     glyph = { tint -> drawLayoutGlyph(layout, tint) },
-                    // La ligne cochee porte le point d'arrivee du curseur ; les
-                    // autres n'ont rien a demander.
+                    // The ticked row carries the cursor's landing point; the others
+                    // have nothing to ask for.
                     landing = LocalMenuLanding.current.takeIf { selected },
                     trailing = {
-                        // Une coche, pas un fond colore : le surlignage bouge
-                        // avec le curseur, et deux surlignages superposes se
-                        // lisent comme un seul, mal place.
+                        // A tick, not a coloured ground: the highlight moves with the
+                        // cursor, and two highlights on top of each other read as one,
+                        // misplaced.
                         if (selected) CheckIcon(size = 14.dp, color = MaterialTheme.colorScheme.primary)
                         else Spacer(Modifier.size(14.dp))
                     }
@@ -152,13 +152,13 @@ fun SortChip(
                     label = stringResource(sort.labelRes),
                     onClick = { open = false; onPick(sort) },
                     glyph = { tint -> drawSortGlyph(sort, tint) },
-                    // La ligne cochee porte le point d'arrivee du curseur ; les
-                    // autres n'ont rien a demander.
+                    // The ticked row carries the cursor's landing point; the others
+                    // have nothing to ask for.
                     landing = LocalMenuLanding.current.takeIf { selected },
                     trailing = {
-                        // Une coche, pas un fond colore : le surlignage bouge
-                        // avec le curseur, et deux surlignages superposes se
-                        // lisent comme un seul, mal place.
+                        // A tick, not a coloured ground: the highlight moves with the
+                        // cursor, and two highlights on top of each other read as one,
+                        // misplaced.
                         if (selected) CheckIcon(size = 14.dp, color = MaterialTheme.colorScheme.primary)
                         else Spacer(Modifier.size(14.dp))
                     }
@@ -183,16 +183,16 @@ private val LibrarySort.labelRes: Int
     }
 
 /**
- * Le porte-curseur du menu ouvert, que la ligne active vient prendre. En local :
- * la ligne sait deja si elle est cochee, c'est la seule chose a savoir.
- * pourquoi : docs/decisions/bibliotheque.md § Le curseur d'un menu se pose sur l'option en cours
+ * The open menu's cursor holder, claimed by the active row. Local: the row already
+ * knows whether it is ticked, which is all there is to know.
+ * pourquoi : docs/decisions/bibliotheque.md § A menu's cursor lands on the current option
  */
 private val LocalMenuLanding = compositionLocalOf<FocusRequester?> { null }
 
 /**
- * The card that unrolls under a pill : la meme matiere et le meme mouvement que
- * [TileMenu]. La fenetre survit a la fermeture le temps que le deroule s'inverse.
- * pourquoi : docs/decisions/bibliotheque.md § Le curseur d'un menu se pose sur l'option en cours
+ * The card that unrolls under a pill: the same material and movement as [TileMenu]. The
+ * window outlives the close while the unroll reverses.
+ * pourquoi : docs/decisions/bibliotheque.md § A menu's cursor lands on the current option
  */
 @Composable
 private fun ChipMenu(
@@ -226,10 +226,10 @@ private fun ChipMenu(
             label = "chip-menu-reveal"
         )
 
-        // Le curseur se pose sur l'option en cours, pas sur la premiere — et sans
-        // cette pose il n'y avait aucun anneau du tout a l'ouverture.
-        // pourquoi : docs/decisions/bibliotheque.md § Le curseur d'un menu se pose sur l'option en cours
-        // pourquoi : docs/decisions/coquille-ecrans.md § Le curseur arrive avec l'écran
+        // The cursor lands on the current option rather than the first; without this
+        // there was no ring at all on opening.
+        // pourquoi : docs/decisions/bibliotheque.md § A menu's cursor lands on the current option
+        // pourquoi : docs/decisions/coquille-ecrans.md § The cursor arrives with the screen
         val landing = remember { FocusRequester() }
         LandOn(landing, key = title, enabled = opening)
 
@@ -292,9 +292,9 @@ private object BelowChip : PopupPositionProvider {
 }
 
 /**
- * The glyphs, drawn by hand like the tile menu's : chacun dessine sa propre
- * disposition. Une icone abstraite forcerait a ouvrir le menu pour se situer.
- * pourquoi : docs/decisions/bibliotheque.md § Les deux réglages de la bibliothèque ont pris le coin du logo
+ * The glyphs, drawn by hand like the tile menu's: each draws its own layout. An
+ * abstract icon would force opening the menu to get your bearings.
+ * pourquoi : docs/decisions/bibliotheque.md § The two library settings took the logo's corner
  */
 private fun DrawScope.drawLayoutGlyph(layout: LibraryLayout, color: Color) {
     val s = size.minDimension
@@ -362,9 +362,9 @@ private fun DrawScope.drawLayoutGlyph(layout: LibraryLayout, color: Color) {
 }
 
 /**
- * Sorting, in three symbols. « Par console » est un dossier : ce n'est pas un
- * ordre mais un rangement, et le glyphe doit le dire avant qu'on l'essaie.
- * pourquoi : docs/decisions/bibliotheque.md § Les deux réglages de la bibliothèque ont pris le coin du logo
+ * Sorting, in three symbols. By console is a folder: not an order but a filing, and the
+ * glyph has to say so before it is tried.
+ * pourquoi : docs/decisions/bibliotheque.md § The two library settings took the logo's corner
  */
 private fun DrawScope.drawSortGlyph(sort: LibrarySort, color: Color) {
     val s = size.minDimension
@@ -427,9 +427,9 @@ private fun DrawScope.drawSortGlyph(sort: LibrarySort, color: Color) {
 }
 
 /**
- * Opens the search, leftmost of the « what am I looking at » pills. Le glyphe est
- * la loupe du champ : le bouton et ce qu'il ouvre sont un controle en deux etats.
- * pourquoi : docs/decisions/bibliotheque.md § La recherche, et la croix qui la ferme
+ * Opens the search, leftmost of the what-am-I-looking-at pills. The glyph is the
+ * field's magnifier: the button and what it opens are one control in two states.
+ * pourquoi : docs/decisions/bibliotheque.md § Search, and the cross that closes it
  */
 @Composable
 fun SearchChip(
@@ -444,17 +444,11 @@ fun SearchChip(
 }
 
 /**
- * The search itself, in the shelf the layout and sort pills live in.
- *
- * Toucher le champ releve le clavier ; la croix reste le seul controle qui
- * termine la recherche.
- *
- * **C'est le clavier du systeme qui ecrit ici**, depuis le 2026-08-29 : la dalle
- * de l'app ne servait qu'a eviter le mode extract du paysage, et le prix etait
- * un clavier qui n'est celui de personne — ni la correction, ni les langues, ni
- * la disposition apprise. Le champ prend donc le focus et demande l'IME des
- * qu'il apparait.
- * pourquoi : docs/decisions/bibliotheque.md § La recherche, et la croix qui la ferme
+ * The search itself, in the shelf the layout and sort pills live in. Touching the field
+ * raises the keyboard; the cross stays the only control that ends the search. The
+ * system keyboard writes here: the app's own keypad only avoided landscape's extract
+ * mode.
+ * pourquoi : docs/decisions/bibliotheque.md § Search, and the cross that closes it
  */
 @Composable
 fun SearchField(
@@ -467,8 +461,8 @@ fun SearchField(
     val dark = LocalEmufiiDarkTheme.current
     val field = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
-    // Le champ n'existe que pendant la recherche : il arrive, il prend le
-    // curseur, l'IME monte. Rien a retenir d'un etat a l'autre.
+    // The field exists only during a search: it arrives, takes the cursor, the IME
+    // rises. Nothing to keep from one state to the next.
     LaunchedEffect(Unit) {
         runCatching { field.requestFocus() }
         keyboard?.show()
@@ -499,8 +493,8 @@ fun SearchField(
             onValueChange = onValueChange,
             singleLine = true,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            // Chercher ferme le clavier sans fermer la recherche : la liste est
-            // deja filtree a chaque frappe, il ne reste qu'a la regarder.
+            // Search closes the keyboard without closing the search: the list is
+            // already filtered on every keystroke.
             keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }),
             textStyle = MaterialTheme.typography.bodyMedium.copy(color = tint),
             cursorBrush = SolidColor(tint),
@@ -515,10 +509,9 @@ fun SearchField(
             }
             it()
         }
-        // La croix, dessinee comme la loupe. **La zone grandit, le glyphe non** :
-        // 32 dp est ce que la barre de 36 permet, et c'est trois fois la surface
-        // d'avant.
-        // pourquoi : docs/decisions/bibliotheque.md § La recherche, et la croix qui la ferme
+        // The cross, drawn like the magnifier. The area grows, the glyph does not: 32
+        // dp is what a 36 dp bar allows, three times the surface it had.
+        // pourquoi : docs/decisions/bibliotheque.md § Search, and the cross that closes it
         Box(
             modifier = Modifier
                 .size(32.dp)

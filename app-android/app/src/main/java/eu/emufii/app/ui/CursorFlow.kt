@@ -17,48 +17,36 @@ import kotlin.math.min
 import kotlin.math.roundToInt
 
 /**
- * Le dégradé qui coule autour du curseur.
- *
- * **Ce n'est pas un balayage angulaire** : chaque pixel est ramené à sa position
- * en abscisse curviligne sur le périmètre, donc la couleur avance à la même
- * vitesse sur un bord droit et dans un coin. Rendu en bitmap étiré, mis en cache.
- * pourquoi : docs/decisions/performance-rendu.md § Le dégradé du curseur n'est pas un balayage angulaire
+ * The gradient flowing around the cursor. Not an angular sweep: each pixel is reduced
+ * to its arc-length position along the perimeter, so the colour advances at the same
+ * speed on a straight edge and in a corner. Rendered into a stretched bitmap and
+ * cached.
+ * pourquoi : docs/decisions/performance-rendu.md § The cursor gradient is not an angular sweep
  */
 internal object CursorFlow {
 
     /**
-     * Le nombre de positions distinctes dans un tour.
-     *
-     * **27 pas**, soit quinze par seconde. Le chiffre ne se choisit pas sur ce
-     * que l'œil distingue mais sur ce qu'un pas coûte : chez nous le curseur
-     * redessine la fenêtre — quatorze tuiles avec leurs plaques et leurs
-     * moulages. Un pas de plus n'est pas un bitmap de plus, c'est une fenêtre
-     * repeinte de plus.
-     *
-     * Quinze par seconde restent au-dessus du seuil où un dégradé qui coule
-     * paraît saccadé : ce qui se voit dans un mouvement lent est la continuité,
-     * pas la cadence. Mesuré : le curseur passait de 0 à 27 points de processeur
-     * à 25 pas par seconde.
+     * How many distinct positions a turn holds. 27 steps, fifteen a second. The number
+     * is chosen on what a step costs rather than on what the eye separates: here the
+     * cursor redraws the window, fourteen tiles with their plates and mouldings. One
+     * more step is not one more bitmap, it is one more repainted window.
      */
     const val STEPS = 27
 
-    /** La durée d'un tour complet, en millisecondes. */
+    /** How long a full turn takes, in milliseconds. */
     const val PERIOD_MS = 1800
 
     /**
-     * Le grand côté du bitmap calculé. Le shader l'étire ensuite à la taille
-     * réelle : un dégradé n'a pas de détail fin, et 192 px suffisent pour que
-     * l'étirement ne se voie pas.
+     * The computed bitmap's long side. The shader stretches it to the real size: a
+     * gradient has no fine detail, and 192 px is enough for the stretch not to show.
      */
     private const val MAX_SIDE = 192
 
     /**
-     * Les bitmaps déjà calculés, par forme, couleurs et pas de phase.
-     *
-     * Sans lui, un curseur posé sur une tuile recalculerait 45 bitmaps par
-     * cycle, indéfiniment. Avec, il en calcule 45 une seule fois puis n'en
-     * calcule plus aucun. Le plafond évite qu'une session qui a survolé
-     * beaucoup de formes différentes les garde toutes.
+     * Bitmaps already computed, by shape, colours and phase step. Without it a cursor
+     * on a tile would recompute 45 bitmaps per cycle forever; with it, 45 once and none
+     * after. The ceiling stops a session that has hovered many shapes from keeping them
+     * all.
      */
     private val cache = object : LinkedHashMap<Key, BitmapShader>(16, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Key, BitmapShader>) =
@@ -76,11 +64,9 @@ internal object CursorFlow {
     )
 
     /**
-     * Le shader pour une bande donnée, à une phase donnée.
-     *
-     * [w] et [h] sont ceux de la boîte du curseur (le contrôle plus la bande de
-     * chaque côté), [radius] le rayon de la **ligne médiane** de la bande, et
-     * [step] le pas de phase dans `0 until STEPS`.
+     * The shader for one band at one phase. [w] and [h] are the cursor box's, the
+     * control plus a band on each side, [radius] the radius of the band's midline, and
+     * [step] the phase step in `0 until STEPS`.
      */
     fun shader(
         w: Float,
@@ -107,21 +93,20 @@ internal object CursorFlow {
         val bw = max(2, (w * scale).roundToInt())
         val bh = max(2, (h * scale).roundToInt())
 
-        // La ligne médiane de la bande : c'est elle que le dégradé parcourt.
+        // The band's midline, which is what the gradient runs along.
         val half = band / 2f
         val hx = max(1f, w / 2f - half)
         val hy = max(1f, h / 2f - half)
         val r = radius.coerceIn(0f, min(hx, hy))
-        // Les demi-longueurs droites, coins retirés.
+        // The straight half-lengths, corners removed.
         val ax = hx - r
         val ay = hy - r
         val quarter = (r * PI / 2.0).toFloat()
         val perimeter = 4f * (ax + ay + quarter)
         if (perimeter <= 0f) return null
 
-        // Les bornes cumulées, dans le sens horaire depuis le milieu du bord
-        // haut : c'est l'origine, et le choix est arbitraire — il ne se voit
-        // pas, puisque le cycle est fermé.
+        // Cumulative bounds, clockwise from the middle of the top edge. The origin is
+        // arbitrary and does not show, the cycle being closed.
         val s1 = ax
         val s2 = s1 + quarter
         val s3 = s2 + 2f * ay
@@ -155,9 +140,9 @@ internal object CursorFlow {
         shader.setLocalMatrix(
             Matrix().apply {
                 setScale(w / bw, h / bh)
-                // Le bitmap couvre la boite du curseur, dont l'origine est en
-                // (-band, -band) : sans cette translation le degrade serait
-                // decale d'une bande vers le bas et la droite.
+                // The bitmap covers the cursor box, whose origin is at (-band, -band):
+                // without this translation the gradient would sit one band down and
+                // right.
                 postTranslate(-band, -band)
             }
         )
@@ -166,13 +151,10 @@ internal object CursorFlow {
     }
 
     /**
-     * La distance parcourue le long du périmètre, pour un point donné en
-     * coordonnées centrées.
-     *
-     * Le point est rabattu sur la ligne médiane : sur un bord droit c'est sa
-     * projection, dans un coin c'est son angle depuis le centre de l'arc. Les
-     * pixels loin de la bande reçoivent une valeur qui ne sera jamais lue — le
-     * chemin de la bande les découpe.
+     * Distance along the perimeter for a point in centred coordinates. The point is
+     * folded onto the midline: its projection on a straight edge, its angle from the
+     * arc's centre in a corner. Pixels far from the band get a value that is never
+     * read, the band's path clipping them.
      */
     private fun arcLength(
         x: Float,
@@ -191,12 +173,12 @@ internal object CursorFlow {
     ): Float {
         val halfPi = (PI / 2.0).toFloat()
         return when {
-            // Les quatre bords droits, dans le sens horaire.
+            // The four straight edges, clockwise.
             x in -ax..ax && y < 0f -> if (x >= 0f) x else perimeter + x
             x > ax && y in -ay..ay -> s2 + (y + ay)
             x in -ax..ax && y > 0f -> s4 + (ax - x)
             x < -ax && y in -ay..ay -> s6 + (ay - y)
-            // Les quatre arcs, mesurés depuis leur propre centre.
+            // The four arcs, measured from their own centre.
             x > ax && y < -ay -> s1 + (atan2(y + ay, x - ax) + halfPi).coerceIn(0f, halfPi) * r
             x > ax -> s3 + atan2(y - ay, x - ax).coerceIn(0f, halfPi) * r
             y > ay -> s5 + (atan2(y - ay, x + ax) - halfPi).coerceIn(0f, halfPi) * r
@@ -210,18 +192,10 @@ internal object CursorFlow {
 }
 
 /**
- * Le pas de phase courant, écrit **seulement quand il change**.
- *
- * C'est toute la différence avec une `InfiniteTransition` : celle-ci publie une
- * valeur à chaque image de l'écran, donc 120 fois par seconde sur la Thor, et
- * chaque écriture invalide le contrôle et fait redessiner l'app. Ce flux-ci
- * n'écrit que 25 fois par seconde — le nombre de positions que le dégradé
- * possède réellement. Entre deux pas, rien n'est invalidé, et l'app ne
- * redessine pas du tout.
- *
- * Immobile si le système a coupé les animations, comme le fond : le curseur
- * garde alors une phase fixe, ce qui reste une bande dégradée parfaitement
- * lisible.
+ * The current phase step, written only when it changes. That is the whole difference
+ * with an `InfiniteTransition`, which publishes a value every screen frame, 120 times a
+ * second on the Thor, each write invalidating the control and redrawing the app. This
+ * flow writes 25 times a second, the number of positions the gradient actually has.
  */
 @Composable
 internal fun rememberFlowStep(): Int {

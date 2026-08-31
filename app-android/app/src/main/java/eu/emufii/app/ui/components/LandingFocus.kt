@@ -8,12 +8,10 @@ import androidx.compose.ui.platform.LocalInputModeManager
 import androidx.compose.runtime.withFrameNanos
 
 /**
- * Poser le curseur sur ce qui vient de s'ouvrir.
- *
- * Le scaffold le fait pour un ecran ; une couche modale s'ouvre par-dessus un
- * scaffold qui a deja pose le sien ailleurs. Meme mecanisme, memes deux pieges.
- * [key] relance la pose : l'identite de la couche, ou `Unit`.
- * pourquoi : docs/decisions/coquille-ecrans.md § Le curseur arrive avec l'écran
+ * Places the cursor on what has just opened. The scaffold does it for a screen; a modal
+ * layer opens over a scaffold that has already placed its own elsewhere. Same
+ * mechanism, same two traps. [key] restarts the placing.
+ * pourquoi : docs/decisions/coquille-ecrans.md § The cursor arrives with the screen
  */
 @Composable
 fun LandOn(target: FocusRequester, key: Any? = Unit, enabled: Boolean = true) {
@@ -29,11 +27,8 @@ fun LandOn(target: FocusRequester, key: Any? = Unit, enabled: Boolean = true) {
 }
 
 /**
- * Combien d'images la pose reclame son controle.
- *
- * Six, soit une centaine de millisecondes : une couche modale se stabilise plus
- * vite qu'un ecran, mais elle arrive souvent avec une animation d'entree, et le
- * noeud vise n'est place qu'une fois celle-ci demarree. La fenetre reste trop
- * courte pour arracher le curseur a quelqu'un qui aurait deja appuye.
+ * How many frames the placing claims its control for. Six, about a hundred
+ * milliseconds: a modal layer settles faster than a screen, but it often arrives with
+ * an entrance animation and the target node is only placed once that is done.
  */
 private const val LANDING_FRAMES = 6

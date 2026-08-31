@@ -24,17 +24,17 @@
     <issue id="LocalContextGetResourceValueCall" severity="ignore" />
 
     <!--
-      La forme de l'icône de lancement.
+      The launcher icon's shape.
 
-      Depuis le logo v3, `ic_launcher_art.png` est un dessin détouré posé en
-      <foreground> de `ic_launcher.xml`, sur un <background> qui est un aplat de
-      couleur. Aucun des deux bitmaps ne remplit son carré, mais ils gardent le
-      préfixe `ic_launcher_`, et lint lit tout bitmap ainsi nommé comme une
-      icône historique dont il juge la silhouette.
+      Since logo v3, `ic_launcher_art.png` is a cut-out drawing placed in the
+      <foreground> of `ic_launcher.xml`, over a <background> that is a flat
+      colour. Neither bitmap fills its square, but they keep the
+      `ic_launcher_` prefix, and lint reads any bitmap named that way as a
+      legacy icon whose silhouette it judges.
 
-      Le raisonnement du découpage en couches est écrit là où il a un sens, dans
-      `mipmap-anydpi/ic_launcher.xml`. Rien à corriger ici ; la règle ne décrit
-      pas ce cas.
+      The reasoning behind the layer split is written where it makes sense, in
+      `mipmap-anydpi/ic_launcher.xml`. Nothing to fix here; the rule does not
+      describe this case.
     -->
     <issue id="IconLauncherShape" severity="ignore" />
 

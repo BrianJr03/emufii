@@ -1,12 +1,12 @@
 package eu.emufii.app.library
 
 /**
- * What a dump says about itself: which region it is. **Nothing here calls
- * anything** — a handheld in a train has to be able to answer.
+ * What a dump says about itself: which region it is. Nothing here calls
+ * anything: a handheld in a train has to be able to answer.
  *
  * The serial first, then the filename tags. Null means unknown, and unknown is
  * printed as nothing at all.
- * pourquoi : docs/decisions/identite-et-dumps.md § Rien n'appelle le réseau
+ * pourquoi : docs/decisions/identite-et-dumps.md § Nothing calls the network
  */
 data class RomTags(
     /** `USA`, `Europe`, `Japan`… as it will be shown, already tidy. */
@@ -19,9 +19,9 @@ data class RomTags(
 }
 
 /*
- * The revision was here and was taken out on 2026-08-24: a filename can only
+ * The revision was here and was taken out: a filename can only
  * yield facts about a pressing plant, never the version an update installs.
- * pourquoi : docs/decisions/identite-et-dumps.md § La révision a été retirée, et pourquoi
+ * pourquoi : docs/decisions/identite-et-dumps.md § The revision was removed, and why
  */
 
 object RomTagReader {
@@ -31,8 +31,8 @@ object RomTagReader {
 
     /**
      * The same reading without a [Rom], so the rules can be pinned by a unit
-     * test — `android.net.Uri` is a stub on the desktop JVM.
-     * pourquoi : docs/decisions/identite-et-dumps.md § Les positions de région sont répétées, pas partagées
+     * test: `android.net.Uri` is a stub on the desktop JVM.
+     * pourquoi : docs/decisions/identite-et-dumps.md § Region positions are repeated, not shared
      */
     fun read(
         console: Console,
@@ -44,9 +44,9 @@ object RomTagReader {
     )
 
     /**
-     * The region letter, at the positions `compatKeys` also uses — **repeated
-     * rather than shared**, because that one strips what this one keeps.
-     * pourquoi : docs/decisions/identite-et-dumps.md § Les positions de région sont répétées, pas partagées
+     * The region letter, at the positions `compatKeys` also uses: repeated
+     * rather than shared, because that one strips what this one keeps.
+     * pourquoi : docs/decisions/identite-et-dumps.md § Region positions are repeated, not shared
      */
     private fun regionFromId(console: Console, productCode: String?, titleIdHex: String?): String? {
         val code = productCode?.trim()?.uppercase() ?: return null
@@ -92,8 +92,8 @@ object RomTagReader {
 
     /**
      * The four-letter Sony prefix, read letter by letter: medium, publisher,
-     * **region**. A list of whole prefixes missed every PSP game in the world.
-     * pourquoi : docs/decisions/identite-et-dumps.md § Le préfixe Sony se lit lettre par lettre
+     * region. A list of whole prefixes missed every PSP game in the world.
+     * pourquoi : docs/decisions/identite-et-dumps.md § The Sony prefix is read letter by letter
      */
     private fun sonyRegion(code: String): String? {
         val prefix = code.filter { it.isLetter() }.take(4)
@@ -114,7 +114,7 @@ object RomTagReader {
     /**
      * The region as the dumper wrote it. Only the two conventions' actual
      * spellings: a looser match turns `(Disney's Aladdin)` into a region.
-     * pourquoi : docs/decisions/identite-et-dumps.md § Rien n'appelle le réseau
+     * pourquoi : docs/decisions/identite-et-dumps.md § Nothing calls the network
      */
     private fun regionFromName(filename: String): String? {
         val tags = tagsIn(filename)

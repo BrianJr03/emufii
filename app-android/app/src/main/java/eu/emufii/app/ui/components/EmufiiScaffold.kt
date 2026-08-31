@@ -80,9 +80,9 @@ import eu.emufii.app.ui.tap
 /**
  * The two gamepad destinations of a scaffolded screen.
  *
- * [first] must be placed on a genuinely focusable control, **never** on a
+ * [first] must be placed on a genuinely focusable control, never on a
  * container: a request on a `focusGroup` succeeds by focusing the group itself.
- * pourquoi : docs/decisions/coquille-ecrans.md § L'en-tête est déclaré avant le contenu, et dessiné par-dessus
+ * pourquoi : docs/decisions/coquille-ecrans.md § The header is declared before the content, and drawn over it
  */
 class ScaffoldFocus(val first: FocusRequester, val header: FocusRequester)
 
@@ -110,7 +110,7 @@ fun Modifier.padEntry(): Modifier {
 /**
  * The shell every screen sits in: system insets, and one wallpaper and header
  * for all screens. The header floats; it is never a bar with a background.
- * pourquoi : docs/decisions/coquille-ecrans.md § L'en-tête flotte, et ce que ça coûte
+ * pourquoi : docs/decisions/coquille-ecrans.md § The header floats, and what that costs
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -119,28 +119,23 @@ fun EmufiiScaffold(
     modifier: Modifier = Modifier,
     onBack: (() -> Unit)? = null,
     /**
-     * La marque du bouton de retour, quand ce n'est pas un chevron.
-     *
-     * Un ecran dont le retour **ferme quelque chose** plutot que de remonter
-     * doit le dire avant qu'on presse : en session, ce bouton met fin a la
-     * session, et un chevron promettait l'inverse.
-     * pourquoi : docs/decisions/session.md § Le retour ferme la session, et il le dit
+     * The back button's mark when it is not a chevron. A screen whose back closes
+     * something rather than going up has to say so before it is pressed: in a session
+     * this button ends the session, and a chevron promised the opposite.
+     * pourquoi : docs/decisions/session.md § Back closes the session, and it says so
      */
     backIcon: (@Composable (Color) -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
     /**
      * False when the screen fits whole: the veil and its 32 dp only exist for
-     * content rising under the header — 7 % of the Thor's height otherwise.
-     * pourquoi : docs/decisions/coquille-ecrans.md § L'en-tête flotte, et ce que ça coûte
+     * content rising under the header: 7 % of the Thor's height otherwise.
+     * pourquoi : docs/decisions/coquille-ecrans.md § The header floats, and what that costs
      */
     contentScrolls: Boolean = true,
     /**
-     * False pour un ecran qui place son curseur lui-meme.
-     *
-     * Personne ne s'en sert aujourd'hui — la bibliotheque, seul ecran a tenir
-     * son propre curseur, n'est pas scaffoldee. Le parametre existe pour que le
-     * jour ou un ecran en aura besoin, il puisse refuser sans qu'on retire
-     * l'arrivee du curseur a tous les autres.
+     * False for a screen that places its own cursor. Nothing uses it today, the library
+     * being the only screen holding its own cursor and not scaffolded; the parameter
+     * exists so a screen that needs it can refuse without the ability being added back.
      */
     autoFocus: Boolean = true,
     content: @Composable (topPadding: Dp) -> Unit
@@ -149,10 +144,10 @@ fun EmufiiScaffold(
     val scaffoldFocus = remember { ScaffoldFocus(FocusRequester(), FocusRequester()) }
 
     /**
-     * Le curseur arrive avec l'ecran. Deux pieges, dans cet ordre : demander le
-     * mode clavier **avant** le focus, et redemander a chaque image des
-     * premieres **sans tester** si ca a marche.
-     * pourquoi : docs/decisions/coquille-ecrans.md § Le curseur arrive avec l'écran
+     * The cursor arrives with the screen. Two traps, in this order: ask for keyboard
+     * mode before focus, and ask again each of the first frames without testing whether
+     * it worked.
+     * pourquoi : docs/decisions/coquille-ecrans.md § The cursor arrives with the screen
      */
     val inputMode = LocalInputModeManager.current
     if (autoFocus) {
@@ -164,8 +159,8 @@ fun EmufiiScaffold(
             }
         }
     }
-    // Voir LibraryScreen : la barre est cachée pendant le logo, et sa hauteur
-    // doit rester la même avant et après, sinon l'en-tête saute au passage.
+    // See LibraryScreen: the bar is hidden behind the logo, and its height must be the
+    // same before and after, or the header jumps at the changeover.
     val statusBar = WindowInsets.statusBarsIgnoringVisibility.asPaddingValues()
         .calculateTopPadding()
     // Header height + its vertical padding (2 × 12) + the status bar.
@@ -178,7 +173,7 @@ fun EmufiiScaffold(
          * Declared before the content (traversal follows declaration order) and
          * drawn above it by `zIndex`. Three other ways to cross the boundary
          * were tried and all failed; name the destination instead.
-         * pourquoi : docs/decisions/coquille-ecrans.md § L'en-tête est déclaré avant le contenu, et dessiné par-dessus
+         * pourquoi : docs/decisions/coquille-ecrans.md § The header is declared before the content, and drawn over it
          */
         Row(
             modifier = Modifier
@@ -191,7 +186,7 @@ fun EmufiiScaffold(
                     if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown) {
                         // Consumed only if the destination exists, or the
                         // cursor is trapped on a screen with no first control.
-                        // pourquoi : docs/decisions/coquille-ecrans.md § L'en-tête est déclaré avant le contenu, et dessiné par-dessus
+                        // pourquoi : docs/decisions/coquille-ecrans.md § The header is declared before the content, and drawn over it
                         runCatching { scaffoldFocus.first.requestFocus() }.isSuccess
                     } else {
                         false
@@ -246,12 +241,9 @@ fun EmufiiScaffold(
 }
 
 /**
- * Combien d'images le scaffold passe a reclamer son premier controle.
- *
- * Six, soit une centaine de millisecondes : la mise en page se stabilise bien
- * avant sur la Thor, et le reste est la marge d'un ecran qui compose une liste
- * avant de la placer. Au-dela, c'est qu'il n'y a pas de premier controle a
- * trouver.
+ * How many frames the scaffold spends claiming its first control. Six, about a hundred
+ * milliseconds: layout settles well before that on the Thor, and the rest is margin for
+ * a screen composing a list before placing it. Beyond that, there is nothing to take.
  */
 private const val AUTO_FOCUS_FRAMES = 6
 
@@ -260,7 +252,7 @@ private const val AUTO_FOCUS_FRAMES = 6
  * where the floating chrome sits. [fromTop] false anchors it to the bottom.
  *
  * Put this *inside* the Haze source where one exists.
- * pourquoi : docs/decisions/coquille-ecrans.md § L'en-tête flotte, et ce que ça coûte
+ * pourquoi : docs/decisions/coquille-ecrans.md § The header floats, and what that costs
  */
 @Composable
 fun WallpaperVeil(
@@ -309,8 +301,8 @@ fun WallpaperVeil(
 }
 
 /**
- * Round, moulded, floating over the tray, with a **drawn** glyph inside.
- * pourquoi : docs/decisions/coquille-ecrans.md § Le bouton rond est un disque moulé
+ * Round, moulded, floating over the tray, with a drawn glyph inside.
+ * pourquoi : docs/decisions/coquille-ecrans.md § The round button is a moulded disc
  */
 @Composable
 fun CircleIconButton(
@@ -352,7 +344,7 @@ fun CircleIconButton(
 /**
  * The name of a group of rows, in the app's own voice: sentence case at body
  * weight, never a tracked uppercase eyebrow.
- * pourquoi : docs/decisions/coquille-ecrans.md § Le titre de groupe parle la voix de l'app
+ * pourquoi : docs/decisions/coquille-ecrans.md § The group title speaks the app's voice
  */
 @Composable
 fun SectionHeader(text: String, modifier: Modifier = Modifier) {
@@ -367,7 +359,6 @@ fun SectionHeader(text: String, modifier: Modifier = Modifier) {
 /** Material's minimum touch target, and therefore a pill's height. */
 private val TOUCH_TARGET = 48.dp
 
-/** Compact affordance for a secondary action inside a card. */
 @Composable
 fun GhostButton(
     label: String,
@@ -377,7 +368,7 @@ fun GhostButton(
     /**
      * True for a lone pill that takes the width of its card. Explicit, never
      * inferred: the frame is what receives the caller's modifier.
-     * pourquoi : docs/decisions/coquille-ecrans.md § Le libellé est centré dans les deux sens, et les deux sont nécessaires
+     * pourquoi : docs/decisions/coquille-ecrans.md § The label is centred both ways, and both are needed
      */
     fillWidth: Boolean = false,
     /**
@@ -386,11 +377,10 @@ fun GhostButton(
      */
     icon: (@Composable (Color) -> Unit)? = null,
     /**
-     * Une marque posee **avant** le libelle, qui reste. A distinguer de [icon],
-     * qui le remplace : celle-ci sert aux boutons qui menent quelque part et
-     * dont la destination a un visage — un logo de service, jamais un
-     * pictogramme decoratif.
-     * pourquoi : docs/decisions/reglages-ecran.md § Les deux liens sortants, et leur ordre
+     * A mark laid before the label, which stays. Distinct from [icon], which replaces
+     * it: this one serves buttons that lead somewhere with a face, a service logo and
+     * never a decorative pictogram.
+     * pourquoi : docs/decisions/reglages-ecran.md § The two outbound links, and their order
      */
     leading: (@Composable () -> Unit)? = null
 ) {
@@ -400,9 +390,9 @@ fun GhostButton(
     val shape = RoundedCornerShape(50)
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
-    // Around the pill, never inside it, and the gap exists at all times —
+    // Around the pill, never inside it, and the gap exists at all times,
     // appearing on selection would make a row of pills jump.
-    // pourquoi : docs/decisions/coquille-ecrans.md § L'anneau entoure la pastille, il ne mord pas dedans
+    // pourquoi : docs/decisions/coquille-ecrans.md § The ring surrounds the chip, it does not bite into it
     Box(modifier = modifier.controlRing(shape), propagateMinConstraints = true) {
     Surface(
         onClick = sounded(onClick),
@@ -411,14 +401,14 @@ fun GhostButton(
         interactionSource = interaction,
         // The pill is the size of its touch area: `Surface(onClick)` reserves
         // 48 dp and draws its background smaller, which the ring followed.
-        // pourquoi : docs/decisions/coquille-ecrans.md § La pastille fait la taille de sa cible tactile
+        // pourquoi : docs/decisions/coquille-ecrans.md § The chip is the size of its touch target
         modifier = Modifier
             .heightIn(min = TOUCH_TARGET)
             .then(if (fillWidth) Modifier.fillMaxWidth() else Modifier)
     ) {
         // Centred both ways: `textAlign` cannot do the vertical. And NO
-        // `fillMaxWidth` here — it broke any row of two unweighted pills.
-        // pourquoi : docs/decisions/coquille-ecrans.md § Le libellé est centré dans les deux sens, et les deux sont nécessaires
+        // `fillMaxWidth` here: it broke any row of two unweighted pills.
+        // pourquoi : docs/decisions/coquille-ecrans.md § The label is centred both ways, and both are needed
         Box(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             contentAlignment = Alignment.Center
@@ -508,6 +498,6 @@ private val HEADER_HEIGHT = 44.dp
 
 /**
  * How far below the header the backdrop takes to become transparent again.
- * pourquoi : docs/decisions/coquille-ecrans.md § L'en-tête flotte, et ce que ça coûte
+ * pourquoi : docs/decisions/coquille-ecrans.md § The header floats, and what that costs
  */
 private val FADE_HEIGHT = 32.dp

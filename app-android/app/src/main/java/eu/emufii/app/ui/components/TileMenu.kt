@@ -57,23 +57,9 @@ import eu.emufii.app.ui.theme.PlateDark
 import eu.emufii.app.ui.theme.PlateLight
 
 /**
- * A tile's menu, pulled out of the tile.
- *
- * The previous version was a centred box that dimmed the whole screen, including
- * the game being acted on, the one element that needed to stay in front of the
- * player. It floated without indicating where it came from: nothing tied the
- * menu to the game that had opened it.
- *
- * Here the card opens beside the tile, at its height, and unrolls from the edge
- * facing it, the movement saying where it comes from. A triangular tail hooks it
- * to the tile, painted in the game's colour (the one the cover art gave the
- * glow). The chrome stays neutral and the content brings the colour: every game
- * therefore opens a menu of its own, without a palette having been invented for
- * it.
- *
- * The side is chosen at runtime: a tile in the right-hand half opens to the
- * left. Otherwise games at the right edge would have had their menu folded
- * against the border, straddling the next tile.
+ * Opens beside the tile, at its height, unrolling from the edge facing it, with a
+ * tail in the game's own glow colour. The side is chosen at runtime: a tile in
+ * the right-hand half opens left, or its menu would fold against the border.
  */
 @Composable
 fun TileMenu(
@@ -182,7 +168,6 @@ fun TileMenu(
     }
 }
 
-/** How far the card travels from the tile as it opens. */
 private val SLIDE = 14.dp
 
 @Composable
@@ -228,7 +213,6 @@ private fun MenuCard(
     }
 }
 
-/** The tail that hooks the card to its tile. */
 @Composable
 private fun Tail(color: Color, pointsLeft: Boolean) {
     Canvas(Modifier.size(width = 9.dp, height = 20.dp).rotate(if (pointsLeft) 0f else 180f)) {
@@ -284,7 +268,6 @@ private fun DrawScope.drawPencilGlyph(color: Color) {
         close()
     }
     drawPath(body, color, style = stroke)
-    // The stroke under the nib: the act of writing, not just the tool.
     drawLine(
         color,
         start = Offset(s * 0.20f, s * 0.86f),
@@ -334,7 +317,7 @@ private class SidePlacement : PopupPositionProvider {
  *
  * The bin is the wrong promise: nothing here deletes a file, and a player who
  * reads "delete" on a menu that only hides is right to be angry when they go
- * looking for the ROM afterwards. An eye says what actually happens — the game
+ * looking for the ROM afterwards. An eye says what actually happens: the game
  * leaves the grid and stays on the card.
  */
 private fun DrawScope.drawHideGlyph(color: Color) {

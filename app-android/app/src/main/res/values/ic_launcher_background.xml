@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!--
-      Le logo v3 est un dessin détouré : il n'a pas de fond à lui, alors que
-      l'icône adaptative en réclame un. Blanc, comme la version « WB » fournie
-      par l'auteur du logo, et comme le fond que portait le logo v2 avant lui.
+      The v3 logo is a cut-out drawing with no background of its own, and an
+      adaptive icon demands one. White, like the "WB" version supplied by the
+      logo's author, and like the background the v2 logo carried before it.
     -->
     <color name="ic_launcher_background">#FFFFFFFF</color>
 </resources>

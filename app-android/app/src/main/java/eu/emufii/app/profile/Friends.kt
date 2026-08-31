@@ -1,6 +1,7 @@
 package eu.emufii.app.profile
 
 import android.content.Context
+import androidx.annotation.VisibleForTesting
 import androidx.core.content.edit
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -148,6 +149,10 @@ class FriendStore private constructor(context: Context) {
             instance ?: synchronized(this) {
                 instance ?: FriendStore(context.applicationContext).also { instance = it }
             }
+
+        /** A store that reads storage again, for tests that stand in for a relaunch. */
+        @VisibleForTesting
+        fun reload(context: Context): FriendStore = FriendStore(context.applicationContext)
 
         private const val PREFS = "emufii_friends"
         private const val KEY_LIST = "list"

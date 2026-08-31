@@ -100,7 +100,7 @@ class Ps2MemoryCardProvisioningDriver(
             val filename = nodes.firstOrNull { it.text?.toString() == desiredName }
             if (filename != null) {
                 val row = ancestorWithAnyText(filename, slotLabels + activeLabels)
-                if (row == null) return fail("ARMSX2 affiche la carte, mais pas ses contrôles de slot.")
+                if (row == null) return fail("ARMSX2 shows the card, but not its slot controls.")
                 val rowNodes = flatten(row)
                 if (activeLabels.any { text(rowNodes, it) != null }) {
                     if (stage == Stage.SOURCE_SLOT2) {
@@ -121,20 +121,20 @@ class Ps2MemoryCardProvisioningDriver(
                     )
                     return true
                 }
-                return fail("ARMSX2 refuse d’affecter $desiredName à son slot.")
+                return fail("ARMSX2 refuses to assign $desiredName to its slot.")
             }
             if (scrollable != null && scrolls++ < MAX_SCROLLS &&
                 scrollable.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)) {
                 return true
             }
-            return fail("La carte $desiredName n’apparaît pas dans ARMSX2.")
+            return fail("Card $desiredName does not appear in ARMSX2.")
         }
 
         // Never trust a Memory Cards screen that was already open: it may be a
         // per-game manager. Back out exactly once, then wait for Home. Re-clicking
         // Back while Compose animates was the top-left loop seen on the Thor.
         if (navigation == Ps2ProvisioningRoute.Action.BACK_TO_HOME) {
-            if (navClicks++ >= MAX_NAV_CLICKS) return fail("Impossible de revenir au gestionnaire global ARMSX2.")
+            if (navClicks++ >= MAX_NAV_CLICKS) return fail("Could not get back to the global ARMSX2 manager.")
             val changed = goBack()
             if (changed) route.performed(navigation)
             return changed
@@ -145,7 +145,7 @@ class Ps2MemoryCardProvisioningDriver(
             if (memoryItem != null) {
                 if (!memoryItem.isVisibleToUser) {
                     if (drawerScrolls++ >= MAX_DRAWER_SCROLLS) {
-                        return fail("Cartes mémoire reste hors écran dans le menu ARMSX2.")
+                        return fail("Memory Cards stays off screen in the ARMSX2 menu.")
                     }
                     if (memoryItem.performAction(
                             AccessibilityNodeInfo.AccessibilityAction.ACTION_SHOW_ON_SCREEN.id
@@ -153,7 +153,7 @@ class Ps2MemoryCardProvisioningDriver(
                             ?.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD) == true) {
                         return true
                     }
-                    return fail("Le menu ARMSX2 ne peut pas défiler jusqu’à Cartes mémoire.")
+                    return fail("The ARMSX2 menu cannot scroll to Memory Cards.")
                 }
                 if (memoryItem.click()) {
                     route.performed(navigation)
@@ -163,7 +163,7 @@ class Ps2MemoryCardProvisioningDriver(
                     Ps2ProvisioningAutomation.report(Ps2ProvisioningProgress.OpeningMemoryCards)
                     return true
                 }
-                return fail("Le menu ARMSX2 affiche Cartes mémoire, mais refuse de l’ouvrir.")
+                return fail("The ARMSX2 menu shows Memory Cards, but refuses to open it.")
             }
 
             // Column.verticalScroll() is the exact container used by ARMSX2's
@@ -175,13 +175,13 @@ class Ps2MemoryCardProvisioningDriver(
                 drawerScrollable.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)) {
                 return true
             }
-            return fail("Le menu ARMSX2 est ouvert, mais Cartes mémoire reste inaccessible.")
+            return fail("The ARMSX2 menu is open, but Memory Cards stays out of reach.")
         }
 
         if (navigation == Ps2ProvisioningRoute.Action.OPEN_DRAWER) {
             val menu = openNavigationLabels.firstNotNullOfOrNull { text(nodes, it) } ?: text(nodes, MENU_GLYPH)
             if (menu == null) return false
-            if (navClicks++ >= MAX_NAV_CLICKS) return fail("Navigation ARMSX2 interrompue.")
+            if (navClicks++ >= MAX_NAV_CLICKS) return fail("ARMSX2 navigation gave up.")
             if (menu.click()) {
                 route.performed(navigation)
                 Ps2ProvisioningAutomation.report(Ps2ProvisioningProgress.OpeningMemoryCards)
@@ -196,7 +196,7 @@ class Ps2MemoryCardProvisioningDriver(
         unknownPasses++
         if (unknownPasses < UNKNOWN_BEFORE_BACK) return false
         unknownPasses = 0
-        if (navClicks++ >= MAX_NAV_CLICKS) return fail("Écran ARMSX2 non reconnu.")
+        if (navClicks++ >= MAX_NAV_CLICKS) return fail("Unrecognised ARMSX2 screen.")
         val changed = goBack()
         if (changed) route.performed(Ps2ProvisioningRoute.Action.BACK_TO_HOME)
         return changed

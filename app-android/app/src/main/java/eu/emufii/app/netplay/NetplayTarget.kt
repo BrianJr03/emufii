@@ -3,23 +3,18 @@ package eu.emufii.app.netplay
 import eu.emufii.app.azahar.AzaharPackage
 
 /**
- * The netplay UI Emufii knows how to drive, and who ships it.
- *
- * Azahar and Eden present the same dialog: same view ids, same three buttons,
- * same default port. Azahar descends from Citra and Eden from yuzu, and both
- * inherited the same Android netplay screens. One automation, not two, and only
- * the package name differs.
- *
- * Ids rather than labels: both ship dozens of locales, so matching on "Join"
- * breaks for anyone not running in English. [uiReadFrom] records which build
- * each set was read from. See `docs/NOTES_NETPLAY.md`.
+ * The netplay UI Emufii knows how to drive. Azahar and Eden present the same
+ * dialog, having inherited the same Android screens from Citra and yuzu: one
+ * automation, only the package name differs. Ids rather than labels, since both
+ * ship dozens of locales. [uiReadFrom] records which build each set was read
+ * from.
+ * pourquoi : docs/NOTES_NETPLAY.md
  */
 data class NetplayTarget(
     val packages: List<String>,
     /**
-     * The entry that opens the multiplayer sheet from inside a running game, or
-     * null when the emulator has none. Null means "start at the sheet", not
-     * "unsupported".
+     * Opens the multiplayer sheet from inside a running game. Null means "start
+     * at the sheet", not "unsupported".
      */
     val inGameMenuId: String?,
     /**
@@ -46,11 +41,9 @@ data class NetplayTarget(
 
     companion object {
         val AZAHAR = NetplayTarget(
-            // Pas de liste en dur ici : c'est `AzaharPackage.candidates` qui
-            // fait foi. Les deux ont été écrites côte à côte, et le jour où
-            // l'identifiant hérité de Lime3DS a été ajouté, la seconde a été
-            // oubliée — l'émulateur redevenait détecté, mais plus reconnu par
-            // le pilote. Une liste, un endroit.
+            // Never a hardcoded list: `AzaharPackage.candidates` is the authority.
+            // A second copy went stale when the Lime3DS id was added, and the
+            // emulator was detected but no longer recognised by the driver.
             packages = AzaharPackage.candidates,
             inGameMenuId = NetplayUi.MENU_MULTIPLAYER,
             homeNavId = NetplayUi.NAV_HOME_SETTINGS,
@@ -59,11 +52,10 @@ data class NetplayTarget(
         )
 
         val EDEN = NetplayTarget(
-            // Eden ships a build matrix, not two channels: three flavours crossed
-            // with a `.nightly` suffix, and two of the names do not contain
-            // "eden". Order matters, EdenLauncher keeps the first installed
-            // package, so our fork comes first. Names read out of
-            // `build.gradle.kts`. See docs/NOTES_NETPLAY.md.
+            // A build matrix, not two channels: three flavours crossed with a
+            // `.nightly` suffix, and two names do not contain "eden". Order
+            // matters, EdenLauncher keeps the first installed, so our fork leads.
+            // Names read out of Eden's `build.gradle.kts`.
             packages = listOf(
                 "dev.eden.eden_emulator.emufii",
                 "dev.eden.eden_emulator",
@@ -72,8 +64,6 @@ data class NetplayTarget(
                 "com.miHoYo.Yuanshen.nightly",
                 "dev.legacy.eden_emulator"
             ),
-            // The stable build carries an in-game entry after all, where the
-            // nightly scout had only found the settings path.
             inGameMenuId = NetplayUi.MENU_MULTIPLAYER,
             homeNavId = NetplayUi.NAV_HOME_SETTINGS,
             homeListId = NetplayUi.HOME_SETTINGS_LIST,
@@ -138,10 +128,8 @@ object NetplayUi {
     const val PASSWORD = "password"
 
     /**
-     * The room's game. Mandatory when hosting on Eden.
-     *
-     * Two spellings: Azahar's resources say `prefered_game_name` with one r,
-     * Eden's has two. Both are tried.
+     * The room's game, mandatory when hosting on Eden. Two spellings: Azahar's
+     * resources say `prefered_game_name` with one r, Eden's has two.
      */
     const val PREFERRED_GAME = "dropdown_preferred_game_name"
     const val PREFERRED_GAME_ALT = "dropdown_prefered_game_name"

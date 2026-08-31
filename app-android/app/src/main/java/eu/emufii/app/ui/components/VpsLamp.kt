@@ -30,20 +30,15 @@ import eu.emufii.app.ui.theme.GoodLight
 import eu.emufii.app.ui.theme.LocalEmufiiDarkTheme
 
 /**
- * La lumiere de service : un point allume et deux mots.
- *
- * Sa propre couleur, jamais l'accent de l'app.
- *
- * Sortie du panneau arriere le 2026-08-28 pour vivre ici, parce qu'elle est
- * demandee sur l'ecran principal aussi, et que le panneau ne delegue rien : les
- * deux la dessinent, a partir du meme [VpsStatus].
- * pourquoi : docs/decisions/second-ecran.md § La lumière de service a sa propre couleur
+ * The service light: a lit dot and two words. Its own colour, never the app's accent.
+ * It lives here rather than on the rear panel because the main screen asks for it too,
+ * and the panel delegates nothing.
+ * pourquoi : docs/decisions/second-ecran.md § The service light has its own colour
  */
 @Composable
 fun VpsLamp(modifier: Modifier = Modifier, dotSize: Dp = 15.dp) {
-    // Le sondage vit avec la lampe : elle est le seul consommateur de cet etat,
-    // et [VpsStatus.keepPolling] garantit une boucle unique quand les deux
-    // ecrans la dessinent ensemble.
+    // The poll lives with the lamp, its only consumer, and [VpsStatus.keepPolling]
+    // guarantees a single loop when both screens draw it together.
     LaunchedEffect(Unit) { VpsStatus.keepPolling() }
 
     val state by VpsStatus.state.collectAsState()
@@ -52,8 +47,8 @@ fun VpsLamp(modifier: Modifier = Modifier, dotSize: Dp = 15.dp) {
     val tone = when (state) {
         VpsState.ONLINE -> if (dark) GoodDark else GoodLight
         VpsState.OFFLINE -> if (dark) ErrorDark else ErrorLight
-        // Gris tant que rien n'est su. Ecrire « en panne » parce qu'un handheld
-        // est dans un tunnel accuserait notre machine du train.
+        // Grey while nothing is known. Writing "down" because a handheld is in a tunnel
+        // would accuse our machine of the train.
         VpsState.UNKNOWN -> MaterialTheme.colorScheme.onSurfaceVariant
     }
 
@@ -65,8 +60,8 @@ fun VpsLamp(modifier: Modifier = Modifier, dotSize: Dp = 15.dp) {
         Box(
             modifier = Modifier
                 .size(dotSize)
-                // Une lampe allumee, pas un rond imprime : elle porte sa propre
-                // lueur comme les plaques portent leur ombre.
+                // A lit lamp, not a printed dot: it carries its own glow as the plates
+                // carry their shadow.
                 .shadow(
                     elevation = if (state == VpsState.UNKNOWN) 0.dp else 12.dp,
                     shape = CircleShape,

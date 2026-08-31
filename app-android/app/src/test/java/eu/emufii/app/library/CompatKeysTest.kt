@@ -7,7 +7,7 @@ import org.junit.Test
 /**
  * The one thing this feature lives or dies on: a rating given once has to reach
  * the same game in every language. Each test here is a pair of regional dumps
- * that must land on one key — or a pair that must never be confused.
+ * that must land on one key, or a pair that must never be confused.
  */
 class CompatKeysTest {
 

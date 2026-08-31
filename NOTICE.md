@@ -1,131 +1,129 @@
-# NOTICE — Emufii
+# NOTICE: Emufii
 
-> **Emufii s'appelait EOEA jusqu'au 2026-08-01.** L'ancien nom subsiste dans
-> l'historique git, dans les noms d'unités et de chemins déjà déployés sur le
-> serveur, et dans le nom du fichier de signature — tous conservés à dessein.
+> Emufii was called EOEA until 2026-08-01. The old name survives in the git
+> history, in the unit and path names already deployed on the server, and in the
+> name of the signing keystore, all kept on purpose.
 
 Copyright 2026 Emufii contributors
 
-Ce produit est distribué sous **GNU Affero General Public License v3** depuis le
-2026-08-09. Le texte intégral est dans `LICENSE`, à la racine du dépôt.
+This product is distributed under the GNU Affero General Public License v3
+since 2026-08-09. The full text is in `LICENSE`, at the root of the repository.
 
-Les versions jusqu'à la 1.10.8 incluse sont sorties sous Apache-2.0, et cette
-concession vaut pour ces binaires-là ; tout ce qui part de la 1.10.9 est en
+Versions up to and including 1.10.8 were released under Apache-2.0, and that
+concession holds for those binaries; everything from 1.10.9 onwards is
 AGPL-3.0.
 
-> Le titulaire du copyright ci-dessus est une formulation d'attente : y mettre
-> le nom sous lequel l'auteur souhaite être identifié.
+> The copyright holder above is a placeholder wording: put in it the name the
+> author wishes to be identified by.
 
-## Décision de licence
+## The licence decision
 
-**AGPL-3.0, arrêté le 2026-08-09**, en remplacement de l'Apache-2.0 du
-2026-07-28. Ce qui a fait bouger la décision : l'inquiétude qu'un fork vive sur
-le VPS et fasse disparaître le Patreon au passage.
+AGPL-3.0, settled on 2026-08-09, replacing the Apache-2.0 of 2026-07-28.
+What moved the decision: the worry that a fork would live on the VPS and make
+the Patreon disappear along the way.
 
-Ce qu'il faut avoir en tête, dans l'ordre où ça compte vraiment :
+What to keep in mind, in the order in which it really matters:
 
-- **La licence n'est pas ce qui protège l'infrastructure.** Un texte juridique
-  se plaide, il ne filtre pas. Ce qui protège le VPS, c'est le contrôle d'accès
-  du coordinator (`coordinator/client-auth.js`) et le fait de **ne jamais
-  publier `coordinator/` ni `relay/`** : un fork se retrouve avec un client
-  sans réseau, à charge pour lui de monter et payer le sien.
-- **L'AGPL n'interdit pas le fork, elle le rend sans intérêt commercial.**
-  Quiconque forke doit republier ses sources sous la même licence, y compris en
-  exploitation comme service réseau. Personne ne peut fermer ce code et le
-  revendre.
-- **Le nom et le logo ne sont couverts par aucune licence de code.** Un fork
-  légal doit changer de nom. C'était déjà vrai sous Apache-2.0.
-- **Le copyright reste au projet**, donc des licences commerciales hors AGPL
-  peuvent se négocier au cas par cas.
+- The licence is not what protects the infrastructure. A legal text is
+  argued in court, it does not filter. What protects the VPS is the
+  coordinator's access control (`coordinator/client-auth.js`) and never
+  publishing `coordinator/` or `relay/`: a fork ends up with a client and no
+  network, and is left to stand up and pay for its own.
+- The AGPL does not forbid forking, it makes forking commercially
+  pointless. Whoever forks must republish their sources under the same
+  licence, including when operating it as a network service. Nobody can close
+  this code and resell it.
+- The name and the logo are covered by no code licence. A legal fork must
+  change its name. That was already true under Apache-2.0.
+- The copyright stays with the project, so commercial licences outside the
+  AGPL can be negotiated case by case.
 
-Ce qui a été écarté : le source-available (type PolyForm), qui aurait exigé un
-accord écrit pour toute modification. C'est ce qui avait été demandé au départ,
-mais ce n'est pas de l'open source et ne peut pas être appelé ainsi.
+What was ruled out: source-available (PolyForm-style), which would have required
+written agreement for any modification. That is what was asked for at the
+outset, but it is not open source and cannot be called that.
 
-Le dossier d'origine, avec les options pesées en juillet :
-`docs/M10_LICENCES.md`.
+The original file, with the options weighed in July: `docs/M10_LICENCES.md`.
 
-## Apports tiers
+## Third-party contributions
 
-### WireGuard — couche réseau des sessions
+### WireGuard: the sessions' network layer
 
-- Source : https://github.com/WireGuard/wireguard-android
-- Artefact : `com.wireguard.android:tunnel`
-- Licence : **Apache License 2.0**
+- Source: https://github.com/WireGuard/wireguard-android
+- Artifact: `com.wireguard.android:tunnel`
+- Licence: Apache License 2.0
 
-Dépendance Maven ordinaire, utilisée par son backend userspace (`GoBackend`)
-qui passe par le `VpnService` d'Android. Aucun binaire natif n'est vendoré.
+An ordinary Maven dependency, used through its userspace backend (`GoBackend`)
+which goes through Android's `VpnService`. No native binary is vendored.
 
-### Bibliothèques Android
+### Android libraries
 
-AndroidX et Jetpack Compose, Coil, Haze (`dev.chrisbanes.haze`), et la
-bibliothèque standard Kotlin — toutes sous **Apache License 2.0**.
+AndroidX and Jetpack Compose, Coil, Haze (`dev.chrisbanes.haze`), and the Kotlin
+standard library, all under Apache License 2.0.
 
-### Décompression des images CHD
+### CHD image decompression
 
-- Aircompressor (`io.airlift:aircompressor`) — **Apache License 2.0**, décodeur
-  Zstandard pur Java utilisé pour lire le seul ELF de démarrage des CHD PS2.
-- XZ for Java (`org.tukaani:xz`) — domaine public, décodeur LZMA des CHD.
+- Aircompressor (`io.airlift:aircompressor`), Apache License 2.0, a pure
+  Java Zstandard decoder used to read the single boot ELF of PS2 CHDs.
+- XZ for Java (`org.tukaani:xz`), public domain, the CHDs' LZMA decoder.
 
-Les images ne sont jamais extraites et aucun code d'émulateur n'est incorporé :
-ces bibliothèques ne font que présenter quelques octets du fichier choisi par le
-joueur au calcul d'identité documenté dans `ARMSX2-AUTOCONFIG.md`.
+The images are never extracted and no emulator code is incorporated: these
+libraries only present a few bytes of the file chosen by the player to the
+identity computation documented in `docs/ARMSX2-AUTOCONFIG.md`.
 
 ### Coordinator
 
-Express — **licence MIT**. Le relais (`relay/`) n'a aucune dépendance.
+Express, MIT licence. The relay (`relay/`) has no dependency.
 
 ### Rounded M+ (M PLUS Rounded 1c)
 
-`app-android/app/src/main/res/font/rounded_*.ttf` — Rounded M+ 1c, par le
-Rounded M+ Project (`github.com/coz-m/MPLUS_FONTS`), sous **SIL Open Font
-License 1.1**. Récupérée depuis Google Fonts, pas depuis un binaire tiers, puis
-**réduite au latin** : la famille couvre tout le japonais, l'app parle français
-et anglais, et l'intégrale pesait 3,4 Mo par graisse.
+`app-android/app/src/main/res/font/rounded_*.ttf`, Rounded M+ 1c, by the
+Rounded M+ Project (`github.com/coz-m/MPLUS_FONTS`), under the SIL Open Font
+License 1.1. Taken from Google Fonts, not from a third-party binary, then
+cut down to Latin: the family covers the whole of Japanese, the app speaks
+French and English, and the full version weighed 3.4 MB per weight.
 
-C'est une linéale à terminaisons arrondies, la voix des menus de consoles
-portables, et c'est ce que la direction visuelle de l'app demande. Elle remplace
-Poppins depuis le 2026-08-22 ; les versions jusqu'à la 1.12.1 embarquaient
-Poppins (Indian Type Foundry, Jonny Pinhorn, Ninad Kale), également sous OFL.
+It is a sans-serif with rounded terminals, the voice of handheld console menus,
+and it is what the app's visual direction calls for. It has replaced Poppins
+since 2026-08-22; versions up to 1.12.1 shipped Poppins (Indian Type Foundry,
+Jonny Pinhorn, Ninad Kale), also under the OFL.
 
-La SIL OFL exige davantage qu'une attribution : son texte doit **accompagner le
-logiciel de police**, dans toute copie et donc dans l'APK. Il est donc à deux
-endroits — `licenses/ROUNDED-MPLUS-OFL.txt` pour qui lit le dépôt, et
-`app-android/app/src/main/assets/ROUNDED-MPLUS-OFL.txt` pour qui n'a que le
-binaire.
-C'est la seule obligation qu'un apport tiers impose à Emufii, et elle est
-remplie par ces deux fichiers.
+The SIL OFL demands more than attribution: its text must accompany the font
+software, in every copy and therefore inside the APK. So it sits in two
+places, `licenses/ROUNDED-MPLUS-OFL.txt` for whoever reads the repository, and
+`app-android/app/src/main/assets/ROUNDED-MPLUS-OFL.txt` for whoever only has the
+binary.
+It is the only obligation a third-party contribution imposes on Emufii, and it
+is met by those two files.
 
-## Ce qu'Emufii n'incorpore pas
+## What Emufii does not incorporate
 
-Emufii **ne contient aucun code d'émulateur**. Azahar, Dolphin et melonDS sont
-lancés par intent, comme des applications tierces installées séparément. Leur
-licence respective ne remonte donc pas jusqu'à ce dépôt.
+Emufii contains no emulator code. Azahar, Dolphin and melonDS are launched
+by intent, as third-party applications installed separately. Their respective
+licences therefore do not reach up into this repository.
 
-De même : ni ROM, ni BIOS, ni clés — c'est un invariant du projet.
+Likewise: no ROM, no BIOS, no keys. That is a project invariant.
 
-## La configuration réseau PS2 embarquée
+## The bundled PS2 network configuration
 
-Depuis le 2026-08-20, Emufii embarque une carte mémoire PlayStation 2 ne contenant
-qu'une sauvegarde `BWNETCNF` : la configuration réseau de la console. Cette carte
-n'a pas été fabriquée ici — elle a été **créée par ARMSX2, formatée par la PS2
-émulée, puis écrite par l'utilitaire réseau de Midnight Club 3**, et reprise
-telle quelle. C'est ce qui garantit qu'elle est valide sans avoir à réimplémenter
-le contrôle d'erreur des cartes PS2.
+Since 2026-08-20, Emufii bundles a PlayStation 2 memory card containing nothing
+but a `BWNETCNF` save: the console's network configuration. That card was not
+made here: it was created by ARMSX2, formatted by the emulated PS2, then
+written by Midnight Club 3's network utility, and taken as is. That is what
+guarantees it is valid without having to reimplement the PS2 cards' error
+checking.
 
-C'est une redistribution assumée, et le raisonnement tient en trois points. Sans
-cette donnée, **aucun jeu LAN de PS2 n'ouvre son menu local** : ce n'est pas un
-réglage, c'est une sauvegarde, et la plupart des jeux l'attendent sans savoir la
-créer. L'utilitaire qui l'écrit n'est embarqué que dans une poignée de titres, si
-bien qu'un joueur qui n'en possède aucun n'a aucune porte d'entrée. Et ce qui est
-repris est une configuration d'interface réseau, pas un BIOS ni du code : on peut
-la lire en clair pour l'essentiel.
+It is a deliberate redistribution, and the reasoning has three points. Without
+that data, no PS2 LAN game opens its local menu: it is not a setting, it is
+a save, and most games expect it without knowing how to create it. The utility
+that writes it ships in only a handful of titles, so a player who owns none of
+them has no way in. And what is reused is a network interface configuration, not
+a BIOS nor code: it can be read in the clear for the most part.
 
-**L'icône Sony de la sauvegarde (33 Ko) est incluse**, faute de pouvoir l'enlever :
-le jeu lit la configuration sans elle, c'est mesuré, mais la retirer supposerait de
-réécrire la carte, donc de recalculer un ECC que ce choix vise justement à ne pas
-avoir à implémenter.
+The save's Sony icon (33 KB) is included, for want of being able to remove
+it: the game reads the configuration without it, that is measured, but taking
+it out would mean rewriting the card, and therefore recomputing an ECC that this
+very choice exists to avoid implementing.
 
-Si ce choix devait être revu, le point d'entrée est `Ps2NetworkProfile` et l'asset
-`assets/ps2/emufii-ps2-net.ps2` ; le retrait laisserait la fonction en place et
-priverait seulement le joueur de la configuration toute faite.
+Should this choice be revisited, the entry point is `Ps2NetworkProfile` and the
+`assets/ps2/emufii-ps2-net.ps2` asset; removing it would leave the feature in
+place and merely deprive the player of the ready-made configuration.

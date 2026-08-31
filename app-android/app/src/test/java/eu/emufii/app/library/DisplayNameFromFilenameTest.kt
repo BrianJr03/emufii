@@ -7,8 +7,8 @@ import org.junit.Test
  * What a filename contributes to a display name, and what it must never
  * contribute.
  *
- * This is the fallback of a fallback — it only speaks when an encrypted file
- * kept its title and the index has not answered yet — so its failures are the
+ * This is the fallback of a fallback: it only speaks when an encrypted file
+ * kept its title and the index has not answered yet, so its failures are the
  * ones every tile wears: scene shorthand read as a game's name.
  */
 class DisplayNameFromFilenameTest {

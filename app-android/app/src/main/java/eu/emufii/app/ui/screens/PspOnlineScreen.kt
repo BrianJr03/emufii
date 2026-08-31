@@ -62,7 +62,7 @@ import eu.emufii.app.ui.theme.GoodLight
 import eu.emufii.app.ui.theme.LocalEmufiiDarkTheme
 import eu.emufii.app.ui.theme.Teal
 
-/** Le bon token, tire vers le turquoise. */
+/** The good token, leaning teal. */
 @Composable
 private fun good() = if (LocalEmufiiDarkTheme.current) GoodDark else GoodLight
 
@@ -110,8 +110,8 @@ fun PspOnlineScreen(
         }
     }
 
-    // Le domaine social : le curseur manette y devient corail.
-    // pourquoi : docs/decisions/theme-duotone-shelves.md § FOCUS MANETTE
+    // The social domain: the pad cursor turns coral here.
+    // pourquoi : docs/decisions/theme-duotone-shelves.md § GAMEPAD FOCUS
     CompositionLocalProvider(LocalRingTone provides RingTone.CORAL) {
     EmufiiScaffold(
         title = stringResource(R.string.psp_online_title),
@@ -119,10 +119,9 @@ fun PspOnlineScreen(
         onBack = onBack,
         contentScrolls = false
     ) { topPadding ->
-        // Deux volets, et centre sur l'ecran et non sous l'en-tete : un plafond
-        // de hauteur avait ete essaye, il rognait le contenu au lieu de le
-        // comprimer.
-        // pourquoi : docs/decisions/lancement-et-navigation.md § PSP en ligne : deux volets, et centré sur l'écran
+        // Two panes, centred on the screen rather than under the header: a height
+        // ceiling was tried and clipped the content instead of compressing it.
+        // pourquoi : docs/decisions/lancement-et-navigation.md § PSP online: two panes, and centred on the screen
         Box(
             // A little more margin at the top than at the bottom: geometrically
             // the card was centred to within 4 px, but the header carries weight

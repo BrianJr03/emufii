@@ -6,22 +6,15 @@ import android.content.res.Resources
 import java.util.Locale
 
 /**
- * Reads a label out of the *emulator's own* resources.
+ * Reads a label out of the emulator's own resources.
  *
- * Everything else in this package matches on view ids, for the reason spelled
- * out in [NetplayTarget]: labels differ per locale. One screen leaves no
- * choice, Azahar's home settings list is a RecyclerView whose rows all share
- * the same ids (`option_card`, `option_title`), so the only thing that tells the
- * Multiplayer row from "System Files" is its text.
+ * Everything else in this package matches on view ids ([NetplayTarget]), but
+ * Azahar's home settings list is a RecyclerView whose rows share the same ids
+ * (`option_card`, `option_title`), so only the text tells Multiplayer from
+ * System Files. Requires the package in `<queries>`.
  *
- * Matching a hardcoded "Multiplayer" would break for every player not running in
- * English, so the text comes from Azahar itself: `getResourcesForApplication`
- * gives us its string table, and `multiplayer` resolves to whatever that build
- * shows on the device's locale. Same trick as [NetplayUiSupport], same
- * requirement, the package must be visible in `<queries>`, which it is.
- *
- * Returns null when the package or the string is missing; callers treat that as
- * "can't identify the row" and stop, rather than clicking something arbitrary.
+ * Returns null when the package or the string is missing; callers stop there
+ * rather than click something arbitrary.
  */
 object NetplayLabels {
 
@@ -29,31 +22,16 @@ object NetplayLabels {
     const val MULTIPLAYER = "multiplayer"
 
     /**
-     * Every string a settings row might be labelled with, most specific first.
-     *
-     * One name was not enough: the hub shows a title and a description, and
-     * which of the two carries the word upstream calls `multiplayer` differs
-     * between builds.
+     * Most specific first. The hub shows a title and a description, and which of
+     * the two carries the word differs between builds.
      */
     val MULTIPLAYER_STRINGS = listOf(MULTIPLAYER, "multiplayer_description")
 
     /**
-     * Every translation the emulator ships for this string.
-     *
-     * Not "the right one", all of them: the language a third-party app displays
-     * is its own, set per application since Android 13, and no public API allows
-     * it to be read. The measurement that settled it: on the Thor the system
-     * announces `[en, fr_FR]` and Azahar nonetheless displays "Multijoueur".
-     * Looking for "the" translation therefore amounts to a bet.
-     *
-     * We no longer bet. The question asked is "is this row title one of the ways
-     * this emulator writes *multiplayer*?", and it is answered by resolving the
-     * same resource in every plausible language. Some thirty string reads, once
-     * per screen: nothing.
-     *
-     * The original flaw was invisible because Emufii and Azahar were both in
-     * French. The rename gave Emufii a fresh identity, hence English, and the
-     * accidental agreement ended.
+     * Every translation the emulator ships for this string, not just the expected
+     * one: a third-party app's language is set per application since Android 13
+     * and no public API reads it. On the Thor the system announces `[en, fr_FR]`
+     * and Azahar still displays "Multijoueur". Some thirty string reads per screen.
      */
     fun of(context: Context, pkg: String, name: String): List<String> {
         val res = runCatching {
@@ -76,12 +54,8 @@ object NetplayLabels {
     }
 
     /**
-     * The languages these emulators are translated into.
-     *
-     * A deliberately closed list: a language missing from it only breaks the
-     * automatic opening, never the form filling; the player opens multiplayer
-     * themselves and everything else works. One language too many costs a single
-     * string read.
+     * Closed on purpose: a missing language breaks only the automatic opening,
+     * never the form filling. One language too many costs a single string read.
      */
     private val CANDIDATE_LANGUAGES = listOf(
         "en", "fr", "de", "es", "it", "pt", "nl", "pl", "ru", "tr",

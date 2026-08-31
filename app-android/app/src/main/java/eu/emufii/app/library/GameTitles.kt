@@ -11,13 +11,10 @@ import java.net.URL
 import java.net.URLEncoder
 
 /**
- * The name of a game the file would not give up itself — for every console, in
- * the app's own language.
- *
- * Servi et mis en cache comme `/compat` et `/meta`. La surcouche ne remplace
- * qu'un nom derive du fichier : un titre lu dans le fichier et le nom choisi par
- * le joueur la dominent tous deux.
- * pourquoi : docs/decisions/scan-bibliotheque.md § Un nom que le fichier ne donne pas se demande à l'index
+ * The name of a game the file would not give up itself, for every console, in the app's
+ * own language. Served and cached like `/compat` and `/meta`. The overlay only replaces
+ * a name derived from the filename, never one read out of the file.
+ * pourquoi : docs/decisions/scan-bibliotheque.md § A name the file does not give is asked of the index
  */
 object GameTitles {
 
@@ -69,7 +66,7 @@ object GameTitles {
     /**
      * Asks the coordinator for the titles this library is missing, in the
      * app's language, merges the answer into the cache, and returns whether
-     * any tile changes — the caller re-reads the (process-cached) list rather
+     * any tile changes: the caller re-reads the (process-cached) list rather
      * than us pushing state at it.
      *
      * A game the index does not know is asked for again next launch: the

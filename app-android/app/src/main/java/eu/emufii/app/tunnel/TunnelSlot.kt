@@ -6,15 +6,15 @@ import eu.emufii.app.wg.WgState
 /**
  * Android runs one `VpnService` at a time and Emufii has two. Whichever calls
  * `establish()` second wins, silently. Not a theoretical race. Who holds the
- * slot is **derived** from the states the services already publish.
- * pourquoi : docs/decisions/tunnel-wireguard.md § Android n'a qu'un créneau VPN, et Emufii a deux tunnels
+ * slot is derived from the states the services already publish.
+ * pourquoi : docs/decisions/tunnel-wireguard.md § Android has one VPN slot, and Emufii has two tunnels
  */
 enum class TunnelHolder { NONE, SESSION, WFC }
 
 /**
- * Who occupies Android's VPN slot. `Starting` counts as **held**; SESSION wins
+ * Who occupies Android's VPN slot. `Starting` counts as held; SESSION wins
  * ties.
- * pourquoi : docs/decisions/tunnel-wireguard.md § Android n'a qu'un créneau VPN, et Emufii a deux tunnels
+ * pourquoi : docs/decisions/tunnel-wireguard.md § Android has one VPN slot, and Emufii has two tunnels
  */
 fun tunnelHolder(
     session: WgState,
@@ -29,7 +29,7 @@ fun tunnelHolder(
 /**
  * Whether [want] can take the slot without cutting anything. Asking for the one
  * you already hold is free.
- * pourquoi : docs/decisions/tunnel-wireguard.md § Android n'a qu'un créneau VPN, et Emufii a deux tunnels
+ * pourquoi : docs/decisions/tunnel-wireguard.md § Android has one VPN slot, and Emufii has two tunnels
  */
 fun slotIsFree(
     session: WgState,

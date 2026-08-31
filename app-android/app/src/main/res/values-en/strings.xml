@@ -14,7 +14,7 @@
     <string name="bar_root">Library</string>
     <string name="bar_search_summary">Filters the library as you type, across every console.</string>
     <string name="bar_layout_summary">Grid, carousel or list. The list is the one that tells two dumps of a game apart.</string>
-    <string name="bar_sort_summary">A → Z, recently added, or by console — sorting by console files the library into folders.</string>
+    <string name="bar_sort_summary">A → Z, recently added, or by console: sorting by console files the library into folders.</string>
     <string name="bar_sessions_summary">Open sessions, to join with a code or a keypress.</string>
     <string name="bar_friends_summary">Your friends, who is online, and the session they are playing.</string>
     <string name="bar_profile_summary">Your name, your avatar and your friend code. And every app setting.</string>
@@ -141,7 +141,7 @@
     <string name="hint_psp_title">In PPSSPP, once and for all</string>
     <string name="hint_psp_body">PPSSPP cannot be driven by Emufii: it draws its own interface. These four settings are yours to make, once, and never again.</string>
     <string name="hint_psp_automated">Emufii will apply PPSSPP’s four private-session network values for this game immediately before launching it. Everything else, including your nickname, stays yours.</string>
-    <string name="hint_psp_automatic_ready">Automatic PPSSPP setup is ready — launch the game.</string>
+    <string name="hint_psp_automatic_ready">Automatic PPSSPP setup is ready, launch the game.</string>
     <string name="hint_psp_exit_before_switch">Before switching between a private session and public play, exit the running game to PPSSPP’s menu. PPSSPP can otherwise save the old in-memory values over the new ones.</string>
     <string name="hint_psp_step1">Networking → Enable networking/WLAN</string>
     <string name="hint_psp_step2">Networking → Ad hoc server address → Add server → paste %1$s</string>
@@ -571,7 +571,7 @@
     <string name="prep_give_up">Give up</string>
     <string name="panel_asking_launch">Pick how to start the game on the front screen.</string>
 
-    <!-- ONBOARDING — the first-run walkthrough. Its length is not fixed: the
+    <!-- ONBOARDING, the first-run walkthrough. Its length is not fixed: the
          emulator pages only appear for the consoles the player keeps. -->
 
     <string name="onb_rail_welcome">Welcome</string>
@@ -609,12 +609,12 @@
     <string name="onb_cocoon_after">Emufii will prefer Cocoon\'s artwork. Only a picture you chose yourself comes ahead of it.</string>
 
     <string name="onb_artwork_body">Without Cocoon, your games show only the tiny icon tucked inside the ROM. A free SteamGridDB key replaces it with real box art.</string>
-    <string name="onb_artwork_step1">Create an account on steamgriddb.com — it is free.</string>
+    <string name="onb_artwork_step1">Create an account on steamgriddb.com, it is free.</string>
     <string name="onb_artwork_step2">Open your account preferences, API section, and generate a key.</string>
     <string name="onb_artwork_step3">Paste it below. It is only used to look up images, and stays on this device.</string>
 
     <string name="onb_ppsspp_title">PSP asks for one setting</string>
-    <string name="onb_ppsspp_body">PPSSPP won\'t take an address from outside. Emufii has to write it into PPSSPP\'s own files before every game — hence the folder to point out, once.</string>
+    <string name="onb_ppsspp_body">PPSSPP won\'t take an address from outside. Emufii has to write it into PPSSPP\'s own files before every game, hence the folder to point out, once.</string>
 
     <string name="onb_ps2_title">PS2 asks for a network profile</string>
     <string name="onb_ps2_body">Just like on the real console, PS2 games look for their network settings on the memory card. Emufii installs a profile there once, and you never touch it again.</string>

@@ -1,111 +1,106 @@
-# L'onboarding : ce que le premier lancement demande, et dans quel ordre
+# Onboarding: what the first run asks for, and in what order
 
-Refonte du 2026-08-29. Les titres sont des ancres citées depuis le code : ne pas
-les renommer à la légère.
+Rebuilt on 2026-08-29. The headings are anchors cited from the code: do not
+rename them lightly.
 
-## Le parcours n'a pas de longueur fixe
+## The walkthrough has no fixed length
 
-Il avait sept pages, les mêmes pour tout le monde : quelqu'un qui ne joue qu'à la
-DS traversait une page sur PPSSPP et une sur ARMSX2 qui ne le concernaient pas,
-et personne ne lit une consigne qui ne s'adresse pas à lui.
+It had seven pages, the same for everybody: somebody who only plays DS crossed a
+PPSSPP page and an ARMSX2 page that did not concern them, and nobody reads an
+instruction that is not addressed to them.
 
-Les pages d'émulateur sont donc tirées de ce que le joueur vient de répondre à la
-page des consoles : masquer la PS2 retire la page de la PS2, et le récapitulatif
-final ne lui invente pas une dette là-dessus. C'est aussi ce qui rend la page des
-consoles réellement utile plutôt que décorative — elle taille la suite.
+The emulator pages are therefore drawn from what the player just answered on the
+consoles page: hiding the PS2 removes the PS2 page, and the closing summary does
+not invent a debt there. It is also what makes the consoles page genuinely
+useful rather than decorative, since it cuts the rest to size.
 
-Le parcours est tenu par sa **valeur** et non par un index : masquer une console
-retire une page, et un index désignerait alors la page suivante.
+The walkthrough is held by value rather than by index: hiding a console removes
+a page, and an index would then point at the following one.
 
-La page du remplissage automatique ne paraît que pour les consoles dont le
-multijoueur passe par le pilotage de l'émulateur — 3DS, Switch, GameCube, Wii,
-PS2. La PSP passe par le tunnel et la DS par une redirection DNS : proposer un
-service d'accessibilité à quelqu'un qui ne joue qu'à ces deux-là, c'est demander
-beaucoup pour rien.
+The autofill page appears only for consoles whose multiplayer goes through
+driving the emulator: 3DS, Switch, GameCube, Wii, PS2. PSP goes through the
+tunnel and DS through a DNS redirect, so offering an accessibility service to
+somebody who plays only those two is asking a lot for nothing.
 
-## Deux colonnes, et elles ne disent pas la même chose
+## Two columns, and they do not say the same thing
 
-À gauche le *pourquoi* : une marque, un titre, une phrase, sans plaque — elle
-parle par-dessus le plateau, comme un titre d'écran, ce qui laisse la seule
-plaque de la page à ce qui se fait. À droite le *quoi faire* : les étapes
-numérotées, l'état, le bouton qui travaille.
+On the left the why: a mark, a title, a sentence, with no plate. It speaks over
+the board like a screen title, which leaves the page's only plate to what gets
+done. On the right the what to do: numbered steps, the state, the button that
+works.
 
-Le parcours précédent empilait tout au centre d'une carte étroite, sur un écran
-de 833 dp de large : deux tiers de la Thor perdus, et le bouton qui finissait
-hors champ dès qu'une page avait trois lignes de trop. En portrait, les deux
-colonnes redeviennent une pile, dans le même ordre : on lit toujours pourquoi
-avant de faire.
+The previous walkthrough stacked everything in the middle of a narrow card, on a
+screen 833 dp wide: two thirds of the Thor wasted, and a button that fell off the
+bottom as soon as a page ran three lines long. In portrait the two columns become
+a stack again, in the same order: you still read why before you do.
 
-## La page des consoles prend toute la largeur
+## The consoles page takes the full width
 
-Un troisième mode de mise en page, et une seule page l'utilise. `ConsoleGrid` est
-dessinée pour recevoir la largeur entière ; servie dans une colonne de 58 %, elle
-retombait à trois colonnes, donc trois rangs, donc une page qu'on parcourait au
-défilement pour répondre à une question qui tient en un coup d'œil.
+A third layout mode, used by one page only. `ConsoleGrid` is drawn to receive the
+entire width; served in a column of 58% it fell back to three columns, so three
+rows, so a page you scrolled through to answer a question that fits in a glance.
 
-Le *pourquoi* devient alors un bandeau — la marque et le titre sur une ligne, la
-phrase dessous — au lieu d'une colonne. Il perd de la hauteur, ce qui est
-exactement ce qu'on lui demande là.
+The why then becomes a banner, mark and title on one line with the sentence
+below, instead of a column. It loses height, which is exactly what is wanted of
+it there.
 
-Ça ne suffisait pas : même à pleine largeur, sept tuiles pleines font deux rangs,
-soit 300 dp de carte dans un écran qui en laisse 322 à toute la page. D'où la
-version courte de la tuile — voir `reglages-ecran.md` § La tuile de console a une
-version courte. Vérifié sur l'appareil : les sept étiquettes sont à la même
-hauteur, de x=221 à x=1638, et il reste 240 px avant les boutons.
+That was not enough: even at full width, seven full tiles make two rows, 300 dp
+of card in a screen that leaves 322 to the whole page. Hence the short version of
+the tile, see `reglages-ecran.md` under the short tile heading. Checked on
+device: the seven labels sit at the same height, x=221 to x=1638, with 240 px
+left before the buttons.
 
-## Les rituels d'émulateur sont les blocs des réglages, pas des copies
+## The emulator rituals are the settings blocks, not copies
 
-`PpssppBlock`, `Ps2Block` et `AutofillBlock` viennent de `settings/EmulatorsPage`
-tels quels : mêmes étapes, même pastille d'état, mêmes sélecteurs de dossier,
-mêmes messages d'erreur. Les redessiner pour l'occasion aurait donné deux
-versions d'une même procédure — celle qu'on lit en s'installant et celle qu'on
-relit quand ça ne marche pas.
+`PpssppBlock`, `Ps2Block` and `AutofillBlock` come from `settings/EmulatorsPage`
+as they are: same steps, same state badge, same folder pickers, same error
+messages. Redrawing them for the occasion would have produced two versions of one
+procedure, the one you read while settling in and the one you re-read when it
+does not work.
 
-Conséquence voulue : tout se fait **depuis** l'onboarding, y compris importer le
-profil réseau PS2 dans la carte mémoire. Les trois blocs sont donc `internal` et
-non privés.
+Deliberate consequence: everything is done from within onboarding, importing the
+PS2 network profile into the memory card included. The three blocks are therefore
+`internal` rather than private.
 
-## Tout reste passable, sauf le pseudo
+## Everything can be skipped, except the nickname
 
-Le dossier se choisit plus tard, la permission de notification se refuse de plein
-droit, les rituels d'émulateur se font le jour où l'on veut jouer à cette
-console-là. Un onboarding qui retient quelqu'un jusqu'à ce qu'il dise oui est un
-piège, et celui-ci doit survivre au non.
+The folder can be chosen later, the notification permission can rightly be
+refused, the emulator rituals can wait for the day you want to play that console.
+An onboarding that holds somebody until they say yes is a trap, and this one has
+to survive a no.
 
-Le pseudo est la seule exception, et pour une raison mécanique : il part tel quel
-dans le formulaire de l'émulateur, qui refuse les trop courts, et un refus
-là-bas ressort en connexion qui n'arrive jamais. Le champ arrive pré-rempli d'une
-valeur valide, donc le blocage ne concerne que quelqu'un qui l'a activement vidé.
+The nickname is the one exception, for a mechanical reason: it goes as it is into
+the emulator's form, which refuses ones that are too short, and a refusal there
+surfaces as a connection that never arrives. The field arrives pre-filled with a
+valid value, so the block only affects somebody who actively cleared it.
 
-Le retour arrière se fait au bouton système et à la touche B, jamais par un
-troisième contrôle en bas de page : trois choses à lire là où il y a une décision
-à prendre, c'est trop.
+Going back is the system button and the B key, never a third control at the foot
+of the page: three things to read where there is a decision to make is too many.
 
-## Le récapitulatif nomme ce qui a été sauté
+## The summary names what was skipped
 
-Une liste de félicitations n'apprend rien. Le relevé final dit ce qui manque et
-où le reprendre, une ligne par chose demandée, avec sa pastille. Les lignes qui
-ne concernent pas ce joueur ne paraissent pas — même règle que le parcours : un
-relevé qui annoncerait « PS2 : à faire » à quelqu'un qui a masqué la PS2 lui
-inventerait une dette.
+A list of congratulations teaches nothing. The closing summary says what is
+missing and where to pick it up, one line per thing asked for, with its badge.
+Lines that do not concern this player do not appear, same rule as the
+walkthrough: a summary announcing "PS2: to do" to somebody who hid the PS2 would
+invent a debt for them.
 
-## Où l'on en est, et de quoi il s'agit
+## Where you are, and what it is about
 
-Les points seuls disaient la longueur du parcours et rien d'autre. Comme celui-ci
-n'a plus de longueur fixe, ils disaient même une longueur qui changeait sous les
-yeux du joueur à la page des consoles. Le nom de l'étape répond à la question
-qu'ils posaient sans y répondre : où suis-je.
+Dots alone said the length of the walkthrough and nothing else. Since this one
+has no fixed length, they even said a length that changed under the player's eyes
+on the consoles page. The step name answers the question they raised without
+answering: where am I.
 
-## Le français se relit à voix haute, pas mot à mot
+## French is re-read aloud, not word by word
 
-Deux passes de correction ont été nécessaires après la première rédaction, et le
-défaut était le même à chaque fois : des phrases *justes* mais construites, pas
-des phrases qu'on dit. « Emufii monte le multijoueur à distance entre
-émulateurs », « les autres quittent ta bibliothèque, et cette installation te
-fera grâce des réglages qui les concernent », « le scan démarre en fond »,
-« un profil pointant vers le tunnel ».
+Two correction passes were needed after the first draft, and the flaw was the
+same each time: sentences that were correct but constructed, not sentences
+anybody says. "Emufii monte le multijoueur a distance entre emulateurs", "les
+autres quittent ta bibliotheque, et cette installation te fera grace des reglages
+qui les concernent", "le scan demarre en fond", "un profil pointant vers le
+tunnel".
 
-La règle qui en sort : **l'anglais se réaligne sur le sens révisé, jamais sur la
-phrase française**, sinon il hérite de la même raideur à l'envers. Et une
-étiquette de pastille, un titre de page ou une étape numérotée se relisent à voix
-haute avant d'être écrites.
+The rule that comes out of it: English realigns on the revised meaning, never on
+the French sentence, or it inherits the same stiffness the other way round. And a
+badge label, a page title or a numbered step is read aloud before being written.

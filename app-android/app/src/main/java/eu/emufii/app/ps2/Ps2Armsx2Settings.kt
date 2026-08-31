@@ -6,12 +6,12 @@ import org.json.JSONObject
  * ARMSX2's settings, read out of the mirror it keeps in its data folder.
  *
  * ARMSX2 keeps its configuration in app-private preferences, which nothing
- * outside it can read — but it also writes a copy beside the memory cards,
+ * outside it can read, but it also writes a copy beside the memory cards,
  * `armsx2-settings.json` (`ConfigStore.BACKUP_FILENAME`, written on every
  * settings save, read back on reinstall). When the player's ARMSX2 data
  * folder is one another app can reach, that mirror says which files both
  * slots hold, which BIOS is selected, and which games override the global
- * card or BIOS — the facts needed to provision without silently missing a
+ * card or BIOS: the facts needed to provision without silently missing a
  * configuration that a game would actually launch with.
  *
  * The `global` object carries flat camelCase keys; absent keys mean ARMSX2 is
@@ -77,7 +77,7 @@ object Ps2Armsx2Settings {
      * The native `PCSX2-Android.ini` ARMSX2 keeps at the data root, parsed for
      * the same global facts. Measured on a live install: builds exist that
      * write this file and no JSON mirror, so the folder flow reads whichever
-     * of the two is there — the mirror when both are.
+     * of the two is there: the mirror when both are.
      */
     fun parseIni(ini: String): Parsed {
         val values = mutableMapOf<String, String>()

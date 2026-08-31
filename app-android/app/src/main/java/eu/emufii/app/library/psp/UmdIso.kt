@@ -59,7 +59,7 @@ object UmdIso {
             val last = depth == path.lastIndex
             val found = entriesOf(source, dir) { it.name.equals(name, ignoreCase = true) }
                 ?: return null
-            if (found.isDirectory == last) return null   // un dossier là où on attend un fichier, ou l'inverse
+            if (found.isDirectory == last) return null   // a directory where a file is expected, or the other way round
             dir = Entry(found.entry.offset, found.entry.size)
             if (last) return dir.takeIf { it.size in 1..MAX_FILE }
         }

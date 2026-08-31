@@ -27,7 +27,7 @@ import eu.emufii.app.ui.tap
  * dissolve into it: a gradient towards that exact colour, and not towards an
  * approximation, which would give the fade away with a visible seam.
  *
- * The panel's face is a gradient, so this is its *top* colour — the end a fade
+ * The panel's face is a gradient, so this is its *top* colour: the end a fade
  * from the header meets.
  */
 @Composable
@@ -68,7 +68,7 @@ fun artworkRim(): Color =
  *
  * Deliberately *not* `Surface(shadowElevation = …)`. At small elevations on a
  * pale ground that draws a hard grey band hugging the outline instead of a
- * diffuse shadow — a dirty rim at every corner. The material is assembled by
+ * diffuse shadow: a dirty rim at every corner. The material is assembled by
  * hand in `theme/Plastic.kt`, where the shadow's offset, the lit bevel and the
  * moulding's edge are one thing rather than three guesses.
  */

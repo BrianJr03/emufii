@@ -100,8 +100,8 @@ fun UpdateBanner(
     }
 
     // An update is a link, not a game: the banner belongs to the social axis,
-    // and everything pressable in it speaks coral — rings included.
-    // pourquoi : docs/decisions/theme-duotone-shelves.md § Deux axes sémantiques
+    // and everything pressable in it speaks coral: rings included.
+    // pourquoi : docs/decisions/theme-duotone-shelves.md § Two semantic axes
     val coral = MaterialTheme.colorScheme.tertiary
     CompositionLocalProvider(LocalRingTone provides RingTone.CORAL) {
     SoftCard(modifier = modifier) {
@@ -127,9 +127,9 @@ fun UpdateBanner(
                     color = if (failure != null) MaterialTheme.colorScheme.error
                     else MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 2,
-                    // Une note de version ou un message d'echec n'a aucune
-                    // longueur garantie : c'est le texte le moins maitrise de
-                    // l'app, et le seul qui vienne du reseau.
+                    // A release note or a failure message has no guaranteed length: it
+                    // is the app's least controlled text, and the only one that comes
+                    // off the network.
                     overflow = TextOverflow.Ellipsis
                 )
             }

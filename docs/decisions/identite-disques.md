@@ -1,263 +1,249 @@
-# Identité des disques : reconnaître une console dans des octets
+# Disc identity: recognising a console in bytes
 
-Le récit qui vivait dans `library/DiscImage.kt`, sorti du code le 2026-08-24
-(cf. `docs/STYLE_COMMENTAIRES.md`). Le `CLAUDE.md` en porte le résumé ; ici, les
-mesures. Titres = ancres citées depuis le code.
+The narrative that lived in `library/DiscImage.kt`, taken out of the code on
+2026-08-24 (see `docs/STYLE_COMMENTAIRES.md`). `CLAUDE.md` carries the summary;
+here are the measurements. Headings are anchors cited from the code.
 
-**Tous les décalages ci-dessous ont été mesurés sur de vrais fichiers présents
-sur cette machine, jamais recopiés d'un wiki.**
+Every offset below was measured on real files present on this machine, never
+copied off a wiki.
 
-## Lire les octets, et seulement pour promouvoir
+## Reading the bytes, and only to promote
 
-La PSP a eu `.iso` en premier et ne le rend pas : un rip UMD et une image
-GameCube partagent l'extension et rien d'autre. Les trier par nom serait un pile
-ou face.
+The PSP had `.iso` first and does not give it back: a UMD rip and a GameCube
+image share the extension and nothing else. Sorting them by name would be a coin
+toss.
 
-D'où la règle : on lit les premiers octets, **et on ne les lit que pour
-promouvoir un fichier**. Tout ce qui ne peut pas être identifié positivement
-reste ce que l'extension disait déjà — c'est pour ça qu'ajouter Dolphin ne peut
-pas retirer un seul jeu à PPSSPP. `null` est la réponse ordinaire pour un rip
-PSP, et c'est aussi celle d'une lecture tronquée ou d'un format non listé : les
-trois veulent dire la même chose à l'appelant, **laisse le fichier où
-l'extension l'a mis**.
+Hence the rule: the first bytes are read, and read only to promote a file.
+Anything that cannot be positively identified stays what the extension already
+said, which is why adding Dolphin cannot take a single game away from PPSSPP.
+`null` is the ordinary answer for a PSP rip, and it is also the answer for a
+truncated read or an unlisted format: all three mean the same thing to the
+caller, leave the file where the extension put it.
 
-Deux vérifications qui ferment la porte aux faux positifs :
+Two checks that close the door on false positives:
 
-- un rip PSP porte des zéros francs en `0x18` et `0x1C`, là où vivent les deux
-  magies Nintendo (vérifié sur trois) ;
-- un RVZ porte son type de disque en `0x48` et une copie verbatim de l'en-tête
-  de disque en `0x58` — c'est pourquoi la magie Wii apparaît en `0x70` (vérifié
-  sur quatre).
+- a PSP rip carries clean zeroes at `0x18` and `0x1C`, where the two Nintendo
+  magics live (checked on three);
+- an RVZ carries its disc type at `0x48` and a verbatim copy of the disc header
+  at `0x58`, which is why the Wii magic appears at `0x70` (checked on four).
 
-## Le disque dit lui-même ce qu'il est, en 0x8008
+## The disc says what it is itself, at 0x8008
 
-Un disque PS2 et un rip UMD sont tous deux des `.iso`, et sur la Thor ils se
-ressemblent jusqu'au nom de fichier. Mais le disque le dit lui-même, mesuré sur
-les vrais fichiers :
+A PS2 disc and a UMD rip are both `.iso`, and on the Thor they look alike right
+down to the filename. But the disc says so itself, measured on the real files:
 
 ```
 TimeSplitters 2 (PS2) : system id 'PLAYSTATION'  volume id 'SLES_50877'
 WipEout Pulse  (PSP)  : system id 'PSP GAME'     volume id 'SCEE'
 ```
 
-Le premier secteur de données d'un CD/DVD commence à `0x8000` (secteur 16, de
-2048 octets) : le type et la signature `CD001` d'abord, puis l'identifiant système
-sur 32 octets.
+The first data sector of a CD/DVD starts at `0x8000` (sector 16, of 2048 bytes):
+the type and the `CD001` signature first, then the 32-byte system identifier.
 
-**La même règle s'applique où que commence le descripteur.** Sur un `.iso` il
-commence à `0x8000` ; sur un secteur extrait d'un CHD, à 0, 16 ou 24 selon la façon
-dont le disque a été pressé. Une règle, un seul endroit : une PS2 reconnue à
-travers un conteneur compressé l'est sur exactement les mêmes preuves qu'une PS2
-lue dans un fichier nu. Un secteur de 2048 octets est déjà de la donnée
-utilisateur ; un secteur CD brut porte 16 octets de synchro et d'en-tête avant
-elle (MODE1) ou 24 (MODE2 FORM1) — et le pressage PS2 mesuré ici est en MODE2,
-donc il faut essayer les deux. Mesuré : `CD001` tombe à 24.
+The same rule applies wherever the descriptor starts. On an `.iso` it starts at
+`0x8000`; on a sector extracted from a CHD, at 0, 16 or 24 depending on how the
+disc was pressed. One rule, one place: a PS2 recognised through a compressed
+container is recognised on exactly the same evidence as a PS2 read from a bare
+file. A 2048-byte sector is already user data; a raw CD sector carries 16 bytes
+of sync and header before it (MODE1) or 24 (MODE2 FORM1), and the PS2 pressing
+measured here is MODE2, so both have to be tried. Measured: `CD001` falls at 24.
 
-## `PLAYSTATION` ne suffit pas : il faut `BOOT2`
+## `PLAYSTATION` is not enough: `BOOT2` is needed
 
-Un disque **PS1** porte le même `PLAYSTATION` à ce décalage. Cette seule preuve ne
-tranche donc pas la console : le lecteur exige ensuite une entrée `BOOT2` dans
-`SYSTEM.CNF`, qu'un disque PS2 a et qu'un disque PS1 n'a pas. Sans elle, le disque
-est **refusé plutôt que mal étiqueté** — un CHD PS1 a déjà été listé comme un jeu
-« PS2 » depuis un dossier qui n'avait rien de PS2.
+A PS1 disc carries the same `PLAYSTATION` at that offset. That evidence alone
+therefore does not settle the console: the reader goes on to require a `BOOT2`
+entry in `SYSTEM.CNF`, which a PS2 disc has and a PS1 disc does not. Without it
+the disc is refused rather than mislabelled: a PS1 CHD has already been listed as
+a "PS2" game, from a folder that had nothing to do with the PS2.
 
-## Le serial PS2 est dans `SYSTEM.CNF`, pas dans l'identifiant de volume
+## The PS2 serial is in `SYSTEM.CNF`, not in the volume identifier
 
-L'identifiant de volume servait à ça, et c'était le mauvais champ. **Mesuré sur
-les huit disques PS2 du banc : deux portaient un serial** (`SLES_50877`,
-`SCED_53990`). Les six autres disaient `MC3REMIX`, `FINAL_FANTASY_X`, `1_01`, ou
-rien du tout — un éditeur y écrit ce qu'il veut, et rien ne l'oblige à y écrire le
-numéro du disque.
+The volume identifier used to serve that purpose, and it was the wrong field.
+Measured on the eight PS2 discs on the bench: two carried a serial (`SLES_50877`,
+`SCED_53990`). The other six said `MC3REMIX`, `FINAL_FANTASY_X`, `1_01`, or
+nothing at all. A publisher writes what it likes there, and nothing obliges it to
+write the disc number.
 
-Le serial que tout l'outillage PS2 utilise réellement est le fichier de démarrage
-nommé dans `SYSTEM.CNF`, à la racine du disque :
+The serial all PS2 tooling actually uses is the boot file named in `SYSTEM.CNF`,
+at the root of the disc:
 
 ```
 BOOT2 = cdrom0:\SLES_537.17;1
 ```
 
-C'est là-dessus que PCSX2 indexe sa propre base, donc c'est aussi la seule chose
-qui puisse correspondre à la nôtre. L'atteindre veut dire **marcher l'ISO9660** —
-lire le descripteur primaire, suivre l'enregistrement de son répertoire racine,
-trouver le fichier — soit quelques centaines d'octets de lecture, et la raison
-pour laquelle cette fonction prend un lecteur à accès aléatoire là où tout le
-reste travaille sur un préfixe.
+That is what PCSX2 indexes its own database on, so it is also the only thing that
+can match ours. Reaching it means walking the ISO9660, reading the primary
+descriptor, following its root directory record, finding the file, which is a few
+hundred bytes of reading, and the reason this function takes a random-access
+reader where everything else works on a prefix.
 
-`cdrom0:\SLES_537.17;1` est réduit à `SLES-53717` : le point à l'intérieur du
-nombre est une convention de nom de fichier et non une partie du serial, et le
-tiret bas est la façon d'écrire un serial sur un système de fichiers qui n'a pas
-de trait d'union. Les deux sont défaits pour que le résultat soit le serial tel
-qu'il s'écrit partout ailleurs — sur la boîte, dans l'index de PCSX2, dans notre
-base.
+`cdrom0:\SLES_537.17;1` is reduced to `SLES-53717`: the dot inside the number is a
+filename convention and not part of the serial, and the underscore is how a serial
+is written on a filesystem with no hyphen. Both are undone so the result is the
+serial as it is written everywhere else, on the box, in PCSX2's index, in our
+database.
 
-**Le repli est l'identifiant de volume, jamais rien.** Un disque qui était mal
-identifié ne doit pas devenir un disque **pas** identifié du tout.
+The fallback is the volume identifier, never nothing. A disc that was
+misidentified must not become a disc that is not identified at all.
 
-Le décalage de l'enregistrement racine est **relatif** au descripteur, pas absolu :
-celui-ci a déjà été lu dans un tampon à lui à ce moment-là. C'était
-`PVD_OFFSET + 156` au départ, ce qui indexait 32 ko dans un tableau de 2 ko —
-attrapé par le test de marche, qui aurait sinon été la pastille ne paraissant
-jamais sur un jeu PS2, en silence.
+The root record's offset is relative to the descriptor, not absolute: by that
+point the descriptor has already been read into a buffer of its own. It was
+`PVD_OFFSET + 156` at first, which indexed 32 KB into a 2 KB array, caught by the
+walk test, which would otherwise have been the badge silently never appearing on
+a PS2 game.
 
-## Une marche ISO demande un canal, et ne vaut pas pour le CHD
+## An ISO walk needs a channel, and does not apply to CHD
 
-Un canal, et non le flux séquentiel que le reste de cette classe utilise : le
-répertoire racine se trouve là où le disque a été masterisé, plusieurs centaines
-de mégaoctets plus loin sur un jeu double couche, et lire jusque-là voudrait dire
-lire le jeu.
+A channel, not the sequential stream the rest of this class uses: the root
+directory sits wherever the disc was mastered, several hundred megabytes further
+in on a dual-layer game, and reading that far would mean reading the game.
 
-**Seulement pour une image nue.** Un CHD devrait décompresser un hunk par saut, et
-le secteur qu'il lit déjà pour l'identification porte l'identifiant de volume, qui
-reste la réponse là-bas.
+For a bare image only. A CHD would have to decompress a hunk per seek, and the
+sector it already reads for identification carries the volume identifier, which
+stays the answer there.
 
-Un CHD s'annonce dans ses huit premiers octets, donc rien ici ne dépend du fait
-que le fichier soit *nommé* `.chd`. C'est en revanche le seul format qui ne peut
-pas être traité en lisant vers l'avant — sa carte de hunks est près de la fin du
-fichier — d'où un descripteur de fichier et un canal. Un fournisseur qui refuse
-d'en donner un répond `null`, et le fichier garde la console de son extension.
+A CHD announces itself in its first eight bytes, so nothing here depends on the
+file being named `.chd`. It is on the other hand the only format that cannot be
+handled by reading forward, its hunk map being near the end of the file, hence a
+file descriptor and a channel. A provider that refuses to give one answers
+`null`, and the file keeps its extension's console.
 
-## Les identifiants de jeu, et à quoi ils servent
+## Game identifiers, and what they are for
 
-**Nintendo** : les six caractères estampés tout au début d'un en-tête de disque —
-`RMGP01`, `GALE01` — l'identité sur laquelle Dolphin lui-même trie ses jeux, et la
-seule chose ici qui permette à un invité de reconnaître le jeu de l'hôte comme un
-jeu qu'il possède. Une image de disque n'a ni SMDH ni bannière à un décalage fixe
-(un RVZ est compressé), donc le **titre** vient encore du nom de fichier ; ceci est
-la part qui ne dépend pas de la façon dont quelqu'un a nommé son fichier. Lu à la
-même base que la console : 0 sur une image brute, `0x58` dans un conteneur
-compressé.
+Nintendo: the six characters stamped at the very start of a disc header,
+`RMGP01`, `GALE01`, the identity Dolphin itself sorts its games on, and the only
+thing here that lets a guest recognise the host's game as one they own. A disc
+image has neither SMDH nor banner at a fixed offset (an RVZ is compressed), so
+the title still comes from the filename; this is the part that does not depend on
+how somebody named their file. Read at the same base as the console: 0 on a raw
+image, `0x58` in a compressed container.
 
-**PS2** : le numéro est là où le disque le classe, pas au début du fichier. Mesuré
-`SLES_50877` sur TimeSplitters 2, quand ARMSX2 affiche `SLES-50877` — le même
-numéro au séparateur près, donc l'invité reconnaîtra le jeu de l'hôte tel que son
-propre émulateur le lui nomme.
+PS2: the number is where the disc files it, not at the start of the file.
+Measured `SLES_50877` on TimeSplitters 2, where ARMSX2 shows `SLES-50877`, the
+same number bar the separator, so the guest will recognise the host's game as
+their own emulator names it to them.
 
-**RVZ et WIA** annoncent leur console franchement. L'en-tête embarqué est vérifié
-en plus, et ce n'est pas redondant : c'est lui qui prouve que le fichier est bien
-ce que son `disc_type` prétend, et c'est la réponse sur un conteneur dont le champ
-de type est inconnu de cette build. Les deux partagent un conteneur : un en-tête de
-fichier, puis un `WIADisc` dont le `disc_type` dit de quelle console il vient, puis
-les 128 premiers octets du disque d'origine, verbatim — tous deux lisibles sans
-toucher à la charge compressée.
+RVZ and WIA announce their console outright. The embedded header is checked as
+well, and that is not redundant: it is what proves the file really is what its
+`disc_type` claims, and it is the answer on a container whose type field this
+build does not know. Both share a container: a file header, then a `WIADisc`
+whose `disc_type` says which console it came from, then the first 128 bytes of
+the original disc, verbatim, both readable without touching the compressed
+payload.
 
-## Quelles extensions valent la peine d'être ouvertes
+## Which extensions are worth opening
 
-`.iso`, parce que la PSP la possède et que seuls les octets peuvent trancher. Les
-extensions propres à Dolphin aussi, parce qu'elles doivent encore dire **laquelle**
-des deux consoles elles sont.
+`.iso`, because the PSP owns it and only the bytes can decide. Dolphin's own
+extensions too, because they still have to say which of the two consoles they
+are.
 
-`.chd` depuis le 2026-08-20, et c'est celle qui a demandé du vrai travail : la PSP,
-la PS2 et la Dreamcast s'y livrent toutes les trois, et les octets qui répondent à
-la question sont compressés. `ChdImage` décode juste assez du conteneur pour rendre
-un secteur, qui passe ensuite par la même règle de descripteur que tout le reste.
-Un disque Dreamcast est refusé avant tout ça, sur son étiquette de métadonnées
-GD-ROM.
+`.chd` since 2026-08-20, and it is the one that took real work: the PSP, the PS2
+and the Dreamcast all ship in it, and the bytes that answer the question are
+compressed. `ChdImage` decodes just enough of the container to return a sector,
+which then goes through the same descriptor rule as everything else. A Dreamcast
+disc is refused before any of that, on its GD-ROM metadata tag.
 
-**Délibérément absent : `.gcz`.** Il dit GameCube ou Wii dans un champ de sous-type
-dont ce projet n'a aucun échantillon pour vérifier, et deviner risquerait de
-déplacer le jeu de quelqu'un vers un émulateur incapable de l'ouvrir — ce qui est
-pire que de ne pas lister un format.
+Deliberately absent: `.gcz`. It says GameCube or Wii in a subtype field this
+project has no sample to check against, and guessing would risk moving somebody's
+game to an emulator that cannot open it, which is worse than not listing a
+format.
 
-## Le coût de tout ceci, et pourquoi il est invisible en cas d'échec
+## The cost of all this, and why it is invisible when it fails
 
-On lit **jusqu'au descripteur de volume**, pas seulement l'en-tête : les magies
-GameCube et Wii tiennent dans les 128 premiers octets, mais la PS2 ne peut être
-reconnue qu'à `0x8000`, là où commence l'ISO9660. D'où une lecture de 32 ko par
-fichier reniflé, séquentielle, une fois, pendant la passe d'enrichissement de la
-bibliothèque — laquelle ouvre déjà chaque fichier 3DS et DS pour son icône.
+We read as far as the volume descriptor, not just the header: the GameCube and
+Wii magics fit in the first 128 bytes, but the PS2 can only be recognised at
+`0x8000`, where the ISO9660 starts. Hence a 32 KB read per sniffed file,
+sequential, once, during the library's enrichment pass, which already opens every
+3DS and DS file for its icon.
 
-**Le tableau rendu est tronqué à ce qui a réellement été lu**, et c'est le point
-délicat : un tableau de 32 ko dont la queue serait des zéros non lus ferait
-examiner à l'identification des octets qui ne viennent pas du fichier. Un fichier
-plus court que l'en-tête voulu n'est pas une image de disque du tout, et ne rend
-rien.
+The array returned is truncated to what was actually read, and that is the
+delicate point: a 32 KB array whose tail was unread zeroes would have
+identification examine bytes that did not come from the file. A file shorter than
+the header wanted is not a disc image at all, and returns nothing.
 
-Un fournisseur qui refuse la lecture répond `null`, que le scan lit comme « garde
-la supposition de l'extension », exactement comme pour un rip PSP : c'est la raison
-pour laquelle un échec ici est **invisible plutôt que destructeur**.
+A provider that refuses the read answers `null`, which the scan reads as "keep
+the extension's guess", exactly as for a PSP rip: that is why a failure here is
+invisible rather than destructive.
 
 ---
 
-# Le CHD : décoder juste assez
+# CHD: decoding just enough
 
-Sorti de `library/ChdImage.kt`. **Tout ci-dessous a été mesuré sur deux vrais
-fichiers**, jamais pris dans un wiki : un `Phantasy Star Online Ver. 2`
-Dreamcast et un `Unreal Tournament` PS2. Les deux sont en v5, `cdlz/cdzl/cdfl`,
-`hunkbytes 19584` sur `unitbytes 2448`.
+Taken out of `library/ChdImage.kt`. Everything below was measured on two real
+files, never taken from a wiki: a Dreamcast `Phantasy Star Online Ver. 2` and a
+PS2 `Unreal Tournament`. Both are v5, `cdlz/cdzl/cdfl`, `hunkbytes 19584` over
+`unitbytes 2448`.
 
-## On s'arrête au secteur, on ne décide rien
+## We stop at the sector, and decide nothing
 
-`.chd` est le seul conteneur où l'extension ne tranche rien : la PSP, la PS2 et
-la Dreamcast s'y livrent toutes les trois, et sur cette machine deux des trois
-sont dans des dossiers voisins. Contrairement à un `.iso`, **les octets qui
-répondraient à la question sont compressés**.
+`.chd` is the only container where the extension settles nothing: the PSP, the
+PS2 and the Dreamcast all ship in it, and on this machine two of the three are in
+neighbouring folders. Unlike an `.iso`, the bytes that would answer the question
+are compressed.
 
-Ce décodeur va donc juste assez loin pour rendre **un secteur de disque**, et pas
-plus : aucune extraction complète, aucun fichier temporaire, quelques centaines de
-kilooctets lus par candidat. Le fichier PS2 mesuré rend, au secteur 16 décalage
-24, exactement :
+This decoder therefore goes just far enough to return one disc sector, and no
+further: no full extraction, no temporary file, a few hundred kilobytes read per
+candidate. The measured PS2 file returns, at sector 16 offset 24, exactly:
 
 ```
 CD001   system id 'PLAYSTATION'   volume id 'UT'
 ```
 
-— **le même descripteur que celui déjà lu sur un `.iso` nu**. C'est toute la
-raison de s'arrêter au secteur : la console est tranchée en **un seul endroit**
-pour tous les formats de disque, pas deux.
+the same descriptor already read on a bare `.iso`. That is the whole reason for
+stopping at the sector: the console is settled in one place for every disc
+format, not two.
 
-`null` est la réponse ordinaire pour un GD-ROM, pour un codec qu'on ne décode pas,
-pour un CHD antérieur à la v5 et pour tout fichier tronqué. **Tous veulent dire la
-même chose, et jamais « ce n'est pas une PS2 »** : « les octets n'ont pas parlé »,
-ce qui laisse le fichier là où son extension l'a mis.
+`null` is the ordinary answer for a GD-ROM, for a codec we do not decode, for a
+CHD older than v5 and for any truncated file. All of them mean the same thing,
+and never "this is not a PS2": "the bytes did not speak", which leaves the file
+where its extension put it.
 
-## La Dreamcast est écartée avant qu'un octet soit décompressé
+## The Dreamcast is ruled out before a byte is decompressed
 
-C'est **le faux positif à éviter** : elle est en `unitbytes 2448` exactement comme
-un CD PS2, et **seule l'étiquette de métadonnées les distingue**. Mesuré : le
-fichier Dreamcast porte `CHGD "TRACK:1 TYPE:MODE1_RAW …"` là où le PS2 porte
-`CHT2 "TRACK:1 TYPE:MODE2_RAW …"`.
+It is the false positive to avoid: it is `unitbytes 2448` exactly like a PS2 CD,
+and only the metadata tag tells them apart. Measured: the Dreamcast file carries
+`CHGD "TRACK:1 TYPE:MODE1_RAW ..."` where the PS2 carries
+`CHT2 "TRACK:1 TYPE:MODE2_RAW ..."`.
 
-La chaîne de métadonnées est à `0x7c` sur les deux fichiers mesurés — juste
-derrière l'en-tête — donc ça coûte **une courte lecture** et ça règle la console
-que ce projet ne doit jamais revendiquer.
+The metadata string is at `0x7c` on both measured files, just behind the header,
+so it costs one short read and settles the console this project must never claim.
 
-## Un lecteur réutilisable, sinon le travail explose
+## A reusable reader, or the work explodes
 
-L'ancien chemin « un secteur » redécodait la carte de Huffman **à chaque saut**. Un
-ELF de démarrage s'étale sur des centaines de sauts dans un CHD de DVD : cette
-approche transforme quelques mégaoctets en **gigaoctets de travail de carte
-répété**. La carte est donc analysée une fois, et seul le hunk décodé le plus récent
-est gardé — assez pour les lectures séquentielles de l'identification PS2.
+The old "one sector" path re-decoded the Huffman map on every seek. A boot ELF
+spreads over hundreds of seeks in a DVD CHD: that approach turns a few megabytes
+into gigabytes of repeated map work. The map is therefore parsed once, and only
+the most recently decoded hunk is kept, which is enough for the sequential reads
+of PS2 identification.
 
-## Deux pièges de décodage qui ont coûté cher
+## Two decoding traps that cost dearly
 
-**La première passe sur la carte ne peut pas être écourtée.** Les types de
-*chaque* hunk sont décodés avant que la première longueur soit écrite : s'arrêter
-au hunk voulu lit donc des longueurs **au milieu du flux de types** et produit des
-décalages qui ont l'air plausibles et ne décompressent rien. Cette erreur a coûté
-un après-midi ; la boucle va jusqu'au bout délibérément.
+The first pass over the map cannot be cut short. The types of every hunk are
+decoded before the first length is written: stopping at the hunk you want
+therefore reads lengths from the middle of the type stream and produces offsets
+that look plausible and decompress nothing. That mistake cost an afternoon; the
+loop runs to the end deliberately.
 
-**Le Huffman canonique de MAME a deux détails non devinables**, pris dans
-`huffman.cpp` plutôt que reconstruits : le compte de répétition vient d'une
-**troisième** lecture du flux, et ce qui est répété est **la longueur qu'on vient
-de lire**, pas zéro. Se tromper sur l'un ou l'autre produit quand même un arbre —
-simplement pas un dont les longueurs de code somment à 1, ce que le décodeur
-vérifie exactement, et refuse le fichier sinon.
+MAME's canonical Huffman has two details that cannot be guessed, taken from
+`huffman.cpp` rather than reconstructed: the repeat count comes from a third read
+of the stream, and what is repeated is the length just read, not zero. Getting
+either wrong still produces a tree, simply not one whose code lengths sum to 1,
+which the decoder checks exactly, and refuses the file otherwise.
 
-## Ce qui est décodé, et ce qui ne l'est pas
+## What is decoded, and what is not
 
-- **Sur un CD brut, seuls les secteurs sont rendus** : le codec garde les données
-  et le subcode en deux blocs compressés séparément, et le subcode ne porte rien
-  qui nomme une console.
-- **Le LZMA n'a pas d'en-tête** : MAME compresse avec `lc=3, lp=0, pb=2`, ce qui
-  tient dans l'octet de propriétés `0x5D`, avec un dictionnaire normalisé à la
-  puissance de deux supérieure. Vérifié contre le vrai fichier PS2, où le bloc de
-  secteurs décode à exactement 18 816 octets.
-- **Le FLAC n'est reconnu que pour ses sous-trames constantes à zéro.** Les CHD de
-  DVD gardent couramment un hunk canonique entièrement nul en FLAC et s'y réfèrent
-  partout dans les fichiers creux. Décoder de l'audio arbitraire est inutile pour
-  un lecteur d'ELF ; reconnaître ce cas suffit à résoudre ces références, et tout
-  le reste **retombe proprement plutôt que d'être deviné**.
-- **Le flux de données utilisateur de 2048 octets** masque les en-têtes de CD brut
-  et le subcode. Les CD PS2 du banc sont en MODE2 (décalage 24) ; le MODE1 (16) et
-  les secteurs déjà cuits sont détectés aussi, depuis la signature du descripteur.
+- On a raw CD, only the sectors are returned: the codec keeps the data and the
+  subcode in two separately compressed blocks, and the subcode carries nothing
+  that names a console.
+- LZMA has no header: MAME compresses with `lc=3, lp=0, pb=2`, which fits in the
+  properties byte `0x5D`, with a dictionary normalised to the next power of two.
+  Checked against the real PS2 file, where the sector block decodes to exactly
+  18,816 bytes.
+- FLAC is recognised only for its constant-zero subframes. DVD CHDs commonly keep
+  one entirely null canonical hunk in FLAC and refer to it throughout sparse
+  files. Decoding arbitrary audio is useless to an ELF reader; recognising that
+  case is enough to resolve those references, and everything else falls back
+  cleanly rather than being guessed.
+- The 2048-byte user data stream hides raw CD headers and the subcode. The PS2
+  CDs on the bench are MODE2 (offset 24); MODE1 (16) and already-cooked sectors
+  are detected too, from the descriptor signature.

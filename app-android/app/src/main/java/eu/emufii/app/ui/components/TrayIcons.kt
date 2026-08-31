@@ -15,11 +15,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /**
- * The app's icons, drawn rather than typed.
- *
- * Un carre de 24 unites, bouts ronds, jonctions rondes, une seule graisse : tout
- * ce qu'on ajoute se dessine aux trois memes regles.
- * pourquoi : docs/decisions/lancement-et-navigation.md § Les icônes de l'app sont dessinées, pas tapées
+ * The app's icons, drawn rather than typed. A 24-unit square, round caps, round joins,
+ * one weight: anything added is drawn to those three rules.
+ * pourquoi : docs/decisions/lancement-et-navigation.md § The app's icons are drawn, not typed
  */
 
 /** The stroke every icon here is drawn with, relative to its box. */
@@ -47,21 +45,18 @@ private fun TrayIcon(
     }
 }
 
-/** Back. Points left; [ChevronRight] is the same drawing mirrored. */
 @Composable
 fun ChevronLeft(size: Dp = 20.dp, color: Color, modifier: Modifier = Modifier) =
     TrayIcon(size, color, modifier) { u ->
         moveTo(15f * u, 5f * u); lineTo(9f * u, 12f * u); lineTo(15f * u, 19f * u)
     }
 
-/** Forward, and "this row opens something". */
 @Composable
 fun ChevronRight(size: Dp = 20.dp, color: Color, modifier: Modifier = Modifier) =
     TrayIcon(size, color, modifier) { u ->
         moveTo(9f * u, 5f * u); lineTo(15f * u, 12f * u); lineTo(9f * u, 19f * u)
     }
 
-/** Close, dismiss, remove. */
 @Composable
 fun CrossIcon(size: Dp = 18.dp, color: Color, modifier: Modifier = Modifier) =
     TrayIcon(size, color, modifier) { u ->
@@ -69,7 +64,6 @@ fun CrossIcon(size: Dp = 18.dp, color: Color, modifier: Modifier = Modifier) =
         moveTo(17.5f * u, 6.5f * u); lineTo(6.5f * u, 17.5f * u)
     }
 
-/** Done, ready, confirmed. */
 @Composable
 fun CheckIcon(size: Dp = 18.dp, color: Color, modifier: Modifier = Modifier) =
     TrayIcon(size, color, modifier) { u ->
@@ -77,8 +71,8 @@ fun CheckIcon(size: Dp = 18.dp, color: Color, modifier: Modifier = Modifier) =
     }
 
 /**
- * The signal mark: two arcs leaving a point. Remplace « 📡 » dans les etats vides
- * du chercheur de sessions.
+ * The signal mark: two arcs leaving a point. Replaces an emoji in the session finder's
+ * empty states.
  */
 @Composable
 fun SignalMark(size: Dp = 40.dp, color: Color, modifier: Modifier = Modifier) =
@@ -100,13 +94,10 @@ fun SignalMark(size: Dp = 40.dp, color: Color, modifier: Modifier = Modifier) =
         )
     }
 
+/** The sleep mark: a crescent. One closed path, or the stroke gives two arcs meeting. */
 /**
- * The sleep mark: a crescent. Un seul chemin ferme, sinon le trait donne deux
- * arcs qui se rencontrent.
- */
-/**
- * The folder mark: a tab and a body. Remplace « 📁 » sur une bibliotheque sans
- * dossier — le premier ecran qu'un joueur voit.
+ * The folder mark: a tab and a body. Replaces an emoji on a library with no folder, the
+ * first screen a player sees.
  */
 @Composable
 fun FolderMark(size: Dp = 44.dp, color: Color, modifier: Modifier = Modifier) =
@@ -121,9 +112,9 @@ fun FolderMark(size: Dp = 44.dp, color: Color, modifier: Modifier = Modifier) =
     }
 
 /**
- * Caution: this game runs, with something to know first. Juste la marque, sans
- * triangle autour : un contour dans un contour se lit a l'etroit.
- * pourquoi : docs/decisions/lancement-et-navigation.md § Les icônes de l'app sont dessinées, pas tapées
+ * Caution: the game runs, with something to know first. Just the mark, no triangle
+ * around it: an outline inside an outline reads as cramped.
+ * pourquoi : docs/decisions/lancement-et-navigation.md § The app's icons are drawn, not typed
  */
 @Composable
 fun WarnIcon(size: Dp = 14.dp, color: Color, modifier: Modifier = Modifier) =
@@ -132,7 +123,7 @@ fun WarnIcon(size: Dp = 14.dp, color: Color, modifier: Modifier = Modifier) =
         moveTo(12f * u, 18.6f * u); lineTo(12f * u, 18.6f * u)
     }
 
-/** Does not usefully run. The universal "no", and it is drawn, not typed. */
+/** Drawn rather than typed, so it carries in every locale. */
 @Composable
 fun BlockedIcon(size: Dp = 14.dp, color: Color, modifier: Modifier = Modifier) =
     TrayIcon(size, color, modifier) { u ->
@@ -146,8 +137,8 @@ fun BlockedIcon(size: Dp = 14.dp, color: Color, modifier: Modifier = Modifier) =
     }
 
 /**
- * Not tried yet: a wave, meaning « roughly, maybe ». Deliberement la plus
- * discrete des quatre marques — les trois autres sont des verdicts.
+ * Not tried yet: a wave, meaning roughly, maybe. The quietest of the four marks on
+ * purpose, the other three being verdicts.
  */
 @Composable
 fun TildeIcon(size: Dp = 14.dp, color: Color, modifier: Modifier = Modifier) =
@@ -157,14 +148,13 @@ fun TildeIcon(size: Dp = 14.dp, color: Color, modifier: Modifier = Modifier) =
         cubicTo(14.5f * u, 15.5f * u, 17f * u, 15.5f * u, 19.5f * u, 10f * u)
     }
 
-/*
- * Les sept marques des pages de reglages. Une par page, et c'est la seule
- * raison qu'elles ont d'exister : dans un menu ou toutes les rangees se
- * ressemblent, l'oeil retrouve une page a sa forme avant d'en lire le nom.
- * pourquoi : docs/decisions/reglages-ecran.md § Une icône par page, et pas une de plus
+/**
+ * The seven settings-page marks. One per page, and their only reason to exist: in a
+ * menu where every row looks alike, the eye finds a page by its shape before reading
+ * its name.
+ * pourquoi : docs/decisions/reglages-ecran.md § One icon per page, and not one more
  */
 
-/** Profil : une tete et des epaules. */
 @Composable
 fun PersonMark(size: Dp = 20.dp, color: Color, modifier: Modifier = Modifier) =
     TrayIcon(size, color, modifier) { u ->
@@ -177,7 +167,6 @@ fun PersonMark(size: Dp = 20.dp, color: Color, modifier: Modifier = Modifier) =
         cubicTo(4.5f * u, 15.5f * u, 19.5f * u, 15.5f * u, 19.5f * u, 20.5f * u)
     }
 
-/** Bibliotheque : trois tranches sur une etagere. */
 @Composable
 fun ShelfMark(size: Dp = 20.dp, color: Color, modifier: Modifier = Modifier) =
     TrayIcon(size, color, modifier) { u ->
@@ -187,7 +176,6 @@ fun ShelfMark(size: Dp = 20.dp, color: Color, modifier: Modifier = Modifier) =
         moveTo(3f * u, 19.5f * u); lineTo(21f * u, 19.5f * u)
     }
 
-/** Consoles : la grille de tuiles, dont une eteinte. */
 @Composable
 fun GridMark(size: Dp = 20.dp, color: Color, modifier: Modifier = Modifier) =
     TrayIcon(size, color, modifier) { u ->
@@ -209,11 +197,10 @@ fun GridMark(size: Dp = 20.dp, color: Color, modifier: Modifier = Modifier) =
                 cornerRadius = androidx.compose.ui.geometry.CornerRadius(1.5f * u)
             )
         )
-        // La quatrieme n'est pas dessinee : c'est la console masquee, et le
-        // trou dit ce que la page fait mieux qu'une quatrieme tuile.
+        // The fourth is not drawn: it is the hidden console, and the hole says what the
+        // page does better than a fourth tile.
     }
 
-/** Emulateurs : une puce et ses broches. */
 @Composable
 fun ChipMark(size: Dp = 20.dp, color: Color, modifier: Modifier = Modifier) =
     TrayIcon(size, color, modifier) { u ->
@@ -233,7 +220,6 @@ fun ChipMark(size: Dp = 20.dp, color: Color, modifier: Modifier = Modifier) =
         moveTo(17.5f * u, 14f * u); lineTo(20.5f * u, 14f * u)
     }
 
-/** Apparence : une goutte de peinture. */
 @Composable
 fun PaintMark(size: Dp = 20.dp, color: Color, modifier: Modifier = Modifier) =
     TrayIcon(size, color, modifier) { u ->
@@ -245,7 +231,6 @@ fun PaintMark(size: Dp = 20.dp, color: Color, modifier: Modifier = Modifier) =
         close()
     }
 
-/** General : deux curseurs de reglage. */
 @Composable
 fun SlidersMark(size: Dp = 20.dp, color: Color, modifier: Modifier = Modifier) =
     TrayIcon(size, color, modifier) { u ->
@@ -263,7 +248,6 @@ fun SlidersMark(size: Dp = 20.dp, color: Color, modifier: Modifier = Modifier) =
         )
     }
 
-/** A propos : la marque d'information. */
 @Composable
 fun InfoMark(size: Dp = 20.dp, color: Color, modifier: Modifier = Modifier) =
     TrayIcon(size, color, modifier) { u ->
@@ -276,7 +260,6 @@ fun InfoMark(size: Dp = 20.dp, color: Color, modifier: Modifier = Modifier) =
         moveTo(12f * u, 7.6f * u); lineTo(12f * u, 7.6f * u)
     }
 
-/** Modifier, retoucher : le crayon du bouton de photo de profil. */
 @Composable
 fun PencilMark(size: Dp = 14.dp, color: Color, modifier: Modifier = Modifier) =
     TrayIcon(size, color, modifier) { u ->
@@ -290,10 +273,9 @@ fun PencilMark(size: Dp = 14.dp, color: Color, modifier: Modifier = Modifier) =
     }
 
 /**
- * La loupe : un cercle et un manche. Elle vivait en deux exemplaires a des
- * proportions differentes ; un glyphe est le meme partout, sinon ce n'en est
- * plus le meme.
- * pourquoi : docs/decisions/lancement-et-navigation.md § Les icônes de l'app sont dessinées, pas tapées
+ * The magnifier: a circle and a handle. It lived in two copies at different
+ * proportions; a glyph is the same everywhere or it is no longer the same glyph.
+ * pourquoi : docs/decisions/lancement-et-navigation.md § The app's icons are drawn, not typed
  */
 @Composable
 fun LensMark(size: Dp = 20.dp, color: Color, modifier: Modifier = Modifier) =

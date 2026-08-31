@@ -37,20 +37,7 @@ import eu.emufii.app.ui.theme.LocalEmufiiDarkTheme
 import eu.emufii.app.ui.theme.socket
 import eu.emufii.app.ui.tap
 
-/**
- * Une console dans les reglages : ce qui la joue, et si elle est dans la grille.
- *
- * **Une rangee et non plus une tuile.** La grille de tuiles carrees repondait
- * bien a « qu'est-ce qui joue quoi », mal a « laquelle est allumee » (sept
- * tuiles identiques, l'etat porte par un ecart d'encre) et pas du tout a « avec
- * quelle build » — une question qui ne rentre nulle part dans un carre de
- * 200 px deja plein de quatre lignes centrees.
- *
- * La rangee range les trois faits sur un axe de lecture unique : **l'icone dit
- * l'emulateur, le texte dit la console et la build, l'interrupteur dit l'etat**,
- * et il est a droite ou l'oeil va chercher un etat. Le choix de build s'ouvre
- * dessous, la ou il n'existe pas de version a choisir dans le cas ordinaire.
- */
+/** What plays it, and whether it is in the grid. A row rather than a tile. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ConsoleRow(
@@ -62,8 +49,7 @@ fun ConsoleRow(
     entry: Boolean = false
 ) {
     val dark = LocalEmufiiDarkTheme.current
-    // Eteinte : l'icone perd sa couleur. C'est le signal le plus voyant de la
-    // rangee, et il disait « allumee » quand tout le reste disait l'inverse.
+    // Off: the icon loses its colour, the row's loudest signal.
     val alpha = if (visible) 1f else 0.45f
     val iconFilter = remember(visible) {
         if (visible) null
@@ -76,10 +62,8 @@ fun ConsoleRow(
         modifier = modifier
             .fillMaxWidth()
             .socket(ROW_SHAPE, dark)
-            // Comme [SwitchRow] : la ligne entiere bascule au doigt, mais elle
-            // n'est pas un arret de curseur — c'est la pastille qui porte
-            // l'anneau, sinon un cadre fait le tour de toute la rangee et se
-            // lit comme une selection.
+            // Like [SwitchRow]: the row toggles under a finger but is not a cursor
+            // stop.
             .focusProperties { canFocus = false }
             .tap(role = Role.Switch) { onSetVisible(!visible) }
             .padding(horizontal = 14.dp, vertical = 10.dp)
@@ -100,9 +84,8 @@ fun ConsoleRow(
                     modifier = Modifier.fillMaxWidth()
                 )
             } else {
-                // L'abreviation plutot qu'un point d'interrogation : un
-                // emulateur absent est le cas ordinaire sur un appareil neuf,
-                // et la rangee doit quand meme nommer sa machine.
+                // The abbreviation rather than a question mark: an absent emulator is
+                // the ordinary case.
                 Text(
                     info.console.shortLabel,
                     style = MaterialTheme.typography.labelSmall,
@@ -119,27 +102,14 @@ fun ConsoleRow(
             overflow = TextOverflow.Ellipsis
         )
 
-        // **Le choix vit sur la ligne du nom, et non dessous.**
-        //
-        // Dessous, chaque rangee gagnait une seconde ligne : sept consoles en
-        // deux colonnes passaient sous le bas de l'ecran de la Thor, pour une
-        // question qui n'a le plus souvent qu'une reponse. Ici la pastille
-        // unique — le cas ordinaire — ne coute aucune hauteur.
-        //
-        // `FlowRow` et non `Row` : deux builds installees ne tiennent pas a
-        // cote du nom, et elles passent alors a la ligne d'elles-memes. La
-        // rangee grandit quand le joueur a vraiment un choix a faire, jamais
-        // avant — c'est le contenu qui decide de la forme, pas une condition
-        // ecrite a la main.
+        // On the name's line, not under it: under, seven consoles gained seven lines.
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
             modifier = Modifier.weight(1f)
         ) {
             if (info.variants.isEmpty()) {
-                // Rien d'installe : la place du choix dit ce qui manque. Le nom
-                // vient du backend, le systeme n'ayant rien a en dire, et c'est
-                // la reponse a la seule question que la rangee pose alors.
+                // Nothing installed: the choice's place says what is missing.
                 Text(
                     absentLine(info),
                     style = MaterialTheme.typography.labelSmall,
@@ -161,9 +131,8 @@ fun ConsoleRow(
 
         Box(
             modifier = Modifier
-                // Plus epais qu'ailleurs : l'interrupteur est une petite
-                // pastille au bout d'une rangee large, et la part par defaut y
-                // donnait un filet qu'on cherchait des yeux.
+                // Thicker than elsewhere: the switch is a small pill at the end of a
+                // wide row.
                 .controlRing(
                     androidx.compose.foundation.shape.CircleShape,
                     bandFraction = 0.165f
@@ -177,8 +146,8 @@ fun ConsoleRow(
 }
 
 /**
- * Une build, en pastille. Choisie = l'axe du systeme en force ; les autres
- * restent lisibles, parce qu'en choisir une autre est l'autre moitie du geste.
+ * Chosen takes the system axis; the others stay legible, since choosing one is not a
+ * verdict.
  */
 @Composable
 private fun VariantChip(
@@ -211,12 +180,8 @@ private fun VariantChip(
             color = tint,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            // **C'est le nom qui cede, jamais le numero.** Une pastille trop
-            // large pour sa colonne coupait « Dolphin Emulator 2606-302 » a
-            // « …2606 » : or entre deux builds du meme emulateur, le nom est
-            // justement la partie identique, et le numero la seule qui
-            // distingue. `fill = false` pour qu'une pastille courte ne
-            // s'etire pas a toute la largeur disponible.
+            // The name gives way, never the number: a wide pill clipped "Dolphin
+            // Emulator 26...".
             modifier = Modifier.weight(1f, fill = false)
         )
         variant.version?.let {
@@ -231,11 +196,8 @@ private fun VariantChip(
 }
 
 /**
- * Ce qui manque, nomme.
- *
- * Le nom vient du backend et non du systeme — le systeme n'a rien a en dire,
- * puisque rien n'est installe — et c'est la reponse a la seule question que
- * cette rangee pose alors : quoi installer pour jouer a cette console.
+ * The name comes from the backend, not the system, which has nothing to say when
+ * nothing is installed.
  */
 @Composable
 private fun absentLine(info: EmulatorInfo): String =
@@ -244,11 +206,6 @@ private fun absentLine(info: EmulatorInfo): String =
 private val ROW_SHAPE = RoundedCornerShape(16.dp)
 private val CHIP_SHAPE = RoundedCornerShape(9.dp)
 
-/**
- * La version telle qu'elle tient sur une rangee.
- *
- * PPSSPP nomme ses builds « v1.20.4 », en portant deja la lettre que l'etiquette
- * ajoute, et « vv1.20.4 » est ce qui sortait sur la Thor.
- */
+/** PPSSPP names its builds "v1.20.4", already carrying the letter we would add. */
 private fun shortVersion(version: String): String =
     version.removePrefix("v").removePrefix("V")

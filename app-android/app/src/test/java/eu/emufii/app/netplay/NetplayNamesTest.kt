@@ -34,7 +34,7 @@ class NetplayNamesTest {
     }
 
     @Test
-    fun `Azahar n'a jamais son pseudo réécrit`() {
+    fun `Azahar never has its nickname rewritten`() {
         // The regression this file holds: Emufii had replaced a valid Azahar
         // nickname with the profile name, and the form refused the whole dialog
         // while blaming the address.
@@ -44,7 +44,7 @@ class NetplayNamesTest {
     }
 
     @Test
-    fun `Eden reçoit le pseudo du profil`() {
+    fun `Eden gets the profile nickname`() {
         // The opposite, and for a reason Eden does not state: two players with
         // the same nickname cannot share a room, and its default nickname is the
         // same for everybody.
@@ -52,24 +52,24 @@ class NetplayNamesTest {
     }
 
     @Test
-    fun `un pseudo trop court est complété, pas refusé`() {
+    fun `a nickname that is too short is padded, not refused`() {
         // A "Jo" profile is legitimate inside Emufii; it is the emulator that
         // requires five characters, so it is for us to comply.
         val filled = NetplayNames.usernameFor(Backend.EDEN, "Jo")
 
         assertEquals(NetplayNames.MIN_USERNAME, filled?.length)
-        assertTrue("doit rester reconnaissable : $filled", filled!!.startsWith("Jo"))
+        assertTrue("must stay recognisable: $filled", filled!!.startsWith("Jo"))
     }
 
     @Test
-    fun `un pseudo trop long est coupé`() {
+    fun `a nickname that is too long is cut`() {
         val long = NetplayNames.usernameFor(Backend.EDEN, "a".repeat(40))
 
         assertEquals(NetplayNames.MAX_USERNAME, long?.length)
     }
 
     @Test
-    fun `sans profil nommé, on ne touche à rien`() {
+    fun `with no named profile, nothing is touched`() {
         // Writing a fabricated name would be worse than leaving the emulator's,
         // which at least was chosen by somebody.
         assertNull(NetplayNames.usernameFor(Backend.EDEN, null))

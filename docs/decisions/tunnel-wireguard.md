@@ -1,170 +1,162 @@
-# Le tunnel : WireGuard, le créneau VPN unique, et les mesures
+# The tunnel: WireGuard, the single VPN slot, and the measurements
 
-Le récit qui vivait dans `wg/` et `tunnel/TunnelSlot.kt`, sorti du code le
-2026-08-24 (cf. `docs/STYLE_COMMENTAIRES.md`). Les pièges réseau côté relais sont
-dans le `CLAUDE.md`. Titres = ancres citées depuis le code.
+The narrative that lived in `wg/` and `tunnel/TunnelSlot.kt`, taken out of the
+code on 2026-08-24 (see `docs/STYLE_COMMENTAIRES.md`). The relay-side network
+traps are in `CLAUDE.md`. Headings are anchors cited from the code.
 
-## Pourquoi Emufii a son propre `VpnService`
+## Why Emufii has its own `VpnService`
 
-`GoBackend` en livre déjà un, donc à première vue Emufii n'en a pas besoin. Mais
-il le démarre ainsi — lu dans les sources de la bibliothèque avant d'écrire une
-ligne :
+`GoBackend` ships one already, so at first sight Emufii needs none. But it starts
+it like this, read in the library sources before a line was written:
 
 ```java
 context.startService(new Intent(context, VpnService.class));
 ```
 
-`startService`, et **`startForeground` n'est appelé nulle part** dans la
-bibliothèque. Le tunnel vivrait donc dans un service d'arrière-plan, qu'Android
-est libre de tuer dès qu'Emufii quitte le premier plan — c'est-à-dire
-**exactement quand le joueur bascule vers l'émulateur pour jouer**. Cette app a
-déjà payé cette facture une fois, sur le service LAN de Dolphin : sans premier
-plan, le segment LAN tombait.
+`startService`, and `startForeground` is called nowhere in the library. The
+tunnel would therefore live in a background service, which Android is free to
+kill as soon as Emufii leaves the foreground, which is to say exactly when the
+player switches to the emulator to play. This app has paid that bill once
+already, on Dolphin's LAN service: without a foreground, the LAN segment dropped.
 
-`GoBackend` est `final` et ne peut pas être dérivé. `GoBackend.VpnService`, lui,
-ne l'est pas, et l'`onCreate()` dont il hérite complète un futur statique que
-`GoBackend` consulte avant de démarrer quoi que ce soit. D'où la manœuvre :
-**dériver, déclarer la sous-classe au manifeste, et la démarrer nous-mêmes en
-premier plan.** `GoBackend` trouve alors le futur déjà complété, saute son propre
-`startService`, et travaille à travers notre instance.
+`GoBackend` is `final` and cannot be subclassed. `GoBackend.VpnService` is not,
+and the `onCreate()` it inherits completes a static future that `GoBackend`
+consults before starting anything. Hence the manoeuvre: subclass it, declare the
+subclass in the manifest, and start it ourselves in the foreground. `GoBackend`
+then finds the future already complete, skips its own `startService`, and works
+through our instance.
 
-Cela tient à un détail interne de la bibliothèque, et c'est pourquoi **le service
-possède le cycle de vie du tunnel plutôt que le gestionnaire** : faire le
-changement d'état depuis `onStartCommand` rend l'ordre — `onCreate`, puis
-`startForeground`, puis l'état — une propriété du code plutôt qu'un espoir sur le
-minutage.
+This rests on an internal detail of the library, which is why the service owns
+the tunnel's lifecycle rather than the manager: making the state change from
+`onStartCommand` turns the order (`onCreate`, then `startForeground`, then the
+state) into a property of the code rather than a hope about timing.
 
-Corollaire : **l'`onDestroy` de la bibliothèque ne doit pas être sauté.** Il
-éteint le tunnel et remet à zéro le futur statique qui permet à `GoBackend` de
-trouver ce service ; le sauter laisserait un futur pointant sur une instance morte,
-et le tunnel suivant ne monterait jamais.
+Corollary: the library's `onDestroy` must not be skipped. It brings the tunnel
+down and resets the static future that lets `GoBackend` find this service;
+skipping it would leave a future pointing at a dead instance, and the next tunnel
+would never come up.
 
-Et **balayer Emufii hors des récents doit descendre le tunnel** : un service de
-premier plan survit par conception au retrait de sa tâche, donc sans ça le tunnel —
-et la clé VPN dans la barre d'état — survivaient à l'app, sans plus rien à l'écran
-pour les arrêter.
+And swiping Emufii out of recents must bring the tunnel down: a foreground
+service survives its task being removed by design, so without this the tunnel,
+and the VPN key in the status bar, outlived the app with nothing left on screen
+to stop them.
 
-## Le verrou Wi-Fi n'est pas un détail de confort
+## The Wi-Fi lock is not a comfort detail
 
-Mesuré entre deux Thor distantes, à travers le relais : **25 % de perte à un ping
-par seconde, 0 % à trois pings par seconde**, et une gigue de 46 à 369 ms. C'est
-la signature de l'économie d'énergie Wi-Fi : un trafic clairsemé laisse la radio
-s'assoupir, et les paquets rares paient l'attente ou se perdent.
+Measured between two distant Thors, through the relay: 25% loss at one ping per
+second, 0% at three pings per second, and jitter from 46 to 369 ms. That is the
+signature of Wi-Fi power saving: sparse traffic lets the radio doze, and rare
+packets pay the wait or get lost.
 
-Or **le LDN de la Switch — que l'amont d'Eden décrit comme « extrêmement sensible
-à la latence et à la perte » — fait sa poignée de main avec précisément ces
-paquets rares.** Un jeu qui se connecte puis abandonne au bout de sept secondes,
-deux fois de suite, est exactement ce que produit une poignée de main perdant un
-paquet sur quatre.
+And Switch LDN, which Eden upstream describes as extremely sensitive to latency
+and loss, does its handshake with precisely those rare packets. A game that
+connects then gives up after seven seconds, twice in a row, is exactly what a
+handshake losing one packet in four produces.
 
-`WIFI_MODE_FULL_LOW_LATENCY` fait deux choses de plus que l'ancien `HIGH_PERF` :
-il coupe l'économie d'énergie et demande au pilote de privilégier la latence sur
-le débit. Il n'agit que l'écran allumé et l'app au premier plan — ce qui, pendant
-une partie, désigne l'émulateur et pas nous : le verrou est donc **tenu**, et le
-système l'applique quand il le peut.
+`WIFI_MODE_FULL_LOW_LATENCY` does two things the old `HIGH_PERF` did not: it
+turns power saving off and asks the driver to favour latency over throughput. It
+only acts with the screen on and the app in the foreground, which during a game
+means the emulator and not us, so the lock is held and the system applies it when
+it can.
 
-## Trois nombres mesurés dans la configuration
+## Three numbers measured into the configuration
 
-- **Le keepalive.** Les correspondances NAT des opérateurs expirent bien en
-  dessous d'une minute, et le relais ne peut joindre qu'un pair pour lequel il a
-  une correspondance. Abaissé depuis 25 s le 2026-08-02 : entre deux bouffées la
-  radio Wi-Fi s'endort, et le paquet de réveil payait jusqu'à 369 ms contre 46 ms
-  sur un lien tenu éveillé.
-- **Le MTU à 1420.** Sans lui le backend retombe sur 1280, le plancher IPv6. 1420
-  est le défaut de wg-quick et il est sûr ici : l'en-tête WireGuard coûte 60
-  octets sur IPv4, donc le paquet porteur fait 1480 et traverse aussi bien un lien
-  1500 qu'un PPPoE 1492. **Mesuré sur la Thor le 2026-08-04 : 1252 octets passent,
-  1300 se perdent, rien ne fragmente.** Cette perte silencieuse était le mode de
-  défaillance du LDN.
-- **La topologie est en étoile**, donc la configuration ne porte **la clé d'aucun
-  autre joueur** : le seul pair d'un client est le relais.
+- The keepalive. Carrier NAT mappings expire well under a minute, and the relay
+  can only reach a peer it has a mapping for. Lowered from 25 s on 2026-08-02:
+  between two bursts the Wi-Fi radio falls asleep, and the wake-up packet paid up
+  to 369 ms against 46 ms on a link kept awake.
+- MTU at 1420. Without it the backend falls back to 1280, the IPv6 floor. 1420 is
+  the wg-quick default and is safe here: the WireGuard header costs 60 bytes over
+  IPv4, so the carrier packet is 1480 and crosses a 1500 link as well as a 1492
+  PPPoE. Measured on the Thor on 2026-08-04: 1252 bytes get through, 1300 are
+  lost, nothing fragments. That silent loss was the LDN failure mode.
+- The topology is a star, so the configuration carries no other player's key: a
+  client's only peer is the relay.
 
-La configuration est rendue **en texte** plutôt que par les constructeurs de la
-bibliothèque : une seule forme à réussir, journalisable quand un tunnel refuse de
-monter, et c'est le format qu'emploie la documentation WireGuard.
+The configuration is rendered as text rather than through the library's builders:
+one shape to get right, loggable when a tunnel refuses to come up, and it is the
+format the WireGuard documentation uses.
 
-## La seconde adresse de l'hôte, sans quoi ses paquets se perdent
+## The host's second address, without which its packets are lost
 
-L'hôte a une seconde adresse en `.254`, nulle chez un invité. **Le relais y
-réécrit la connexion de l'hôte vers lui-même**, et c'est celle que distribue le
-serveur ad hoc. Sans elle ici, les paquets envoyés à l'hôte arrivent par le tunnel
-et sont jetés.
+The host has a second address at `.254`, null on a guest. The relay rewrites the
+host's connection to itself there, and that is the one the ad hoc server hands
+out. Without it here, packets sent to the host arrive through the tunnel and are
+dropped.
 
-## Le DNS n'est annoncé que pour la PS2
+## DNS is advertised for the PS2 only
 
-Nul partout ailleurs, **délibérément : un VPN qui annonce un DNS prend la main sur
-la résolution de tout l'appareil.** Les autres consoles composent des adresses, pas
-des noms.
+Null everywhere else, deliberately: a VPN that advertises a DNS takes over name
+resolution for the whole device. The other consoles dial addresses, not names.
 
-La PS2 fait exception parce que **le clavier d'ARMSX2 n'a pas de touche point** :
-aucune adresse IPv4 ne peut y être saisie. Local Link résout les noms, et une seule
-étiquette suffit — le relais répond à ce nom par la sentinelle.
+The PS2 is the exception because the ARMSX2 keyboard has no full stop key: no
+IPv4 address can be typed there. Local Link resolves names, and a single label is
+enough, the relay answering that name with the sentinel.
 
-## L'identité WireGuard doit persister
+## The WireGuard identity must persist
 
-La raison est côté serveur : **le coordinator est idempotent sur la clé publique**,
-donc la même clé obtient toujours la même adresse. Une clé régénérée à chaque
-session prendrait une adresse neuve à chaque fois et laisserait le relais tenir une
-route vers un pair derrière lequel il n'y a personne — ce que l'autre joueur voit
-comme une partie qui se connecte puis devient muette.
+The reason is server side: the coordinator is idempotent on the public key, so
+the same key always gets the same address. A key regenerated every session would
+take a fresh address each time and leave the relay holding a route to a peer with
+nobody behind it, which the other player sees as a game that connects and then
+goes silent.
 
-Gardée dans les préférences privées de l'app, à côté du profil et de la liste
-d'amis. **Pas dans le keystore** : WireGuard a besoin de la clé privée en clair en
-espace utilisateur pour faire sa poignée de main, donc une clé adossée au matériel
-qu'il ne pourrait jamais extraire serait inutile ici. Le stockage privé de l'app
-est la frontière honnête, et c'est déjà celle sur laquelle repose le code d'ami.
+Kept in the app's private preferences, next to the profile and the friends list.
+Not in the keystore: WireGuard needs the private key in the clear in user space
+to do its handshake, so a hardware-backed key it could never extract would be
+useless here. The app's private storage is the honest boundary, and it is already
+the one the friend code rests on.
 
-L'effacer va avec la suppression du profil : la clé publique est un identifiant
-stable que le coordinator voit, donc la laisser derrière survivrait au profil dont
-elle venait.
+Clearing it goes with deleting the profile: the public key is a stable identifier
+the coordinator sees, so leaving it behind would outlive the profile it came
+from.
 
-## « En ligne » veut dire moins qu'on ne croit
+## "Online" means less than you think
 
-`Tunnel.State` ne distingue que haut et bas, donc « en ligne » signifie **que
-l'interface existe** — pas qu'un autre joueur a rejoint, ni même qu'une poignée de
-main a abouti. L'app confirme la joignabilité réelle en pinguant le relais, ce
-pour quoi son adresse est rendue.
+`Tunnel.State` only distinguishes up from down, so "online" means the interface
+exists, not that another player has joined, nor even that a handshake completed.
+The app confirms real reachability by pinging the relay, which is why its address
+is returned.
 
-## Android n'a qu'un créneau VPN, et Emufii a deux tunnels
+## Android has one VPN slot, and Emufii has two tunnels
 
-Le tunnel de session, et le tunnel DNS qui envoie la DS vers Kaeru. **Celui qui
-appelle `establish()` en second gagne, et l'autre est révoqué sans que l'app ni le
-joueur soient consultés.**
+The session tunnel, and the DNS tunnel that sends the DS to Kaeru. Whichever
+calls `establish()` second wins, and the other is revoked without the app or the
+player being consulted.
 
-Ce n'est pas une course théorique : quitter l'écran WFC par le geste de retour
-système **laisse son tunnel debout**, et créer une session ensuite coupe la partie
-DS en plein jeu. Ça marche dans l'autre sens aussi — le service de session est
-`START_STICKY` et en premier plan, donc il survit à l'activité.
+This is not a theoretical race: leaving the WFC screen with the system back
+gesture leaves its tunnel standing, and creating a session afterwards cuts the DS
+game off mid-play. It works the other way too, the session service being
+`START_STICKY` and foreground, so it outlives the activity.
 
-Qui tient le créneau est **dérivé des états que les services publient déjà**,
-plutôt que suivi séparément. Trois règles :
+Who holds the slot is derived from the states the services already publish,
+rather than tracked separately. Three rules:
 
-- **`Starting` compte comme tenu.** `establish()` a peut-être déjà eu lieu, et le
-  traiter comme libre est exactement la fenêtre où deux tunnels se percutent.
-  `Stopping` et `Error` ne comptent pas : le descripteur est en train de partir, ou
-  n'a jamais été ouvert.
-- **La session gagne les égalités** : un chevauchement veut dire que l'un des deux
-  est un reliquat en cours de démontage, et la session est celui dont la perte
-  coûte quelque chose au joueur.
-- **Demander le créneau qu'on tient déjà est gratuit** : déplacer le tunnel de
-  session vers un autre jeu est un redémarrage, pas un conflit.
+- `Starting` counts as held. `establish()` may already have happened, and
+  treating it as free is exactly the window where two tunnels collide. `Stopping`
+  and `Error` do not count: the descriptor is on its way out, or was never
+  opened.
+- The session wins ties: an overlap means one of the two is a leftover being torn
+  down, and the session is the one whose loss costs the player something.
+- Asking for the slot you already hold is free: moving the session tunnel to
+  another game is a restart, not a conflict.
 
-## Balayer l'app hors des récents coupe le tunnel
+## Swiping the app out of recents cuts the tunnel
 
-Sans ça, le tunnel survivait à l'app indéfiniment. `START_STICKY` rendait la
-chose pire qu'un simple oubli : tuer le processus et Android ramène le service,
-tunnel compris, sans aucune Emufii à l'écran pour l'arrêter. L'icône de clé reste
-dans la barre d'état et la seule issue passe par les réglages VPN d'Android.
+Without this, the tunnel outlived the app indefinitely. `START_STICKY` made it
+worse than a simple oversight: kill the process and Android brings the service
+back, tunnel included, with no Emufii on screen to stop it. The key icon stays in
+the status bar and the only way out is through Android's VPN settings.
 
-`onDestroy` ne suffisait pas seul : balayer la tâche ne détruit pas un service de
-premier plan démarré, ce qui est tout l'intérêt d'en avoir un. `onTaskRemoved`
-est le seul signal qu'Android donne pour « l'utilisateur en a fini avec cette
-app », donc c'est là que la décision appartient.
+`onDestroy` was not enough on its own: swiping the task away does not destroy a
+started foreground service, which is the whole point of having one.
+`onTaskRemoved` is the only signal Android gives for "the user is done with this
+app", so that is where the decision belongs.
 
-**Délibérément inconditionnel.** Balayer l'app pendant que melonDS est encore en
-session coupera la résolution de noms WFC sous lui, mais un tunnel que rien ne
-peut atteindre est la pire des deux pannes — et l'émulateur garde sa propre tâche
-dans les récents, donc le geste vise Emufii précisément.
+Deliberately unconditional. Swiping the app away while melonDS is still in
+session will cut WFC name resolution under it, but a tunnel nothing can reach is
+the worse of the two faults, and the emulator keeps its own task in recents, so
+the gesture targets Emufii precisely.
 
-`stopSelf` compte autant que couper le tunnel : il efface le redémarrage
-collant, donc le service reste à terre au lieu d'être ressuscité.
+`stopSelf` counts as much as cutting the tunnel: it clears the sticky restart, so
+the service stays down instead of being resurrected.

@@ -14,16 +14,16 @@
     -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!--
-      Installer la mise à jour depuis la bannière. Ne donne pas le droit
-      d'installer : elle donne le droit de *demander*, et Android n'ouvre son
-      dialogue qu'après que le joueur a autorisé Emufii dans ses réglages. Voir
-      UpdateInstaller pour les trois verrous qui encadrent ce chemin.
+      Installing the update from the banner. This does not grant the right to
+      install, only the right to ask: Android opens its dialog only after the
+      player has allowed Emufii in their settings. See UpdateInstaller for the
+      three locks around this path.
     -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <!--
-      Tenir la radio Wi-Fi éveillée pendant une session. Mesuré entre deux Thor :
-      25 % de perte à un paquet par seconde, 0 % à trois — l'économie d'énergie
-      du Wi-Fi, que le LDN de la Switch ne supporte pas. Voir EmufiiWgService.
+      Keeping the Wi-Fi radio awake during a session. Measured between two
+      Thors: 25% loss at one packet per second, 0% at three, which is Wi-Fi
+      power saving, and Switch LDN does not tolerate it. See EmufiiWgService.
     -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
@@ -31,7 +31,7 @@
     <queries>
         <package android:name="org.azahar_emu.azahar" />
         <package android:name="org.azahar_emu.azahar.debug" />
-        <!-- Azahar publie encore sous l'identifiant hérité de Lime3DS ; cf. AzaharPackage. -->
+        <!-- Azahar still publishes under the identifier inherited from Lime3DS; see AzaharPackage. -->
         <package android:name="io.github.lime3ds.android" />
         <package android:name="org.ppsspp.ppsspp" />
         <package android:name="org.ppsspp.ppssppgold" />
@@ -76,8 +76,8 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Emufii">
         <!--
-          Le retour d'Android sur la session d'installation. Non exporté : seul
-          le PendingIntent qu'on a créé nous-mêmes l'atteint.
+          Android's callback on the install session. Not exported: only the
+          PendingIntent we created ourselves reaches it.
         -->
         <receiver
             android:name=".update.UpdateInstallReceiver"

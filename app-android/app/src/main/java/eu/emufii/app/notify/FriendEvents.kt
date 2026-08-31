@@ -33,12 +33,10 @@ sealed interface FriendEvent {
 data class SeenFriend(val online: Boolean, val game: String?)
 
 /**
- * Compares two polls and says what deserves to be announced.
- *
- * Pure a dessein : la meme fonction sert l'alerte dans l'app et le travail de
- * fond, donc les deux ne peuvent pas diverger. C'est aussi la seule partie
- * testable sans appareil.
- * pourquoi : docs/decisions/amis-et-notifications.md § Les règles d'annonce, chacune gagnée en imaginant la notification qu'elle évite
+ * Compares two polls and says what deserves announcing. Pure by design: the same
+ * function serves the in-app alert and the background job, so the two cannot diverge.
+ * It is also the only part testable without a device.
+ * pourquoi : docs/decisions/amis-et-notifications.md § The announcement rules, each earned by picturing the notification it avoids
  */
 fun friendEvents(
     previous: Map<String, SeenFriend>,

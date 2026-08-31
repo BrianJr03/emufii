@@ -53,26 +53,19 @@ import kotlin.math.abs
 /**
  * The opening screen: the logo, for as long as the library takes to load.
  *
- * [MIN_MS] evite le clignotement quand le cache est chaud, [MAX_MS] cede quand
- * le parcours s'eternise. Non focalisable : rien a viser, donc rien a signaler.
- * pourquoi : docs/decisions/lancement-et-navigation.md § L'écran d'ouverture tient le logo entre deux durées
+ * [MIN_MS] avoids a flicker when the cache is warm, [MAX_MS] gives way when the
+ * run drags on. Not focusable: nothing to aim at, so nothing to signal.
+ * pourquoi : docs/decisions/lancement-et-navigation.md § The opening screen holds the logo between two durations
  */
 @Composable
 fun SplashScreen(ready: Boolean, onDone: () -> Unit) {
     val dark = LocalEmufiiDarkTheme.current
 
-    // **Le panneau porte le repos tant que le logo est la.**
-    //
-    // La bibliotheque est composee **dessous** pendant tout le demarrage — c'est
-    // meme le point du logo opaque : tout est mesure et peint quand il s'efface.
-    // Son curseur se pose donc sur une tuile et publie la fiche du jeu, que le
-    // panneau montrait pendant que l'ecran de face en etait encore a son logo.
-    // Les deux ecrans racontaient deux moments differents de l'app.
-    //
-    // Face **posee par-dessus** plutot que publiee : la bibliotheque garde la
-    // sienne intacte dessous, et elle reapparait a la seconde ou le logo part,
-    // sans que personne ait a la republier.
-    // pourquoi : docs/decisions/second-ecran.md § Une pile plutôt qu'une publication de plus
+    // The panel carries the resting face while the logo is up. The library composes
+    // underneath throughout startup, which is the opaque logo's point: everything is
+    // measured and painted by the time it clears, so its cursor lands on a tile and
+    // publishes that face.
+    // pourquoi : docs/decisions/second-ecran.md § A stack rather than one more publication
     DisposableEffect(Unit) {
         val token = SecondScreen.putAside(SecondScreenModel.Idle)
         onDispose { SecondScreen.takeBack(token) }
@@ -104,9 +97,9 @@ fun SplashScreen(ready: Boolean, onDone: () -> Unit) {
         label = "splash-appearance"
     )
 
-    // Le logo est centre seul : empiles, c'est la paire qui se centrait. Et la
-    // barre d'etat est cachee le temps du logo, puis rendue.
-    // pourquoi : docs/decisions/lancement-et-navigation.md § Le logo est centré seul, et la barre d'état n'existe pas
+    // The logo is centred alone: stacked, it was the pair that centred. The status bar
+    // is hidden for the logo's duration, then restored.
+    // pourquoi : docs/decisions/lancement-et-navigation.md § The logo is centred alone, and the status bar does not exist
     val view = LocalView.current
     DisposableEffect(view) {
         val controller = WindowCompat.getInsetsController(
@@ -151,7 +144,7 @@ fun SplashScreen(ready: Boolean, onDone: () -> Unit) {
  * own blue.
  *
  * The charge moves back and forth with a bell-shaped falloff, so each pip
- * lights as the charge passes and dims behind it — never a hard edge, never a
+ * lights as the charge passes and dims behind it, never a hard edge, never a
  * seam to hide at the turnaround.
  */
 @Composable
@@ -216,7 +209,7 @@ private fun Pip(tint: Color, charge: Float, shape: Shape, dark: Boolean) {
 
 /**
  * The LED row's two ends: resampled from `emufii_logo_v3.png` onto the theme's
- * own axes — the coral tile top-left, the teal tile bottom-right. The first
+ * own axes: the coral tile top-left, the teal tile bottom-right. The first
  * frame anyone sees teaches the app's duotone.
  */
 private val LogoPink = eu.emufii.app.ui.theme.Coral.bright
@@ -232,13 +225,9 @@ private val LOGO_SIZE = 232.dp
 private const val LOGO_ASPECT = 1f
 
 /**
- * L'ecart entre le bas du logo et la rangee de temoins.
- *
- * A 40 dp la rangee flottait : la marque V3 est un carre dont la masse est
- * basse, donc le bas de sa boite de mise en page est loin sous le dernier pixel
- * qu'on en voit, et les 40 dp s'ajoutaient a ce vide-la. Les temoins se lisaient
- * comme un second element pose sur l'ecran plutot que comme le socle du logo.
- * Mesure sur la Thor : il fallait les remonter d'environ 35 px, soit 15 dp.
+ * The gap between the logo's foot and the row of indicators. At 40 dp the row floated:
+ * the V3 mark is a square whose mass sits low, so the bottom of its layout box is far
+ * below the last visible pixel, and the 40 dp added to that.
  */
 private val BAR_GAP = 25.dp
 private val PIP_COUNT = 5

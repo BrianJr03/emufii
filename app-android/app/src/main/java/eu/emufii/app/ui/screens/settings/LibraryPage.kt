@@ -58,20 +58,9 @@ import eu.emufii.app.ui.components.padEntry
 import eu.emufii.app.ui.tap
 
 /**
- * La bibliotheque : d'ou viennent les jeux, ce qui les illustre, ce qui les
- * identifie, et ce qui a ete retire de la grille.
- *
- * **Quatre blocs, un sujet chacun.** Le bloc des icones en portait deux — la
- * source des images, et la cle du service de secours — et il avait fini a neuf
- * elements empiles : une bande, un paragraphe, deux boutons, un fait, une
- * marque, une note, un champ, une note. Le second dossier de ROMs, ajoute le
- * meme jour, avait pousse le bloc des dossiers a quatre boutons dont deux se
- * ressemblaient (« Changer de dossier » / « Changer le 2e dossier »).
- *
- * Les deux desordres avaient la meme cause : **des actions posees a cote de
- * l'objet au lieu d'etre posees dessus.** Un dossier se change en touchant le
- * dossier ; la cle de secours est un sujet, donc un bloc.
- * pourquoi : docs/decisions/reglages-ecran.md § Sur une page, l'état passe devant l'explication
+ * Where the games come from, what illustrates them, what identifies them, and what was
+ * hidden.
+ * pourquoi : docs/decisions/reglages-ecran.md § On a page, the state comes before the explanation
  */
 @Composable
 internal fun LibraryPage(
@@ -85,7 +74,6 @@ internal fun LibraryPage(
     onRescan: () -> Unit,
     artworkKey: String,
     onArtworkKeyChange: (String) -> Unit,
-    /** Quelques jaquettes reelles, pour que le bloc des icones montre au lieu de nommer. */
     artworkSample: List<Rom>,
     hiddenCount: Int,
     onRestoreHidden: () -> Unit,
@@ -97,13 +85,7 @@ internal fun LibraryPage(
         onBack = onBack,
         modifier = modifier
     ) {
-        // L'ordre decide des colonnes : les pairs a gauche, les impairs a
-        // droite. A gauche, ce qui remplit la grille — les dossiers, puis ce
-        // qui en a ete retire ; a droite, ce qui l'habille, puis le service qui
-        // prend le relais quand rien sur l'appareil ne convient.
-        // Les deux blocs de tete se regardent en travers de la gouttiere, et
-        // c'est la premiere chose qu'on voit de la page : ils finissent a la
-        // meme hauteur, le plus grand des deux donnant la mesure.
+        // Order decides the columns: even left, odd right.
         val head = rememberBlockHeights()
         SettingsColumns(
             {
@@ -136,16 +118,11 @@ internal fun LibraryPage(
     }
 }
 
-// --------------------------------------------------------------- les dossiers
+// ----------------------------------------------------------------- folders
 
 /**
- * Ou sont les ROMs. Un ou deux emplacements, et le bouton pour tout reparcourir.
- *
- * **L'emplacement est le bouton.** Toucher un dossier le change, et le second
- * emplacement, tant qu'il est vide, est ce qui invite a l'ajouter : c'est la
- * grille de la bibliotheque qui a donne cette forme, ou une case vide dit ce
- * qui pourrait la remplir sans qu'un bouton ait a le nommer.
- * pourquoi : CLAUDE.md § UI : le monde « HOME MENU »
+ * One or two slots and the rescan button. The slot is the button.
+ * pourquoi : CLAUDE.md § Working rules, the "HOME MENU" world
  */
 @Composable
 private fun FoldersBlock(
@@ -179,7 +156,6 @@ private fun FoldersBlock(
         footer = {
             DetailActions {
                 if (folder == null) {
-                    // Le seul moment ou cette page n'a qu'une chose a faire.
                     PrimaryButton(
                         label = stringResource(R.string.lib_choose_folder),
                         onClick = onPickFolder,
@@ -193,10 +169,9 @@ private fun FoldersBlock(
                             fillWidth = true,
                             modifier = Modifier.weight(1f)
                         )
-                        // Le retrait ne peut pas vivre dans l'emplacement : deux
-                        // zones cliquables imbriquees donnent deux arrets de
-                        // curseur au meme endroit, dont un invisible.
-                        // pourquoi : CLAUDE.md § Navigation à la manette
+                        // Removal cannot live inside the slot: two nested clickables
+                        // give two cursor stops.
+                        // pourquoi : CLAUDE.md § Gamepad navigation
                         if (secondFolder != null) {
                             GhostButton(
                                 label = stringResource(R.string.settings_library_remove_second),
@@ -218,8 +193,8 @@ private fun FoldersBlock(
             entry = true
         )
 
-        // Le second emplacement n'apparait pas avant le premier : proposer un
-        // « 2e dossier » a qui n'en a aucun nomme une place dans une liste vide.
+        // Offering a second folder to someone with none names a place that does not
+        // exist.
         if (folder != null) {
             if (secondFolder != null) {
                 FolderSlot(
@@ -237,10 +212,7 @@ private fun FoldersBlock(
     }
 }
 
-/**
- * Un emplacement rempli : la marque, le nom, ce qu'on en fait — et le chevron,
- * qui est ce qui dit que la rangee entiere se touche.
- */
+/** Mark, name, what it does, and the chevron that says the whole row is the target. */
 @Composable
 private fun FolderSlot(
     name: String,
@@ -283,10 +255,7 @@ private fun FolderSlot(
     }
 }
 
-/**
- * L'emplacement vide : un contour pointille et une croix. Il ne se remplit pas
- * tout seul, donc il se dessine comme une place, pas comme une carte ratee.
- */
+/** It does not fill itself, so it is drawn as a place rather than a thing. */
 @Composable
 private fun EmptyFolderSlot(label: String, onClick: () -> Unit) {
     val outline = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
@@ -338,22 +307,16 @@ private fun EmptyFolderSlot(label: String, onClick: () -> Unit) {
     }
 }
 
-// ----------------------------------------------------------------- les images
+// ------------------------------------------------------------------ images
 
 /**
- * D'ou viennent les icones de la grille : des images deja sur l'appareil.
- *
- * Le bloc ne parle plus que de Cocoon. Le service de secours a pris son propre
- * bloc — ils repondaient a deux questions differentes (« qu'est-ce qui habille
- * mes jeux ? » et « ou chercher quand rien ne les habille ? ») dans une seule
- * pile de neuf elements.
- * pourquoi : docs/decisions/reglages-ecran.md § Les images des pages viennent de l'appareil, pas d'une banque
+ * From images already on the device. The block only speaks of Cocoon now.
+ * pourquoi : docs/decisions/reglages-ecran.md § The pages' images come from the device, not from a stock library
  */
 @Composable
 private fun ArtworkBlock(
     modifier: Modifier = Modifier,
     sample: List<Rom>,
-    /** Change de source = les vignettes deja ecrites sont perimees. */
     onSourceChanged: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -364,9 +327,7 @@ private fun ArtworkBlock(
         ActivityResultContracts.OpenDocumentTree()
     ) { uri ->
         if (uri != null) {
-            // Lecture seule. On regarde les images de Cocoon et on n'y touche
-            // jamais : demander l'ecriture serait demander ce dont on n'a aucun
-            // usage.
+            // Read only: asking for write would ask for what we do not need.
             val granted = runCatching {
                 context.contentResolver.takePersistableUriPermission(
                     uri,
@@ -384,9 +345,8 @@ private fun ArtworkBlock(
 
     SettingsBlock(
         modifier = modifier,
-        // Le pied colle au bas de la carte : deux cartes de meme hauteur dont
-        // les boutons flottent a des niveaux differents se lisent comme deux
-        // hauteurs quand meme.
+        // Two cards of one height whose buttons float at different levels read as
+        // misaligned.
         spread = true,
         title = stringResource(R.string.settings_row_artwork),
         state = BlockState(
@@ -401,10 +361,8 @@ private fun ArtworkBlock(
                 if (cocoon.isBlank()) {
                     PrimaryButton(
                         label = stringResource(R.string.settings_cocoon_choose),
-                        // Ouvert droit sur le dossier de Cocoon plutot que la ou
-                        // le selecteur en etait reste : naviguer un selecteur
-                        // vers un dossier dont on n'a pas choisi le nom est
-                        // exactement le genre de petite tache qu'on abandonne.
+                        // Straight to Cocoon's folder rather than wherever the picker
+                        // was left.
                         onClick = { cocoonPicker.launch(COCOON_DEFAULT_FOLDER) },
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -420,13 +378,9 @@ private fun ArtworkBlock(
                             label = stringResource(R.string.settings_cocoon_forget),
                             onClick = {
                                 settingsStore.setCocoonFolder("")
-                                // `forget` ne vide que l'index de Cocoon : les
-                                // vignettes ecrites pendant le scan restent sur
-                                // le disque, donc la bande et la grille
-                                // continuaient d'afficher les images de Cocoon
-                                // apres y avoir renonce. Il faut reparcourir
-                                // pour que la source change vraiment.
-                                // pourquoi : docs/decisions/reglages-ecran.md § Renoncer à Cocoon demande un nouveau parcours
+                                // `forget` clears only Cocoon's index: thumbnails
+                                // written during the scan stay on disk.
+                                // pourquoi : docs/decisions/reglages-ecran.md § Giving up Cocoon needs a fresh walk
                                 CocoonMedia.forget()
                                 onSourceChanged()
                             },
@@ -438,29 +392,13 @@ private fun ArtworkBlock(
             }
         }
     ) {
-        // Le bloc parlait d'images sans jamais en montrer une. Ici, ce sont les
-        // jaquettes de la bibliotheque du joueur, telles qu'elles sont a
-        // l'instant : changer de source change la bande.
+        // The block spoke of images without showing one.
         ArtworkStrip(sample)
         DetailNote(stringResource(R.string.settings_cocoon_body))
     }
 }
 
-/**
- * Le service de secours, et rien d'autre : ce qui habille les jeux dont aucune
- * image n'existe sur l'appareil.
- *
- * Bloc a part depuis le 2026-08-28. La cle vivait en bas du bloc des icones,
- * derriere une bande d'images, un paragraphe et deux boutons — un champ de
- * saisie au huitieme rang d'une pile, ou personne ne va le chercher.
- *
- * **Replie par defaut**, et c'est le seul bloc de la page qui l'est : une cle
- * de service se saisit une fois dans la vie de l'app, et rien de ce qu'il cache
- * n'est un etat qu'on vient verifier — la pastille dit deja s'il y en a une.
- * Referme, il ne montre que ce que montre « Jeux retires du menu », son voisin
- * de rangee : un titre, une pastille, trois lignes. Les deux cartes font alors
- * la meme hauteur, ce qui etait la demande.
- */
+/** The fallback service: what dresses games no image on the device covers. */
 @Composable
 private fun FallbackBlock(key: String, onKeyChange: (String) -> Unit) {
     var expanded by rememberSaveable { mutableStateOf(false) }
@@ -476,15 +414,12 @@ private fun FallbackBlock(key: String, onKeyChange: (String) -> Unit) {
         onToggleExpanded = { expanded = !expanded },
         expanded = expanded
     ) {
-        // La note reste visible replie : elle est ce qui dit a quoi sert le
-        // bloc, donc ce qui donne envie de l'ouvrir. Sans elle, la carte fermee
-        // ne serait qu'un titre et un mot.
+        // The note stays visible folded: it is what says what the block is for.
         DetailNote(stringResource(R.string.settings_artwork_body))
         if (expanded) {
             SteamGridDbMark()
-            // **En clair, pas masquee** : ce n'est pas un mot de passe, et la
-            // masquer ne cacherait que la faute de frappe, qui est l'incident
-            // probable.
+            // In the clear: this is not a password, and masking would hide only the
+            // typo.
             PadTextField(
                 value = key,
                 onValueChange = onKeyChange,
@@ -497,9 +432,8 @@ private fun FallbackBlock(key: String, onKeyChange: (String) -> Unit) {
 }
 
 /**
- * Le chemin du retour pour un jeu retire dans un menu long-presse. Tout ou rien
- * a dessein : une liste par jeu ne pourrait montrer que des chemins.
- * pourquoi : docs/decisions/reglages-ecran.md § Restaurer les jeux retirés est tout ou rien
+ * All or nothing by design: a per-game list could not be crossed with a stick.
+ * pourquoi : docs/decisions/reglages-ecran.md § Restoring hidden games is all or nothing
  */
 @Composable
 private fun HiddenRomsBlock(count: Int, onRestore: () -> Unit) {
@@ -522,7 +456,6 @@ private fun HiddenRomsBlock(count: Int, onRestore: () -> Unit) {
     }
 }
 
-/** La ou Cocoon se range d'habitude : une supposition, et rien de plus. */
 private val COCOON_DEFAULT_FOLDER: Uri = DocumentsContract.buildDocumentUri(
     "com.android.externalstorage.documents",
     "primary:Cocoonv2"

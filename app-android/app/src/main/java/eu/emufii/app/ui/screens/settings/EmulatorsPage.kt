@@ -33,19 +33,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * Ce qu'il faut preparer dans les emulateurs avant de pouvoir jouer.
- *
- * Ces trois blocs vivaient dans « Application », entre la langue et le theme,
- * parce qu'il n'existait pas d'endroit ou les mettre. Ils n'ont rien a voir
- * avec l'apparence de l'app : ce sont des rituels hors d'Emufii — parametrer
- * PPSSPP, importer le profil reseau dans ARMSX2, rendre son service a Azahar —
- * et une session est refusee tant qu'ils ne sont pas faits. C'est la seule
- * page des reglages ou l'app a quelque chose a **demander** au joueur, et
- * c'est ce qui lui vaut la sienne.
- *
- * Les trois blocs sont `internal` : l'onboarding les pose tels quels.
- * pourquoi : docs/decisions/onboarding.md § Les rituels d'émulateur sont les blocs des réglages, pas des copies
- * pourquoi : docs/decisions/reglages-ecran.md § Les émulateurs ne sont pas un réglage de l'application
+ * What has to be prepared inside the emulators before playing. These three blocks lived
+ * under Application, between the language and the theme, for want of anywhere else.
+ * They have nothing to do with the app's look: they are rituals outside Emufii.
+ * pourquoi : docs/decisions/onboarding.md § The emulator rituals are the settings blocks, not copies
+ * pourquoi : docs/decisions/reglages-ecran.md § Emulators are not an application setting
  */
 @Composable
 internal fun EmulatorsPage(
@@ -124,10 +116,10 @@ internal fun PpssppBlock(
             )
         )
     ) {
-        // La methode ne s'affiche que tant qu'elle apprend quelque chose. Une
-        // fois le dossier choisi, ce que le joueur vient verifier est l'etat,
-        // et trois etapes au-dessus sont dans le chemin.
-        // pourquoi : docs/decisions/reglages-ecran.md § Sur une page, l'état passe devant l'explication
+        // The method shows only while it teaches something. Once the folder is chosen,
+        // what the player comes to check is the state, and three steps above it are in
+        // the way.
+        // pourquoi : docs/decisions/reglages-ecran.md § On a page, the state comes before the explanation
         if (!ready) {
             SettingsSteps(
                 stringResource(R.string.settings_ppsspp_step1),
@@ -146,7 +138,7 @@ internal fun PpssppBlock(
         }
         error?.let { BlockCaveat(stringResource(it)) }
 
-        // Premier controle de la page : la manette y descend depuis l'en-tete.
+        // The page's first control: the pad comes down to it from the header.
         DetailActions {
             if (ready) {
                 GhostButton(
@@ -253,9 +245,8 @@ internal fun Ps2Block(
             )
         )
     ) {
-        // L'explication ne vaut que tant qu'elle apprend. Une fois la carte
-        // preparee et affectee, ce que le joueur vient verifier est l'etat, et
-        // trois etapes de methode au-dessus sont dans le chemin.
+        // The explanation is worth having only while it teaches. Once the card is
+        // prepared and assigned, what the player comes to check is the state.
         if (!ready) {
             SettingsSteps(
                 stringResource(R.string.settings_ps2_step1),
@@ -283,9 +274,8 @@ internal fun Ps2Block(
             )
         }
 
-        // Une carte dossier n'est ni une erreur ni un remplacement : c'est la
-        // seule chose que le joueur doit absolument savoir, parce que c'est la
-        // raison pour laquelle aucune de ses sauvegardes n'a ete clonee.
+        // A folder card is neither an error nor an override: it is the one thing the
+        // player has to know, being the reason none of their saves was cloned.
         val folderCardNote = current?.folderCardName?.let { name ->
             when {
                 current.savesLeftBehind > 0 -> stringResource(
@@ -302,10 +292,9 @@ internal fun Ps2Block(
                 else -> stringResource(R.string.settings_ps2_profile_folder_empty, name)
             }
         }
-        // L'echec porte le rouge ; la carte dossier et les remplacements par jeu
-        // sont des choses a savoir pendant que tout va bien, et prennent le
-        // creux d'avertissement.
-        // pourquoi : docs/decisions/reglages-ecran.md § Un avertissement n'est pas une erreur, et ne porte pas le rouge
+        // Failure carries red; a folder card and per-game overrides are things to know
+        // while all is well, and take the warning hollow.
+        // pourquoi : docs/decisions/reglages-ecran.md § A warning is not an error, and does not carry the red
         error?.let { BlockCaveat(it) }
         val notice = when {
             error != null -> null
@@ -320,10 +309,9 @@ internal fun Ps2Block(
         notice?.let { BlockNotice(it) }
 
         DetailActions {
-            // Le seul bouton rempli : celui qui fait le travail. Une fois fait,
-            // l'accent s'en va plutot que l'etiquette ne se transforme en
-            // vantardise.
-            // pourquoi : docs/decisions/reglages-ecran.md § Un bouton est nommé pour ce qu'il fait
+            // The only filled button: the one that does the work. Once done, the accent
+            // leaves rather than the label turning into a boast.
+            // pourquoi : docs/decisions/reglages-ecran.md § A button is named for what it does
             if (ready) {
                 GhostButton(
                     label = stringResource(R.string.hint_ps2_profile_redo),
@@ -356,10 +344,10 @@ internal fun Ps2Block(
 }
 
 /**
- * Le remplissage automatique, et la seule raison de ce bloc : **Android peut
- * l'eteindre** tout seul. Le bloc montre l'etat dans les deux cas, ce qui le
- * rend trouvable *avant* que quelque chose n'aille mal.
- * pourquoi : docs/decisions/reglages-ecran.md § Le remplissage automatique a sa rangée parce qu'Android peut l'éteindre
+ * Automatic filling, and this block's only reason: Android can switch it off on its
+ * own. The block shows the state either way, which makes it findable before something
+ * goes wrong.
+ * pourquoi : docs/decisions/reglages-ecran.md § Autofill has its own row because Android can switch it off
  */
 @Composable
 internal fun AutofillBlock(enabled: Boolean, onOpen: () -> Unit) {
@@ -378,9 +366,8 @@ internal fun AutofillBlock(enabled: Boolean, onOpen: () -> Unit) {
         if (!enabled) BlockNotice(stringResource(R.string.settings_autofill_off))
 
         DetailActions {
-            // Rempli tant qu'il est coupe : une mise a jour peut retirer la
-            // permission, et c'est alors la seule chose entre le joueur et le
-            // parametrage automatique.
+            // Filled while it is off: an update can withdraw the permission, and this
+            // is then the only thing between the player and automatic setup.
             if (enabled) {
                 GhostButton(
                     label = stringResource(R.string.settings_autofill_open),

@@ -53,9 +53,8 @@ import eu.emufii.app.ui.theme.Teal
 fun PreparingScreen(
     label: String,
     /**
-     * Ce que fait « Laisser tomber ». Nul quand l'appelant n'a pas de sortie
-     * sure a offrir, auquel cas rien ne s'affiche : un bouton qui ne repond pas
-     * est pire que pas de bouton.
+     * What Give up does. Null when the caller has no safe exit to offer, and nothing is
+     * then shown: a button that does not answer is worse than no button.
      */
     onGiveUp: (() -> Unit)? = null
 ) {
@@ -79,10 +78,10 @@ fun PreparingScreen(
     LaunchedEffect(label) { shown = true }
 
     /**
-     * Passe le seuil, l'attente n'est plus « la premiere fois, c'est long » :
-     * elle est suspecte. Vingt secondes, soit largement au-dela de ce qu'un
-     * tunnel froid demande, et bien en deca des quarante-cinq du delai de
-     * garde — le joueur reprend la main avant que le code ne renonce pour lui.
+     * Past the threshold the wait stops being "the first time is slow" and becomes
+     * suspect. Twenty seconds, well beyond what a cold tunnel needs and well under the
+     * forty-five of the guard delay, so the player takes back control before the code
+     * gives up for them.
      */
     var overdue by remember(label) { mutableStateOf(false) }
     LaunchedEffect(label) {
@@ -112,14 +111,10 @@ fun PreparingScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(18.dp)
             ) {
-                // **Plus gros et plus epais, parce qu'on le fixe.**
-                //
-                // Le temoin par defaut de Material fait 40 dp sur un trait de
-                // 4 : une taille reglee pour un rond qui passe dans un coin de
-                // liste pendant une demi-seconde. Ici c'est le seul objet en
-                // mouvement d'un ecran qu'on regarde dix secondes sans rien
-                // pouvoir faire, et a cette taille il se lisait comme un detail
-                // plutot que comme la reponse a « est-ce que ca avance ? ».
+                // Larger and thicker, because it is stared at. Material's default is 40
+                // dp on a 4 dp stroke, sized for a spinner passing through a list
+                // corner for half a second. Here it is the only moving object on a
+                // screen watched for ten seconds.
                 CircularProgressIndicator(
                     color = MaterialTheme.colorScheme.primary,
                     strokeWidth = 5.dp,
@@ -130,13 +125,10 @@ fun PreparingScreen(
                     style = MaterialTheme.typography.titleMedium,
                     textAlign = TextAlign.Center
                 )
-                // **Le sous-titre change quand l'attente devient anormale.**
-                //
-                // « C'est un peu long la premiere fois » est vrai a la dixieme
-                // seconde et devient un mensonge a la trentieme : le joueur bloque
-                // par un tunnel qui ne montera jamais lisait un texte qui lui
-                // affirmait que tout allait bien. Passe le seuil, l'ecran cesse
-                // de rassurer et dit ce qu'il en est.
+                // The subtitle changes once the wait becomes abnormal. "It is a little
+                // slow the first time" is true at ten seconds and a lie at thirty: a
+                // player stuck behind a tunnel that will never come up was reading text
+                // assuring them all was well.
                 Text(
                     stringResource(
                         if (overdue) R.string.prep_taking_long else R.string.prep_first_time
@@ -145,10 +137,9 @@ fun PreparingScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
                 )
-                // La sortie n'apparait qu'avec le doute. Offerte des la premiere
-                // seconde, elle inviterait a renoncer a une attente parfaitement
-                // normale ; offerte jamais, elle laisse la touche Home comme
-                // seule issue, ce qui etait le cas.
+                // The exit appears only with the doubt. Offered from the first second
+                // it would invite giving up on a perfectly normal wait; offered never,
+                // it leaves Home as the only way out, which is what happened.
                 if (onGiveUp != null && overdue) {
                     Button(
                         onClick = sounded(onGiveUp),
@@ -165,5 +156,5 @@ fun PreparingScreen(
     }
 }
 
-/** Au-dela, l'ecran cesse de rassurer et propose de renoncer. */
+/** Beyond this the screen stops reassuring and offers to give up. */
 private const val OVERDUE_MS = 20_000L

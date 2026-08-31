@@ -51,11 +51,10 @@ import eu.emufii.app.ui.theme.socket
 import eu.emufii.app.ui.theme.TileShape
 
 /**
- * The consoles and the emulators that play them, on one screen, as tiles.
- *
- * La tuile porte l'icone et la version **et** est le controle : « qui joue a ca »
- * et « est-ce que j'en veux » tiennent en un coup d'oeil et une pression.
- * pourquoi : docs/decisions/reglages-ecran.md § Une console porte une rangée, pas une tuile
+ * The consoles and the emulators that play them, as tiles. The tile carries the icon
+ * and the version and is the control: who plays this, and do I want it, in one glance
+ * and one press.
+ * pourquoi : docs/decisions/reglages-ecran.md § A console carries a row, not a tile
  */
 @Composable
 fun ConsoleGrid(
@@ -63,16 +62,16 @@ fun ConsoleGrid(
     onSetVisible: (Console, Boolean) -> Unit,
     modifier: Modifier = Modifier,
     /**
-     * Vrai quand cette grille est le premier controle de sa page : la premiere
-     * tuile devient la destination nommee de la manette. Le nommage doit se
-     * poser sur un controle reellement focalisable, jamais sur un conteneur.
-     * pourquoi : docs/decisions/coquille-ecrans.md § L'en-tête est déclaré avant le contenu, et dessiné par-dessus
+     * True when this grid is its page's first control, the first tile becoming the
+     * pad's named destination. The naming must land on a really focusable control,
+     * never on a container.
+     * pourquoi : docs/decisions/coquille-ecrans.md § The header is declared before the content, and drawn over it
      */
     firstTileIsEntry: Boolean = false,
     /**
-     * Vrai pour la version courte : sans numero de version, une icone plus
-     * petite, une tuile plus basse — de quoi tenir sept consoles sur une ligne.
-     * pourquoi : docs/decisions/reglages-ecran.md § La tuile de console a une version courte
+     * True for the short form: no version number, a smaller icon, a shorter tile,
+     * enough to hold seven consoles on one line.
+     * pourquoi : docs/decisions/reglages-ecran.md § The console tile has a short version
      */
     compact: Boolean = false
 ) {
@@ -82,10 +81,9 @@ fun ConsoleGrid(
     // which recreates this anyway.
     val emulators = remember { allEmulators(context) }
 
-    // Le compte se mesure sur la largeur **reellement donnee** a la grille, et
-    // jamais sur celle de l'ecran : la page des reglages est 90 dp plus etroite,
-    // et « GameCube » y sortait en « GameCu ».
-    // pourquoi : docs/decisions/reglages-ecran.md § Combien de tuiles par ligne, et la largeur qui le décide
+    // Counted on the width actually given to the grid, never the screen's: the settings
+    // page is 90 dp narrower, and "GameCube" came out as "GameCu".
+    // pourquoi : docs/decisions/reglages-ecran.md § How many tiles per line, and the width that decides it
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
         val minTile = if (compact) MIN_TILE_COMPACT else MIN_TILE
         val fits = ((maxWidth + GRID_GAP) / (minTile + GRID_GAP))
@@ -93,9 +91,9 @@ fun ConsoleGrid(
             .coerceIn(3, emulators.size)
         val columns = balancedColumns(emulators.size, fits)
 
-        // Le rang qui porte le curseur passe devant les autres : le `zIndex` de
-        // `controlRing` ne classe qu'entre freres, donc pas entre rangs.
-        // pourquoi : docs/decisions/navigation-manette.md § Le contrôle visé passe devant ses voisins
+        // The row holding the cursor passes in front: `controlRing`'s `zIndex` only
+        // orders siblings, so not rows.
+        // pourquoi : docs/decisions/navigation-manette.md § The selected control draws in front of its neighbours
                 var focusedRow by remember { mutableStateOf(-1) }
 
         Column(
@@ -118,10 +116,9 @@ fun ConsoleGrid(
                             modifier = Modifier.weight(1f)
                         )
                     }
-                    // **Le dernier rang ne se complete pas** : une case dessinee au
-                    // bout d'une grille de consoles se lit comme une console. La place
-                    // est tenue, pas peinte.
-                    // pourquoi : docs/decisions/reglages-ecran.md § La grille des consoles n'a pas le droit à une orpheline
+                    // The last row is not filled: a tile drawn at the end of a console
+                    // grid reads as a console. The place is held, not painted.
+                    // pourquoi : docs/decisions/reglages-ecran.md § The console grid is not allowed an orphan
                     repeat(columns - row.size) {
                         Spacer(Modifier.weight(1f))
                     }
@@ -132,10 +129,10 @@ fun ConsoleGrid(
 }
 
 /**
- * Combien de colonnes, une fois qu'on sait combien tiennent : celui qui remplit
- * le mieux le dernier rang, jamais le maximum — qui laisse une orpheline.
- * pourquoi : docs/decisions/reglages-ecran.md § La grille des consoles n'a pas le droit à une orpheline
- * pourquoi : docs/decisions/reglages-ecran.md § Combien de tuiles par ligne, et la largeur qui le décide
+ * How many columns, once we know how many fit: the count that best fills the last row,
+ * never the maximum, which leaves an orphan.
+ * pourquoi : docs/decisions/reglages-ecran.md § The console grid is not allowed an orphan
+ * pourquoi : docs/decisions/reglages-ecran.md § How many tiles per line, and the width that decides it
  */
 internal fun balancedColumns(count: Int, fits: Int): Int {
     if (count <= fits) return count
@@ -164,7 +161,7 @@ private fun ConsoleTile(
     modifier: Modifier = Modifier,
     entry: Boolean = false,
     compact: Boolean = false,
-    /** Dit au rang qu'il porte le curseur, pour qu'il passe devant les autres. */
+    /** Tells the row it holds the cursor, so it passes in front of the others. */
     onFocused: (Boolean) -> Unit = {}
 ) {
     // Off is dimmed, not greyed out and not removed: the tile still has to say
@@ -173,10 +170,9 @@ private fun ConsoleTile(
     val alpha = if (visible) 1f else 0.45f
 
     /**
-     * L'icone **perd sa couleur** quand la console est eteinte : desaturee et non
-     * voilee, sinon la chose la plus voyante de la tuile disait « allumee »
-     * pendant que le reste disait le contraire.
-     * pourquoi : docs/decisions/reglages-ecran.md § Une console éteinte est un trou dans le plateau
+     * The icon loses its colour when the console is off: desaturated rather than
+     * veiled, or the tile's loudest thing said on while the rest said otherwise.
+     * pourquoi : docs/decisions/reglages-ecran.md § A switched-off console is a hole in the board
      */
     val iconFilter = remember(visible) {
         if (visible) null
@@ -189,17 +185,16 @@ private fun ConsoleTile(
         modifier = modifier
             .height(if (compact) TILE_HEIGHT_COMPACT else TILE_HEIGHT)
             .onFocusEvent { onFocused(it.hasFocus) }
-            // Avant le `clickable` : un `focusRequester` pose apres ne vise
-            // plus le noeud de focus que le clickable vient de creer, et la
-            // demande echoue en silence.
+            // Before the `clickable`: a `focusRequester` placed after no longer targets
+            // the focus node the clickable just created, and the request fails
+            // silently.
             .then(if (entry) Modifier.padEntry() else Modifier)
-            // L'anneau avant le clip, toujours. Apres, sa lueur est tranchee a
-            // la forme de la tuile et la remplit d'un lavis a bord dur au lieu
-            // de deborder.
+            // The ring before the clip, always. After, its glow is cut to the tile's
+            // shape and fills it with a hard-edged wash instead of spilling out.
             .controlRing(TILE_SHAPE)
-            // **Allumee, c'est une plaque ; eteinte, c'est un trou** : le plateau
-            // sait deja dire « pose dessus » et « creuse dedans ».
-            // pourquoi : docs/decisions/reglages-ecran.md § Une console éteinte est un trou dans le plateau
+            // On it is a plate, off it is a hole: the tray already knows how to say
+            // laid on and carved into.
+            // pourquoi : docs/decisions/reglages-ecran.md § A switched-off console is a hole in the board
             .then(
                 if (visible) Modifier.plate(shape = TILE_SHAPE, dark = dark, oled = oled, lift = 5.dp)
                 else Modifier.socket(TILE_SHAPE, dark)
@@ -225,10 +220,9 @@ private fun ConsoleTile(
                     modifier = Modifier.fillMaxWidth()
                 )
             } else {
-                // L'abreviation de la console plutot qu'un point
-                // d'interrogation : un emulateur absent est le cas ordinaire
-                // sur un appareil neuf, et la tuile doit quand meme nommer sa
-                // machine.
+                // The console's abbreviation rather than a question mark: an absent
+                // emulator is the ordinary case on a new device, and the tile must
+                // still name its machine.
                 Text(
                     info.console.shortLabel,
                     style = MaterialTheme.typography.labelSmall,
@@ -242,16 +236,15 @@ private fun ConsoleTile(
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = alpha),
             maxLines = 1,
-            // Trois colonnes etroites et des noms qu'on ne choisit pas : c'est
-            // l'endroit de l'app ou la coupe brute par defaut mordait le plus.
+            // Three narrow columns and names we do not choose: this is where the
+            // default hard clip bit deepest.
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center
         )
         Text(
-            // Le nom de l'emulateur, sur sa propre ligne, jamais traduit : c'est
-            // un produit. Une tuile qui ne disait que « Switch » laissait la
-            // page incapable de repondre a la question qu'elle pose, qui est
-            // quoi installer.
+            // The emulator's name, on its own line, never translated: it is a product.
+            // A tile saying only "Switch" left the page unable to answer the question
+            // it asks, which is what to install.
             info.name,
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = alpha * 0.85f),
@@ -261,8 +254,8 @@ private fun ConsoleTile(
         )
         if (!compact) {
             Text(
-                // La version seule, jamais « Installe, version x » : la phrase ne
-                // tient pas sur une tuile, et le numero est la partie qui se lit.
+                // The version alone, never "Installed, version x": the sentence does
+                // not fit a tile, and the number is the part that is read.
                 info.version?.let { stringResource(R.string.emulators_version_short, shortVersion(it)) }
                     ?: if (info.installed) stringResource(R.string.emulators_installed_unknown)
                     else stringResource(R.string.emulators_absent_short),
@@ -277,29 +270,29 @@ private fun ConsoleTile(
 }
 
 /**
- * La hauteur d'une tuile, **fixe** : les alveoles du dernier rang doivent faire
- * la meme, et une hauteur intrinseque ne se partage pas entre freres.
- * pourquoi : docs/decisions/reglages-ecran.md § Combien de tuiles par ligne, et la largeur qui le décide
+ * A fixed tile height: the last row's empty slots must match it, and an intrinsic
+ * height is not shared between siblings.
+ * pourquoi : docs/decisions/reglages-ecran.md § How many tiles per line, and the width that decides it
  */
 private val TILE_HEIGHT = 124.dp
 
-/** La hauteur de la version courte, reglee pour que sept tuiles tiennent sur une ligne. */
+/** The short form's height, set so seven tiles fit on one line. */
 private val TILE_HEIGHT_COMPACT = 92.dp
 
-/** La largeur minimale d'une tuile courte : « GameCube » y passe encore. */
+/** A short tile's minimum width: "GameCube" still fits. */
 private val MIN_TILE_COMPACT = 92.dp
 
 /**
  * The tile's corner, matching the library's own: the theme's one squircle
  * radius, not a private copy of it.
- * pourquoi : docs/decisions/theme-duotone-shelves.md § FORMES
+ * pourquoi : docs/decisions/theme-duotone-shelves.md § SHAPES
  */
 private val TILE_SHAPE = TileShape
 
 /**
- * The version as it fits on a tile : coupee a l'affichage et non a la source,
- * parce que PPSSPP porte deja son `v` et que les cinq autres non.
- * pourquoi : docs/decisions/reglages-ecran.md § La version d'un émulateur se coupe à l'affichage, pas à la source
+ * The version as it fits on a tile, cut at display and not at the source,
+ * because PPSSPP already carries its `v` and the other five do not.
+ * pourquoi : docs/decisions/reglages-ecran.md § An emulator's version is trimmed at display, not at the source
  */
 private fun shortVersion(version: String): String =
     version.removePrefix("v").removePrefix("V")

@@ -29,18 +29,18 @@ class Ps2DriverTest {
     }
 
     @Test
-    fun `le code de session sert de code de salon`() {
+    fun `the session code doubles as the room code`() {
         // Both players already know it: nothing extra to transmit.
         assertEquals("K7M2QP", codeOf("K7M2QP"))
     }
 
     @Test
-    fun `un code trop long est coupé aux bornes d'ARMSX2`() {
+    fun `a code that is too long is cut to the ARMSX2 bounds`() {
         assertEquals("ABCDEFGHIJKL", codeOf("ABCDEFGHIJKLMNOP"))
     }
 
     @Test
-    fun `un code trop court n'est pas inventé`() {
+    fun `a code that is too short is not invented`() {
         // Better to leave ARMSX2's own than to set one the other player will not
         // have: the emulator negotiates nothing.
         assertNull(codeOf("AB"))
@@ -48,7 +48,7 @@ class Ps2DriverTest {
     }
 
     @Test
-    fun `la ponctuation tombe, le clavier d'ARMSX2 ne sait pas la taper`() {
+    fun `punctuation is dropped, the ARMSX2 keyboard cannot type it`() {
         assertEquals("ABCD", codeOf("AB-CD"))
     }
 }

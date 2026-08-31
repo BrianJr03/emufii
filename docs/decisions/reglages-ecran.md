@@ -1,828 +1,785 @@
-# L'écran des réglages : un hub et sept pages
-
-Le récit qui vivait dans `ui/screens/SettingsScreen.kt`, sorti du code le
-2026-08-24 (cf. `docs/STYLE_COMMENTAIRES.md`), puis complété le 2026-08-25 quand
-l'accordéon est devenu un hub et sept pages. Titres = ancres citées depuis le
-code : ne pas les renommer à la légère.
-
-Le code vit désormais dans `ui/screens/settings/` : `SettingsScreen.kt` (l'hôte
-et le hub), `SettingsPieces.kt` (les briques communes) et une page par fichier.
-
-## Ce que cet écran remplace
-
-> Les sections d'époque — celle-ci, « Une seule colonne, bornée et centrée »,
-> « Une rangée occupe toute la carte », « Deux pièges de focus » et « Le thème
-> ouvre un panneau » — décrivent
-> l'**accordéon**, remplacé le 2026-08-25 par le hub et ses pages. Elles restent
-> parce que chacune enregistre une tentative payée : les rouvrir sans les lire
-> coûterait deux fois.
-
-
-Il s'appelait « Profil » et portait **huit cartes de poids égal** : le pseudo, le
-dossier de ROMs, les clés de console, la clé de jaquettes, la langue, le thème, la
-boîte À propos, la réinitialisation. Chacune posait un titre, un paragraphe
-d'explication et ses boutons — **tout le temps**, qu'on soit venu les voir ou non.
-
-Sur la Thor, la carte Bibliothèque prenait un écran entier pour trois lignes, les
-deux colonnes finissaient décalées, et trouver un réglage voulait dire fouiller un
-mur de texte.
-
-Ici **chaque réglage est une rangée** : ce que c'est à gauche, où ça en est à
-droite. Le texte explicatif et les boutons n'existent qu'une fois la rangée
-ouverte, c'est-à-dire au moment précis où on les a demandés. **La valeur affichée à
-droite est ce qui remplace le paragraphe** : « Défini », « ROMS », « Français »
-répondent déjà à la question qu'on venait poser.
-
-**Une seule rangée ouverte à la fois.** Deux sections dépliées reconstruisent
-exactement l'écran qu'on vient de démonter, et sur une portable la page se
-remettrait à défiler au premier réglage touché.
-
-Le nom est **enregistré à la frappe** plutôt que derrière un bouton : il n'y a rien
-à valider ni à envoyer, le stockage est local, et un bouton qui ne veut dire que
-« oui, vraiment » est un bouton dont personne n'a besoin.
-
-## Un hub et sept pages, plus un accordéon
-
-L'écran unique tenait **quatorze rangées dépliantes** réparties en quatre
-sections. Chacune était défendable ; l'ensemble ne l'était plus.
-
-Trois défauts, et le troisième est celui qui a décidé :
-
-1. **Une seule rangée ouverte à la fois** était la bonne règle pour un écran de
-   huit rangées ; à quatorze, elle veut dire que toucher un réglage pousse tout
-   le reste de la page vers le bas, et qu'on referme sans arrêt pour retrouver
-   sa place.
-2. **Le rangement mentait.** L'auto-configuration de PPSSPP, le profil réseau
-   PS2 et le remplissage automatique d'Azahar vivaient dans « Application »,
-   entre la langue et le thème, parce qu'il n'existait pas d'endroit où les
-   mettre. Ce ne sont pas des réglages de l'application : ce sont des rituels
-   hors d'Emufii, sans lesquels une session est refusée.
-3. **Un détail déplié n'est pas une page.** Le profil PS2 ouvert, c'est une
-   note, deux boutons, un creux d'état à quatre faits et une réserve — dans une
-   fente de 18 dp coincée entre deux autres rangées. Le contenu réclamait une
-   page depuis longtemps ; la rangée dépliante l'y refusait.
-
-Donc : un **hub** qui ne contient que des entrées, et **sept pages** derrière —
-Profil, Bibliothèque, Consoles, Émulateurs, Apparence, Général, À propos. Le hub
-est la racine de cet écran ; `B` y revient avant de quitter les réglages, comme
-il fermait la rangée dépliée avant.
-
-Ce qui **n'a pas changé** : le contenu des blocs. `DetailNote`, `DetailActions`
-et `DetailStatus` sont exactement ceux de l'accordéon, aux mêmes trois règles
-(cf. `ui/components/SettingsDetail.kt`). Une page est la même matière, sans la
-fente. Ce qui disparaît, c'est la mécanique de dépliage : les coins qui se
-morphaient, le `bringIntoView` retardé, l'énumération de la rangée ouverte.
-
-## Une entrée du hub est une plaque, pas une rangée
-
-Chaque entrée est sa **propre `SoftCard`**, et non une rangée dans une carte
-commune. Ça a supprimé d'un coup toute la machinerie que la carte partagée
-imposait : les coins qui s'animaient pour dire quelle rangée hérite de ceux de
-la carte, et le remplissage opaque tranché dans le dégradé de la carte pour que
-la lueur du curseur reste dehors. Une plaque est déjà opaque, et `SoftCard` pose
-déjà l'anneau dans sa forme, avant son propre `clip`.
-
-Le remplissage tranché **reste** pour ce qui vit encore à l'intérieur d'une
-carte — les choix d'une liste (langue), qui sont des rangées dans un bloc.
-
-Et ce ne sont **pas des tuiles**. La grille de tuiles est la grammaire de la
-bibliothèque, où le contenu est la jaquette et où l'œil vise une image. Une page
-de réglages n'a rien à montrer, elle a des noms à lire ; un nom se lit dans une
-rangée, à la vitesse où on cherche un mot dans une liste. La variante en grille
-de tuiles a été écrite puis retirée le 2026-08-25 : elle reproduisait le menu
-principal pour un contenu qui n'est pas du contenu.
-
-## Le hub tient sur un écran, sans intitulés de groupe
-
-Le hub a d'abord porté quatre intitulés de groupe, puis les a perdus, puis les a
-retrouvés — et les trois états ont été vus sur l'appareil, ce qui vaut d'être
-raconté dans l'ordre.
-
-**Ils coûtaient deux fois.** Le deuxième répétait mot pour mot le nom de
-l'entrée qu'il coiffait — « Bibliothèque » au-dessus de « Bibliothèque » — et
-les quatre ensemble prenaient assez de hauteur pour qu'il ne reste que **deux
-entrées et demie** visibles sur les 1080 px de la Thor. Retirés, quatre et demie
-tenaient, et les familles se lisaient à l'écart.
-
-**Ce n'était pourtant pas le principe qui clochait, c'était le mot.** Un menu de
-réglages sans rayons est une liste, et une liste de sept entrées se parcourt au
-lieu de se viser. Un intitulé doit nommer **la famille**, jamais son premier
-membre : « Bibliothèque et consoles » coiffe ses deux entrées sans répéter ni
-l'une ni l'autre, et le problème de répétition disparaît sans que le hub perde
-ses rayons.
-
-Les quatre noms retenus : « Toi », « Bibliothèque et consoles », « Avant de
-jouer », « L'application ». Aucun n'est le titre d'une page.
-
-L'écart est serré entre deux entrées d'une même famille (10 dp) et ouvert entre
-deux familles, intitulé compris (18 dp) : c'est le groupement qui porte la
-lecture, l'intitulé ne fait que le nommer.
-
-## Le hub est une grille, et le panneau montre la case visée
-
-Posé le 2026-08-28, sur une référence apportée par l'utilisateur : le menu de
-réglages d'un autre frontend de console portable, deux rangs de grandes cases
-qui défilent latéralement, et l'écran du bas qui montre en grand la case visée.
-
-**Ce qui change n'est pas la rangée, c'est sa disposition.** La section
-« Une entrée du hub est une plaque, pas une rangée » reste vraie mot pour mot :
-une entrée est toujours une plaque avec son icône à gauche, son nom, sa ligne de
-description et son chevron à droite, parce qu'une page de réglages n'a pas de
-contenu à montrer mais des noms à lire. Ce qui était faux, c'est la **colonne** :
-sept plaques empilées sur un écran de 1080 de large laissaient les deux tiers de
-la largeur vides et faisaient défiler ce qui pouvait tenir d'un coup.
-
-Deux colonnes de largeur égale, remplies rang par rang, et le trop-plein en bas.
-Trois dispositions ont été essayées sur la Thor, qui ne fait que ~800 dp de
-large :
-
-- **Quatre cases de front** : le nom tient, la ligne de description et la
-  pastille ne tiennent plus ensemble.
-- **Deux rangs qui débordent à droite**, comme la référence : la case reste
-  grande, mais la page se pousse de côté. Refusé par l'utilisateur, et pour une
-  raison de machine plutôt que de goût — sur un appareil dont le pouce droit
-  tombe sur une croix, on descend une page de réglages, on ne la pousse pas
-  latéralement.
-- **Deux colonnes qui descendent** : chaque case prend la moitié de la largeur,
-  les sept se remplissent rang par rang, et ce qui dépasse se déroule vers le
-  bas. C'est la disposition retenue.
-
-Les intitulés de famille sont partis avec la colonne. Ils coiffaient des groupes
-empilés ; une grille n'a pas de rayons, elle a des cases, et sept cases visibles
-d'un coup se cherchent au nom. C'est le même argument que celui de la section
-« Le hub tient sur un écran, sans intitulés de groupe », que la colonne avait
-fini par rendre faux et que la grille rend vrai à nouveau.
-
-**Rien de paresseux ici, et c'est le point.** Les sept cases sont composées, donc
-la traversée de focus de Compose trouve toujours sa destination et amène
-elle-même la case visée dans le champ. C'est l'inverse exact de la bibliothèque,
-qui tient son propre curseur parce qu'une `LazyVerticalGrid` ne compose pas la
-tuile qu'une direction vise (`CLAUDE.md`, « la grille tient son propre
-curseur »). Sept cases ne valent pas cette machinerie, et l'écrire aurait été
-recopier un remède sans avoir la maladie.
-
-### Le panneau montre la case visée, il ne la remplace pas
-
-`SecondScreenModel.SettingsEntry` porte le nom, la ligne, la racine du chemin et
-un nom de marque. Le panneau les dessine en grand : la marque dans son encoche
-teintée par domaine, le nom, la description, puis « Paramètres › <nom> » en
-petit.
-
-Deux règles, toutes deux déjà écrites ailleurs et qui s'appliquent ici :
-
-- **Il ne délègue rien.** La tuile de face porte déjà les trois informations ; un
-  joueur à un seul écran ne perd pas un mot (`CLAUDE.md`, « le mono-écran reste
-  la mise en page principale »). Ce que le panneau ajoute, c'est la taille.
-- **La marque voyage sous forme de nom, pas de composable.** Le modèle vit à
-  portée de processus et survit à l'activité ; une lambda de composition retenue
-  là-dedans retiendrait avec elle l'arbre qui l'a créée. Le panneau fait la
-  correspondance chez lui — même parti pris que les libellés d'étapes de session.
-
-Le fondu entre deux entrées est croisé, jamais glissé : les cases du hub ne sont
-pas une suite ordonnée qu'on remonte, elles sont un tableau, et une direction
-inventée dirait un ordre qui n'existe pas.
-
-## La pastille du hub reprend la perle, elle n'en invente pas une seconde
-
-Une entrée qui mène à quelque chose à préparer porte une pastille : la **perle
-d'état de `DetailStatus`**, les mêmes quatre tons et les mêmes quatre glyphes,
-plus le mot que la perle seule ne porte pas. Une application n'a le droit de
-dire « c'est bon » que d'une seule façon, et un écran de réglages qui aurait
-inventé une deuxième pastille l'aurait enseignée deux fois.
-
-Deux entrées n'en portent **pas**, et c'est délibéré :
-
-- **Consoles** : masquer une console est un goût, pas un état à rattraper. Une
-  pastille verte y dirait « rien à faire » sur une page où il n'y a jamais rien
-  à faire. Le compte (« 7 consoles sur 7 ») tient dans le résumé, où il se lit
-  comme un fait et non comme un verdict.
-- **Apparence**, **Général**, **À propos** : leur résumé *est* leur état.
-
-**Émulateurs** ne passe au vert qu'à `3 / 3`. C'est la seule page qui demande
-quelque chose au joueur, et « 2 / 3 » en vert se lirait comme « rien à faire ».
-
-## Une icône par page, et pas une de plus
-
-Sept marques dessinées (`TrayIcons.kt`), une par page. Dans un menu où toutes
-les rangées ont la même forme, l'œil retrouve une page à sa silhouette avant
-d'en lire le nom — c'est la seule raison qu'elles ont d'exister, et c'est
-pourquoi il n'y en a pas une huitième pour décorer.
-
-Elles suivent les trois règles du système : boîte de 24 unités, bouts et
-jointures ronds, une seule graisse de trait. Deux détails de dessin :
-
-- La marque des **consoles** ne dessine que **trois** tuiles sur quatre. Le trou
-  est la console masquée, et il dit ce que la page fait mieux qu'une quatrième
-  tuile ne le dirait.
-- Chaque marque est posée **dans une alvéole** ronde. À nu sur la plaque, une
-  icône flotte, et sept icônes flottantes alignées se lisent comme de la
-  décoration ; dans un creux, chacune est un objet moulé de plus.
-
-Elles sont à l'**encre atténuée, jamais à l'accent** : l'accent ne veut dire
-qu'une chose, « c'est ici », et sept marques cyan le lui retireraient
-(cf. `direction-visuelle.md` § La règle du seul accent). La seule couleur du hub
-est l'avatar du joueur, qui vient du contenu.
-
-## Les émulateurs ne sont pas un réglage de l'application
-
-La page **Émulateurs** rassemble les trois préparations qui se font hors
-d'Emufii : le paramétrage de PPSSPP, le profil réseau PS2 à importer dans
-ARMSX2, et le service d'accessibilité qu'Azahar utilise pour le remplissage
-automatique. Elles n'ont rien en commun avec la langue ou le thème, et tout en
-commun entre elles : ce sont les trois choses qu'Emufii **demande** au joueur,
-et une session est refusée tant qu'elles ne sont pas faites.
-
-C'est aussi la seule page dont l'état se compte, d'où le `3 / 3` du hub.
-
-## La remise à zéro vit sur la page qu'elle efface
-
-Elle avait sa propre section, « Zone rouge », pour une seule rangée. Une section
-entière pour un geste qu'on fait une fois dans la vie de l'app était déjà
-généreux sur un écran unique ; sur un hub de sept entrées, ça aurait fait une
-huitième entrée dont la seule fonction est d'être dangereuse.
-
-Elle est donc en bas de la page **Profil**, sous l'identité qu'elle efface — au
-rouge coque, sans chevron qui tourne, et la confirmation qui suit porte
-l'avertissement. C'est le seul rouge de cet écran.
-
-## Un réglage qui n'a que deux états est un interrupteur
-
-Les notifications et le second écran se pilotaient par des **boutons dont le
-libellé change** : « Amis coupés » devenait « Amis activés » quand on le
-pressait. Un tel bouton pose une question à chaque lecture — est-ce qu'il décrit
-l'état, ou l'action qu'il déclenche ? On se la pose une demi-seconde avant de le
-presser, à chaque fois, et un interrupteur ne la pose jamais.
-
-L'interrupteur est **moulé, pas Material** : la piste est la même alvéole que
-les champs de saisie et les emplacements vides de la grille, le bouton est la
-même plaque que tout le reste. Le `Switch` de Material dessine une piste teintée
-et une pastille plate, qui sur une plaque moulée se lit comme un autocollant, et
-il peint un voile de focus — éteint partout dans cette app — qui se lit comme
-« désactivé » sur une console où le curseur est en permanence quelque part.
-
-Trois détails payés :
-
-- **Le bouton est toujours la plaque claire**, quel que soit le thème. En plaque
-  sombre sur thème sombre, il se lisait comme un trou de plus dans l'alvéole au
-  lieu du bouton qui coulisse dedans.
-- **Allumé, c'est le creux qui prend l'accent**, pas le bouton : l'accent y veut
-  dire « en marche », et le curseur garde son anneau pour dire « ici ».
-- **Toute la rangée est la cible**, pas la pastille de 52 dp au bout de la
-  ligne : la viser à la manette est un travail, et à deux mains sur une console
-  c'est le mauvais geste. L'interrupteur ne porte donc pas son propre anneau.
-
-Il n'y en a **qu'un dans l'app**. La carte de lancement avait le sien, un
-`Switch` de Material, dernier contrôle Material resté à l'écran ; il a pris
-celui-ci.
-
-## Apparence se compare d'un seul coup d'oeil
-
-Les quatre plateaux et les huit perles tenaient dans un seul bloc, l'un au-dessus
-de l'autre, et la dernière rangée d'accents passait sous la ligne de flottaison
-de la Thor. C'est le seul écran de l'app où **tout doit être visible ensemble**,
-puisque comparer est exactement ce qu'on y fait : un choix qu'il faut faire
-défiler pour voir n'est plus une comparaison, c'est une liste.
-
-Deux blocs côte à côte, le thème et l'accent, et l'ensemble tient. Les perles
-passent de deux rangées de quatre à une rangée de huit quand la colonne est
-assez large — la grille garde ses colonnes, elle change de nombre.
-
-## La carte du dossier montre le dossier
-
-Le dossier de ROMs est ce que ce bloc contient de plus important, et il tenait
-sur une ligne étiquette-valeur perdue en travers d'une demi-colonne vide : la
-carte était, mot pour mot, « ROM folder / Folder ROMS » et deux boutons.
-
-Il est maintenant **l'objet du bloc** : la marque de dossier, le nom que le
-joueur a choisi, et sous lui ce qui est vrai de ce dossier — les sous-dossiers
-sont explorés aussi, ou bien, quand il n'y en a pas encore, ce qu'on attend de
-lui. Le compte de jeux vit dans la pastille de l'en-tête, où il est un état.
-
-## Renoncer à Cocoon demande un nouveau parcours
-
-`CocoonMedia.forget()` ne vide que l'**index** de Cocoon. Les vignettes écrites
-pendant le scan, elles, restent sur le disque : après avoir renoncé à Cocoon, la
-bande d'aperçu et la grille continuaient d'afficher ses images, et le réglage
-avait l'air inerte alors qu'il avait bien pris.
-
-Changer de source d'images — la choisir comme y renoncer — déclenche donc un
-nouveau parcours. C'est la seule façon que la source change vraiment, et c'est
-aussi ce qui fait bouger l'aperçu sous les yeux du joueur.
-
-## Les deux liens sortants, et leur ordre
-
-Ce sont les deux seuls liens sortants de toute l'application, et ils vivent sur
-« À propos » — jamais dans un dialogue, jamais au lancement.
-
-Le Discord est **rempli**, le Ko-fi est un fantôme, et l'ordre n'est pas
-alphabétique : le Discord est le seul des deux qui rende quelque chose au
-joueur — quelqu'un avec qui jouer, un endroit où signaler ce qui casse. Une app
-qui demande de l'argent plus fort qu'elle n'offre de l'aide se lit comme un
-guichet.
-
-Chacun porte **la marque de sa destination**, avant son libellé. Celle de
-Discord est la marque officielle, à son bleu ; celle de Ko-fi est une tasse
-redessinée dans la langue d'icônes de l'app — boîte de 24 unités, un seul trait
-— et ne prétend pas être le logo du service, dont le nom est écrit en toutes
-lettres juste à côté. Ces marques ne sont pas teintées par l'accent : elles
-désignent un ailleurs, donc c'est du contenu, comme l'icône d'une console.
-
-Deux choses ont été écrites puis **retirées** de cette page :
-
-- **Le paragraphe au-dessus des boutons.** Il disait à quoi sert le Discord et
-  où va l'argent. C'était vrai, et personne ne le lit avant de presser le bouton
-  qu'il coiffe : deux boutons dont le libellé porte déjà leur destination n'ont
-  rien à faire expliquer.
-- **La carte des sept consoles.** On visite « À propos » pour connaître une
-  version ou trouver un lien ; la liste des consoles est déjà dans la grille,
-  dans la page Consoles et sur chaque tuile. Une image n'a sa place que si elle
-  répond à la question que sa page pose.
-
-Il reste donc deux cartes, côte à côte, du même haut et du même pied.
-
-## Aligner deux colonnes demande de mesurer, pas d'intrinsèque
-
-Sur « À propos », la colonne de gauche porte deux blocs et celle de droite un
-seul. Laissé à lui-même, le bloc solitaire s'arrête à mi-hauteur et laisse un
-trou de trois cents pixels au pied de la page.
-
-`Modifier.height(IntrinsicSize.Min)` est la réponse évidente, et elle est
-**fausse ici** : la hauteur intrinsèque minimale d'un paragraphe est celle qu'il
-ferait à la largeur de son mot le plus long, donc énorme. Essayé, mesuré sur
-l'appareil — la rangée prenait deux écrans et demi de haut et le bloc solitaire
-s'étirait dedans.
-
-Ce qui marche est bête et solide : mesurer les deux colonnes (`onSizeChanged`)
-et imposer **la plus grande des deux comme minimum** aux deux. La première image
-les voit à zéro, la suivante les a, et rien ne saute parce qu'une carte ne fait
-que grandir.
-
-Le mot *minimum* est le second piège, payé après le premier : imposer la hauteur
-mesurée à gauche comme **taille** à droite a écrasé le dernier bouton de la
-carte de droite en un trait de trois pixels. Une hauteur imposée découpe ; un
-minimum laisse grandir.
-
-Et le bloc étiré ne répartit pas tout son contenu : seul son **pied** descend.
-Une répartition uniforme écartait aussi le texte de son titre, et le bloc avait
-un trou au milieu. D'où le slot `footer`, et l'écart qui ne va qu'entre les deux.
-
-## Une console éteinte est un trou dans le plateau
-
-Les sept tuiles étaient des plaques dans les deux cas, avec une barrette
-d'accent dessous pour dire laquelle était allumée. Deux tuiles voisines se
-ressemblaient à quatre dp près, et sur les thèmes sombres la barrette était la
-seule chose à lire sur une grille entière.
-
-Le plateau sait déjà dire deux choses : « posé dessus » (`plate`) et « creusé
-dedans » (`socket`). C'est exactement la distinction que cette page fait, alors
-elle l'emprunte : **une console affichée est une plaque, une console masquée est
-un trou.** La barrette disparaît — deux marques pour un seul état sont du bruit
-— et l'atténuation du contenu reste, pour que la tuile éteinte nomme quand même
-sa machine.
-
-## La grille des consoles n'a pas le droit à une orpheline
-
-Prendre le maximum de colonnes qui tient était le réflexe, et il donne le pire
-résultat du lot : sept consoles dans une carte qui en porte six, ça fait six
-tuiles puis **une seule** sur la ligne suivante. Une orpheline se lit comme un
-oubli, pas comme une grille.
-
-On choisit donc le nombre de colonnes qui remplit le mieux le dernier rang —
-sept dans six colonnes devient **quatre plus trois** — et le rang incomplet se
-termine en alvéole vide, comme la bibliothèque le fait déjà. Quand tout tient
-sur une ligne, ça reste une ligne : c'est la mise en page pour laquelle la page
-d'accueil a été dessinée.
-
-Deux conséquences de forme, toutes deux mesurées sur l'appareil :
-
-- **La tuile a une hauteur fixe.** Les alvéoles du dernier rang doivent faire la
-  même, et une hauteur intrinsèque ne se partage pas entre frères sans mesurer.
-  La valeur est celle du contenu — une icône et trois lignes ; huit dp de moins
-  et le numéro de version se faisait couper.
-- **La phrase d'explication est bornée, et il n'y en a plus qu'une.** Elle
-  courait sur toute la largeur de la carte, près de 1700 px, où l'œil perd la
-  ligne avant d'en trouver la fin. La seconde — « éprouvé aux versions affichées
-  ici » — disait ce que les numéros sous chaque tuile disent déjà, et c'est elle
-  qui faisait passer la page sous la ligne de flottaison.
-
-Et le bloc a **un titre**, qui n'est pas celui de la page : sans lui, la
-pastille d'état se retrouvait seule au bout d'une ligne vide, où elle se lisait
-comme un accident.
-
-## Sur une page, l'état passe devant l'explication
-
-L'accordéon présentait un réglage dans cet ordre : un paragraphe, puis les
-boutons, puis l'état tout en bas dans son creux. C'était juste **pour une
-rangée dépliée** — on venait de demander à ouvrir, donc on venait apprendre.
-
-Sur une page, tout est déjà ouvert, et ce que le joueur vient vérifier c'est
-**où ça en est**. Mesuré sur l'appareil : le bloc PPSSPP ouvrait sur quatre
-lignes pleine largeur de prose technique avant que le mot « prêt » n'apparaisse,
-et le bloc à lui seul remplissait les 1080 px de la Thor.
-
-L'ordre est donc renversé, et il tient en une phrase : **le nom et l'état en
-en-tête, ce qu'on peut faire ensuite, l'explication en dernier — et seulement
-tant qu'elle apprend quelque chose.** Une fois le dossier choisi, les étapes
-disparaissent ; il reste le fait (quel dossier) et la réserve (quitter le jeu
-avant de changer de mode).
-
-Deux conséquences de forme :
-
-- **Une explication de méthode se donne en étapes numérotées, jamais en
-  paragraphe.** Quatre phrases techniques d'affilée ne se lisent pas, elles se
-  sautent ; les mêmes faits numérotés se parcourent, et le format force à les
-  écrire courtes.
-- **Le creux d'état disparaît du cas ordinaire.** `DetailStatus` posait un
-  creux par bloc ; l'état étant désormais dit par la pastille de l'en-tête, il
-  ne restait qu'un conteneur de plus dans un empilement qui en comptait déjà
-  trois. Les faits sont des lignes `BlockFact` — étiquette à gauche, valeur à
-  droite — et le creux est réservé à ce qui est vraiment un aparté.
-
-## Deux colonnes, une fois l'accordéon parti
-
-La colonne unique était la bonne réponse **tant que les rangées se dépliaient** :
-une hauteur qui change rouvre un trou entre deux colonnes à chaque geste, et
-c'est ce que dit la section « Une seule colonne, bornée et centrée » plus bas.
-Une page ne change plus de hauteur.
-
-Ce qui restait, alors, c'était une colonne bornée à 620 dp au milieu des 850 dp
-que la Thor offre en paysage : un quart de l'écran vide à droite de chaque bloc,
-et trois écrans à faire défiler là où il en faut un.
-
-Donc deux colonnes dès que la largeur les porte (700 dp), une seule en dessous.
-Deux règles :
-
-- **Un bloc appartient à une colonne entière**, il n'est jamais coupé au
-  milieu : sinon son état et ses boutons finissent de part et d'autre de la
-  gouttière.
-- **La page se borne à la largeur des deux colonnes**, pas à celle d'une seule.
-  Le piège, payé une fois : la mesure qui décide du nombre de colonnes se fait
-  *à l'intérieur* de la coquille, donc une coquille qui serre déjà à 620 dp lui
-  fait toujours répondre « une seule ». Ce qui veut rester étroit — le hub — se
-  borne lui-même.
-
-## Un avertissement n'est pas une erreur, et ne porte pas le rouge
-
-Le rouge coque n'apparaît que deux fois dans toute l'app, et c'est pour ça qu'il
-se lit quand il apparaît. La note de carte dossier de la PS2 le portait : six
-lignes de rouge sous une pastille verte « Prêt », vues sur l'appareil, et on
-relit la pastille pour savoir laquelle des deux ment.
-
-Or cette note n'est pas un échec — c'est la raison pour laquelle aucune
-sauvegarde du joueur n'a été clonée, donc la seule chose qu'il doit absolument
-lire. Deux objets, plutôt qu'un :
-
-- `BlockCaveat`, rouge et court : quelque chose a échoué.
-- `BlockNotice`, un creux avec la perle d'avertissement et l'encre ordinaire :
-  quelque chose est à savoir pendant que tout va bien.
-
-Le creux dit « voilà ce qui est », la perle dit de quel poids, et le texte ne
-crie pas.
-
-## Les images des pages viennent de l'appareil, pas d'une banque
-
-Ces pages parlaient d'images sans jamais en montrer. Quatre endroits où ça
-coûtait quelque chose, et quatre images qui existaient déjà :
-
-- **Les icônes de jeu** montrent une bande de cinq jaquettes **de la
-  bibliothèque du joueur**, prises dans le cache que l'app a déjà chauffé au
-  démarrage. Le bloc annonçait « Cocoon est en vigueur » et il fallait aller
-  vérifier dans la grille ; ici on voit ce que la grille affiche, à l'endroit
-  où on en change la source. C'est aussi la seule couleur de tout cet écran, et
-  elle vient du contenu, comme le veut la direction.
-- **Les blocs d'émulateur** portent l'icône de l'application installée. « PPSSPP »
-  en titre ne dit pas si PPSSPP est là ; son icône, oui — et l'alvéole vide, quand
-  elle manque, le dit aussi bien.
-- **« À propos »** montre les sept consoles servies, par les mêmes fichiers que
-  la bibliothèque utilise. La table qui les associe a été hissée hors de
-  `LibraryScreen` : deux copies auraient divergé au premier ajout.
-- **« Ce que les autres voient »** montre la rangée que les autres joueurs
-  reçoivent — et **sans la photo**. La première version affichait l'avatar
-  local, ce qui donnait exactement le contraire de la phrase en dessous : la
-  photo ne quitte pas l'appareil, les autres reçoivent les initiales et la
-  couleur. Un aperçu qui contredit sa légende est pire que pas d'aperçu.
-
-Rien n'est téléchargé, rien n'est dessiné pour l'occasion, et aucune de ces
-images n'est décorative : chacune répond à la question que son bloc pose.
-
-## Une seule colonne, bornée et centrée
-
-Deux colonnes avaient l'air d'être la bonne réponse à un écran large, et ne le sont
-pas : **quatre sections de longueurs différentes ne se partagent jamais également**,
-donc l'une finit plus courte que l'autre et laisse un trou de trois cents pixels que
-rien ne remplit. Le problème n'est pas l'appariement, il est structurel — et une
-rangée qui se déplie change de hauteur, ce qui **rouvre le trou à chaque ouverture**
-même quand l'équilibre était bon au repos.
-
-**Bornée**, parce qu'une colonne unique étirée sur 1920 px met l'étiquette et sa
-valeur aux deux bords opposés de l'écran, et la paire cesse d'être lisible.
-**Centrée**, parce qu'un bloc borné collé à gauche laisserait le vide qu'on vient
-justement de supprimer, simplement déplacé.
-
-## Les trois constantes de forme d'une rangée
-
-- **La largeur maximale** : au-delà, l'étiquette à gauche et la valeur à droite se
-  retrouvent aux extrémités et l'œil ne les apparie plus.
-- **Le rayon de coin**, petit : à 52 dp de haut, un grand rayon donne une gélule
-  posée dans une carte aux coins bien plus francs. **C'est aussi le rayon de
-  l'anneau**, puisque le curseur trace le contour de la rangée.
-- **Le retrait latéral** : c'est la largeur d'une rangée de réglages, les
-  séparateurs la dessinent et l'anneau doit s'y poser. **Une constante pour les
-  deux**, sinon ils divergent au premier ajustement.
-
-## Une rangée occupe toute la carte, bord à bord
-
-**Aucune marge autour.** En laisser ne serait-ce que quelques dp produisait une
-bande blanche entre le curseur et le bord, moment où le curseur n'entourait plus
-rien. En échange, chaque rangée prend la forme exacte de la place qu'elle occupe,
-**coins de carte compris** ; le trait de l'anneau est dessiné à l'intérieur de ses
-bornes, donc rogner la carte ne l'entame pas.
-
-Corollaire, appris à la dure : **pas de retrait sur l'anneau non plus.** Le rétrécir
-pour aligner le contour sur les séparateurs enfermait une boîte plus petite que la
-rangée, et le trait passait au milieu de l'étiquette. **Le retrait appartient au
-texte**, il est donc appliqué plus bas, à l'intérieur.
-
-La forme suit la place : une rangée du milieu est un rectangle franc, celles des
-extrémités héritent des coins de la carte. **Ouverte, elle s'arrondit partout** :
-elle se détache de la pile, elle devient l'en-tête de ce qu'elle vient de révéler,
-et un coin franc s'y lit comme une coupure — en haut contre la rangée précédente
-autant qu'en bas contre son propre détail. Les deux extrémités suivent donc la même
-règle et **se transforment progressivement plutôt que de claquer**, sinon la forme
-saute au moment précis où le contenu se déroule.
-
-**Le séparateur est dessiné au-dessus, pas en dessous** : une rangée dépliée pousse
-son détail vers le bas, et une ligne posée après elle finirait par séparer le détail
-de la rangée suivante au lieu de séparer deux rangées.
-
-## Le remplissage opaque existe pour le curseur, pas pour le look
-
-La lueur est une ombre portée du contour du contrôle, et **une ombre projetée par
-une couche non opaque est dessinée *à travers* elle** : une rangée focalisée se
-retrouvait remplie d'un lavis d'accent, vive sur ses bords arrondis et **creuse au
-milieu**. Rien ne découpe une ombre hors de son propre contour ; la seule chose qui
-la cache est du contenu opaque par-dessus.
-
-Une couleur plate aurait fait ce travail et en aurait cassé un autre : **chaque
-rangée figerait le dégradé à son propre sommet**, et une carte de cinq rangées
-deviendrait cinq bandes. Découper le dégradé de la carte coûte pareil et ne se voit
-pas.
-
-D'où la nécessité de connaître **la carte dans laquelle l'appelant dessine**, en
-coordonnées racine et non celles d'un parent : les choses qui en ont besoin sont à
-des profondeurs différentes — une rangée est fille directe de la carte, un choix
-dans un détail déplié est trois niveaux plus bas.
-
-### Il a quitté les réglages, parce que le défaut n'y était pas enfermé
-
-Déplacé le 2026-08-28 de `SettingsPieces.kt` vers `ui/components/CardSlice.kt`.
-Il y était `internal` au paquet des réglages, alors que le problème qu'il résout
-— une lueur est une ombre, et une ombre traverse tout ce qui n'est pas opaque —
-se pose partout où un contrôle transparent porte l'anneau.
-
-Le premier à en avoir eu besoin ailleurs est `PadTextField`, qui n'appartient à
-aucun écran : son cadre ne peignait rien, il laissait voir la carte derrière, et
-la lueur du curseur se voyait donc *dedans*. Le champ peint maintenant la
-tranche exacte du dégradé que la carte peignait déjà là, donc rien ne change à
-l'œil — le remplissage existe pour le curseur, pas pour le look, et c'est encore
-vrai hors des réglages.
-
-L'ordre dans la chaîne de modificateurs est ce qui fait tenir les trois couches :
-l'ombre dessine en premier, le fond opaque par-dessus, et le trait de l'anneau
-par-dessus encore.
-
-## Deux pièges de focus, et leurs contournements
-
-**Le drapeau « première rangée » est un drapeau, pas un modificateur passé de
-l'extérieur.** Le `Modifier` de cette rangée s'applique à la colonne qui contient la
-rangée *et* son détail, et un `FocusRequester` posé là vise un nœud qui n'est pas
-focalisable : la demande échoue **en silence**. C'est la rangée cliquable qui doit le
-porter, et elle est privée.
-
-**Déplier n'amène pas le contenu à l'écran tout seul.** Le curseur reste sur la
-rangée : rien ne bouge du point de vue du focus, donc le défilement automatique n'a
-aucune raison de se déclencher, et le contenu qu'on vient de demander s'ouvre sous
-la ligne de flottaison. On le demande donc explicitement, **et sur la colonne
-entière — rangée *et* détail** — faute de quoi on ne ramène que la rangée, qui était
-déjà visible. Et **après l'animation d'ouverture, pas pendant** : la colonne mesure
-encore sa hauteur précédente au moment où l'état change.
-
-L'identité d'une rangée dépliable est **une énumération, pas un index** : l'ordre des
-sections se réorganise entre portrait et paysage, et un index aurait ouvert la
-mauvaise rangée en tournant l'appareil.
-
-**Un chevron qui ne tourne pas dit « c'est ailleurs ».** Le thème ouvre son propre
-panneau plutôt que de se déplier — la façon d'un écran de dire la différence entre
-« c'est en dessous » et « c'est ailleurs ».
-
-## Les lignes d'état, et ce que personne ne devinerait
-
-**Le second écran** : sans sa ligne d'état, la rangée est une promesse que le joueur
-ne peut pas vérifier — il l'active, rien ne se passe, et il ne peut pas savoir si la
-fonction est cassée ou si son appareil n'a qu'un écran. Nommer le panneau trouvé, ou
-dire qu'il n'y en a aucun, répond avant qu'il aille chercher.
-
-**Les notifications** : Emufii est installé de côté, donc **aucun service de push ne
-peut le réveiller**. Hors de l'app, c'est Android qui décide quand laisser la veille
-regarder, et c'est un quart d'heure au mieux. Le dire ici coûte une phrase et achète
-la confiance du joueur dans chaque alerte qui arrive ; l'omettre ferait paraître la
-fonction cassée la première fois qu'une alerte est en retard.
-
-**Le service d'accessibilité est relu tant que cet écran est affiché**, pas une seule
-fois : partir vers les réglages d'Android est un voyage hors de l'app, pas une boîte
-de dialogue avec un résultat — **la réponse n'existe qu'au retour**. Interrogé
-périodiquement, ce qui coûte moins qu'un observateur de cycle de vie pour un booléen,
-et c'est ce qui fait passer la rangée au vert sous les yeux du joueur.
-
-## Le remplissage automatique a sa rangée parce qu'Android peut l'éteindre
-
-Un service d'accessibilité **n'est pas une permission que l'app détient** : c'est un
-réglage système que le joueur a accordé, et que le système retire de lui-même — une
-mise à jour, une restauration sur un nouvel appareil, un optimiseur de batterie.
-
-L'écran de session portait auparavant le chemin du retour, sous forme d'un bouton
-**qui n'apparaissait qu'une fois l'automatisation déjà éteinte**, au bas d'une carte
-que personne ne fait défiler. Sa place est ici : un interrupteur qu'on bascule une
-fois dans la vie de l'app est de la plomberie, et la plomberie vit dans les réglages.
-**La rangée affiche l'état qu'il soit allumé ou éteint**, ce qui la rend trouvable
-*avant* que quelque chose n'aille mal plutôt qu'après.
-
-## Ce que les réglages disent de ce qu'Emufii ne fait pas
-
-La rangée des clés de console **dit délibérément ce qu'Emufii ne fait pas** — fournir
-des clés, en télécharger, envoyer le fichier où que ce soit — parce que **demander un
-fichier de clés sans explication est la façon dont une app se fait désinstaller**.
-
-La clé SteamGridDB est **en clair et non masquée** : ce n'est pas un mot de passe,
-elle n'ouvre qu'un catalogue d'images publiques, en lecture seule. La masquer
-gênerait surtout le repérage d'une faute de frappe, **le seul incident probable** —
-une mauvaise clé ne dit rien, elle ne ramène simplement rien.
-
-Le dossier de ROMs et son bouton de rescan étaient des pastilles du dock de la
-bibliothèque, **en permanence devant quelqu'un qui avait choisi son dossier des mois
-plus tôt**. Une plomberie qu'on règle une fois appartient aux réglages.
-
-## Le thème ouvre un panneau, il ne se déplie pas
-
-L'aspect de l'app n'est pas un détail de ligne de réglages. C'étaient **neuf choix
-étiquetés empilés dans la carte**, poussant tout ce qui suivait hors de l'écran, et
-demandant au lecteur d'imaginer à quoi chaque nom ressemblait. Sa valeur nomme
-toujours les deux moitiés du choix, donc la rangée dit où en sont les choses **sans
-être ouverte**.
-
-## Un bouton est nommé pour ce qu'il fait
-
-De deux actions, **une seule est remplie** : celle qui fait le travail. En pastilles
-de même poids, elles se lisaient comme un choix entre égales, ce qui envoyait les
-gens vers le sélecteur de dossier qu'ils venaient de traverser.
-
-Une fois le travail fait, **l'accent s'en va plutôt que l'étiquette ne se transforme
-en vantardise**. Un bouton disant « profil installé » qui relance quand même toute la
-préparation ment, et un bouton qui ne fait rien n'est pas un bouton. Le travail se
-rétrograde donc en course ordinaire — le refaire — et c'est le creux en dessous qui
-dit qu'il est installé. **La section cesse de demander quelque chose**, ce qui est le
-changement que l'œil cherche.
-
-## Restaurer les jeux retirés est tout ou rien
-
-Une liste des jeux retirés aurait besoin de leurs titres et de leurs icônes, lus dans
-des fichiers que cet écran ne scanne jamais : elle montrerait donc **des chemins**. Et
-un joueur qui a retiré trois copies régionales d'un même jeu ne gagne rien à choisir
-entre trois lignes identiques.
-
-Tout ramener coûte une suppression de plus à refaire, **et ça marche toujours**.
-
-## Une pastille d'état porte deux mots, jamais une phrase
-
-Dans l'en-tête d'un bloc, le titre porte le poids et la pastille non — or en
-Compose, dans une rangée, **ce qui n'a pas de poids se sert en premier**. Une
-pastille dont l'étiquette était une phrase entière (« SteamGridDB, pour ce que
-Cocoon ne couvre pas », 665 px) prenait toute la ligne et laissait **zéro pixel**
-au titre. La carte « Images de secours » n'affichait plus son nom : juste une
-phrase flottante au milieu du vide.
-
-Deux corrections, parce qu'une seule ne suffit pas. L'étiquette est redevenue
-courte, et l'explication est repartie dans la note du bloc, qui est sa place. Et
-la pastille reçoit un poids sans remplissage, ce qui la borne à la moitié de la
-rangée : une étiquette courte garde sa largeur naturelle, une trop longue
-s'ellipse au lieu d'effacer le titre.
-
-Le remède reste d'écrire court ; le garde-fou empêche seulement que la faute soit
-invisible la prochaine fois. Vérifié le 2026-08-29 : aucune autre pastille de
-l'app ne dépasse quinze caractères.
-
-## La tuile de console a une version courte
-
-Sans numéro de version, avec une icône plus petite, elle passe de 124 à 92 dp de
-haut et de 118 à 92 dp de large minimum. Écrite pour l'onboarding, où sept tuiles
-pleines ne tiennent pas sur une ligne — il leur faut 118 dp chacune pour que
-« GameCube » et un numéro tiennent chacun sur sa ligne, et la Thor n'en offre que
-709 une fois les marges payées.
-
-Ce qu'on retire est le numéro de version. À l'installation, la question posée est
-« à quelles machines joues-tu », pas « quelle version de l'émulateur ai-je » —
-cette dernière se pose plus tard, sur cette page, où la tuile pleine la porte
-toujours. L'icône et le nom de l'émulateur restent : ils disent déjà s'il est
-installé, qui est l'autre moitié de la réponse.
-
-## Deux colonnes, et ça descend — jamais de côté
-
-La colonne unique avait été choisie parce qu'une page de réglages n'a pas de
-contenu à montrer, seulement des noms à lire. C'était vrai de la *rangée* et faux
-de la *colonne* : sept plaques empilées sur un écran de 1080 de large laissaient
-les deux tiers de la largeur vides.
-
-Deux colonnes de largeur égale, remplies rang par rang, et le trop-plein en bas.
-Le débordement latéral a été essayé d'abord — deux rangs qui défilent en travers,
-comme la référence — et refusé : sur une machine dont le pouce droit tombe sur une
-croix, on **descend** une page de réglages, on ne la pousse pas de côté.
-
-Rien de paresseux dans ce hub, et c'est le point : les sept cases sont composées,
-la traversée de focus trouve donc toujours sa destination et amène elle-même la
-case visée dans le champ. C'est l'inverse exact de la bibliothèque, qui tient son
-propre curseur parce qu'une `LazyVerticalGrid` ne compose pas la tuile qu'une
-direction vise. **Sept cases ne valent pas cette machinerie.**
-
-## Une console porte une rangée, pas une tuile
-
-Trois refontes en un jour, et c'est la question ajoutée — « avec quelle build » —
-qui a tranché la forme. La page était une grille de tuiles carrées : bonne pour
-« qu'est-ce qui joue quoi », faible pour « laquelle est allumée » (sept tuiles au
-même traitement, l'état porté par un écart d'encre), et sans place pour la build,
-qui ne rentre pas dans un carré déjà plein de quatre lignes centrées.
-
-Une console porte donc une **rangée** : icône, nom, build, interrupteur, sur un
-seul axe de lecture, et le choix de build dessous quand il y en a un à faire.
-Deux colonnes dès que l'écran les porte — sept rangées à la file gâcheraient la
-moitié d'un écran paysage et dépasseraient quand même.
-
-Ce que la carte enveloppante portait est reparti là où ça coûte zéro hauteur : le
-compte au bout du **titre de la page**, la phrase juste au-dessus des rangées
-qu'elle commande. Une carte qui ne groupe rien contre rien n'est pas un groupe,
-c'est un cadre.
-
-## L'anneau et la pastille du crayon sont frères, pas parent et enfant
-
-Un seul arrêt de curseur sur l'avatar, pas deux : la photo et le crayon
-déclenchent la même chose, et deux nœuds focalisables pour un geste faisaient deux
-pressions de direction sans que rien ne bouge à l'écran.
-
-`Modifier.border` dessine **par-dessus le contenu du nœud qui le porte** : tant
-que la pastille du crayon était dedans, le trait de l'anneau lui passait au
-travers — elle est posée au coin d'une boîte carrée, donc à cheval sur le cercle.
-L'anneau est donc sur la boîte de l'avatar seule, et la pastille déclarée après,
-donc dessinée au-dessus. C'est la seule chose qui doit ressortir du cercle, et
-elle en ressort entière.
-
-Le focus reste sur la boîte extérieure — un seul arrêt, et le doigt atteint aussi
-la pastille — mais `controlRing` y est silencieux et ne sert qu'à amener la photo
-dans le champ ; c'est `focusRing` qui trace, en dessous.
-
-## Ce qui se pose au bout du titre d'une page
-
-Pour l'état d'une page qui n'a **qu'un** sujet. Le poser dans un en-tête de bloc
-obligerait à inventer un second titre sous le premier, et deux titres à 40 dp
-d'écart disent la même chose deux fois.
-
-## Un fait de bloc n'a pas de creux autour
-
-Le creux dit « voilà ce qui est », et il le méritait quand l'état arrivait en bas
-d'une rangée dépliée. En en-tête de bloc, l'état est déjà dit par la pastille, et
-un creux de plus par bloc empilait trois niveaux de conteneur.
-
-## Le repli est réservé à ce qu'on règle une fois
-
-Une clé de service, pas un état qu'on vient vérifier. Un bloc replié ne dit plus
-que son titre et sa pastille ; si ce qu'il cache est ce que le joueur venait
-lire, le repli lui a juste ajouté un geste.
-
-## Combien de tuiles par ligne, et la largeur qui le décide
-
-Le compte se mesure sur la **largeur réellement donnée à la grille**, jamais sur
-celle de l'écran. L'onboarding lui donne la largeur entière ; la page des
-réglages est le même écran mais quelque 90 dp plus étroit une fois la carte et
-ses marges payées, et un compte pris sur l'écran y mettait sept tuiles quand
-même : « GameCube » sortait en « GameCu » et une version en « v2126.0-va ». Une
-tuile qui doit abréger sa propre console a cessé de faire son travail.
-
-La largeur minimale est celle où une tuile tient encore le plus long nom de
-console et la plus longue version, chacun sur sa ligne. En dessous de trois
-colonnes la grille cesse d'être une grille, donc c'est le plancher.
-
-Et on ne prend **pas** le maximum qui tient : c'était le réflexe, et il donne le
-pire résultat du lot — sept consoles dans une carte qui en porte six, ça faisait
-six tuiles puis **une seule** sur la ligne suivante. Une orpheline se lit comme un
-oubli, pas comme une grille. On choisit le nombre qui remplit le mieux le dernier
-rang, du plus large au plus étroit : sept dans six colonnes devient quatre plus
-trois.
-
-La hauteur d'une tuile est **fixe** : les alvéoles du dernier rang doivent faire
-la même, et une hauteur intrinsèque ne se partage pas entre frères sans mesurer.
-
-## La version d'un émulateur se coupe à l'affichage, pas à la source
-
-PPSSPP nomme ses builds « v1.20.4 », portant déjà la lettre que l'étiquette
-ajoute, et « vv1.20.4 » est ce qui est sorti sur la Thor. On coupe donc à
-l'affichage plutôt que de retirer le préfixe de la chaîne : les cinq autres
-rapportent un nombre nu, et une colonne de versions dont une seule serait
-démarquée se lit plus mal que l'une ou l'autre.
+# The settings screen: one hub and seven pages
+
+The narrative that lived in `ui/screens/SettingsScreen.kt`, taken out of the code
+on 2026-08-24 (see `docs/STYLE_COMMENTAIRES.md`), then extended on 2026-08-25
+when the accordion became a hub and seven pages. Headings are anchors cited from
+the code: do not rename them lightly.
+
+The code now lives in `ui/screens/settings/`: `SettingsScreen.kt` (the host and
+the hub), `SettingsPieces.kt` (the shared parts) and one page per file.
+
+## What this screen replaces
+
+> The sections from that era, this one, "One column, bounded and centred", "A row
+> takes the whole card", "Two focus traps" and "The theme opens a panel",
+> describe the accordion, replaced on 2026-08-25 by the hub and its pages. They
+> stay because each records an attempt that was paid for: reopening them without
+> reading them would cost twice.
+
+It was called "Profile" and carried eight cards of equal weight: the nickname,
+the ROM folder, the console keys, the artwork key, the language, the theme, the
+About box, the reset. Each set out a title, a paragraph of explanation and its
+buttons, all the time, whether you had come to see them or not.
+
+On the Thor, the Library card took a whole screen for three lines, the two
+columns ended up misaligned, and finding a setting meant digging through a wall
+of text.
+
+Here every setting is a row: what it is on the left, where it stands on the
+right. The explanatory text and the buttons only exist once the row is open,
+which is to say at the precise moment they were asked for. The value shown on the
+right is what replaces the paragraph: "Set", "ROMS", "French" already answer the
+question you came to ask.
+
+One row open at a time. Two expanded sections rebuild exactly the screen we just
+dismantled, and on a handheld the page would start scrolling again at the first
+setting touched.
+
+The name is saved as you type rather than behind a button: there is nothing to
+validate and nothing to send, storage is local, and a button that only means "yes,
+really" is a button nobody needs.
+
+## One hub and seven pages, plus an accordion
+
+The single screen held fourteen expanding rows across four sections. Each was
+defensible; the whole no longer was.
+
+Three flaws, and the third is the one that decided it:
+
+1. One row open at a time was the right rule for a screen of eight rows; at
+   fourteen it means touching a setting pushes the whole rest of the page down,
+   and you keep closing things to find your place again.
+2. The filing lied. PPSSPP auto-configuration, the PS2 network profile and
+   Azahar's autofill lived under "Application", between the language and the
+   theme, because there was nowhere to put them. They are not application
+   settings: they are rituals outside Emufii, without which a session is refused.
+3. An expanded detail is not a page. The PS2 profile open is a note, two buttons,
+   a state hollow with four facts and a caveat, in an 18 dp slot wedged between
+   two other rows. The content had been asking for a page for a long time; the
+   expanding row refused it one.
+
+So: a hub containing only entries, and seven pages behind it: Profile, Library,
+Consoles, Emulators, Appearance, General, About. The hub is this screen's root;
+`B` returns there before leaving settings, as it used to close the expanded row.
+
+What has not changed: the content of the blocks. `DetailNote`, `DetailActions`
+and `DetailStatus` are exactly the accordion's, on the same three rules (see
+`ui/components/SettingsDetail.kt`). A page is the same material, without the
+slot. What disappears is the expansion machinery: the morphing corners, the
+delayed `bringIntoView`, the enum of the open row.
+
+## A hub entry is a plate, not a row
+
+Each entry is its own `SoftCard`, not a row in a shared card. That removed at a
+stroke all the machinery the shared card imposed: the corners animating to say
+which row inherits the card's, and the opaque fill sliced out of the card's
+gradient so the cursor's glow stays outside. A plate is already opaque, and
+`SoftCard` already places the ring in its shape, before its own `clip`.
+
+The sliced fill stays for what still lives inside a card, the choices in a list
+(language), which are rows in a block.
+
+And they are not tiles. The tile grid is the library's grammar, where the content
+is the artwork and the eye aims at an image. A settings page has nothing to show,
+it has names to read; a name is read in a row, at the speed you look for a word
+in a list. The tile-grid variant was written and then removed on 2026-08-25: it
+reproduced the main menu for content that is not content.
+
+## The hub fits on one screen, without group labels
+
+The hub first carried four group labels, then lost them, then got them back, and
+all three states were seen on the device, which is worth telling in order.
+
+They cost twice. The second repeated word for word the name of the entry it
+headed, "Library" above "Library", and the four together took enough height that
+only two and a half entries stayed visible on the Thor's 1080 px. Removed, four
+and a half fitted, and the families read from the spacing.
+
+It was not the principle that was wrong, though, it was the wording. A settings
+menu with no aisles is a list, and a list of seven entries gets scanned instead
+of aimed at. A label must name the family, never its first member: "Library and
+consoles" heads its two entries without repeating either, and the repetition
+problem disappears without the hub losing its aisles.
+
+The four names kept: "You", "Library and consoles", "Before playing", "The
+application". None is a page title.
+
+The spacing is tight between two entries of one family (10 dp) and open between
+two families, label included (18 dp): it is the grouping that carries the
+reading, the label only names it.
+
+## The hub is a grid, and the panel shows the selected cell
+
+Set on 2026-08-28, from a reference brought by the user: the settings menu of
+another handheld console frontend, two rows of large cells scrolling sideways,
+and the bottom screen showing the selected cell large.
+
+What changes is not the row, it is its layout. The section "A hub entry is a
+plate, not a row" stays true word for word: an entry is still a plate with its
+icon on the left, its name, its description line and its chevron on the right,
+because a settings page has no content to show but names to read. What was wrong
+is the column: seven plates stacked on a screen 1080 wide left two thirds of the
+width empty and scrolled what could have fitted at once.
+
+Two columns of equal width, filled row by row, and the overflow below. Three
+layouts were tried on the Thor, which is only ~800 dp wide:
+
+- Four cells across: the name fits, the description line and the badge no longer
+  fit together.
+- Two rows overflowing to the right, like the reference: the cell stays large,
+  but the page pushes sideways. Refused by the user, and for a reason about the
+  machine rather than taste: on a device whose right thumb falls on a D-pad, you
+  scroll a settings page down, you do not push it sideways.
+- Two columns going down: each cell takes half the width, the seven fill row by
+  row, and the overflow unrolls downwards. That is the layout kept.
+
+The family labels went with the column. They headed stacked groups; a grid has no
+aisles, it has cells, and seven cells visible at once are found by name. It is
+the same argument as the section "The hub fits on one screen, without group
+labels", which the column had ended up making false and the grid makes true
+again.
+
+Nothing lazy here, and that is the point. The seven cells are composed, so
+Compose focus traversal always finds its destination and brings the selected cell
+into view itself. It is the exact opposite of the library, which holds its own
+cursor because a `LazyVerticalGrid` does not compose the tile a direction aims at
+(`CLAUDE.md`, the grid holds its own cursor). Seven cells are not worth that
+machinery, and writing it would have been copying a remedy without having the
+disease.
+
+### The panel shows the selected cell, it does not replace it
+
+`SecondScreenModel.SettingsEntry` carries the name, the line, the path root and a
+mark name. The panel draws them large: the mark in its notch tinted by domain,
+the name, the description, then "Settings > <name>" small.
+
+Two rules, both already written elsewhere and applying here:
+
+- It delegates nothing. The front tile already carries all three pieces of
+  information; a player with one screen loses not a word (`CLAUDE.md`, the single
+  screen stays the main layout). What the panel adds is size.
+- The mark travels as a name, not as a composable. The model lives process-wide
+  and outlives the activity; a composition lambda held in there would hold the
+  tree that created it with it. The panel does the mapping at its end, the same
+  choice as the session step labels.
+
+The fade between two entries is a cross-fade, never a slide: the hub's cells are
+not an ordered sequence you move along, they are a table, and an invented
+direction would state an order that does not exist.
+
+## The hub badge reuses the bead, it does not invent a second one
+
+An entry leading to something to prepare carries a badge: `DetailStatus`'s state
+bead, the same four tones and the same four glyphs, plus the word the bead alone
+does not carry. An application is allowed to say "this is fine" in one way only,
+and a settings screen that had invented a second badge would have taught it
+twice.
+
+Two entries carry none, deliberately:
+
+- Consoles: hiding a console is a taste, not a state to catch up on. A green
+  badge there would say "nothing to do" on a page where there is never anything
+  to do. The count ("7 consoles of 7") sits in the summary, where it reads as a
+  fact and not as a verdict.
+- Appearance, General, About: their summary is their state.
+
+Emulators only goes green at `3 / 3`. It is the one page that asks the player for
+something, and "2 / 3" in green would read as "nothing to do".
+
+## One icon per page, and not one more
+
+Seven drawn marks (`TrayIcons.kt`), one per page. In a menu where every row has
+the same shape, the eye finds a page by its silhouette before reading its name;
+that is the only reason they exist, and it is why there is no eighth one for
+decoration.
+
+They follow the system's three rules: a 24-unit box, round caps and joins, one
+stroke weight. Two drawing details:
+
+- The consoles mark draws only three tiles out of four. The hole is the hidden
+  console, and it says what the page does better than a fourth tile would.
+- Every mark is placed in a round socket. Bare on the plate, an icon floats, and
+  seven floating icons in a line read as decoration; in a hollow, each is one
+  more moulded object.
+
+They are in muted ink, never in the accent: the accent means one thing, "this is
+here", and seven cyan marks would take that away from it (see
+`direction-visuelle.md` on the single-accent rule). The hub's only colour is the
+player's avatar, which comes from content.
+
+## Emulators are not an application setting
+
+The Emulators page gathers the three preparations done outside Emufii: PPSSPP
+configuration, the PS2 network profile to import into ARMSX2, and the
+accessibility service Azahar uses for autofill. They have nothing in common with
+the language or the theme, and everything in common with each other: they are the
+three things Emufii asks of the player, and a session is refused until they are
+done.
+
+It is also the only page whose state can be counted, hence the hub's `3 / 3`.
+
+## The reset lives on the page it erases
+
+It had its own section, "Red zone", for a single row. A whole section for a
+gesture you make once in the app's life was already generous on a single screen;
+on a hub of seven entries it would have made an eighth entry whose only function
+is to be dangerous.
+
+It is therefore at the foot of the Profile page, under the identity it erases, in
+shell red, with no turning chevron, and the confirmation that follows carries the
+warning. It is the only red on this screen.
+
+## A setting with only two states is a switch
+
+Notifications and the second screen were driven by buttons whose label changed:
+"Friends off" became "Friends on" when pressed. Such a button asks a question on
+every reading: does it describe the state, or the action it triggers? You ask it
+for half a second before pressing, every time, and a switch never asks it.
+
+The switch is moulded, not Material: the track is the same socket as the text
+fields and the grid's empty slots, the knob is the same plate as everything else.
+Material's `Switch` draws a tinted track and a flat pill, which on a moulded plate
+reads as a sticker, and it paints a focus wash, switched off everywhere in this
+app, which reads as "disabled" on a console where the cursor is permanently
+somewhere.
+
+Three details paid for:
+
+- The knob is always the light plate, whatever the theme. As a dark plate on a
+  dark theme it read as one more hole in the socket instead of the knob sliding
+  in it.
+- On, it is the hollow that takes the accent, not the knob: the accent there
+  means "running", and the cursor keeps its ring to mean "here".
+- The whole row is the target, not the 52 dp pill at the end of the line: aiming
+  at it with a pad is work, and two-handed on a console it is the wrong gesture.
+  The switch therefore carries no ring of its own.
+
+There is only one in the app. The launch card had its own, a Material `Switch`,
+the last Material control left on screen; it took this one.
+
+## Appearance is compared at a glance
+
+The four boards and the eight beads sat in one block, one above the other, and
+the last row of accents fell below the Thor's fold. It is the one screen in the
+app where everything must be visible together, since comparing is exactly what
+you do there: a choice you have to scroll to see is no longer a comparison, it is
+a list.
+
+Two blocks side by side, theme and accent, and the whole fits. The beads go from
+two rows of four to one row of eight when the column is wide enough: the grid
+keeps its columns, it changes their number.
+
+## The folder card shows the folder
+
+The ROM folder is the most important thing this block contains, and it sat on a
+label-value line lost across half an empty column: the card was, word for word,
+"ROM folder / Folder ROMS" and two buttons.
+
+It is now the block's subject: the folder mark, the name the player chose, and
+under it what is true of that folder, that subfolders are walked too, or, when
+there are none yet, what is expected of it. The game count lives in the header
+badge, where it is a state.
+
+## Giving up Cocoon needs a fresh walk
+
+`CocoonMedia.forget()` only empties Cocoon's index. The thumbnails written during
+the scan stay on disk: after giving up Cocoon, the preview strip and the grid
+went on showing its images, and the setting looked inert while it had very much
+taken effect.
+
+Changing the image source, choosing it as much as giving it up, therefore
+triggers a fresh walk. It is the only way the source really changes, and it is
+also what makes the preview move under the player's eyes.
+
+## The two outbound links, and their order
+
+They are the only two outbound links in the whole application, and they live on
+About, never in a dialog, never at launch.
+
+The Discord one is filled, the Ko-fi one is a ghost, and the order is not
+alphabetical: Discord is the only one of the two that gives the player something
+back, somebody to play with, somewhere to report what breaks. An app that asks
+for money more loudly than it offers help reads as a ticket window.
+
+Each carries its destination's mark, before its label. Discord's is the official
+mark, in its blue; Ko-fi's is a cup redrawn in the app's icon language, a 24-unit
+box, one stroke, and does not claim to be the service's logo, whose name is
+spelled out right next to it. These marks are not tinted by the accent: they
+point somewhere else, so they are content, like a console icon.
+
+Two things were written and then removed from this page:
+
+- The paragraph above the buttons. It said what the Discord is for and where the
+  money goes. It was true, and nobody reads it before pressing the button it
+  heads: two buttons whose labels already carry their destination have nothing to
+  explain.
+- The card of seven consoles. You visit About to find a version or a link; the
+  list of consoles is already in the grid, on the Consoles page and on every
+  tile. An image belongs only if it answers the question its page asks.
+
+Two cards remain, side by side, with the same top and the same foot.
+
+## Aligning two columns means measuring, not intrinsics
+
+On About, the left column carries two blocks and the right one only one. Left to
+itself, the lone block stops halfway down and leaves a three-hundred-pixel hole at
+the foot of the page.
+
+`Modifier.height(IntrinsicSize.Min)` is the obvious answer, and it is wrong here:
+a paragraph's minimum intrinsic height is the one it would take at the width of
+its longest word, so enormous. Tried, measured on the device: the row took two
+and a half screens of height and the lone block stretched inside it.
+
+What works is dumb and solid: measure both columns (`onSizeChanged`) and impose
+the larger of the two as a minimum on both. The first frame sees them at zero,
+the next has them, and nothing jumps because a card only ever grows.
+
+The word minimum is the second trap, paid for after the first: imposing the
+height measured on the left as a size on the right crushed the right card's last
+button into a three-pixel line. An imposed height clips; a minimum lets things
+grow.
+
+And the stretched block does not spread all its content: only its foot moves
+down. Even spreading also pushed the text away from its title, and the block had
+a hole in the middle. Hence the `footer` slot, and the gap that goes only between
+the two.
+
+## A switched-off console is a hole in the board
+
+The seven tiles were plates in both cases, with an accent bar underneath to say
+which was on. Two neighbouring tiles looked alike to within four dp, and on dark
+themes the bar was the only thing to read across a whole grid.
+
+The board already knows how to say two things: "set on top" (`plate`) and "sunk
+into" (`socket`). That is exactly the distinction this page makes, so it borrows
+it: a shown console is a plate, a hidden console is a hole. The bar goes away, two
+marks for one state being noise, and the content's dimming stays, so the
+switched-off tile still names its machine.
+
+## The console grid is not allowed an orphan
+
+Taking the most columns that fit was the reflex, and it gives the worst result of
+the lot: seven consoles in a card that carries six makes six tiles and then one
+alone on the next line. An orphan reads as an oversight, not as a grid.
+
+So the column count chosen is the one that best fills the last row: seven in six
+columns becomes four plus three, and the incomplete row ends in an empty socket,
+as the library already does. When everything fits on one line, it stays one line:
+that is the layout the home page was drawn for.
+
+Two consequences of form, both measured on the device:
+
+- The tile has a fixed height. The last row's sockets must be the same, and an
+  intrinsic height is not shared between siblings without measuring. The value is
+  the content's, an icon and three lines; eight dp less and the version number
+  was clipped.
+- The explanatory sentence is bounded, and there is only one left. It ran the
+  full width of the card, nearly 1700 px, where the eye loses the line before
+  finding its end. The second one, "tested at the versions shown here", said what
+  the numbers under each tile already say, and it was the one pushing the page
+  below the fold.
+
+And the block has a title, which is not the page's: without it, the state badge
+ended up alone at the end of an empty line, where it read as an accident.
+
+## On a page, the state comes before the explanation
+
+The accordion presented a setting in this order: a paragraph, then the buttons,
+then the state right at the bottom in its hollow. That was right for an expanded
+row: you had just asked it to open, so you had come to learn.
+
+On a page everything is already open, and what the player comes to check is where
+things stand. Measured on the device: the PPSSPP block opened on four full-width
+lines of technical prose before the word "ready" appeared, and the block alone
+filled the Thor's 1080 px.
+
+The order is therefore reversed, and it fits in one sentence: the name and the
+state in the header, what can be done next, the explanation last, and only while
+it still teaches something. Once the folder is chosen the steps disappear; what
+remains is the fact (which folder) and the caveat (leave the game before changing
+mode).
+
+Two consequences of form:
+
+- An explanation of method is given in numbered steps, never in a paragraph. Four
+  technical sentences in a row do not get read, they get skipped; the same facts
+  numbered get scanned, and the format forces them to be written short.
+- The state hollow disappears from the ordinary case. `DetailStatus` placed one
+  hollow per block; the state now being said by the header badge, it was only one
+  more container in a stack that already had three. The facts are `BlockFact`
+  lines, label on the left, value on the right, and the hollow is reserved for
+  what is genuinely an aside.
+
+## Two columns, once the accordion is gone
+
+The single column was the right answer while the rows expanded: a height that
+changes reopens a hole between two columns at every gesture, and that is what the
+section "One column, bounded and centred" below says. A page no longer changes
+height.
+
+What was left, then, was a column bounded to 620 dp in the middle of the 850 dp
+the Thor offers in landscape: a quarter of the screen empty to the right of every
+block, and three screens to scroll where one would do.
+
+So two columns as soon as the width carries them (700 dp), one below that. Two
+rules:
+
+- A block belongs to a whole column, it is never cut down the middle: otherwise
+  its state and its buttons end up either side of the gutter.
+- The page is bounded to the width of the two columns, not of one. The trap, paid
+  for once: the measurement deciding the column count happens inside the shell, so
+  a shell already squeezing to 620 dp always makes it answer "one". What wants to
+  stay narrow, the hub, bounds itself.
+
+## A warning is not an error, and does not carry the red
+
+The shell red appears twice in the whole app, and that is why it reads when it
+appears. The PS2 folder card note carried it: six lines of red under a green
+"Ready" badge, seen on the device, and you re-read the badge to work out which of
+the two is lying.
+
+But that note is not a failure: it is the reason none of the player's saves were
+cloned, therefore the one thing they absolutely must read. Two objects, rather
+than one:
+
+- `BlockCaveat`, red and short: something failed.
+- `BlockNotice`, a hollow with the warning bead and ordinary ink: something to
+  know while everything is fine.
+
+The hollow says "here is what is", the bead says how heavy, and the text does not
+shout.
+
+## The pages' images come from the device, not from a stock library
+
+These pages talked about images without ever showing one. Four places where that
+cost something, and four images that already existed:
+
+- The game icons show a strip of five pieces of artwork from the player's own
+  library, taken from the cache the app already warmed at startup. The block
+  announced "Cocoon is in force" and you had to go and check in the grid; here you
+  see what the grid shows, in the place where you change its source. It is also
+  the only colour on this whole screen, and it comes from content, as the
+  direction requires.
+- The emulator blocks carry the installed application's icon. "PPSSPP" as a title
+  does not say whether PPSSPP is there; its icon does, and the empty socket, when
+  it is missing, says so just as well.
+- About shows the seven consoles served, from the same files the library uses.
+  The table mapping them was hoisted out of `LibraryScreen`: two copies would have
+  diverged at the first addition.
+- "What others see" shows the row other players receive, and without the photo.
+  The first version showed the local avatar, which gave exactly the opposite of
+  the sentence below it: the photo does not leave the device, others receive the
+  initials and the colour. A preview that contradicts its caption is worse than no
+  preview.
+
+Nothing is downloaded, nothing is drawn for the occasion, and none of these
+images is decorative: each answers the question its block asks.
+
+## One column, bounded and centred
+
+Two columns looked like the right answer to a wide screen, and are not: four
+sections of different lengths never divide evenly, so one ends up shorter than the
+other and leaves a three-hundred-pixel hole nothing fills. The problem is not the
+pairing, it is structural, and an expanding row changes height, which reopens the
+hole at every opening even when the balance was right at rest.
+
+Bounded, because a single column stretched over 1920 px puts the label and its
+value at opposite edges of the screen, and the pair stops being readable.
+Centred, because a bounded block stuck to the left would leave the very emptiness
+we just removed, simply moved.
+
+## The three shape constants of a row
+
+- The maximum width: beyond it, the label on the left and the value on the right
+  end up at the extremities and the eye no longer pairs them.
+- The corner radius, small: at 52 dp tall, a large radius gives a lozenge sitting
+  in a card with far crisper corners. It is also the ring's radius, since the
+  cursor traces the row's outline.
+- The side inset: it is the width of a settings row, the separators draw it and
+  the ring has to sit on it. One constant for both, or they diverge at the first
+  adjustment.
+
+## A row takes the whole card, edge to edge
+
+No margin around it. Leaving even a few dp produced a white band between the
+cursor and the edge, at which point the cursor surrounded nothing. In exchange,
+every row takes the exact shape of the space it occupies, card corners included;
+the ring's stroke is drawn inside its bounds, so clipping the card does not bite
+into it.
+
+Corollary, learned the hard way: no inset on the ring either. Shrinking it to
+align the outline with the separators enclosed a box smaller than the row, and
+the stroke ran through the middle of the label. The inset belongs to the text, so
+it is applied lower down, inside.
+
+The shape follows the space: a middle row is a plain rectangle, the end ones
+inherit the card's corners. Open, it rounds everywhere: it detaches from the
+stack, it becomes the header of what it has just revealed, and a crisp corner
+there reads as a cut, at the top against the previous row as much as at the
+bottom against its own detail. Both ends therefore follow the same rule and morph
+progressively rather than snapping, or the shape jumps at the precise moment the
+content unrolls.
+
+The separator is drawn above, not below: an expanded row pushes its detail down,
+and a line placed after it would end up separating the detail from the next row
+instead of separating two rows.
+
+## The opaque fill exists for the cursor, not for the look
+
+The glow is a drop shadow of the control's outline, and a shadow cast by a
+non-opaque layer is drawn through it: a focused row ended up filled with an
+accent wash, bright at its rounded edges and hollow in the middle. Nothing clips
+a shadow outside its own outline; the only thing that hides it is opaque content
+on top.
+
+A flat colour would have done that job and broken another: every row would freeze
+the gradient at its own top, and a card of five rows would become five bands.
+Slicing the card's gradient costs the same and does not show.
+
+Hence the need to know which card the caller is drawing in, in root coordinates
+and not a parent's: the things that need it are at different depths, a row being
+a direct child of the card, a choice in an expanded detail three levels lower.
+
+### It left settings, because the flaw was not confined there
+
+Moved on 2026-08-28 from `SettingsPieces.kt` to `ui/components/CardSlice.kt`. It
+was `internal` to the settings package, while the problem it solves, that a glow
+is a shadow and a shadow goes through anything not opaque, arises anywhere a
+transparent control carries the ring.
+
+The first to need it elsewhere was `PadTextField`, which belongs to no screen:
+its frame painted nothing, it let the card behind show through, and the cursor's
+glow was therefore seen inside it. The field now paints the exact slice of the
+gradient the card was already painting there, so nothing changes to the eye: the
+fill exists for the cursor, not for the look, and that is still true outside
+settings.
+
+The order in the modifier chain is what holds the three layers together: the
+shadow draws first, the opaque ground over it, and the ring's stroke over that
+again.
+
+## Two focus traps, and their workarounds
+
+The "first row" flag is a flag, not a modifier passed in from outside. This row's
+`Modifier` applies to the column containing the row and its detail, and a
+`FocusRequester` placed there aims at a node that is not focusable: the request
+fails silently. It is the clickable row that must carry it, and that row is
+private.
+
+Expanding does not bring the content on screen by itself. The cursor stays on the
+row: nothing moves from focus's point of view, so automatic scrolling has no
+reason to fire, and the content you just asked for opens below the fold. So it is
+asked for explicitly, and on the whole column, row and detail, failing which only
+the row is brought back, and it was already visible. And after the opening
+animation, not during: the column is still measuring its previous height when the
+state changes.
+
+An expandable row's identity is an enum, not an index: the section order
+rearranges between portrait and landscape, and an index would have opened the
+wrong row on rotating the device.
+
+A chevron that does not turn says "it is elsewhere". The theme opens its own
+panel rather than expanding, a screen's way of saying the difference between "it
+is below" and "it is elsewhere".
+
+## The status lines, and what nobody would guess
+
+The second screen: without its status line, the row is a promise the player
+cannot check. They switch it on, nothing happens, and they cannot tell whether the
+feature is broken or their device has only one screen. Naming the panel found, or
+saying there is none, answers before they go looking.
+
+Notifications: Emufii is sideloaded, so no push service can wake it. Outside the
+app, Android decides when to let the watcher look, and that is a quarter of an
+hour at best. Saying so here costs one sentence and buys the player's trust in
+every alert that does arrive; leaving it out would make the feature look broken
+the first time an alert is late.
+
+The accessibility service is re-read while this screen is showing, not once:
+going off to Android's settings is a journey outside the app, not a dialog with a
+result, so the answer only exists on return. Polled, which costs less than a
+lifecycle observer for one boolean, and it is what turns the row green under the
+player's eyes.
+
+## Autofill has its own row because Android can switch it off
+
+An accessibility service is not a permission the app holds: it is a system
+setting the player granted, and one the system withdraws by itself, on an update,
+on a restore to a new device, from a battery optimiser.
+
+The session screen used to carry the way back, as a button that only appeared
+once the automation was already off, at the foot of a card nobody scrolls. Its
+place is here: a switch you flip once in the app's life is plumbing, and plumbing
+lives in settings. The row shows the state whether it is on or off, which makes it
+findable before something goes wrong rather than after.
+
+## What settings say about what Emufii does not do
+
+The console keys row deliberately says what Emufii does not do, supply keys,
+download any, send the file anywhere, because asking for a key file with no
+explanation is how an app gets uninstalled.
+
+The SteamGridDB key is shown in the clear and not masked: it is not a password,
+it opens only a catalogue of public images, read only. Masking it would mostly
+get in the way of spotting a typo, the one likely incident: a wrong key says
+nothing, it simply brings nothing back.
+
+The ROM folder and its rescan button were chips in the library dock, permanently
+in front of somebody who had chosen their folder months earlier. Plumbing you set
+once belongs in settings.
+
+## The theme opens a panel, it does not expand
+
+The app's appearance is not a settings-line detail. It was nine labelled choices
+stacked in the card, pushing everything after it off screen, and asking the
+reader to imagine what each name looked like. Its value always names both halves
+of the choice, so the row says where things stand without being open.
+
+## A button is named for what it does
+
+Of two actions, only one is filled: the one that does the work. As pills of equal
+weight they read as a choice between equals, which sent people back to the folder
+picker they had just come through.
+
+Once the work is done, the accent leaves rather than the label turning into a
+boast. A button saying "profile installed" that nonetheless reruns the whole
+preparation lies, and a button that does nothing is not a button. The work is
+therefore demoted to an ordinary errand, doing it again, and it is the hollow
+below that says it is installed. The section stops asking for something, which is
+the change the eye looks for.
+
+## Restoring hidden games is all or nothing
+
+A list of hidden games would need their titles and their icons, read from files
+this screen never scans: it would therefore show paths. And a player who has
+hidden three regional copies of one game gains nothing from choosing between
+three identical lines.
+
+Bringing everything back costs one more deletion to redo, and it always works.
+
+## A state badge carries two words, never a sentence
+
+In a block header the title carries the weight and the badge does not, and in
+Compose, inside a row, what has no weight is served first. A badge whose label was
+a whole sentence ("SteamGridDB, for what Cocoon does not cover", 665 px) took the
+whole line and left zero pixels to the title. The "Fallback images" card no longer
+showed its name: just a sentence floating in the middle of nothing.
+
+Two fixes, because one is not enough. The label went short again, and the
+explanation went back into the block's note, which is its place. And the badge
+gets a weight without a fill, which bounds it to half the row: a short label keeps
+its natural width, an over-long one ellipsises instead of erasing the title.
+
+The remedy is still to write short; the guard only stops the mistake being
+invisible next time. Checked on 2026-08-29: no other badge in the app runs past
+fifteen characters.
+
+## The console tile has a short version
+
+With no version number and a smaller icon, it goes from 124 to 92 dp tall and
+from 118 to 92 dp minimum wide. Written for onboarding, where seven full tiles do
+not fit on one line: they need 118 dp each for "GameCube" and a number to fit on
+their own lines, and the Thor offers only 709 once the margins are paid.
+
+What is removed is the version number. At install time the question asked is
+"which machines do you play", not "which version of the emulator do I have"; that
+last one comes later, on this page, where the full tile still carries it. The icon
+and the emulator name stay: they already say whether it is installed, which is the
+other half of the answer.
+
+## Two columns, and it goes down, never sideways
+
+The single column had been chosen because a settings page has no content to show,
+only names to read. That was true of the row and false of the column: seven plates
+stacked on a screen 1080 wide left two thirds of the width empty.
+
+Two columns of equal width, filled row by row, and the overflow below. Sideways
+overflow was tried first, two rows scrolling across, like the reference, and
+refused: on a machine whose right thumb falls on a D-pad, you scroll a settings
+page down, you do not push it sideways.
+
+Nothing lazy in this hub, and that is the point: the seven cells are composed, so
+focus traversal always finds its destination and brings the selected cell into
+view itself. It is the exact opposite of the library, which holds its own cursor
+because a `LazyVerticalGrid` does not compose the tile a direction aims at. Seven
+cells are not worth that machinery.
+
+## A console carries a row, not a tile
+
+Three rebuilds in a day, and it is the question added, "with which build", that
+settled the shape. The page was a grid of square tiles: good for "what plays
+what", weak for "which one is on" (seven tiles with the same treatment, the state
+carried by a difference in ink), and with no room for the build, which does not
+fit in a square already full of four centred lines.
+
+A console therefore carries a row: icon, name, build, switch, on a single reading
+axis, and the build choice below it when there is one to make. Two columns as soon
+as the screen carries them: seven rows in a line would waste half a landscape
+screen and still overflow.
+
+What the enclosing card carried has gone back where it costs no height: the count
+at the end of the page title, the sentence right above the rows it governs. A card
+that groups nothing against nothing is not a group, it is a frame.
+
+## The ring and the pencil badge are siblings, not parent and child
+
+One cursor stop on the avatar, not two: the photo and the pencil trigger the same
+thing, and two focusable nodes for one gesture made two direction presses with
+nothing moving on screen.
+
+`Modifier.border` draws over the content of the node carrying it: while the
+pencil badge was inside, the ring's stroke went through it, since it sits at the
+corner of a square box, therefore straddling the circle. The ring is therefore on
+the avatar's box alone, and the badge declared after it, so drawn on top. It is
+the only thing that has to stand out of the circle, and it stands out whole.
+
+Focus stays on the outer box, one stop, and the finger reaches the badge too, but
+`controlRing` is silent there and serves only to bring the photo into view; it is
+`focusRing` that draws, underneath.
+
+## What sits at the end of a page title
+
+For the state of a page with only one subject. Putting it in a block header would
+force inventing a second title under the first, and two titles 40 dp apart say the
+same thing twice.
+
+## A block fact has no hollow around it
+
+The hollow says "here is what is", and it deserved one when the state arrived at
+the foot of an expanded row. In a block header the state is already said by the
+badge, and one more hollow per block stacked three levels of container.
+
+## Collapsing is reserved for what you set once
+
+A service key, not a state you come to check. A collapsed block says only its
+title and its badge; if what it hides is what the player came to read, collapsing
+has only added a gesture.
+
+## How many tiles per line, and the width that decides it
+
+The count is measured on the width actually given to the grid, never on the
+screen's. Onboarding gives it the entire width; the settings page is the same
+screen but some 90 dp narrower once the card and its margins are paid, and a
+count taken from the screen put seven tiles there anyway: "GameCube" came out as
+"GameCu" and a version as "v2126.0-va". A tile that has to abbreviate its own
+console has stopped doing its job.
+
+The minimum width is the one where a tile still holds the longest console name
+and the longest version, each on its own line. Below three columns the grid stops
+being a grid, so that is the floor.
+
+And we do not take the maximum that fits: that was the reflex, and it gives the
+worst result of the lot, seven consoles in a card that carries six making six
+tiles and then one alone on the next line. An orphan reads as an oversight, not
+as a grid. The count chosen is the one that best fills the last row, widest to
+narrowest: seven in six columns becomes four plus three.
+
+A tile's height is fixed: the last row's sockets must be the same, and an
+intrinsic height is not shared between siblings without measuring.
+
+## An emulator's version is trimmed at display, not at the source
+
+PPSSPP names its builds "v1.20.4", already carrying the letter the label adds, and
+"vv1.20.4" is what came out on the Thor. So it is trimmed at display rather than
+stripping the prefix from the string: the other five report a bare number, and a
+column of versions with only one marked out reads worse than either.

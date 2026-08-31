@@ -44,13 +44,10 @@ import eu.emufii.app.ui.controlRing
 import eu.emufii.app.ui.tap
 
 /**
- * La page du profil : la photo, le pseudo, et ce que les autres en voient.
- *
- * La remise a zero vit ici et nulle part ailleurs. Elle avait sa propre
- * section « zone rouge » sur l'ecran unique ; une fois l'ecran decoupe, une
- * section entiere pour une rangee qu'on presse une fois dans la vie de l'app
- * n'avait plus lieu d'etre, et le geste appartient a l'identite qu'il efface.
- * pourquoi : docs/decisions/reglages-ecran.md § La remise à zéro vit sur la page qu'elle efface
+ * The photo, the nickname, and what others see of them. The reset lives here and
+ * nowhere else; it had its own red-zone section on the single screen, and once that was
+ * split, a whole section for a row pressed once was too much.
+ * pourquoi : docs/decisions/reglages-ecran.md § The reset lives on the page it erases
  */
 @Composable
 internal fun ProfilePage(
@@ -81,10 +78,10 @@ internal fun ProfilePage(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            // Un seul arret de curseur, et la pastille du crayon
-                            // est declaree **apres** l'anneau : `border` dessine
-                            // par-dessus le contenu du noeud qui le porte.
-                            // pourquoi : docs/decisions/reglages-ecran.md § L'anneau et la pastille du crayon sont frères, pas parent et enfant
+                            // One cursor stop, and the pencil pill is declared after
+                            // the ring: `border` draws over the content of the node
+                            // carrying it.
+                            // pourquoi : docs/decisions/reglages-ecran.md § The ring and the pencil badge are siblings, not parent and child
                             var photoFocused by remember { mutableStateOf(false) }
                             Box(
                                 contentAlignment = Alignment.BottomEnd,
@@ -105,7 +102,7 @@ internal fun ProfilePage(
                                 }
                                 Surface(
                                     shape = CircleShape,
-                                    // Corail : le profil est le domaine social.
+                                    // Coral: the profile is the social domain.
                                     color = domainInk(EntryDomain.SOCIAL),
                                     modifier = Modifier.size(28.dp)
                                 ) {
@@ -134,10 +131,10 @@ internal fun ProfilePage(
                                 },
                                 placeholder = stringResource(R.string.profile_default_name),
                                 label = stringResource(R.string.profile_name_label),
-                                // Le meme plancher qu'a l'accueil : la regle doit
-                                // tenir partout ou le nom s'edite, sinon le pseudo
-                                // raccourci ici retombe dans le formulaire de
-                                // l'emulateur sous une forme qu'il refuse.
+                                // The same floor as the onboarding: the rule has to
+                                // hold everywhere the name is edited, or a nickname
+                                // shortened here comes back in a form the emulator
+                                // refuses.
                                 isError = name.trim().length < Profile.MIN_NAME_LENGTH,
                                 supportingText = {
                                     Text(
@@ -166,11 +163,10 @@ internal fun ProfilePage(
             },
             {
                 SettingsBlock(title = stringResource(R.string.settings_profile_seen_by)) {
-                    // Montrer plutot que decrire. « Ta photo et ton pseudo sont
-                    // visibles par tes amis » demandait au joueur d'imaginer le
-                    // resultat ; la rangee ci-dessous **est** le resultat, dessinee
-                    // comme la liste d'amis la dessine.
-                    // pourquoi : docs/decisions/reglages-ecran.md § Les images des pages viennent de l'appareil, pas d'une banque
+                    // Show rather than describe. "Your photo and nickname are visible
+                    // to your friends" asked the player to imagine the result; the row
+                    // below is the result, drawn as the friends list draws it.
+                    // pourquoi : docs/decisions/reglages-ecran.md § The pages' images come from the device, not from a stock library
                     SeenByOthers(name = name)
                     DetailNote(stringResource(R.string.profile_photo_note))
                 }
@@ -185,20 +181,15 @@ internal fun ProfilePage(
 }
 
 /**
- * Le joueur tel que les autres le voient — **sans sa photo**.
- *
- * C'est tout l'interet de cet apercu, et ca a failli etre son defaut : la
- * premiere version affichait l'avatar avec le fichier local, et donnait donc
- * exactement le contraire de ce que la phrase en dessous explique. La photo
- * ne quitte pas l'appareil ; les autres recoivent les initiales et la couleur.
- * Montrer ce qu'ils recoivent apprend en une rangee ce qu'un paragraphe
- * demandait d'imaginer.
- * pourquoi : docs/decisions/reglages-ecran.md § Les images des pages viennent de l'appareil, pas d'une banque
+ * The player as others see them, without their photo. That is this preview's whole
+ * point, and it nearly was its flaw: the first version showed the avatar from the local
+ * file, giving exactly the opposite of what the sentence below explains.
+ * pourquoi : docs/decisions/reglages-ecran.md § The pages' images come from the device, not from a stock library
  */
 @Composable
 private fun SeenByOthers(name: String) {
     val dark = LocalEmufiiDarkTheme.current
-    // Le vert du « en ligne », pris du theme : Good tire vers le turquoise.
+    // The online green, taken from the theme: Good leans teal.
     val online = if (dark) GoodDark else GoodLight
     val displayName = playerDisplayName(name.ifBlank { Profile.DEFAULT_NAME })
     Row(

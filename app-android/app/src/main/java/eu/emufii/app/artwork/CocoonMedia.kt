@@ -14,7 +14,7 @@ import java.util.concurrent.ConcurrentHashMap
  * Cocoon Shell scrapes a library and files what it finds under the ROM's own
  * filename. That is the whole trick: no catalogue to search, no name to guess,
  * no key to type. A player who has already given their games a face in Cocoon
- * should see that same face here, and the point is not to save a download — it
+ * should see that same face here, and the point is not to save a download: it
  * is that the choice was theirs. A game they re-cropped, or whose alternate
  * cover they preferred, is the one they mean.
  *
@@ -92,7 +92,7 @@ object CocoonMedia {
      *
      * Read off the device and nothing else. The served catalogue can carry
      * screenshot links, and does for games Cocoon has never seen, but a picture
-     * that is already on the card beats one that needs a network — this panel is
+     * that is already on the card beats one that needs a network: this panel is
      * looked at on a handheld, often on a train, and it is the same argument
      * that puts Cocoon's own artwork before the catalogue's on the front screen.
      *
@@ -160,7 +160,7 @@ object CocoonMedia {
      *  - `Game.png` is what the scraper downloaded.
      *  - `Game (1).png` is a second download kept beside the first. Taken only
      *    when nothing better exists, and only when `Game` is really there next to
-     *    it — otherwise a game whose title genuinely ends in "(1)" would be
+     *    it: otherwise a game whose title genuinely ends in "(1)" would be
      *    filed under a name no ROM has.
      */
     private fun classify(stem: String, plain: Set<String>): Pair<String, Int> {

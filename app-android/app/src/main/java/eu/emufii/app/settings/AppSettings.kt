@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * Which language the app speaks. [SYSTEM] is the right default.
- * pourquoi : docs/decisions/reglages-et-consoles.md § Suivre le téléphone est le bon défaut, sauf pour l'accent
+ * pourquoi : docs/decisions/reglages-et-consoles.md § Following the phone is the right default, except for the accent
  */
 enum class AppLanguage(val tag: String?) {
     SYSTEM(null),
@@ -28,7 +28,7 @@ enum class AppLanguage(val tag: String?) {
 /**
  * Light or dark, or whatever the phone says. [OLED] is a *dark*, not a third
  * universe: everything reading [isDark] goes on seeing dark.
- * pourquoi : docs/decisions/reglages-et-consoles.md § L'OLED est un sombre, pas un troisième univers
+ * pourquoi : docs/decisions/reglages-et-consoles.md § OLED is a dark, not a third universe
  */
 enum class AppTheme {
     SYSTEM, LIGHT, DARK, OLED;
@@ -52,7 +52,7 @@ enum class AppTheme {
 /**
  * App-wide preferences. Small on purpose. The language goes through the
  * platform's per-app API, never a hand-juggled `Configuration`.
- * pourquoi : docs/decisions/reglages-et-consoles.md § La langue passe par la plateforme, le thème ne peut pas
+ * pourquoi : docs/decisions/reglages-et-consoles.md § Language goes through the platform, the theme cannot
  */
 class SettingsStore private constructor(context: Context) {
 
@@ -66,9 +66,9 @@ class SettingsStore private constructor(context: Context) {
     val theme: StateFlow<AppTheme> = _theme.asStateFlow()
 
     /**
-     * The player's SteamGridDB key. Every player brings their own — a key frozen
+     * The player's SteamGridDB key. Every player brings their own: a key frozen
      * into the APK is extractable and carries the whole fleet's quota.
-     * pourquoi : docs/decisions/reglages-et-consoles.md § Chaque joueur apporte sa propre clé
+     * pourquoi : docs/decisions/reglages-et-consoles.md § Every player brings their own key
      */
     private val _steamGridDbKey = MutableStateFlow(prefs.getString(KEY_SGDB, "").orEmpty())
     val steamGridDbKey: StateFlow<String> = _steamGridDbKey.asStateFlow()
@@ -76,7 +76,7 @@ class SettingsStore private constructor(context: Context) {
     /**
      * The Cocoon folder, when the player has one: their library then looks here
      * exactly as it looks there, with no key and no network.
-     * pourquoi : docs/decisions/reglages-et-consoles.md § Chaque joueur apporte sa propre clé
+     * pourquoi : docs/decisions/reglages-et-consoles.md § Every player brings their own key
      */
     private val _cocoonFolder = MutableStateFlow(prefs.getString(KEY_COCOON, "").orEmpty())
     val cocoonFolder: StateFlow<String> = _cocoonFolder.asStateFlow()
@@ -89,7 +89,7 @@ class SettingsStore private constructor(context: Context) {
     /**
      * The library's layout and order, kept here rather than in the screen. An
      * unknown value falls back to the default instead of failing the launch.
-     * pourquoi : docs/decisions/reglages-et-consoles.md § Ce qui est stocké, c'est ce qui est refusé
+     * pourquoi : docs/decisions/reglages-et-consoles.md § What is stored is what was refused
      */
     private val _libraryLayout = MutableStateFlow(
         LibraryLayout.entries.firstOrNull { it.name == prefs.getString(KEY_LAYOUT, null) }
@@ -114,9 +114,9 @@ class SettingsStore private constructor(context: Context) {
     }
 
     /**
-     * The consoles the player asked *not* to see. **Stored as what is hidden,
-     * never as what is shown** — the only default that cannot lose a game.
-     * pourquoi : docs/decisions/reglages-et-consoles.md § Ce qui est stocké, c'est ce qui est refusé
+     * The consoles the player asked *not* to see. Stored as what is hidden,
+     * never as what is shown: the only default that cannot lose a game.
+     * pourquoi : docs/decisions/reglages-et-consoles.md § What is stored is what was refused
      */
     private val _hiddenConsoles = MutableStateFlow(readHiddenConsoles())
     val hiddenConsoles: StateFlow<Set<Console>> = _hiddenConsoles.asStateFlow()
@@ -139,7 +139,7 @@ class SettingsStore private constructor(context: Context) {
     /**
      * Whether the second display carries the panel. On by default, stored even
      * on devices that have no second display.
-     * pourquoi : docs/decisions/reglages-et-consoles.md § Les défauts « activé », et pourquoi ce sont quand même des interrupteurs
+     * pourquoi : docs/decisions/reglages-et-consoles.md § The "on" defaults, and why they are switches all the same
      */
     private val _secondScreen = MutableStateFlow(prefs.getBoolean(KEY_SECOND_SCREEN, true))
     val secondScreen: StateFlow<Boolean> = _secondScreen.asStateFlow()
@@ -152,7 +152,7 @@ class SettingsStore private constructor(context: Context) {
     /**
      * Whether a friend's arrival may reach the system shade. On by default: a
      * friends list nobody is told about is an address book.
-     * pourquoi : docs/decisions/reglages-et-consoles.md § Les défauts « activé », et pourquoi ce sont quand même des interrupteurs
+     * pourquoi : docs/decisions/reglages-et-consoles.md § The "on" defaults, and why they are switches all the same
      */
     private val _notifyFriends = MutableStateFlow(prefs.getBoolean(KEY_NOTIFY_FRIENDS, true))
     val notifyFriends: StateFlow<Boolean> = _notifyFriends.asStateFlow()
@@ -165,7 +165,7 @@ class SettingsStore private constructor(context: Context) {
     /**
      * Whether a new version announces itself outside the app. On by default:
      * Emufii is sideloaded and no store speaks for it.
-     * pourquoi : docs/decisions/reglages-et-consoles.md § Les défauts « activé », et pourquoi ce sont quand même des interrupteurs
+     * pourquoi : docs/decisions/reglages-et-consoles.md § The "on" defaults, and why they are switches all the same
      */
     private val _notifyUpdates = MutableStateFlow(prefs.getBoolean(KEY_NOTIFY_UPDATES, true))
     val notifyUpdates: StateFlow<Boolean> = _notifyUpdates.asStateFlow()
@@ -183,15 +183,14 @@ class SettingsStore private constructor(context: Context) {
 
     /**
      * Unlike the language, no platform API owns this, so the choice lives here
-     * and the theme reads it — which also makes switching instant.
-     * pourquoi : docs/decisions/reglages-et-consoles.md § La langue passe par la plateforme, le thème ne peut pas
+     * and the theme reads it, which also makes switching instant.
+     * pourquoi : docs/decisions/reglages-et-consoles.md § Language goes through the platform, the theme cannot
      */
     fun setTheme(theme: AppTheme) {
         prefs.edit { putString(KEY_THEME, theme.name) }
         _theme.value = theme
     }
 
-    /** Read by the theme, like [setTheme], so the change is instant. */
     private fun readLanguage(): AppLanguage {
         // The platform is the source of truth once a choice has been made, so a
         // change from Android's own settings screen is reflected here too.
@@ -226,7 +225,7 @@ class SettingsStore private constructor(context: Context) {
          * The ONE store for the process: `SharedPreferences` is already shared,
          * the `StateFlow` in front of it is not. Building one per screen made
          * onboarding choices silently revert.
-         * pourquoi : docs/decisions/reglages-et-consoles.md § Un seul magasin pour le processus
+         * pourquoi : docs/decisions/reglages-et-consoles.md § One store for the process
          */
         @Volatile
         private var instance: SettingsStore? = null

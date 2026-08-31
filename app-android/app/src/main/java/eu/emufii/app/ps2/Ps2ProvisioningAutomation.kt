@@ -53,7 +53,7 @@ object Ps2ProvisioningAutomation {
 
     fun complete(context: Context, plan: Ps2ProvisioningPlan, store: Ps2ProvisioningStore) {
         if (!Ps2NetworkProfile.markAssigned(context, plan.cardName, plan.cardSha256)) {
-            fail("La carte vérifiée ne correspond plus à la préparation en cours.", store)
+            fail("The verified card no longer matches the preparation under way.", store)
             return
         }
         store.clear()
@@ -98,7 +98,7 @@ object Ps2ProvisioningAutomation {
     fun expireIfNeeded(store: Ps2ProvisioningStore, now: Long = System.currentTimeMillis()): Boolean {
         val current = _plan.value ?: return false
         if (now >= current.armedAtMs && now - current.armedAtMs <= Ps2ProvisioningStore.TTL_MS) return false
-        fail("La configuration ARMSX2 a expiré. Relance-la depuis EmuFii.", store)
+        fail("The ARMSX2 setup expired. Start it again from Emufii.", store)
         return true
     }
 }

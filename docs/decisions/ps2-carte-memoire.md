@@ -1,169 +1,154 @@
-# PS2 : la carte mémoire fabriquée, et le chiffrement YNCF
+# PS2: the fabricated memory card, and YNCF encryption
 
-Le récit qui vivait dans `ps2/Ps2MemoryCard.kt` et `ps2/Ps2NetcnfConfig.kt`, sorti
-du code le 2026-08-24 (cf. `docs/STYLE_COMMENTAIRES.md`). C'est de la
-**spécification de format** : chaque constante ci-dessous a été mesurée sur une
-vraie carte, pas recopiée d'un wiki. Titres = ancres citées depuis le code.
+The narrative that lived in `ps2/Ps2MemoryCard.kt` and `ps2/Ps2NetcnfConfig.kt`,
+taken out of the code on 2026-08-24 (see `docs/STYLE_COMMENTAIRES.md`). This is
+format specification: every constant below was measured on a real card, not
+copied off a wiki. Headings are anchors cited from the code.
 
-## Ce que l'émulateur vérifie d'une carte : presque rien
+## What the emulator checks of a card: almost nothing
 
-ARMSX2 ouvre le fichier, déduit la géométrie de sa taille, et transmet sinon les
-pages telles quelles à l'invité — 512 octets de données plus 16 octets de réserve
-chacune (`pcsx2/SIO/Memcard/MemoryCardFile.cpp`, `MemoryCardProtocol.cpp`).
+ARMSX2 opens the file, infers the geometry from its size, and otherwise passes
+the pages through to the guest as they are, 512 bytes of data plus 16 bytes of
+spare each (`pcsx2/SIO/Memcard/MemoryCardFile.cpp`, `MemoryCardProtocol.cpp`).
 
-**Tout jugement — chaîne magique, cohérence de la FAT, modes de répertoire, ECC —
-est rendu par la console émulée**, contre des octets que l'image porte
-littéralement. Une carte fabriquée est donc tenue à ce que le BIOS lui-même écrit,
-et la disposition suivie ici est modelée sur une carte qu'il a réellement écrite :
-celle que la PS2 a formatée à travers ARMSX2 le 2026-08-20, puis que l'utilitaire
-réseau de Midnight Club 3 a remplie, **octet pour octet**, avant que les mêmes
-mesures deviennent ces constantes.
+Every judgement (magic string, FAT consistency, directory modes, ECC) is made by
+the emulated console, against bytes the image carries literally. A fabricated
+card is therefore held to what the BIOS itself writes, and the layout followed
+here is modelled on a card it actually wrote: the one the PS2 formatted through
+ARMSX2 on 2026-08-20, then filled by Midnight Club 3's network utility, byte for
+byte, before those same measurements became these constants.
 
-## La disposition, dans l'ordre de la carte
+## The layout, in card order
 
-L'image est la disposition RAW 8 Mo standard : **16 384 pages de 528 octets =
-8 650 752 octets**, une sauvegarde `BWNETCNF` à la racine, et l'espace libre effacé
-à `0xFF`. C'est aussi pourquoi la génération reste déterministe à bon compte : rien
-sur la carte ne dépend d'autre chose que des octets de la sauvegarde et de
-l'horloge.
+The image is the standard 8 MB RAW layout: 16,384 pages of 528 bytes =
+8,650,752 bytes, a `BWNETCNF` save at the root, and free space erased to `0xFF`.
+It is also why generation stays cheaply deterministic: nothing on the card
+depends on anything but the save's bytes and the clock.
 
-- **Page 0, le superbloc** : `Sony PS2 Memory Card Format 1.2.0.0`, 512 octets par
-  page, 2 pages par cluster, 16 par bloc, 8192 clusters, allocation à partir du
-  cluster 41, et les constantes de queue que le BIOS écrit au formatage. **Il n'y a
-  pas de somme de contrôle de superbloc dans ce format** — le mcman de Sony laisse
-  `0x48`-`0x4F` en remplissage (ps2sdk `mcman-internal.h:308`) — et aucune entrée de
-  répertoire n'en porte non plus.
-- **Pages 1-15**, le reste du premier bloc réservé : des données effacées, mais
-  **avec** leurs réserves ECC, parce que c'est ce que le formatage du BIOS laisse
-  là. Les 8 premiers octets de la page 1 sont l'affaire d'ARMSX2 — il y garde une
-  somme de contrôle côté hôte, au décalage `0x210` — et il les estampe lui-même : la
-  génération les laisse effacés.
-- **Cluster 8**, la FAT indirecte listant les 32 clusters de FAT, 9 à 40. Les
-  entrées sont des u32 petit-boutistes indexées depuis le décalage d'allocation :
-  `0x7FFFFFFF` libre, `0x80000000 | suivant` dans une chaîne, `0xFFFFFFFF` pour le
-  dernier cluster.
-- **À partir du cluster 41** : le répertoire racine (`.`, `..`, `BWNETCNF`), le
-  répertoire propre de la sauvegarde, puis les données du fichier — alloués dans cet
-  ordre pour que les clusters d'un fichier restent contigus, comme les laisse
-  l'allocateur premier-ajusté de la console.
+- Page 0, the superblock: `Sony PS2 Memory Card Format 1.2.0.0`, 512 bytes per
+  page, 2 pages per cluster, 16 per block, 8192 clusters, allocation from cluster
+  41, and the tail constants the BIOS writes at format time. There is no
+  superblock checksum in this format, Sony's mcman leaving `0x48`-`0x4F` as
+  padding (ps2sdk `mcman-internal.h:308`), and no directory entry carries one
+  either.
+- Pages 1-15, the rest of the first reserved block: erased data, but with their
+  ECC spares, because that is what the BIOS format leaves there. The first 8
+  bytes of page 1 are ARMSX2's business, it keeping a host-side checksum there at
+  offset `0x210`, and it stamps them itself: generation leaves them erased.
+- Cluster 8, the indirect FAT listing the 32 FAT clusters, 9 to 40. Entries are
+  little-endian u32 indexed from the allocation offset: `0x7FFFFFFF` free,
+  `0x80000000 | next` in a chain, `0xFFFFFFFF` for the last cluster.
+- From cluster 41 on: the root directory (`.`, `..`, `BWNETCNF`), the save's own
+  directory, then the file data, allocated in that order so a file's clusters stay
+  contiguous, as the console's first-fit allocator leaves them.
 
-**Une entrée de répertoire est complétée de zéros après son nom** — c'est ainsi que
-la console les laisse, et un lecteur parcourt les noms jusqu'au NUL — avec **un
-emplacement entièrement à `0xFF` après la dernière entrée** pour terminer. Le nom
-occupe 32 octets à `0x40`.
+A directory entry is zero-padded after its name, which is how the console leaves
+them, and a reader walks names to the NUL, with an entirely `0xFF` slot after the
+last entry to terminate. The name occupies 32 bytes at `0x40`.
 
-L'horodatage est **le temps de la PS2 : huit octets en heure du Japon**, quel que
-soit le réglage de la console (Ross Ridge, « PlayStation 2 Memory Card File
-System ») — réservé, seconde, minute, heure, jour, mois, puis une année
-petit-boutiste.
+The timestamp is PS2 time: eight bytes in Japan time, whatever the console is set
+to (Ross Ridge, "PlayStation 2 Memory Card File System"): reserved, second,
+minute, hour, day, month, then a little-endian year.
 
-Les **16 octets de réserve** d'une page écrite sont quatre codes de Hamming de 3
-octets, un par tranche de 128 octets, puis quatre zéros. L'algorithme est celui que
-portent le mcman de Sony, mymc et PCSX2 ; **l'émulateur ne le vérifie jamais, mais
-la console le peut**, donc il est calculé plutôt que rempli. La contribution de
-parité de colonne d'un octet est la parité impaire de l'octet masqué par le n-ième
-masque, pour les sept masques du code — les bits 3 et 6 étant toujours nuls, d'où
-le `0x77`.
+The 16 spare bytes of a written page are four 3-byte Hamming codes, one per
+128-byte slice, then four zeroes. The algorithm is the one Sony's mcman, mymc and
+PCSX2 all carry; the emulator never checks it, but the console can, so it is
+computed rather than filled. A byte's column parity contribution is the odd
+parity of the byte masked by the nth mask, for the code's seven masks, bits 3 and
+6 always being zero, hence the `0x77`.
 
-## La sauvegarde, et pourquoi rien de Sony n'y voyage
+## The save, and why nothing of Sony's travels in it
 
-`BWNETCNF` porte la configuration réseau en mode `0x842F` ; son bit `0x08` marque
-le répertoire protégé contre la copie dans le navigateur du BIOS.
+`BWNETCNF` carries the network configuration in mode `0x842F`; its `0x08` bit
+marks the directory copy-protected in the BIOS browser.
 
-Dedans : l'index, `net000.cnf`, les deux moitiés chiffrées, et **une paire d'icônes
-générée ici plutôt que livrée**. Il n'y a là rien de Sony qui vaille d'être
-embarqué : `icon.sys` fait 964 octets de champs d'en-tête documentés — quatre
-couleurs de coin, trois lumières et une ambiante, le titre, et le nom de l'icône
-trois fois (normale, copie, suppression) — et l'icône elle-même est **un seul quad
-texturé d'une couleur unie**.
+Inside: the index, `net000.cnf`, the two encrypted halves, and an icon pair
+generated here rather than shipped. There is nothing of Sony's worth embedding:
+`icon.sys` is 964 bytes of documented header fields, four corner colours, three
+lights and an ambient, the title, and the icon name three times (normal, copy,
+delete), and the icon itself is a single textured quad of one flat colour.
 
-Le format d'icône est un en-tête de 20 octets, un bloc de sommets, une courte
-section d'animation, et une texture BGR555 de 128×128 — 32 768 octets non
-compressés, ce qui explique que le `SYS_NET.ICO` de Sony pèse 33 ko. **L'option de
-texture compressée tient en deux passes RLE d'un seul texel**, donc l'icône entière
-fait ici quelques centaines d'octets.
+The icon format is a 20-byte header, a vertex block, a short animation section,
+and a 128x128 BGR555 texture, 32,768 bytes uncompressed, which is why Sony's
+`SYS_NET.ICO` weighs 33 KB. The compressed-texture option fits in two RLE passes
+of a single texel, so the whole icon here is a few hundred bytes.
 
-Le titre est la seule chose personnalisée sur la carte : le nom de profil du joueur,
-réduit à de l'ASCII imprimable, `Emufii` si rien ne survit.
+The title is the only personalised thing on the card: the player's profile name,
+reduced to printable ASCII, `Emufii` if nothing survives.
 
-## YNCF : une sauvegarde ne se relit que sur la console qui l'a chiffrée
+## YNCF: a save can only be read back on the console that encrypted it
 
-Trois des fichiers sont en clair : l'index de sauvegarde, `net000.cnf`, et l'en-tête
-partagé de 38 octets des deux autres. **Les deux autres, `ifc000.dat` et
-`dev000.dat`, sont ce même texte passé dans un chiffre verrouillé sur la console** :
-la bibliothèque netcnf de Sony dérive une table de décalages de l'identifiant i.Link
-de 8 octets, et encode chaque mot de 16 bits petit-boutiste en
-`rotl16(mot, décalage) xor 0xFFFF` (ps2dev/ps2sdk, `netcnf.c`, encodage en :775,
-initialisation de clé en :875).
+Three of the files are in the clear: the save index, `net000.cnf`, and the shared
+38-byte header of the other two. The other two, `ifc000.dat` and `dev000.dat`,
+are that same text put through a cipher locked to the console: Sony's netcnf
+library derives a table of rotations from the 8-byte i.Link id, and encodes every
+little-endian 16-bit word as `rotl16(word, rotation) xor 0xFFFF` (ps2dev/ps2sdk,
+`netcnf.c`, encoding at :775, key init at :875).
 
-**La conséquence, et la raison d'être de ce fichier : il n'y a aucun matériel de clé
-dans le fichier, et aucune somme de contrôle pour échouer bruyamment.** Une console
-qui ne correspond pas décode de la bouillie, et le jeu signale la configuration comme
-invalide.
+The consequence, and the reason this file exists: there is no key material in the
+file, and no checksum to fail loudly. A console that does not match decodes mush,
+and the game reports the configuration as invalid.
 
-La table de décalages **cycle avec une période de 24 mots (48 octets)**, trois
-décalages par octet d'identifiant — d'où le fait que deux fichiers chiffrés sous une
-même console partagent leurs 48 premiers octets dès que leurs textes en clair les
-partagent. Les 24 décalages sont `(b shr 5) + 1`, `((b shr 2) and 7) + 1`,
-`(b and 3) + 1`, chacun de 1 à 8.
+The rotation table cycles with a period of 24 words (48 bytes), three rotations
+per id byte, which is why two files encrypted under one console share their first
+48 bytes as soon as their plaintexts do. The 24 rotations are `(b shr 5) + 1`,
+`((b shr 2) and 7) + 1`, `(b and 3) + 1`, each from 1 to 8.
 
-**Un écart avec ps2sdk, tranché par la mesure** : sa transcription n'initialise que
-sept des huit octets d'identifiant et laisse deux cases de table déborder du tableau.
-Décoder la carte du banc sous la table simple de huit octets **reproduit chaque mot
-des deux fichiers chiffrés**, et c'est cette lecture qui est suivie ici.
+One divergence from ps2sdk, settled by measurement: its transcription initialises
+only seven of the eight id bytes and lets two table slots run off the array.
+Decoding the bench card under the plain eight-byte table reproduces every word of
+both encrypted files, and that is the reading followed here.
 
-## Pour quel identifiant chiffrer
+## Which id to encrypt for
 
-ARMSX2 répond au `sceCdRI` de la bibliothèque netcnf depuis le `.nvm` posé à côté du
-BIOS qui tourne, et **les deux chemins qui produisent cette réponse convergent vers
-une seule constante** (`pcsx2/CDVD/CDVD.cpp`) :
+ARMSX2 answers the netcnf library's `sceCdRI` from the `.nvm` placed next to the
+running BIOS, and both paths producing that answer converge on a single constant
+(`pcsx2/CDVD/CDVD.cpp`):
 
-- pas de `.nvm` lisible → `cdvdCreateNewNVM()` écrit l'identifiant factice
-  `00 AC FF FF FF FF B9 86` (CDVD.cpp:158) ;
-- un `.nvm` dont la zone i.Link paraît non programmée (octets 2 et 3 tous deux nuls)
-  → `sceCdReadILinkId` remplace la lecture par la même constante
+- no readable `.nvm` -> `cdvdCreateNewNVM()` writes the dummy id
+  `00 AC FF FF FF FF B9 86` (CDVD.cpp:158);
+- a `.nvm` whose i.Link area looks unprogrammed (bytes 2 and 3 both zero) ->
+  `sceCdReadILinkId` replaces the read with the same constant
   (CDVD.cpp:2621-2631).
 
-Une carte chiffrée pour cet identifiant marche donc **sur toute installation dont
-ARMSX2 a fabriqué lui-même la NVRAM** — l'import de BIOS en un seul `.bin`, qui est
-l'installation normale. Une installation ayant importé le `.nvm` d'une vraie console
-garde l'identifiant réel de celle-ci et doit être chiffrée pour lui.
+A card encrypted for that id therefore works on any install whose NVRAM ARMSX2
+made itself, the single-`.bin` BIOS import, which is the normal install. An
+install that imported a real console's `.nvm` keeps that console's real id and
+must be encrypted for it.
 
-**C'est le défaut que ceci remplace : la carte qu'Emufii livrait était chiffrée pour
-l'identifiant d'une console du banc, et ne marchait nulle part ailleurs.**
+That is the flaw this replaces: the card Emufii shipped was encrypted for a bench
+console's id, and worked nowhere else.
 
-Deux précautions de lecture de la NVRAM : les callers doivent **choisir explicitement
-la disposition** d'après le BIOS réellement détecté — inspecter les deux décalages
-peut silencieusement ramasser des octets périmés laissés dans une zone sans rapport
-d'un `.nvm` importé. Et ARMSX2 **écarte le contenu importé** puis rappelle
-`cdvdCreateNewNVM()` si la NVM est courte, si le bloc de langue est vierge, ou si le
-bloc de région slim l'est.
+Two cautions when reading the NVRAM: callers must choose the layout explicitly
+from the BIOS actually detected, since inspecting both offsets can silently pick
+up stale bytes left in an unrelated area of an imported `.nvm`. And ARMSX2
+discards the imported content and calls `cdvdCreateNewNVM()` again if the NVM is
+short, if the language block is blank, or if the slim region block is.
 
-## Ce que la configuration dit, et ce qu'elle ne dit surtout pas
+## What the configuration says, and what it must not say
 
-`type nic` + `dhcp`, rien d'autre. Les textes en clair sont **octet pour octet ceux
-que la PS2 a écrits sur le banc** (mesuré le 2026-08-20, récupérés en décodant la
-carte livrée) : `dhcp`, pas d'adresse, pas de serveur de noms — et pour la moitié
-« périphérique », le nom de l'adaptateur Ethernet de SCE.
+`type nic` plus `dhcp`, nothing else. The plaintexts are byte for byte the ones
+the PS2 wrote on the bench (measured 2026-08-20, recovered by decoding the
+shipped card): `dhcp`, no address, no name server, and for the "device" half, the
+name of SCE's Ethernet adapter.
 
-**L'adresse statique d'une PS2 n'est pas l'affaire de ce fichier dans Emufii** : le
-Local Link d'ARMSX2 fait tourner son propre serveur DHCP et remet à chaque pair une
-adresse distincte dérivée de son identifiant de pair
-(`pcsx2/DEV9/LocalLinkAdapter.cpp:167`). La console demande donc un bail et
-l'émulateur la distingue de tous les autres joueurs. **Une IP statique écrite à la
-main ici mettrait au contraire tous les joueurs sur la même adresse.**
+A PS2's static address is not this file's business in Emufii: ARMSX2's Local Link
+runs its own DHCP server and hands each peer a distinct address derived from its
+peer id (`pcsx2/DEV9/LocalLinkAdapter.cpp:167`). The console therefore asks for a
+lease and the emulator tells it apart from every other player. A static IP
+written by hand here would instead put every player on the same address.
 
-## Les sauvegardes du dossier viennent sur l'image, pas l'inverse
+## The folder's saves come onto the image, not the other way round
 
-Une carte mémoire « dossier » de PCSX2 ne peut pas porter le profil réseau :
-PCSX2 l'indexe filtrée par le jeu qui tourne, et `BWNETCNF` ne correspond à aucun
-serial, donc le profil serait écrit là où la console ne peut jamais le lire. Le
-profil vit donc sur une image générée en emplacement 1, et la question qui reste
-est ce que deviennent les sauvegardes du joueur.
+A PCSX2 "folder" memory card cannot carry the network profile: PCSX2 indexes it
+filtered by the running game, and `BWNETCNF` matches no serial, so the profile
+would be written where the console can never read it. The profile therefore lives
+on a generated image in slot 1, and the remaining question is what becomes of the
+player's saves.
 
-**Laisser la carte dossier en emplacement 2 n'est pas la réponse**, et la raison
-mérite d'être dite précisément, parce que la lecture évidente du journal est
-fausse. ARMSX2 ouvre la carte avant de savoir ce qui démarre :
+Leaving the folder card in slot 2 is not the answer, and the reason deserves to
+be stated precisely, because the obvious reading of the log is wrong. ARMSX2
+opens the card before knowing what is booting:
 
 ```
 McdSlot 0 [File]: EmuFii-Network.ps2 [8 MB, Formatted]
@@ -171,95 +156,90 @@ McdSlot 1: [Folder] /storage/emulated/0/Armsx2/memcards/MemoryCard
 FolderMcd: Indexing slot 1 with filter "".
 ```
 
-Ce filtre vide n'est pas une carte que le jeu ne peut pas lire — mesuré sur la
-Thor le 2026-08-23, le jeu y trouve bien son profil. Ce qui ne marche pas, c'est
-tout le reste : le navigateur du BIOS montre cette carte comme vide, donc une
-sauvegarde ne peut pas être recopiée à la main, et les deux cartes restent
-séparées sans moyen de les réunir. Copier les sauvegardes sur la carte qui porte
-le profil est ce qui met tout au même endroit, celui sur lequel la console est
-d'accord.
+That empty filter is not a card the game cannot read: measured on the Thor on
+2026-08-23, the game does find its profile there. What does not work is
+everything else: the BIOS browser shows that card as empty, so a save cannot be
+copied across by hand, and the two cards stay separate with no way to reunite
+them. Copying the saves onto the card carrying the profile is what puts
+everything in one place, the one the console agrees on.
 
-## `_pcsx2_index` se lit, ne se copie jamais
+## `_pcsx2_index` is read, never copied
 
-La disposition qu'ARMSX2 écrit :
+The layout ARMSX2 writes:
 
 ```
-memcards/<carte>/_pcsx2_superblock
-memcards/<carte>/<SAUVEGARDE>/_pcsx2_index
-memcards/<carte>/<SAUVEGARDE>/<les fichiers de la sauvegarde>
+memcards/<card>/_pcsx2_superblock
+memcards/<card>/<SAVE>/_pcsx2_index
+memcards/<card>/<SAVE>/<the save's files>
 ```
 
-`_pcsx2_index` est la comptabilité de PCSX2 et ne doit **jamais** atterrir dans
-une image de carte : la console n'en sait rien, et une sauvegarde qui porte un
-fichier en trop est une sauvegarde que le jeu peut refuser.
+`_pcsx2_index` is PCSX2's bookkeeping and must never land in a card image: the
+console knows nothing of it, and a save carrying one extra file is a save the
+game may refuse.
 
-Ce pour quoi on le lit est l'**ordre** des fichiers — celui dans lequel la
-console les a écrits, et celui qu'un répertoire d'une vraie carte porte. Un
-fichier que l'index ne mentionne pas n'est pas jeté : il passe après les autres,
-par ordre alphabétique. Perdre un octet de la sauvegarde de quelqu'un pour une
-discordance de comptabilité n'est pas un échange qui vaut la peine.
+What it is read for is the order of the files, the one the console wrote them in,
+and the one a real card's directory carries. A file the index does not mention is
+not thrown away: it comes after the others, alphabetically. Losing a byte of
+somebody's save over a bookkeeping mismatch is not a trade worth making.
 
-Le fichier est une correspondance YAML en flux écrite par rapidyaml, pas du JSON,
-donc il se lit au balayage tolérant plutôt qu'avec un analyseur : les noms
-portent des points et des tirets, et le seul champ qui compte ici est `order`.
+The file is a flow YAML mapping written by rapidyaml, not JSON, so it is read by
+tolerant scanning rather than with a parser: the names carry dots and dashes, and
+the only field that matters here is `order`.
 
-## Opérer la carte du joueur plutôt que lui en donner une neuve
+## Operating on the player's card rather than handing them a new one
 
-L'image source du joueur est lue, `BWNETCNF` inséré ou remplacé, et un nouveau
-tableau d'octets rendu pour que la couche de provisionnement le publie en clone.
-Le tableau d'entrée n'est jamais modifié. Les charges utiles des sauvegardes
-existantes survivent à la réécriture du système de fichiers sans changer, donc
-aucune cérémonie de copie par le BIOS n'est nécessaire.
+The player's source image is read, `BWNETCNF` inserted or replaced, and a new
+byte array returned for the provisioning layer to publish as a clone. The input
+array is never modified. Existing saves' payloads survive the filesystem rewrite
+unchanged, so no BIOS copy ceremony is needed.
 
-**La carte se lit par son propre superbloc** — géométrie, FAT indirecte, chaînes
-de la FAT, répertoire racine — jamais par supposition : une carte de 8 Mo et une
-de 64, un formatage BIOS et un formatage PCSX2, tous se déclarent.
+The card is read through its own superblock (geometry, indirect FAT, FAT chains,
+root directory), never by assumption: an 8 MB card and a 64 MB one, a BIOS format
+and a PCSX2 format, all declare themselves.
 
-Un `BWNETCNF` existant, s'il y en a un, est libéré : ses chaînes de fichier et
-ses grappes de répertoire rendues à la FAT, son entrée racine compactée, les
-sauvegardes qui le suivaient remontées avec leurs références arrière corrigées.
-Une sauvegarde neuve est écrite pour l'identifiant de console visé, allouée au
-premier trou libre de la FAT — la fragmentation est sans conséquence — et chaque
-page touchée est réécrite avec ses données et un ECC recalculé.
+An existing `BWNETCNF`, if there is one, is freed: its file chains and directory
+clusters returned to the FAT, its root entry compacted, the saves that followed
+it moved up with their back references corrected. A fresh save is written for the
+target console id, allocated at the first free FAT hole, fragmentation being of
+no consequence, and every touched page is rewritten with its data and a
+recomputed ECC.
 
-Aucune somme de contrôle n'existe nulle part dans le format qu'il faudrait
-maintenir, et le superbloc ne tient aucun compte de l'espace libre : rien hors de
-la FAT et des deux répertoires ne change.
+No checksum exists anywhere in the format that would need maintaining, and the
+superblock keeps no account of free space: nothing outside the FAT and the two
+directories changes.
 
-Une carte entièrement à `0xFF` — ce qu'ARMSX2 fabrique à l'installation, avant
-que le BIOS ne l'ait jamais formatée — n'a pas de système de fichiers à lire.
-Elle est donc formatée d'abord, avec les constantes du générateur, à la taille du
-fichier reçu.
+An entirely `0xFF` card, which is what ARMSX2 makes at install before the BIOS
+has ever formatted it, has no filesystem to read. It is therefore formatted
+first, with the generator's constants, at the size of the file received.
 
-## Retrouver l'identifiant d'une carte déjà écrite
+## Recovering the id of an already-written card
 
-`recoverConsoleId` est un outil de diagnostic et de migration, pas un chemin
-normal. Tout fichier YNCF commence par le même en-tête de 38 octets : un
-`BWNETCNF` que la console a écrit livre donc son propre flux de chiffrement, et
-ce flux vaut trois décalages par octet d'identifiant.
+`recoverConsoleId` is a diagnostic and migration tool, not a normal path. Every
+YNCF file starts with the same 38-byte header: a `BWNETCNF` the console wrote
+therefore yields its own cipher stream, and that stream is worth three rotations
+per id byte.
 
-Ça couvre le joueur qui a déjà fait une configuration réseau avec n'importe quel
-jeu compatible. **Il ne doit jamais l'emporter sur une identité contradictoire
-prouvée par la NVM active.** Une carte que cette app a déjà écrite se décode sous
-le même identifiant, ce qui rend aussi l'outil utile en validation.
+That covers the player who has already done a network configuration with any
+compatible game. It must never override a contradictory identity proved by the
+active NVM. A card this app has already written decodes under the same id, which
+also makes the tool useful for validation.
 
-## Une carte prête ne se vérifie pas octet par octet
+## A prepared card is not verified byte by byte
 
-C'est ce qui a été fait d'abord, et c'était faux d'une façon qui ne se voit qu'à
-l'usage : une carte mémoire est un disque **vivant**. Dès qu'un jeu sauvegarde —
-ou qu'ARMSX2 la monte simplement — ses octets changent, la somme de contrôle
-cesse de correspondre, et on annonce au joueur que sa préparation a disparu
-pendant que sa carte est là, parfaitement bonne, dans le bon emplacement. Ça a
-coûté ses jeux PS2 à un joueur entre deux lancements de l'app.
+That is what was done first, and it was wrong in a way that only shows in use: a
+memory card is a living disc. As soon as a game saves, or ARMSX2 simply mounts
+it, its bytes change, the checksum stops matching, and the player is told their
+preparation has vanished while their card is right there, perfectly good, in the
+right slot. It cost one player their PS2 games between two launches of the app.
 
-Ce qui doit tenir est plus étroit et survit au jeu normal :
+What has to hold is narrower and survives normal play:
 
-- l'emplacement 1 est toujours actif et nomme toujours cette carte ;
-- la carte est toujours là ;
-- la configuration réseau y est toujours, et la relire rend l'identifiant de
-  console pour lequel elle a été écrite.
+- slot 1 is still active and still names this card;
+- the card is still there;
+- the network configuration is still on it, and reading it back yields the
+  console id it was written for.
 
-Ce dernier point est la vraie preuve : la sauvegarde est chiffrée par console,
-donc en retrouver le bon identifiant signifie à la fois que notre profil est
-présent et qu'il est à sa place. Les nouvelles sauvegardes à côté ne nous
-regardent pas, et c'est précisément le but.
+That last point is the real proof: the save is encrypted per console, so
+recovering the right id from it means both that our profile is present and that
+it is in its place. New saves alongside are none of our business, and that is
+precisely the point.

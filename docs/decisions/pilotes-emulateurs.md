@@ -1,594 +1,565 @@
-# Piloter les émulateurs : le service d'accessibilité, et ce qu'il a coûté
+# Driving the emulators: the accessibility service, and what it cost
 
-Le récit qui vivait dans `azahar/AzaharNetplayService.kt`, sorti du code le
-2026-08-24 (cf. `docs/STYLE_COMMENTAIRES.md`). Titres = ancres citées depuis le
-code.
+The narrative that lived in `azahar/AzaharNetplayService.kt`, taken out of the
+code on 2026-08-24 (see `docs/STYLE_COMMENTAIRES.md`). Headings are anchors cited
+from the code.
 
-## Pourquoi un service d'accessibilité, et pas autre chose
+## Why an accessibility service, and not something else
 
-**Aucun des émulateurs n'expose d'IPC pour le multijoueur.** Le manifeste
-d'Azahar n'exporte que `MainActivity` et `EmulationActivity`, et le netplay vit
-derrière JNI (`netPlayCreateRoom` / `netPlayJoinRoom`) sans aucun extra d'intent.
-Écrire les SharedPreferences demanderait le root ou `run-as`. **Piloter l'interface
-est le seul chemin qui marche sur une build non modifiée, installée de côté.**
+None of the emulators exposes IPC for multiplayer. Azahar's manifest exports only
+`MainActivity` and `EmulationActivity`, and netplay lives behind JNI
+(`netPlayCreateRoom` / `netPlayJoinRoom`) with no intent extras at all. Writing
+the SharedPreferences would need root or `run-as`. Driving the interface is the
+only path that works on an unmodified, sideloaded build.
 
-Le service est **inerte** tant qu'aucun plan n'est armé : il ne fait rien de
-lui-même, et ne touche jamais qu'aux paquets visés.
+The service is inert while no plan is armed: it does nothing of its own accord,
+and never touches anything but the targeted packages.
 
-Il est **au mieux-effort par conception.** Azahar est une cible mouvante : quand un
-identifiant de ressource bouge, on s'arrête plutôt que de cliquer n'importe où, et
-l'interface retombe sur l'affichage de l'adresse à saisir à la main.
+It is best-effort by design. Azahar is a moving target: when a resource id moves,
+we stop rather than click anywhere, and the interface falls back on showing the
+address to type by hand.
 
-## La classe garde son nom d'Azahar, et ce n'est pas de la négligence
+## The class keeps its Azahar name, and that is not carelessness
 
-Elle sert aussi Eden désormais. **La renommer changerait le `ComponentName`, et
-c'est le `ComponentName` qu'Android enregistre quand l'utilisateur active le
-service** : un renommage désactiverait donc l'automatisation, en silence, chez tous
-ceux qui l'avaient déjà activée. Un nom inexact est le moins cher des deux coûts.
+It serves Eden too now. Renaming it would change the `ComponentName`, and it is
+the `ComponentName` Android records when the user enables the service: a rename
+would therefore switch the automation off, silently, for everybody who had already
+enabled it. An inaccurate name is the cheaper of the two costs.
 
-## Trois familles d'écran, trois pilotes, un seul standard
+## Three screen families, three drivers, one standard
 
-Azahar et Eden partagent une marche fondée sur les identifiants de ressource.
+Azahar and Eden share a walk based on resource ids.
 
-**Dolphin ne peut pas y entrer** : son écran de netplay est en Compose et n'expose
-aucun identifiant, donc rien de lui ne s'exprime dans cette marche. Il a son propre
-objet, ce qui garantit que les chemins 3DS et Switch ne peuvent pas être atteints —
-encore moins modifiés — par quoi que ce soit que fasse Dolphin. Il met aussi en
-cache les libellés de l'émulateur, donc il doit survivre à un événement isolé.
+Dolphin cannot join it: its netplay screen is Compose and exposes no id, so
+nothing about it can be expressed in that walk. It has its own object, which
+guarantees the 3DS and Switch paths cannot be reached, let alone modified, by
+anything Dolphin does. It also caches the emulator's labels, so it has to outlive
+a single event.
 
-**La PS2 est la troisième forme d'écran**, et elle reçoit le moyen de **relire
-l'arbre** : saisir une valeur dans ARMSX2 veut dire une douzaine de clics d'affilée
-sur son propre clavier, et l'écran se redessine à chaque touche. Les deux autres
-pilotes n'en ont pas besoin, écrivant leurs champs d'un seul `ACTION_SET_TEXT`.
+The PS2 is the third screen shape, and it gets the means to re-read the tree:
+entering a value in ARMSX2 means a dozen clicks in a row on its own keyboard, and
+the screen redraws at every key. The other two drivers do not need it, writing
+their fields with a single `ACTION_SET_TEXT`.
 
-Un paquet qu'aucun des trois ne connaît repart sans que rien n'ait été touché.
+A package none of the three knows leaves with nothing touched.
 
-## Agir sur les événements ne suffit pas : il faut regarder à nouveau
+## Acting on events is not enough: you have to look again
 
-Agir sur les seuls événements suppose que le dernier événement d'un écran arrive
-**après** que cet écran est utilisable. La feuille multijoueur d'Azahar prouve le
-contraire : elle glisse à l'écran, tous les événements partent pendant que ses
-boutons sont encore hors champ, puis plus rien n'arrive — un flux qui venait
-d'ouvrir la feuille correctement restait donc à la contempler. Vu sur la Thor, et
-**indiscernable de « l'automatisation n'a jamais tourné »**.
+Acting on events alone assumes a screen's last event arrives after that screen is
+usable. Azahar's multiplayer sheet proves otherwise: it slides in, all the events
+fire while its buttons are still off screen, and then nothing more arrives, so a
+flow that had just opened the sheet correctly was left contemplating it. Seen on
+the Thor, and indistinguishable from "the automation never ran".
 
-Quelques relectures espacées ne coûtent rien quand il n'y a rien à faire, et ce sont
-les seules choses qui rattrapent une vue arrivée en retard.
+A few spaced re-reads cost nothing when there is nothing to do, and they are the
+only things that catch a view that arrived late.
 
-**Une passe qui a progressé récupère son budget de relecture.** Sans ça, le nombre
-de regards suivant un événement plafonne la longueur de la route — et la PS2 dépasse
-largement ce plafond : menu, réglages, onglet, mode, deux défilements, puis un champ
-ouvert, vidé, tapé lettre à lettre, confirmé. Azahar et Dolphin tiennent en trois ou
-quatre écrans et n'y avaient jamais buté. Le pilote s'arrêtait donc à mi-chemin,
-après un défilement, sans un mot : vu de l'extérieur, « l'installation automatique ne
-marche pas ». Renouveler le budget n'ouvre pas de boucle sans fin, chaque pilote
-ayant ses propres plafonds.
+A pass that made progress gets its re-read budget back. Without that, the number
+of looks following an event caps the length of the route, and the PS2 goes well
+past that cap: menu, settings, tab, mode, two scrolls, then a field opened,
+cleared, typed letter by letter, confirmed. Azahar and Dolphin fit in three or
+four screens and had never hit it. The driver therefore stopped halfway, after a
+scroll, without a word: from outside, "automatic setup does not work". Renewing
+the budget does not open an endless loop, each driver having its own caps.
 
-## Un plan armé ne doit pas rendre le jeu inutilisable
+## An armed plan must not make the game unusable
 
-Les étapes de navigation — l'entrée du tiroir en jeu, l'onglet des réglages, la
-carte Multijoueur — sont les seules qui se déclenchent sur un écran que **le joueur**
-a ouvert pour ses propres raisons.
+The navigation steps, the in-game drawer entry, the settings tab, the Multiplayer
+card, are the only ones firing on a screen the player opened for their own
+reasons.
 
-Un plan armé qui n'atteint jamais un formulaire de salon **recliquait donc
-Multijoueur à chaque apparition du tiroir en jeu** — c'est-à-dire exactement quand le
-joueur essaie d'atteindre Quitter : le tiroir devenait inutilisable. Remonté depuis
-la Thor.
+An armed plan that never reaches a room form therefore re-clicked Multiplayer
+every time the in-game drawer appeared, which is to say exactly when the player is
+trying to reach Quit: the drawer became unusable. Reported from the Thor.
 
-Un plafond transforme « pour toujours » en « deux ou trois essais, puis on s'écarte ».
-Remplir un formulaire déjà à l'écran reste illimité : celui-là ne se déclenche que là
-où le joueur fait ce qu'on lui a demandé.
+A cap turns "forever" into "two or three tries, then get out of the way". Filling
+a form already on screen stays unlimited: that one only fires where the player is
+doing what they were asked.
 
-## La visibilité est le bon filtre pour se situer, le mauvais pour agir
+## Visibility is the right filter for locating yourself, the wrong one for acting
 
-La visibilité distingue « cet écran est devant » de « cet écran existe quelque part
-dans la hiérarchie » : elle conditionne donc toute décision sur **où l'on est**.
+Visibility distinguishes "this screen is in front" from "this screen exists
+somewhere in the hierarchy": it therefore governs every decision about where we
+are.
 
-Mais c'est le mauvais filtre dès qu'il s'agit d'agir sur un formulaire dont on a
-déjà décidé qu'il est devant. Deux pannes réelles, la même cause :
+But it is the wrong filter as soon as it comes to acting on a form we have already
+decided is in front. Two real failures, the same cause:
 
-- **Le bouton OK est d'ordinaire sous la ligne de flottaison.** Le formulaire est
-  une feuille du bas qui défile, et sur la boîte « créer » d'Azahar — un champ de
-  plus que « rejoindre » — sur un écran en paysage, OK démarre hors champ. Une
-  recherche filtrée sur la visibilité ne trouvait rien, et Emufii retombait sur
-  « les champs sont remplis, appuyez sur OK vous-même » : c'est le fameux « le clic
-  ne prend pas » que ce projet a poursuivi — **il n'y avait jamais eu de clic**.
-- **Le bouton de l'hôte était introuvable.** La feuille empile Lobby / Join /
-  Create, et une feuille du bas sur un écran paysage coupe le dernier. Le bouton de
-  l'hôte était donc celui que la recherche ne trouvait jamais, pendant que celui de
-  l'invité s'affichait confortablement : l'automatisation avait l'air d'avoir une
-  idée cassée de qui héberge, alors qu'elle avait simplement la même recherche
-  filtrée qui cachait déjà `btn_confirm` et `room_name` sur cet appareil.
+- The OK button is usually below the fold. The form is a scrolling bottom sheet,
+  and on Azahar's "create" box, one field more than "join", on a landscape screen,
+  OK starts off screen. A search filtered on visibility found nothing, and Emufii
+  fell back on "the fields are filled, press OK yourself": that is the famous "the
+  click does not take" this project chased, and there had never been a click.
+- The host's button could not be found. The sheet stacks Lobby / Join / Create,
+  and a bottom sheet on a landscape screen cuts off the last. The host's button
+  was therefore the one the search never found, while the guest's showed
+  comfortably: the automation looked as though it had a broken idea of who hosts,
+  when it simply had the same filtered search already hiding `btn_confirm` and
+  `room_name` on that device.
 
-**Le remède est le même dans les deux cas : amener le nœud à l'écran, puis
-presser.** Et la feuille est « devant » dès que **l'un quelconque** de ses trois
-boutons est visible — trois plutôt qu'un, parce que seul celui du haut est
-fiablement en vue, et lequel c'est appartient à la mise en page de l'émulateur, pas
-à nous.
+The remedy is the same in both cases: bring the node on screen, then press. And
+the sheet is "in front" as soon as any one of its three buttons is visible, three
+rather than one, because only the top one is reliably in view, and which one that
+is belongs to the emulator's layout, not to us.
 
-## Un clic qui ne prend pas n'est pas un succès
+## A click that does not take is not a success
 
-Le bouton OK d'Eden se déclare activé et cliquable **et ignore quand même
-l'action** — vu sur un appareil, boîte laissée ouverte. Croire notre propre requête
-dirait au joueur que tout est fait alors que le salon n'a jamais été créé.
+Eden's OK button declares itself enabled and clickable and ignores the action
+anyway, seen on a device, box left open. Believing our own request would tell the
+player everything is done while the room was never created.
 
-On dit donc ce qui s'est réellement passé : les champs sont remplis, la dernière
-pression lui revient.
+So we say what actually happened: the fields are filled, the last press is theirs.
 
-## L'hôte crée, l'invité rejoint, et c'est journalisé
+## The host creates, the guest joins, and it is logged
 
-Un invité qui crée son propre salon ne rejoint rien ; un hôte qui rejoint cherche un
-salon que personne n'a ouvert. **Journalisé, parce que les deux échecs sont
-identiques vus de l'extérieur** — une boîte qui se remplit puis refuse — et que le
-seul moyen de les distinguer est de savoir quel bouton a été pris.
+A guest who creates their own room joins nothing; a host who joins looks for a
+room nobody opened. Logged, because both failures are identical from outside, a
+box that fills then refuses, and the only way to tell them apart is knowing which
+button was taken.
 
-## Le pseudo n'est écrit que sur Eden
+## The nickname is written on Eden only
 
-Deux joueurs de même pseudo ne peuvent pas partager un salon, et Eden livre le même
-à tout le monde par défaut : sans ça, deux joueurs Emufii s'y présentent comme la
-même personne et le second est refusé.
+Two players with the same nickname cannot share a room, and Eden ships the same
+one to everybody by default: without this, two Emufii players introduce themselves
+there as the same person and the second is refused.
 
-**Sur Azahar le plan le laisse nul, et ce n'est pas un oubli.** Emufii y écrivait le
-nom de profil, ce qui remplaçait un pseudo valide par un pseudo de deux lettres que
-le formulaire refusait — « Invalid address or name is too short! », une faute
-imputée à une adresse parfaitement bonne.
+On Azahar the plan leaves it null, and that is not an oversight. Emufii used to
+write the profile name there, which replaced a valid nickname with a two-letter
+one the form refused, "Invalid address or name is too short!", a fault blamed on a
+perfectly good address.
 
-## Une liste qui recycle ne contient pas ce qu'on n'a pas encore vu
+## A recycling list does not contain what you have not seen yet
 
-Les rangées du hub de réglages portent toutes les mêmes identifiants, donc la rangée
-se trouve **par son texte** — celui de l'émulateur, lu dans ses propres ressources,
-pour que ça marche quelle que soit sa langue.
+The settings hub's rows all carry the same ids, so the row is found by its text,
+the emulator's own, read from its own resources, so it works whatever its
+language.
 
-Deux choses à survivre, vues toutes deux sur la Thor avec Eden :
+Two things to survive, both seen on the Thor with Eden:
 
-- la rangée peut être défilée sous le bas de la liste, auquel cas elle est dans
-  l'arbre mais pas visible — ou bien **pas dans l'arbre du tout**, une liste qui
-  recycle ne tenant que ce qu'elle a dessiné. D'où un défilement par passe, compté
-  comme un clic pour qu'il ne puisse pas boucler ;
-- le libellé peut être **l'une de deux chaînes**, parce que le hub montre un titre
-  *et* une description, et qu'une seule des deux est ce que l'amont appelle
-  « multiplayer » dans une build donnée.
+- the row may be scrolled below the bottom of the list, in which case it is in the
+  tree but not visible, or not in the tree at all, a recycling list holding only
+  what it has drawn. Hence one scroll per pass, counted as a click so it cannot
+  loop;
+- the label may be either of two strings, because the hub shows a title and a
+  description, and only one of the two is what upstream calls "multiplayer" in a
+  given build.
 
-Échouer d'une façon ou de l'autre était identique vu de l'extérieur : l'émulateur
-s'ouvrait sur sa grille de jeux et rien d'autre ne se passait.
+Failing either way was identical from outside: the emulator opened on its game
+grid and nothing else happened.
 
-## On ramène le joueur chez lui
+## We bring the player home
 
-Il a demandé une étape d'installation, pas un voyage dans une autre app : il a tapé
-un bouton dans Emufii et la chose suivante dont il a besoin est le bouton juste en
-dessous. Le laisser dans les réglages de l'émulateur l'obligeait à retrouver son
-chemin avant de pouvoir lancer la partie.
+They asked for a setup step, not a journey into another app: they tapped a button
+in Emufii and the next thing they need is the button just below it. Leaving them
+in the emulator's settings made them find their own way back before they could
+start the game.
 
-**Retardé**, parce que l'émulateur est encore en train d'agir sur le clic qu'on vient
-de faire : revenir instantanément courrait contre son propre message « rejoint ». Au
-mieux-effort : si la plateforme refuse le lancement, le flux est terminé de toute
-façon et le joueur revient à la main.
+Delayed, because the emulator is still acting on the click we just made: returning
+instantly would race its own "joined" message. Best-effort: if the platform
+refuses the launch, the flow is over anyway and the player comes back by hand.
 
-## `typeText` et non `setText` : un an de test vert qui ne prouvait rien
+## `typeText` and not `setText`: a year of a green test proving nothing
 
-`AccessibilityNodeInfo` a **déjà** un membre nommé `setText`, et en Kotlin un membre
-bat toujours une extension. L'extension n'était donc **jamais appelée** : chaque
-remplissage partait vers le setter de la plateforme, lequel lève `Cannot perform this
-action on a sealed instance` sur tout nœud issu d'une requête — c'est-à-dire tous.
+`AccessibilityNodeInfo` already has a member named `setText`, and in Kotlin a
+member always beats an extension. The extension was therefore never called: every
+fill went to the platform setter, which throws `Cannot perform this action on a
+sealed instance` on any node obtained from a query, which is to say all of them.
 
-**L'automatisation échouait sur son tout premier champ depuis qu'elle avait été
-écrite.** Personne ne l'a vu parce que le menu en jeu d'Azahar n'avait jamais tourné
-sur un appareil (M16), et parce que l'émulateur pré-remplit sa propre adresse — ce
-qui, pour un hôte, se trouve être la bonne réponse. Un test vert qui ne prouvait
-rien.
+The automation had been failing on its very first field since it was written.
+Nobody saw it because Azahar's in-game menu had never run on a device (M16), and
+because the emulator pre-fills its own address, which, for a host, happens to be
+the right answer. A green test that proved nothing.
 
 ---
 
-# Le pilote PS2 (ARMSX2)
+# The PS2 driver (ARMSX2)
 
-Sorti de `ps2/Ps2NetplayDriver.kt`.
+Taken out of `ps2/Ps2NetplayDriver.kt`.
 
-## Deux singularités qui n'existent nulle part ailleurs
+## Two peculiarities that exist nowhere else
 
-1. **Il n'y a aucun champ de texte.** Ouvrir une rangée fait monter le clavier
-   propre d'ARMSX2, et la saisie se fait touche par touche. `ACTION_SET_TEXT` n'a
-   rien à viser, et les événements clavier injectés sont ignorés (mesuré).
-2. **Ce clavier n'a pas de touche point**, donc l'invité ne peut pas écrire une
-   adresse IPv4. Il écrit un **nom**, `emufii`, que le DNS du tunnel résout vers la
-   sentinelle du relais (`relay/dns.js`).
+1. There is no text field at all. Opening a row brings up ARMSX2's own keyboard,
+   and entry is done key by key. `ACTION_SET_TEXT` has nothing to aim at, and
+   injected key events are ignored (measured).
+2. That keyboard has no full stop key, so the guest cannot write an IPv4 address.
+   They write a name, `emufii`, which the tunnel's DNS resolves to the relay's
+   sentinel (`relay/dns.js`).
 
-L'écran est lu par **rangées** — libellé à gauche, valeur à droite — et c'est le
-conteneur qui prend le clic.
+The screen is read by rows, label on the left, value on the right, and it is the
+container that takes the click.
 
-## L'ordre des réglages n'est pas cosmétique
+## The order of the settings is not cosmetic
 
-Changer le mode redessine la moitié basse de l'écran, et les champs de l'hôte ne
-sont pas ceux de l'invité : une valeur écrite avant serait perdue. Un réglage par
-passe, dans l'ordre où ils dépendent les uns des autres.
+Changing the mode redraws the bottom half of the screen, and the host's fields are
+not the guest's: a value written before would be lost. One setting per pass, in the
+order they depend on each other.
 
-**On descend l'écran et on ne remonte jamais**, d'où une mémoire des étapes déjà
-posées : une fois l'interrupteur DEV9 dépassé il n'est plus dans l'arbre, et sans
-mémoire le pilote conclurait qu'il reste à le poser. Pour la même raison, un
-libellé absent ne veut pas dire « pas d'interrupteur » mais « on l'a déjà
-dépassé ».
+We go down the screen and never back up, hence a memory of the steps already set:
+once past the DEV9 switch it is no longer in the tree, and without a memory the
+driver would conclude it still had to set it. For the same reason, an absent label
+does not mean "no switch" but "we have already passed it".
 
-**Le mode courant ne se lit pas sur le bouton** : mesuré, aucun des trois ne porte
-`selected` ni `checked` dans l'arbre. On le déduit des champs présents — comme le
-pilote Dolphin distingue ses onglets par l'absence du champ d'adresse.
+The current mode cannot be read off the button: measured, none of the three
+carries `selected` or `checked` in the tree. It is inferred from the fields
+present, as the Dolphin driver tells its tabs apart by the absence of the address
+field.
 
-**Un clic, jamais deux.** Le marqueur qui confirme le mode est plus bas que le
-bouton : tant qu'on n'a pas défilé il est absent de l'arbre, et le pilote concluait
-qu'il n'avait pas cliqué. Vu en vrai le 2026-08-17 : **huit clics d'affilée** sur
-« Host local game » avant que l'écran bouge assez pour le détromper.
+One click, never two. The marker confirming the mode is lower than the button:
+until we have scrolled it is absent from the tree, and the driver concluded it had
+not clicked. Seen for real on 2026-08-17: eight clicks in a row on "Host local
+game" before the screen moved enough to correct it.
 
-L'écran Réseau est reconnu par **n'importe lequel de ses marqueurs**, et non par le
-seul interrupteur DEV9 : il est plus haut que l'appareil, il faut le faire défiler,
-et un arbre d'accessibilité ne contient que ce qui est réellement dessiné.
-S'accrocher au premier libellé revenait à perdre l'écran de vue au tout premier
-défilement.
+The Network screen is recognised by any one of its markers, and not by the DEV9
+switch alone: it is taller than the device, it has to be scrolled, and an
+accessibility tree contains only what is actually drawn. Latching onto the first
+label meant losing sight of the screen at the very first scroll.
 
-## Un écran en cours d'animation est un écran inconnu
+## A screen mid-animation is an unknown screen
 
-Juste après un clic, l'arbre d'ARMSX2 tombe à une poignée de nœuds pendant que la
-page suivante se dessine. Revenir en arrière à cet instant **défait le clic qu'on
-vient de faire**, et le pilote tourne en rond : menu, réglages, retour, menu… jusqu'au
-plafond. Vu en vrai le 2026-08-17, sur un arbre de 18 nœuds.
+Just after a click, ARMSX2's tree drops to a handful of nodes while the next page
+draws. Going back at that instant undoes the click we just made, and the driver
+goes round in circles: menu, settings, back, menu, up to the cap. Seen for real on
+2026-08-17, on a tree of 18 nodes.
 
-On n'insiste donc qu'après plusieurs passes perdues d'affilée, ce qui laisse tout
-le temps à une transition, et le compteur retombe à zéro dès qu'on reconnaît
-quelque chose.
+So we only insist after several lost passes in a row, which leaves plenty of time
+for a transition, and the counter drops to zero as soon as we recognise something.
 
-## Deux plafonds, deux pannes évitées
+## Two caps, two failures avoided
 
-**Les saisies** sont plafonnées : un écran qui ne relit pas la valeur qu'on vient
-d'y écrire ferait recommencer le pilote sans fin. C'est arrivé — sans ce compteur
-il aurait réécrit le code de salon jusqu'à ce que le joueur ferme l'app.
+Entries are capped: a screen that does not read back the value just written to it
+would make the driver start over endlessly. It happened: without that counter it
+would have rewritten the room code until the player closed the app.
 
-**Les défilements** aussi : si défiler ne fait jamais apparaître ce qu'on cherche,
-on rend la main en disant quoi régler, plutôt que de faire défiler l'écran
-indéfiniment sous le pouce du joueur. C'est le même piège que le bouton OK
-d'Azahar en paysage, sous une autre forme : là il fallait chercher **sans** le
-filtre de visibilité, ici il faut **amener** la rangée à l'écran.
+Scrolls too: if scrolling never brings up what we are looking for, we hand back
+control saying what to set, rather than scrolling the screen indefinitely under
+the player's thumb. It is the same trap as Azahar's OK button in landscape, in
+another form: there you had to search without the visibility filter, here you have
+to bring the row on screen.
 
-**La route PS2 est plus longue que les autres** — bibliothèque, menu, réglages,
-onglet — donc son plafond de navigation est plus haut : quatre suffisaient pour
-Dolphin, pas ici, et un plafond trop bas se lit comme « l'installation ne marche
-pas ».
+The PS2 route is longer than the others, library, menu, settings, tab, so its
+navigation cap is higher: four were enough for Dolphin, not here, and a cap set
+too low reads as "setup does not work".
 
-## La saisie se fait en une passe
+## Entry is done in one pass
 
-Vider, taper, confirmer, avec l'arbre relu entre chaque touche. Découper en une
-passe par caractère **aurait eu l'air plus sûr** : ça l'aurait rendu dépendant d'un
-événement d'accessibilité par touche, alors que rien ne garantit qu'ARMSX2 en émet
-un pour chacune.
+Clear, type, confirm, with the tree re-read between keys. Splitting it into one
+pass per character would have looked safer: it would have made it depend on one
+accessibility event per key, while nothing guarantees ARMSX2 emits one for each.
 
-Le code de salon est coupé aux bornes d'ARMSX2. Le code de session est déjà le
-secret partagé des deux joueurs, et il est alphanumérique donc tapable. **Trop
-court, on n'en invente pas** : mieux vaut laisser celui d'ARMSX2 — identique des
-deux côtés seulement si les joueurs se le recopient — que d'en poser un que l'autre
-n'aura pas.
+The room code is cut to ARMSX2's bounds. The session code is already the two
+players' shared secret, and it is alphanumeric and therefore typeable. Too short,
+we do not invent one: better to leave ARMSX2's, identical on both sides only if
+the players copy it to each other, than to set one the other will not have.
 
-Le geste « retour » du système sert à sortir d'un écran qu'on ne sait pas lire : un
-ARMSX2 déjà ouvert revient au premier plan là où le joueur l'a laissé, et il n'y a
-pas d'autre chemin d'un écran inconnu vers les réglages.
+The system back gesture is used to leave a screen we cannot read: an already-open
+ARMSX2 comes back to the foreground where the player left it, and there is no
+other path from an unknown screen to the settings.
 
 ---
 
-# Le pilote Dolphin
+# The Dolphin driver
 
-Sorti de `dolphin/DolphinNetplayDriver.kt` et `dolphin/DolphinScreen.kt`.
+Taken out of `dolphin/DolphinNetplayDriver.kt` and `dolphin/DolphinScreen.kt`.
 
-## Lire un formulaire Compose sans un seul identifiant
+## Reading a Compose form with no id at all
 
-Tout y est **géométrie et texte**. La lecture est exprimée sur un nœud maison
-plutôt que sur `AccessibilityNodeInfo`, parce que ces règles sont tout le risque de
-ce backend et que le type de la plateforme **ne peut pas être construit dans un
-test unitaire**.
+Everything there is geometry and text. The reading is expressed on an in-house
+node rather than on `AccessibilityNodeInfo`, because those rules are this
+backend's whole risk and the platform type cannot be constructed in a unit test.
 
-Des bornes maison plutôt que `android.graphics.Rect`, pour la même raison : un test
-JVM reçoit l'`android.jar` bouchonné, où chaque méthode de `Rect` rend zéro en
-silence. La règle de contenance aurait été fausse partout et le test serait resté
-vert **en ne prouvant rien** — une forme que ce projet a déjà payée une fois, sur
-le setter d'accessibilité qui ne tournait jamais.
+In-house bounds rather than `android.graphics.Rect`, for the same reason: a JVM
+test gets the stubbed `android.jar`, where every `Rect` method silently returns
+zero. The containment rule would have been false everywhere and the test would
+have stayed green while proving nothing, a shape this project has already paid for
+once, on the accessibility setter that never ran.
 
-## La contenance, pas la parenté, pas la position
+## Containment, not parentage, not position
 
-**Un libellé appartient au champ dont les bornes le contiennent.** L'`OutlinedTextField`
-de Compose dessine son libellé *à l'intérieur* de la bordure du champ : la légende
-« Port » se trouve au coin haut-gauche de la boîte qui contient « 2626 ». Les deux ne
-sont donc pas des frères à compter dans l'ordre, ils sont **imbriqués dans l'espace**.
+A label belongs to the field whose bounds contain it. Compose's
+`OutlinedTextField` draws its label inside the field's border: the "Port" caption
+sits at the top left corner of the box containing "2626". The two are therefore
+not siblings to be counted in order, they are nested in space.
 
-C'est délibérément l'ancre. Apparier par position dans le formulaire casserait le
-jour où l'amont ajoute un champ — et l'amont bouge encore : trois PR netplay étaient
-ouvertes le jour où ceci a été écrit. La contenance survit à une réorganisation, à
-une rangée insérée et à une rotation d'écran, et c'est le même test quelle que soit
-la langue du libellé.
+That is deliberately the anchor. Pairing by position in the form would break the
+day upstream adds a field, and upstream is still moving: three netplay PRs were
+open the day this was written. Containment survives a reorganisation, an inserted
+row and a screen rotation, and it is the same test whatever the label's language.
 
-**La parenté était la première règle, et elle est fausse sur le vrai arbre.** Relevé
-sur la Thor : le bouton de validation et sa propre légende sortent **frères, à la
-même profondeur** — un `Button` en `[1698,859][1883,988]` sans texte, à côté d'un
-`TextView` « Host » en `[1756,900][1826,947]`. Remonter depuis le texte ne trouvait
-donc aucun bouton : le pilote remplissait tout le formulaire puis s'arrêtait **à une
-pression d'ouvrir le salon**. La boîte contient toujours la légende, donc la
-contenance répond là où la parenté ne pouvait pas — et le cas ancêtre est conservé
-au cas où une build future les imbriquerait.
+Parentage was the first rule, and it is false on the real tree. Recorded on the
+Thor: the confirm button and its own caption come out as siblings, at the same
+depth, a `Button` at `[1698,859][1883,988]` with no text, next to a `TextView`
+"Host" at `[1756,900][1826,947]`. Walking up from the text therefore found no
+button: the driver filled the whole form and then stopped one press short of
+opening the room. The box always contains the caption, so containment answers
+where parentage could not, and the ancestor case is kept in case a future build
+nests them.
 
-**L'onglet et le bouton portent le même texte.** Le bouton est enveloppé dans un
-`android.widget.Button`, l'onglet est une rangée nue en haut de l'écran. Cliquer le
-mauvais n'est pas anodin : presser « Host » alors que l'onglet Connect est affiché
-lancerait un hébergement quand Emufii voulait rejoindre.
+The tab and the button carry the same text. The button is wrapped in an
+`android.widget.Button`, the tab is a bare row at the top of the screen. Clicking
+the wrong one is not harmless: pressing "Host" while the Connect tab is showing
+would start hosting when Emufii meant to join.
 
-## Le bouton de débordement se trouve par sa forme
+## The overflow button is found by its shape
 
-La première tentative demandait à appcompat sa propre description
-(`abc_action_menu_overflow_description`). **Elle ne résout nulle part** : ni dans les
-ressources de Dolphin, ni dans les nôtres, Emufii étant tout-Compose et n'embarquant
-pas appcompat. Mesuré deux fois sur la Thor ; le pilote restait sur la grille de jeux
-en disant `desc=0`.
+The first attempt asked appcompat for its own description
+(`abc_action_menu_overflow_description`). It resolves nowhere: not in Dolphin's
+resources, not in ours, Emufii being all-Compose and not embedding appcompat.
+Measured twice on the Thor; the driver sat on the game grid saying `desc=0`.
 
-Ce que le nœud a en revanche, c'est une **forme que rien d'autre dans cette barre ne
-partage**. Les boutons propres à Dolphin portent tous un identifiant de ressource,
-venant de sa ressource de menu ; le débordement est ajouté par le framework et n'en
-porte aucun, tout en restant cliquable et en se décrivant pour les lecteurs d'écran.
-Donc : dans la bande du haut, le nœud cliquable **sans identifiant mais avec une
-description, le plus à droite**. Indépendant de toute langue — c'est le but — et du
-fait que le menu gagne ou perde des entrées.
+What the node does have is a shape nothing else in that bar shares. Dolphin's own
+buttons all carry a resource id, from its menu resource; the overflow is added by
+the framework and carries none, while staying clickable and describing itself for
+screen readers. So: in the top band, the clickable node with no id but with a
+description, furthest to the right. Independent of any language, which is the
+point, and of the menu gaining or losing entries.
 
-De même, la rangée Netplay du menu se trouve **par son texte, pas par son
-identifiant** : la ressource nomme l'entrée `menu_netplay`, mais appcompat rend le
-titre de chaque rangée dans une vue portant `id/title`, donc l'identifiant de
-l'entrée n'atteint jamais l'arbre d'accessibilité et la recherche ne trouvait rien,
-en silence. Exactement comme les cartes de réglages d'Azahar.
+Likewise, the menu's Netplay row is found by its text, not by its id: the resource
+names the entry `menu_netplay`, but appcompat renders each row's title in a view
+carrying `id/title`, so the entry's id never reaches the accessibility tree and
+the search found nothing, silently. Exactly like Azahar's settings cards.
 
-## L'ordre des écrans, et les deux pièges qu'il évite
+## The order of the screens, and the two traps it avoids
 
-**Le salon d'abord**, avant tout le reste, parce que c'est le dernier écran : le
-formulaire est derrière nous et ne doit plus être touché.
+The room first, before everything else, because it is the last screen: the form is
+behind us and must not be touched again.
 
-**La liste de jeux du salon se distingue de la grille de démarrage par
-`lobbyClicks > 0`**, et ce n'est pas un détail : sans ça, l'étape se déclenchait sur
-la grille de démarrage de Dolphin, qui n'a pas plus de champ de texte que la liste du
-salon et montre les mêmes titres. Le pilote **lançait donc le jeu dès la première
-passe** au lieu d'ouvrir le netplay.
+The room's game list is told apart from the startup grid by `lobbyClicks > 0`, and
+that is not a detail: without it, the step fired on Dolphin's startup grid, which
+has no more a text field than the room's list and shows the same titles. The
+driver therefore launched the game on the very first pass instead of opening
+netplay.
 
-**Le type de connexion se règle avant toute saisie.** En changer reconstruit le
-formulaire — le champ de port apparaît et disparaît avec lui — et une valeur écrite
-dans un champ sur le point d'être recréé est perdue. C'est aussi un réglage unique
-partagé par les deux onglets, donc posé une fois pour les deux rôles.
+The connection type is set before any entry. Changing it rebuilds the form, the
+port field appearing and disappearing with it, and a value written into a field
+about to be recreated is lost. It is also a single setting shared by both tabs, so
+set once for both roles.
 
-**Connexion directe, jamais la traversée** : celle-ci ferait passer la session par le
-serveur STUN de Dolphin, ce que cette app existe précisément pour rendre inutile —
-les deux joueurs sont déjà sur le même réseau WireGuard et l'hôte répond à une
-adresse simple. Elle retirerait aussi le champ de port, qui n'existe qu'en mode
-direct : il ne resterait plus rien à pointer où que ce soit.
+Direct connection, never traversal: traversal would send the session through
+Dolphin's STUN server, which this app exists precisely to make unnecessary, both
+players already being on the same WireGuard network and the host answering at a
+simple address. It would also remove the port field, which only exists in direct
+mode: there would be nothing left to point anywhere.
 
-**Et surtout, pas de `Done` à la validation du formulaire.** Un formulaire validé
-n'est plus la fin de la route : le salon s'ouvre derrière, et le jeu doit encore y
-être choisi. Or `report(Done)` efface le plan — c'est tout son objet — donc crier
-victoire là désarmerait le pilote juste avant l'écran qu'il lui reste à traiter, et
-le sélecteur de jeu resterait sur le dernier choix de l'appareil.
+And above all, no `Done` on submitting the form. A submitted form is no longer the
+end of the road: the room opens behind it, and the game still has to be chosen
+there. And `report(Done)` clears the plan, that being its whole purpose, so
+declaring victory there would disarm the driver just before the screen it has left
+to handle, and the game picker would stay on the device's last choice.
 
-**On ne clique jamais « Start ».** Démarrer la partie est la décision de l'hôte, pas
-la nôtre : l'invité peut ne pas être prêt, et une partie lancée sous le pouce du
-joueur est exactement le genre d'initiative que ce pilote s'interdit partout
-ailleurs.
+We never click "Start". Starting the game is the host's decision, not ours: the
+guest may not be ready, and a game launched under the player's thumb is exactly
+the kind of initiative this driver forbids itself everywhere else.
 
-## Apparier un jeu quand les deux côtés ne le nomment pas pareil
+## Matching a game when the two sides do not name it the same
 
-L'égalité stricte ne peut pas marcher : Emufii part du nom de fichier et coupe à la
-première parenthèse, ce qui donne « Super Smash Bros. Brawl » ; Dolphin lit le titre
-estampé dans l'en-tête du disque et affiche « Smash Bros. Brawl ». **Aucun des deux
-n'a tort**, et aucun ne peut changer — le premier est notre bibliothèque, le second
-est le disque.
+Strict equality cannot work: Emufii starts from the filename and cuts at the first
+bracket, giving "Super Smash Bros. Brawl"; Dolphin reads the title stamped in the
+disc header and shows "Smash Bros. Brawl". Neither is wrong, and neither can
+change, the first being our library, the second being the disc.
 
-La règle est donc la **contenance sur chaînes normalisées, dans les deux sens** : le
-titre du disque est souvent plus court que le nôtre, parfois l'inverse quand notre
-nom de fichier est abrégé. La ponctuation est retirée parce que c'est précisément là
-que les deux divergent (« Smash Bros. Brawl » contre « Smash Bros Brawl »).
+The rule is therefore containment on normalised strings, both ways: the disc's
+title is often shorter than ours, sometimes the other way round when our filename
+is abbreviated. Punctuation is stripped because that is precisely where the two
+diverge ("Smash Bros. Brawl" against "Smash Bros Brawl").
 
-**Le plus long gagne, et une égalité annule tout.** Deux entrées qui correspondent
-aussi bien, c'est une bibliothèque contenant « Mario Kart Wii » et « Mario Kart Wii
-(disc 2) » : choisir au hasard lancerait le mauvais jeu, ce qui est pire que de ne
-rien faire. On rend `null`, et le joueur choisit lui-même.
+The longest wins, and a tie cancels everything. Two entries matching equally well
+is a library containing "Mario Kart Wii" and "Mario Kart Wii (disc 2)": choosing
+at random would launch the wrong game, which is worse than doing nothing. We
+return `null`, and the player chooses themselves.
 
-## Les libellés sont résolus une fois
+## The labels are resolved once
 
-Résoudre les libellés coûte une trentaine de recherches de chaînes : la même
-ressource est résolue dans **toutes** les langues où Dolphin pourrait tourner, parce
-qu'il n'y a aucun moyen de demander laquelle il utilise réellement. Six libellés,
-relus à chacune des six re-lectures par écran, feraient un millier de recherches pour
-remplir un formulaire. Ils ne peuvent pas changer pendant que l'émulateur tourne.
+Resolving the labels costs some thirty string lookups: the same resource is
+resolved in every language Dolphin might run in, because there is no way to ask
+which one it actually uses. Six labels, re-read at each of the six re-reads per
+screen, would make a thousand lookups to fill one form. They cannot change while
+the emulator is running.
 
-## Le plafond de navigation est le moment à photographier
+## The navigation cap is the moment to photograph
 
-Sous la barre où le pilote emmène le joueur vers un écran qu'il n'a pas demandé,
-tout est plafonné : un plan armé qui n'arrive jamais ne doit pas rouvrir le menu de
-débordement sous le pouce du joueur.
+Below the bar where the driver takes the player to a screen they did not ask for,
+everything is capped: an armed plan that never arrives must not reopen the
+overflow menu under the player's thumb.
 
-**Atteindre le plafond est *le* moment où ce pilote abandonne en silence** : il a
-cliqué, l'écran n'a pas changé comme prévu, et il rend la main sans rien dire au
-joueur. C'est exactement l'instant à photographier ; plus tôt, on capturerait la
-grille avant l'ouverture du menu, ce qui ne prouve rien.
+Reaching the cap is the moment this driver gives up silently: it clicked, the
+screen did not change as expected, and it hands back control without telling the
+player anything. That is exactly the instant to photograph; earlier, we would
+capture the grid before the menu opened, which proves nothing.
 
-## ARMSX2 : deux `TextView` frères, appariés par leur bande horizontale
+## ARMSX2: two sibling `TextView`s, paired by their horizontal band
 
-L'écran Réglages → Réseau d'ARMSX2 ne ressemble à aucun des deux autres, mesuré
-à l'`uiautomator` sur la Thor.
+ARMSX2's Settings > Network screen looks like neither of the other two, measured
+with `uiautomator` on the Thor.
 
-Sur Dolphin, l'étiquette est **dans** le champ (Compose), donc on cherche par
-imbrication. Ici, étiquette et valeur sont deux `TextView` **frères** sur une
-ligne — l'étiquette à gauche, la valeur à droite — et aucun des deux n'est
-cliquable : c'est la rangée qui l'est. Aucun `EditText` n'est visible tant que la
-rangée n'a pas été ouverte.
+On Dolphin the label is inside the field (Compose), so we search by nesting. Here,
+label and value are two sibling `TextView`s on one line, label on the left, value
+on the right, and neither is clickable: it is the row that is. No `EditText` is
+visible until the row has been opened.
 
-Un exemple mesuré, en mode hôte :
+One measured example, in host mode:
 
 ```
 "Local Link port"  TextView  [69,809][306,867]
 "19072"            TextView  [1761,809][1851,867]
 ```
 
-D'où la règle d'appariement : **la bande horizontale, et non l'ordre des nœuds**.
-Un écran qui gagne une rangée, ou qui se réordonne, ne casse pas ça ; compter les
-nœuds aurait cassé au premier ajout en amont.
+Hence the pairing rule: the horizontal band, not the node order. A screen that
+gains a row, or that reorders itself, does not break that; counting nodes would
+have broken at the first upstream addition.
 
-`Node` et `Bounds` sont empruntés au côté Dolphin plutôt que redéclarés : ce sont
-des données inertes, sans rien de spécifique à un émulateur, et deux copies
-dériveraient.
+`Node` and `Bounds` are borrowed from the Dolphin side rather than redeclared:
+they are inert data, with nothing emulator-specific about them, and two copies
+would drift.
 
-## ARMSX2 n'a aucun champ éditable, et c'est un mur
+## ARMSX2 has no editable field, and that is a wall
 
-Mesuré sur la Thor le 2026-08-17 : toucher une rangée n'ouvre pas d'`EditText`.
-ARMSX2 dessine son propre clavier, 42 touches, chacune une vue cliquable portant
-son caractère dans un `TextView`. Relevé : 44 vues, 42 étiquettes, et pas un seul
-`android.widget.EditText` dans tout l'arbre.
+Measured on the Thor on 2026-08-17: touching a row opens no `EditText`. ARMSX2
+draws its own keyboard, 42 keys, each a clickable view carrying its character in a
+`TextView`. Recorded: 44 views, 42 labels, and not a single
+`android.widget.EditText` in the whole tree.
 
-Deux conséquences, et la seconde est un mur :
+Two consequences, and the second is a wall:
 
-1. `ACTION_SET_TEXT` n'a rien à viser. La saisie se fait touche par touche, comme
-   celle d'un joueur. `input text` par ADB ne passe pas davantage : ce clavier
-   ignore les événements de touche injectés, essayé et vérifié.
-2. **Le clavier n'a pas de point.** Chiffres, lettres, majuscule, espace, retour
-   arrière, `Clear`, `Done`, et rien d'autre. La majuscule ne change que la
-   casse, et le champ n'ajoute pas les points tout seul : taper `10671` affiche
-   `10671`. Une adresse IPv4 est donc impossible à saisir, par nous comme par le
-   joueur. C'est un défaut en amont — voir `docs/PHASE1_SCOUT_PS2_ARMSX2.md`.
+1. `ACTION_SET_TEXT` has nothing to aim at. Entry is done key by key, like a
+   player's. `input text` over ADB does not get through either: that keyboard
+   ignores injected key events, tried and confirmed.
+2. The keyboard has no full stop. Digits, letters, shift, space, backspace,
+   `Clear`, `Done`, and nothing else. Shift only changes case, and the field does
+   not add the dots by itself: typing `10671` shows `10671`. An IPv4 address is
+   therefore impossible to enter, by us as by the player. It is an upstream flaw,
+   see `docs/PHASE1_SCOUT_PS2_ARMSX2.md`.
 
-## ARMSX2 se lance par composant nommé, jamais par filtrage
+## ARMSX2 is launched by named component, never by filtering
 
-Contrairement à Dolphin, on peut lui passer la ROM — mais pas comme on
-l'imagine. Son activité est exportée avec un filtre `VIEW` sur les schémas
-`content` et `file`, **sans aucun type MIME**, et c'est le piège : pour un
-`content://`, Android *déduit* le type du fournisseur, et un filtre qui n'en
-déclare aucun ne correspond alors à rien.
+Unlike Dolphin, it can be handed the ROM, but not the way you would imagine. Its
+activity is exported with a `VIEW` filter on the `content` and `file` schemes,
+with no MIME type at all, and that is the trap: for a `content://`, Android infers
+the type from the provider, and a filter declaring none then matches nothing.
 
-Une URI SAF ne peut donc jamais être résolue par filtrage. Mesuré sur la Thor le
-2026-08-17 : l'intention est partie, `ActivityTaskManager` l'a journalisée, et
-aucune activité n'a démarré — même avec ARMSX2 arrêté au préalable.
+A SAF URI can therefore never be resolved by filtering. Measured on the Thor on
+2026-08-17: the intent went out, `ActivityTaskManager` logged it, and no activity
+started, even with ARMSX2 stopped beforehand.
 
-D'où le composant explicitement nommé : une intention qui nomme sa cible ne passe
-pas par le filtrage. C'est exactement ce que fait `AzaharLauncher` avec
-`EmulationActivity`, et pour la même raison.
+Hence the explicitly named component: an intent that names its target does not go
+through filtering. It is exactly what `AzaharLauncher` does with
+`EmulationActivity`, and for the same reason.
 
-La préparation doit toujours se faire **avant** le démarrage du jeu : l'écran
-Réseau est dans les réglages de l'app, pas dans un jeu qui tourne, et l'adaptateur
-DEV9 s'initialise au démarrage du jeu (`Local Link host ready on port 19072`). Un
-port ou un code posés après ne seraient pas relus.
+Preparation must always be done before the game starts: the Network screen is in
+the app's settings, not in a running game, and the DEV9 adapter initialises at
+game start (`Local Link host ready on port 19072`). A port or a code set
+afterwards would not be re-read.
 
-## Une build se choisit, elle ne se devine plus
+## A build is chosen, it is no longer guessed
 
-Le cas est ordinaire, pas exotique : Azahar s'installe sous trois
-`applicationId` selon le canal, Eden se décline en mainline / Optimized /
-legacy, chacune doublée d'une nightly, et rien n'empêche d'en avoir trois à la
-fois. Jusqu'ici chaque lanceur tranchait tout seul, avec deux heuristiques
-différentes : le premier de la liste pour cinq d'entre eux, la dernière mise à
-jour pour Eden.
+The case is ordinary, not exotic: Azahar installs under three `applicationId`s
+depending on the channel, Eden comes in mainline / Optimized / legacy, each
+doubled by a nightly, and nothing stops somebody having three at once. Until now
+each launcher decided by itself, with two different heuristics: first in the list
+for five of them, most recently updated for Eden.
 
-Ces heuristiques restent — elles sont le défaut, et le bon : sans choix
-explicite, la build installée le plus récemment est celle qu'on voulait ouvrir.
-Mais elles cessent d'être la seule réponse possible. Le commentaire d'Eden
-l'avait écrit noir sur blanc : « le jour où ça devient une gêne, ce qu'il faudra
-est un réglage explicite, pas une heuristique plus fine. »
+Those heuristics stay, being the default, and the right one: with no explicit
+choice, the most recently installed build is the one you meant to open. But they
+stop being the only possible answer. Eden's comment had written it in black and
+white: "the day this becomes a nuisance, what is needed is an explicit setting,
+not a finer heuristic."
 
-**Un choix ne survit pas à la désinstallation de ce qu'il désigne.** Une
-préférence qui pointe un paquet absent ne doit jamais rendre une console
-injouable : elle est ignorée, le défaut reprend, et le choix est effacé à la
-première lecture pour ne pas ressusciter si le paquet revient un jour sans qu'on
-l'ait demandé.
+A choice does not survive the uninstallation of what it names. A preference
+pointing at an absent package must never make a console unplayable: it is ignored,
+the default takes over, and the choice is cleared on first reading so it does not
+come back to life if the package returns one day unasked.
 
-## Azahar n'a pas fini de changer d'identifiant
+## Azahar has not finished changing its id
 
-Il vient de Lime3DS, qui venait de Citra, et le renommage s'est arrêté à
-mi-chemin : ses classes sont toujours `org.citra.citra_emu.*`, et une partie de
-ses canaux publie encore sous l'`applicationId` de Lime3DS,
-`io.github.lime3ds.android`.
+It comes from Lime3DS, which came from Citra, and the rename stopped halfway: its
+classes are still `org.citra.citra_emu.*`, and some of its channels still publish
+under Lime3DS's `applicationId`, `io.github.lime3ds.android`.
 
-Constaté sur la Thor le 2026-08-26 : le build installé (`263745c1d-vanilla`)
-porte ce nom-là, expose bien `btn_create`, `btn_join`, `ip_address`,
-`btn_confirm` et `menu_multiplayer`, et lance bien
-`org.citra.citra_emu.activities.EmulationActivity` — c'est Azahar en tout point
-sauf le nom du paquet. Emufii ne cherchait que `org.azahar_emu.*` et annonçait
-donc « pas installé » devant un émulateur parfaitement pilotable.
+Observed on the Thor on 2026-08-26: the installed build (`263745c1d-vanilla`)
+carries that name, does expose `btn_create`, `btn_join`, `ip_address`,
+`btn_confirm` and `menu_multiplayer`, and does launch
+`org.citra.citra_emu.activities.EmulationActivity`: it is Azahar in every respect
+but the package name. Emufii only looked for `org.azahar_emu.*` and therefore
+announced "not installed" in front of a perfectly drivable emulator.
 
-**Ne jamais remplacer un nom par un autre** : les trois cohabitent selon d'où
-vient l'installation, et un joueur peut en avoir deux. L'ordre est celui de la
-préférence — le nom Azahar d'abord, l'héritage en dernier.
+Never replace one name with another: all three coexist depending on where the
+install came from, and a player may have two. The order is one of preference, the
+Azahar name first, the legacy one last.
 
-Ce qui décide *vraiment* si un build est pilotable n'est pas son nom mais la
-sonde de § Demander aux ressources, pas au numéro de version. Ajouter un nom ici
-ne fait donc courir aucun risque.
+What really decides whether a build is drivable is not its name but the probe
+under the heading on asking the resources rather than the version number. Adding a
+name here therefore risks nothing.
 
-## Demander aux ressources, pas au numéro de version
+## Ask the resources, not the version number
 
-Emufii pilote le netplay en remplissant le dialogue de l'émulateur par le service
-d'accessibilité. Ça ne marche que si le dialogue existe, et ce n'est pas toujours
-le cas. Azahar 2125.1.3-vanilla, une version officielle signée par l'équipe
-Lime3DS et livrée sur l'AYN Thor, porte tout le moteur réseau dans sa
-bibliothèque native — `Network::RoomMember`, ENet, gestion des paquets wifi —
-mais aucune des vues Android qui l'atteignent. Ses 36 765 ressources ne
-contiennent ni `menu_multiplayer`, ni `btn_join`, ni `ip_address` ; la seule
-occurrence du mot « multiplayer » est la description d'un réglage LLE sans
-rapport.
+Emufii drives netplay by filling the emulator's dialog through the accessibility
+service. That only works if the dialog exists, and it is not always the case.
+Azahar 2125.1.3-vanilla, an official release signed by the Lime3DS team and
+shipped on the AYN Thor, carries the whole network engine in its native library,
+`Network::RoomMember`, ENet, wifi packet handling, but none of the Android views
+that reach it. Its 36,765 resources contain neither `menu_multiplayer`, nor
+`btn_join`, nor `ip_address`; the only occurrence of the word "multiplayer" is the
+description of an unrelated LLE setting.
 
-Armée contre un tel build, l'automatisation attend un écran qui ne viendra
-jamais, et la panne ressemble à Emufii qui ne fait rien du tout. D'où cette
-sonde, lancée **avant** l'armement.
+Armed against such a build, the automation waits for a screen that will never
+come, and the failure looks like Emufii doing nothing at all. Hence this probe,
+run before arming.
 
-Elle demande ses ressources à l'émulateur plutôt que de comparer des numéros de
-version. Un seuil de version demanderait une constante magique par canal de
-distribution et serait faux pour n'importe quel fork ; demander si l'identifiant
-de vue se résout est **la même question** que le service d'accessibilité posera à
-l'exécution, donc elle ne peut pas être en désaccord avec lui.
+It asks the emulator for its resources rather than comparing version numbers. A
+version threshold would need a magic constant per distribution channel and would
+be wrong for any fork; asking whether the view id resolves is the same question
+the accessibility service will ask at runtime, so it cannot disagree with it.
 
-## Eden : la dernière installée gagne
+## Eden: the most recently installed wins
 
-Eden se livre en matrice de paquets — mainline, « Optimized » sous l'identité de
-Genshin Impact, legacy — chacune doublée d'une nightly, et rien n'empêche
-quelqu'un d'en avoir trois à la fois. Un ordre codé en dur choisissait alors
-toujours la même, alors que celle qu'on vient d'installer est précisément celle
-qu'on voulait utiliser : sur la Thor, la stable de la semaine passée battait
-l'Optimized installée quelques instants plus tôt, et Emufii ouvrait l'émulateur
-que le joueur n'avait pas choisi.
+Eden ships as a matrix of packages, mainline, "Optimized" under Genshin Impact's
+identity, legacy, each doubled by a nightly, and nothing stops somebody having
+three at once. A hard-coded order then always chose the same one, while the one
+you have just installed is precisely the one you meant to use: on the Thor, last
+week's stable beat the Optimized installed moments earlier, and Emufii opened the
+emulator the player had not chosen.
 
-`lastUpdateTime` plutôt que `firstInstallTime` : réinstaller ou mettre à jour une
-variante est un geste aussi délibéré que l'installer la première fois.
-L'inconvénient est accepté — mettre à jour une variante oubliée peut prendre la
-main sans le dire. C'est ce qui a mené au réglage explicite, § Une build se
-choisit, elle ne se devine plus.
+`lastUpdateTime` rather than `firstInstallTime`: reinstalling or updating a
+variant is as deliberate a gesture as installing it the first time. The drawback
+is accepted: updating a forgotten variant can take over without saying so. That is
+what led to the explicit setting, under the heading on a build being chosen rather
+than guessed.
 
-À dates égales, l'ordre de `NetplayTarget.EDEN.packages` tranche, ce qui garde
-notre fork devant, étant le seul à laisser choisir l'interface réseau.
+On equal dates, the order of `NetplayTarget.EDEN.packages` decides, which keeps
+our fork in front, it being the only one that lets the network interface be
+chosen.
 
-## Dolphin ne reçoit pas de ROM, et ça ne le gêne pas
+## Dolphin gets no ROM, and it does not mind
 
-Dolphin ne peut pas se faire dire de démarrer un fichier précis depuis
-l'extérieur : son `AppLinkActivity` prend un chemin de système de fichiers par
-`AutoStartFile`, et une URI SAF `content:` est exactement ce qu'un chemin ne peut
-pas être. Emufii le sait depuis l'époque du tapserver.
+Dolphin cannot be told to start a specific file from outside: its
+`AppLinkActivity` takes a filesystem path through `AutoStartFile`, and a SAF
+`content:` URI is exactly what a path cannot be. Emufii has known that since the
+tapserver days.
 
-Le netplay rend le point sans objet : le jeu n'est pas choisi au lancement, il
-est choisi **dans le salon**, par l'hôte, dans la bibliothèque de Dolphin, et
-chaque client se voit dire lequel c'est. Le parcours dont Emufii a besoin est
-donc celui que Dolphin offre déjà — ouvrir l'app, atterrir dans le salon, choisir
-le jeu là. Ce que les autres backends font en deux étapes, celui-ci le fait en
-une, et la ROM que la session porte ne sert jamais qu'à nommer le jeu sur nos
-propres écrans.
+Netplay makes the point moot: the game is not chosen at launch, it is chosen in
+the room, by the host, in Dolphin's library, and each client is told which one it
+is. The journey Emufii needs is therefore the one Dolphin already offers: open the
+app, land in the room, choose the game there. What the other backends do in two
+steps, this one does in one, and the ROM the session carries only ever serves to
+name the game on our own screens.
 
-La conséquence à garder en tête : les deux joueurs doivent déjà avoir ce jeu dans
-Dolphin, avec un contenu identique. Le netplay le vérifie par une empreinte et le
-dit à voix haute quand ils diffèrent.
+The consequence to keep in mind: both players must already have that game in
+Dolphin, with identical content. Netplay checks it by a hash and says so out loud
+when they differ.
 
-## Le silence total n'est pas un échec
+## Total silence is not a failure
 
-Un pilote qui a tourné et renoncé rapporte un échec et dit quoi taper à la place.
-Le cas ici est le **silence**, et il a une cause qui mérite d'être nommée : le
-service d'accessibilité est toujours listé et toujours lié, mais ne reçoit plus
-un seul événement — ce que réinstaller l'app par-dessus elle-même laisse
-derrière.
+A driver that ran and gave up reports a failure and says what to type instead. The
+case here is silence, and it has a cause worth naming: the accessibility service
+is still listed and still bound, but receives not a single event any more, which
+is what reinstalling the app over itself leaves behind.
 
-Mesuré sur la Thor le 2026-08-23 après un `install -r` : chaque lancement ouvrait
-l'émulateur et ne faisait rien, sans erreur, sans progression et sans ligne de
-journal, et éteindre puis rallumer le service dans les réglages d'Android le
-ramenait aussitôt. Les joueurs rencontrent la même réinstallation par le canal de
-mise à jour.
+Measured on the Thor on 2026-08-23 after an `install -r`: every launch opened the
+emulator and did nothing, with no error, no progress and no log line, and turning
+the service off and on again in Android's settings brought it straight back.
+Players hit the same reinstall through the update channel.
 
-La question est posée **au retour du joueur dans Emufii** : c'est le seul moment
-où l'on sait à la fois que l'émulateur a eu son tour et qu'on est vivant pour le
-dire. Le seuil de silence est ce qui sépare « n'a jamais démarré » de « est
-encore en train d'ouvrir le menu », pour qu'un joueur qui revient aussitôt ne
-s'entende pas dire que quelque chose ne va pas.
+The question is asked when the player comes back into Emufii: it is the only
+moment we know both that the emulator has had its turn and that we are alive to
+say so. The silence threshold is what separates "never started" from "still
+opening the menu", so a player who comes straight back is not told something is
+wrong.

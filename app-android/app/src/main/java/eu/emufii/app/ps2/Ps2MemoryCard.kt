@@ -15,7 +15,7 @@ import java.time.ZoneOffset
  *
  * Standard 8 MB RAW: 16 384 pages of 528 bytes, one `BWNETCNF` save at the root,
  * free space erased to `0xFF`.
- * pourquoi : docs/decisions/ps2-carte-memoire.md § Ce que l'émulateur vérifie d'une carte : presque rien
+ * pourquoi : docs/decisions/ps2-carte-memoire.md § What the emulator checks of a card: almost nothing
  */
 object Ps2MemoryCard {
 
@@ -64,7 +64,7 @@ object Ps2MemoryCard {
      * @param saveTitle the label the PS2 browser shows under the save, from the
      *   player's profile name; reduced to printable ASCII, `Emufii` if nothing
      *   survives.
-     * @param consoleId the 8-byte i.Link ID the YNCF halves are encrypted for —
+     * @param consoleId the 8-byte i.Link ID the YNCF halves are encrypted for,
      *   [Ps2NetcnfConfig.ARMSX2_CONSOLE_ID] unless the player's ARMSX2 runs a
      *   real console `.nvm`.
      * @param epochSecond the save's timestamps, in Japan time as the format
@@ -206,7 +206,7 @@ object Ps2MemoryCard {
     /**
      * One 512-byte directory entry. A directory is terminated by one all-`0xFF`
      * entry after the last real one, never by the zero padding.
-     * pourquoi : docs/decisions/ps2-carte-memoire.md § La disposition, dans l'ordre de la carte
+     * pourquoi : docs/decisions/ps2-carte-memoire.md § The layout, in card order
      */
     internal fun dirent(
         out: ByteBuffer,
@@ -234,9 +234,9 @@ object Ps2MemoryCard {
     }
 
     /**
-     * The PS2's time-of-day: eight bytes in **Japan time**, whatever the
+     * The PS2's time-of-day: eight bytes in Japan time, whatever the
      * console's setting.
-     * pourquoi : docs/decisions/ps2-carte-memoire.md § La disposition, dans l'ordre de la carte
+     * pourquoi : docs/decisions/ps2-carte-memoire.md § The layout, in card order
      */
     internal fun timestamp(epochSecond: Long): ByteArray {
         val t: OffsetDateTime = OffsetDateTime.ofInstant(Instant.ofEpochSecond(epochSecond), ZoneOffset.ofHours(9))
@@ -250,7 +250,7 @@ object Ps2MemoryCard {
     /**
      * The 16 spare bytes of a written page. The emulator never verifies them,
      * but the console can, so they are computed rather than filled.
-     * pourquoi : docs/decisions/ps2-carte-memoire.md § La disposition, dans l'ordre de la carte
+     * pourquoi : docs/decisions/ps2-carte-memoire.md § The layout, in card order
      */
     internal fun spare(page: ByteArray): ByteArray {
         val out = ByteArray(16)
@@ -289,7 +289,7 @@ object Ps2MemoryCard {
     /**
      * `icon.sys`, 964 bytes of documented header fields. The title is the one
      * personalised thing on the card.
-     * pourquoi : docs/decisions/ps2-carte-memoire.md § La sauvegarde, et pourquoi rien de Sony n'y voyage
+     * pourquoi : docs/decisions/ps2-carte-memoire.md § The save, and why nothing of Sony's travels in it
      */
     private fun iconSys(title: String): ByteArray {
         val e = ByteBuffer.allocate(964).order(ByteOrder.LITTLE_ENDIAN)
@@ -317,8 +317,8 @@ object Ps2MemoryCard {
 
     /**
      * The save icon: a single quad textured with one colour, a few hundred
-     * bytes — so nothing of Sony's has to travel inside the app.
-     * pourquoi : docs/decisions/ps2-carte-memoire.md § La sauvegarde, et pourquoi rien de Sony n'y voyage
+     * bytes, so nothing of Sony's has to travel inside the app.
+     * pourquoi : docs/decisions/ps2-carte-memoire.md § The save, and why nothing of Sony's travels in it
      */
     private fun icon(): ByteArray {
         val vertices = ByteBuffer.allocate(6 * 24).order(ByteOrder.LITTLE_ENDIAN)

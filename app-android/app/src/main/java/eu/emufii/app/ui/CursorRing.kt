@@ -26,13 +26,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.RoundedCornerShape
 
 /**
- * Le curseur « tube de néon » : une bande autour du contrôle, sa lueur derrière,
- * et deux liserés blancs qui lui donnent son épaisseur.
- *
- * Toutes les mesures sont des fractions de la largeur de bande, elle-même une
- * fraction de la taille du contrôle. L'ancien anneau reste à une ligne de
- * distance — voir [FocusRingStyle].
- * pourquoi : docs/decisions/navigation-manette.md § Les quatre couches du curseur néon
+ * The neon-tube cursor: a band around the control, its glow behind, and two white rules
+ * giving it thickness. Every measure is a fraction of the band's width, itself a
+ * fraction of the control's size. The older ring is one line away, see
+ * [FocusRingStyle].
+ * pourquoi : docs/decisions/navigation-manette.md § The four layers of the neon cursor
  */
 @Composable
 fun Modifier.neonFocusRing(
@@ -40,51 +38,40 @@ fun Modifier.neonFocusRing(
     shape: Shape,
     start: Color,
     end: Color,
-    /** L'épaisseur minimale de la bande : ce que les petits contrôles gardent. */
+    /** The band's minimum thickness, which small controls keep. */
     minBand: Dp,
     /**
-     * La part de la taille du contrôle que prend la bande.
-     *
-     * 0,12 convient à des icônes qui flottent dans une grille aérée. Une
-     * jaquette de bibliothèque en demande un peu moins : nos tuiles sont plus
-     * serrées, et le tube y devenait le sujet de la case.
+     * How much of the control the band takes. 0.12 suits icons floating in an airy
+     * grid; library cover art wants a little less, our tiles being tighter, where the
+     * tube became the subject of the cell.
      */
     bandFraction: Float = 0.12f,
-    /** Le plafond, pour qu'une grande tuile ne se retrouve pas dans un tube. */
+    /** The ceiling, so a large tile does not end up inside a tube. */
     maxBand: Dp = 24.dp,
     inMs: Int,
     outMs: Int,
 ): Modifier {
     val density = LocalDensity.current
-    // La bande naît et meurt en s'épaississant, comme l'ancien anneau : c'est
-    // le geste que l'app a toujours eu, et il n'y a aucune raison d'en changer
-    // en changeant de matière.
+    // The band is born and dies by thickening, like the older ring: that is the gesture
+    // the app has always had.
     val grow by animateFloatAsState(
         targetValue = if (focused) 1f else 0f,
         animationSpec = tween(if (focused) inMs else outMs),
         label = "neon-ring"
     )
-    // **Sortie avant l'animation, et c'est le point.** L'anneau est pose sur
-    // chaque controle de l'ecran, et une transition infinie creee au-dessus de
-    // cette ligne tournait sur les quarante d'un coup — quarante invalidations
-    // par image pour un seul curseur visible. Sous la ligne, une seule vit a la
-    // fois, celle du controle qui porte le curseur. Elle repart de zero a
-    // chaque arrivee, ce qui est aussi ce qu'on veut voir.
+    // Hoisted above the animation, and that is the point. The ring sits on every
+    // control on screen, and an infinite transition created above this line ran on all
+    // forty at once: forty invalidations a frame for one visible cursor. Below it, only
+    // the control holding the cursor has one alive, restarting from zero on each
+    // arrival.
     if (grow <= 0f) return this
 
     /**
-     * Le pas de phase, et **il ne change que vingt-cinq fois par seconde**.
-     *
-     * Une `InfiniteTransition` ordinaire ecrit sa valeur a chaque image : sur un
-     * ecran a 120 Hz, l'app redessinait donc 120 fois par seconde pour une
-     * animation qui n'a que quarante-cinq positions distinctes en 1,8 s. Le
-     * curseur etant a l'ecran en permanence, c'etait un rendu permanent a
-     * pleine cadence — la moitie de la chaleur mesuree venait de la.
-     *
-     * L'horloge n'ecrit donc que quand le **pas** change. Entre deux pas, rien
-     * n'est invalide et l'app ne redessine pas. C'est la meme regle que le fond,
-     * pour la meme raison : la cadence se choisit sur ce que le mouvement
-     * montre, pas sur ce que l'ecran sait faire.
+     * The phase step, written twenty-five times a second. An ordinary
+     * `InfiniteTransition` writes its value every frame: on a 120 Hz screen the app
+     * redrew 120 times a second for an animation with forty-five distinct positions in
+     * 1.8 s. The cursor being permanently on screen, that was permanent full-rate
+     * rendering, and half the measured heat came from it.
      */
     val step = rememberFlowStep()
 
@@ -92,33 +79,27 @@ fun Modifier.neonFocusRing(
     return this.drawWithCache {
         val band = bandWidth(size, bandFraction, minBand, maxBand, density) * grow
         val radius = cornerRadiusOf(shape, size, density)
-        // Le liseré : 16 % de la bande, borné. Sous 1,5 dp il disparaît, au
-        // dela de 4 il cesse d'etre un liseré et devient une seconde bande.
+        // The rule: 16 % of the band, bounded. Under 1.5 dp it disappears, over 4 it
+        // stops being a rule and becomes a second band.
         val hair = (0.16f * band).coerceIn(1.5f * density.density, 4f * density.density)
-        // La lueur : 70 % de la bande. Le plafond de 14 dp est ce qui l'empêche
-        // de devenir un brouillard sur les grandes tuiles.
+        // The glow: 70 % of the band. The 14 dp ceiling is what stops it becoming fog
+        // on large tiles.
         val blur = (0.7f * band).coerceIn(4f * density.density, 14f * density.density)
 
         val w = size.width
         val h = size.height
-        // **La bande entoure le contrôle, elle ne mord pas dedans.** C'est ce
-        // qu'il faut faire, et l'essayer autrement l'a montré : posée vers
-        // l'intérieur sur une tuile de 150 dp, elle recouvre 18 dp de jaquette
-        // sur chaque bord — le curseur mange ce qu'il désigne.
-        //
-        // Ce qui l'empêchait de sortir n'était pas la géométrie mais un
-        // `shadow` place avant elle dans la chaîne : il rogne par defaut tout
-        // ce qui se dessine ensuite. Les deux tuiles concernées disent
-        // maintenant `clip = false`, comme l'anneau le fait deja pour la sienne.
-        // pourquoi : docs/decisions/navigation-manette.md § L'anneau entoure, il ne rogne pas
+        // The band surrounds the control, it does not bite into it. Laid inwards on a
+        // 150 dp tile it covered 18 dp of cover art on each edge, so the cursor ate
+        // what it points at. What kept it in was not geometry but a `shadow` placed
+        // before it in the chain, which clips by default.
+        // pourquoi : docs/decisions/navigation-manette.md § The ring surrounds, it does not clip
         val rOuter = radius + band
         val rInner = radius
 
-        // Les chemins ne dependent que de la taille et de l'epaisseur.
-        //
-        // **Un seul rectangle arrondi par chemin, jamais deux** : Skia
-        // rasterise tout le reste sur le processeur, et l'epaisseur s'anime.
-        // pourquoi : docs/decisions/navigation-manette.md § Un seul rectangle arrondi par chemin, jamais deux
+        // The paths depend only on size and thickness. One rounded rectangle per path,
+        // never two: Skia rasterises everything else on the CPU, and the thickness
+        // animates.
+        // pourquoi : docs/decisions/navigation-manette.md § One rounded rectangle per path, never two
         val midline = Path().apply {
             val half = band / 2f
             val r = (rOuter + rInner) / 2f
@@ -135,21 +116,18 @@ fun Modifier.neonFocusRing(
             addRoundRect(RectF(i, i, w - i, h - i), r, r, Path.Direction.CW)
         }
 
-        // **La lueur se fait en traits empiles, pas au flou.**
-        //
-        // `BlurMaskFilter` n'a pas d'equivalent sur le GPU : Android dessine le
-        // chemin sur le processeur, dans une image intermediaire, a chaque
-        // image. Le curseur est sur l'ecran en permanence, donc c'etait un
-        // rendu logiciel permanent. Trois traits concentriques donnent le meme
-        // degrade de bord et se tracent en materiel.
+        // The glow is stacked strokes, not a blur. `BlurMaskFilter` has no GPU
+        // equivalent: Android draws the path on the CPU into an intermediate bitmap,
+        // every frame, and the cursor is permanently on screen. Three concentric
+        // strokes give the same edge gradient in hardware.
         val halo = listOf(
             (band + blur * 1.6f) to 0.16f,
             (band + blur * 0.8f) to 0.30f,
             band to 0.55f,
         )
 
-        // Le repli, quand la forme est trop petite pour qu'un tour se lise :
-        // le dégradé vertical fixe, qui est la forme non animée de la bande.
+        // The fallback when the shape is too small for a full turn to read: the fixed
+        // vertical gradient, which is the band unanimated.
         val plain = LinearGradient(
             0f, -band, 0f, h + band,
             start.copy(alpha = start.alpha * grow).toArgb(),
@@ -168,9 +146,9 @@ fun Modifier.neonFocusRing(
 
         onDrawWithContent {
             drawContent()
-            // La phase est lue ici : c'est ce qui fait couler le dégradé sans
-            // rien recomposer. Le bitmap correspondant est calculé une fois par
-            // pas, puis retrouvé dans le cache.
+            // The phase is read here, which is what makes the gradient flow without
+            // recomposing anything. Its bitmap is computed once per step, then found in
+            // the cache.
             paints.band.shader = CursorFlow.shader(
                 w = w + 2f * band,
                 h = h + 2f * band,
@@ -198,11 +176,8 @@ fun Modifier.neonFocusRing(
 }
 
 /**
- * L'épaisseur de la bande : 12 % du plus petit côté, bornée.
- *
- * C'est cette fraction qui fait qu'une tuile de
- * bibliothèque porte un tube et qu'une pastille de barre porte un filet, sans
- * qu'aucun appelant ait à le dire.
+ * The band's thickness: 12 % of the shorter side, bounded. This fraction is what gives
+ * a library tile a tube and a bar pill a thread, without any caller saying so.
  */
 private fun bandWidth(size: Size, fraction: Float, min: Dp, max: Dp, density: Density): Float {
     val floor = with(density) { min.toPx() }
@@ -211,12 +186,10 @@ private fun bandWidth(size: Size, fraction: Float, min: Dp, max: Dp, density: De
 }
 
 /**
- * Le rayon du contrôle, lu dans sa forme.
- *
- * La bande doit épouser ce qu'elle entoure : un rayon deviné donnerait un
- * anneau carré autour d'un bouton rond. Les formes que l'app dessine sont
- * toutes des [RoundedCornerShape] ; pour les autres, le contour est calculé au
- * plus près par la forme elle-même.
+ * The control's radius, read from its shape. The band has to hug what it surrounds; a
+ * guessed radius would give a square ring around a round button. Every shape the app
+ * draws is a [RoundedCornerShape]; for the rest the outline is computed by the shape
+ * itself.
  */
 private fun cornerRadiusOf(shape: Shape, size: Size, density: Density): Float =
     if (shape is RoundedCornerShape) {
@@ -230,10 +203,10 @@ private fun cornerRadiusOf(shape: Shape, size: Size, density: Density): Float =
         }
     }
 
-/** Les quatre pinceaux, gardés d'une image à l'autre : en allouer coûte plus que dessiner. */
+/** The four brushes, kept frame to frame: allocating costs more than drawing. */
 private class NeonPaints {
     val glow = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
-    /** Un trait, pas un remplissage : son epaisseur suit l'animation d'arrivee. */
+    /** A stroke, not a fill: its thickness follows the arrival animation. */
     val band = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
     val outer = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
     val inner = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }

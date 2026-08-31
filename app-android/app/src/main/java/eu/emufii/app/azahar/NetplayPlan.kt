@@ -113,12 +113,11 @@ object NetplayAutomation {
     }
 
     /**
-     * Was the automation armed, given its chance, and never heard from?
-     *
-     * Le silence total n'est pas un echec : sa cause est un service
-     * d'accessibilite lie mais muet, ce que laisse un `install -r`. Demande au
-     * retour du joueur, et borne par [SILENCE_MS].
-     * pourquoi : docs/decisions/pilotes-emulateurs.md § Le silence total n'est pas un échec
+     * Was the automation armed, given its chance, and never heard from? Total silence
+     * is not a failure: its cause is an accessibility service that is bound but mute,
+     * which is what an `install -r` leaves. Asked on the player's return, and bounded
+     * by [SILENCE_MS].
+     * pourquoi : docs/decisions/pilotes-emulateurs.md § Total silence is not a failure
      */
     fun neverStarted(now: Long = System.currentTimeMillis()): Boolean =
         _plan.value != null &&

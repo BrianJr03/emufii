@@ -95,7 +95,7 @@ class WfcDnsService : VpnService() {
             if (!protect(socket)) {
                 // Without this the query would be sent back into our own tunnel.
                 socket.close()
-                throw IllegalStateException("protect() a échoué sur la socket amont")
+                throw IllegalStateException("protect() failed on the upstream socket")
             }
             upstreamSocket = socket
 
@@ -110,10 +110,10 @@ class WfcDnsService : VpnService() {
                 .addDnsServer(KaeruWfc.SENTINEL_DNS)
                 .addAllowedApplication(melonPackage)
                 .setMtu(1500)
-                .setSession("Emufii — Kaeru WFC")
+                .setSession("Emufii: Kaeru WFC")
                 .also { it.setMetered(false) }
                 .establish()
-                ?: throw IllegalStateException("establish() a renvoyé null (permission VPN manquante ?)")
+                ?: throw IllegalStateException("establish() returned null (VPN permission missing?)")
 
             tunnel = established
             relay = DnsRelay(sentinel.address) { query -> exchangeWithKaeru(socket, kaeru, query) }
@@ -123,7 +123,7 @@ class WfcDnsService : VpnService() {
             Log.d(TAG, "WFC DNS tunnel up, scoped to $melonPackage")
         } catch (e: Exception) {
             Log.e(TAG, "start: ${e.message}", e)
-            _state.value = WfcState.Error(e.message ?: "démarrage impossible")
+            _state.value = WfcState.Error(e.message ?: "could not start")
             stopTunnel()
             stopSelf(startId)
             return START_NOT_STICKY
@@ -207,7 +207,7 @@ class WfcDnsService : VpnService() {
             val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             nm.notify(NOTIFICATION_ID, buildNotification(text))
         }
-        Log.d(TAG, if (down) "Kaeru silencieux sur ${active.consecutiveUpstreamFailures} requêtes" else "Kaeru répond de nouveau")
+        Log.d(TAG, if (down) "Kaeru silent over ${active.consecutiveUpstreamFailures} queries" else "Kaeru answering again")
     }
 
     private fun stopTunnel() {
@@ -227,9 +227,9 @@ class WfcDnsService : VpnService() {
     /**
      * The user swiped Emufii out of the recents list: take the tunnel down.
      *
-     * Deliberement inconditionnel, et `stopSelf` compte autant que [stopTunnel] :
-     * il efface le redemarrage collant.
-     * pourquoi : docs/decisions/tunnel-wireguard.md § Balayer l'app hors des récents coupe le tunnel
+     * Deliberately unconditional, and `stopSelf` counts as much as [stopTunnel]:
+     * it clears the sticky restart.
+     * pourquoi : docs/decisions/tunnel-wireguard.md § Swiping the app out of recents cuts the tunnel
      */
     override fun onTaskRemoved(rootIntent: Intent?) {
         Log.d(TAG, "Emufii swiped away, taking the WFC tunnel down")

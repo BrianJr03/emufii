@@ -14,8 +14,8 @@ object Ps2NetworkProfile {
     /**
      * Last full verdict, for the life of the process.
      *
-     * Cleared wherever the answer can change — preparing a card, assigning one,
-     * dropping readiness — so a cached yes never outlives the thing it was
+     * Cleared wherever the answer can change: preparing a card, assigning one,
+     * dropping readiness, so a cached yes never outlives the thing it was
      * about.
      */
     @Volatile
@@ -131,10 +131,10 @@ object Ps2NetworkProfile {
     }
 
     /**
-     * The full check, and it is **not** cheap: measured at ~175 ms on the Thor,
+     * The full check, and it is not cheap: measured at ~175 ms on the Thor,
      * because proving the profile is still on the card means reading the whole
      * 8 MB image and the BIOS beside it. Never call it from a composable body or
-     * anywhere else on the main thread — use [isReadyQuick] to draw and
+     * anywhere else on the main thread: use [isReadyQuick] to draw and
      * [verifyReady] to confirm.
      *
      * Kept synchronous for the one caller that must be authoritative in a single

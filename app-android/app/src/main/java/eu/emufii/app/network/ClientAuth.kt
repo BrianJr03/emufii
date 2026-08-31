@@ -6,13 +6,10 @@ import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 
 /**
- * What tells Emufii apart from `curl` in the coordinator's eyes.
- *
- * `HMAC-SHA256(secret, methode + "\n" + chemin + "\n" + horodatage + "\n" +
- * SHA-256(corps))`, en hexadecimal minuscule. Le corps entre dans le calcul ;
- * l'horodatage borne le rejeu. **Ce n'est pas une preuve d'identite** : la cle
- * est dans le binaire, donc extractible.
- * pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § La signature du client change le coût, pas l'identité
+ * What tells Emufii apart from `curl` in the coordinator's eyes. `HMAC-SHA256(secret,
+ * method + "\n" + path + "\n" + timestamp + "\n" + SHA-256(body))`, lowercase hex. The
+ * body enters the computation; the timestamp bounds replay.
+ * pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § Signing the client changes the cost, not the identity
  */
 object ClientAuth {
 

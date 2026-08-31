@@ -1,68 +1,65 @@
-# Les images des jeux : d'où elles viennent, et ce qui passe avant quoi
+# Game artwork: where it comes from, and what wins over what
 
-Sorti du code le 2026-08-29 (cf. `docs/STYLE_COMMENTAIRES.md`). Les titres sont
-des ancres citées depuis le code : ne pas les renommer à la légère.
+Taken out of the code on 2026-08-29 (see `docs/STYLE_COMMENTAIRES.md`). The
+headings are anchors cited from the code: do not rename them lightly.
 
-## L'icône, jamais la jaquette verticale
+## The icon, never the box art
 
-Une ROM ne porte qu'une icône minuscule — 32×32 sur DS, 48×48 sur 3DS — et
-agrandie à la taille d'une tuile, c'est le premier défaut qu'on voit en ouvrant
-l'app. SteamGridDB en publie des versions haute résolution, faites et notées par
-une communauté.
+A ROM carries only a tiny icon, 32x32 on DS and 48x48 on 3DS, and blown up to
+tile size it is the first flaw anyone sees on opening the app. SteamGridDB
+publishes high-resolution versions of these, made and rated by a community.
 
-On prend les **icônes**, pas les jaquettes, bien que le même service serve les
-deux. Une jaquette de boîte est en 2:3 : l'adopter voudrait dire passer toute la
-grille en tuiles verticales, c'est-à-dire abandonner la cible « menu 3DS », qui a
-des tuiles carrées. L'icône tombe dans la tuile existante sans rien changer
-d'autre, et le gain visé — la netteté — est le même.
+We take the icons, not the box art, although the same service serves both. Box
+art is 2:3: adopting it would mean turning the whole grid into vertical tiles,
+which means giving up the "3DS menu" target, whose tiles are square. The icon
+drops into the existing tile without changing anything else, and the gain we are
+after, sharpness, is the same.
 
-## Rien n'est empaqueté dans l'APK
+## Nothing is packaged into the APK
 
-Ces images appartiennent à leurs éditeurs : l'app les télécharge à l'exécution,
-sur l'appareil du joueur, et les garde dans son cache local. C'est ce que fait
-tout lanceur, et c'est la différence entre **afficher** une image et la
-**redistribuer**.
+These images belong to their publishers: the app downloads them at runtime, on
+the player's device, and keeps them in its local cache. That is what every
+launcher does, and it is the difference between displaying an image and
+redistributing it.
 
-## Chaque joueur apporte sa propre clé
+## Every player brings their own key
 
-Une clé figée dans l'APK serait la même pour tout le monde : extractible en
-ouvrant le paquet, et ce serait le compte de l'auteur qui porterait le quota et
-les abus de tout le parc installé.
+A key frozen into the APK would be the same for everyone: extractable by opening
+the package, and it would be the author's account carrying the quota and the
+abuse of the whole installed base.
 
-Sans clé, la fonctionnalité n'existe pas : aucune requête ne part et les tuiles
-gardent leur icône embarquée. Ce n'est pas un échec, juste une bibliothèque sans
-icônes distantes.
+Without a key the feature does not exist: no request goes out and the tiles keep
+their embedded icon. That is not a failure, just a library without remote icons.
 
-## L'ordre des sources, et ce qui l'emporte
+## The order of sources, and what wins
 
-Du plus fort au plus faible :
+Strongest to weakest:
 
-1. **L'image choisie par le joueur.** Quand quelqu'un a pris la peine de
-   corriger, le corriger en retour serait le pire des comportements.
-2. **Cocoon**, quand son dossier est lié : ces images sont sur l'appareil, ont
-   été téléchargées pour ces fichiers-là, et par endroits recadrées à la main.
-   Préférer une supposition fraîche d'un catalogue à une image que quelqu'un a
-   déjà choisie serait prendre le problème à l'envers.
-3. **Le catalogue** (SteamGridDB), si une clé est donnée.
-4. **L'icône de la ROM**, qui ne disparaît jamais.
+1. The image the player chose. When somebody has taken the trouble to correct
+   something, correcting them back would be the worst possible behaviour.
+2. Cocoon, when its folder is linked: those images are on the device, were
+   downloaded for those very files, and in places cropped by hand. Preferring a
+   fresh guess from a catalogue over an image somebody already chose would be
+   taking the problem backwards.
+3. The catalogue (SteamGridDB), if a key is given.
+4. The ROM icon, which never goes away.
 
-## La grille s'ouvre complète, ou elle se remplit sous les yeux du joueur
+## The grid opens complete, or it fills in under the player's eyes
 
-L'écran de chargement attendait le parcours des ROMs puis rendait la main : la
-grille paraissait alors, et se remplissait sous les yeux du joueur. Trois choses
-arrivaient en retard, et aucune des trois n'était le parcours.
+The loading screen used to wait for the ROM walk and then hand over: the grid
+appeared, and filled in under the player's eyes. Three things arrived late, and
+none of the three was the walk.
 
-1. **L'index des images locales**, construit console par console à la première
-   tuile qui la demande. C'est une énumération de dossier en SAF, la chose la
-   plus lente de l'app : la première tuile 3DS payait tout l'index 3DS, la
-   première tuile PS2 tout l'index PS2, et ça se voyait rangée par rangée.
-2. **L'adresse de chaque jaquette**, résolue par tuile à sa composition.
-3. **Le décodage des images**, fait au moment de peindre.
+1. The index of local images, built console by console at the first tile that
+   asks for one. It is a SAF folder enumeration, the slowest thing in the app:
+   the first 3DS tile paid for the whole 3DS index, the first PS2 tile for the
+   whole PS2 index, and it showed row by row.
+2. The address of each piece of artwork, resolved per tile as it composed.
+3. Image decoding, done at paint time.
 
-Les trois se font pendant que le logo tient l'écran de toute façon. Ensuite les
-tuiles trouvent tout en cache et se peignent sur la première image.
+All three now happen while the logo holds the screen anyway. After that the
+tiles find everything cached and paint on the first frame.
 
-**Rien de ce préchauffage n'est indispensable.** Chaque étape est enveloppée : un
-dossier illisible, un réseau absent ou un format inattendu doivent laisser l'app
-s'ouvrir exactement comme avant, images en retard. Un préchauffage qui
-empêcherait d'entrer serait pire que pas de préchauffage du tout.
+None of this warm-up is essential. Every step is wrapped: an unreadable folder,
+no network or an unexpected format must let the app open exactly as before, with
+late images. A warm-up that could keep you out would be worse than no warm-up.

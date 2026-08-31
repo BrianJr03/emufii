@@ -1,42 +1,40 @@
-# Profil de compilation anticipee.
+# Ahead-of-time compilation profile.
 #
-# **Ce que c'est, et pourquoi il existe.** Android n'installe pas une
-# application compilee : ART l'interprete, puis compile a la volee ce qu'il voit
-# revenir souvent, et ne compile serieusement qu'au bout de plusieurs heures, en
-# tache de fond, une fois l'appareil au repos. Les premieres sessions tournent
-# donc en interprete — precisement celles ou l'on juge si l'app est fluide.
+# What it is, and why it exists. Android does not install a compiled
+# application: ART interprets it, then compiles on the fly what it sees coming
+# back often, and only compiles seriously after several hours, in the
+# background, once the device is at rest. The first sessions therefore run
+# interpreted, precisely the ones on which the app's smoothness is judged.
 #
-# Ce fichier dit a ART quoi compiler des l'installation. Il est empaquete dans
-# l'APK sous `assets/dexopt/`, et `androidx.profileinstaller` le remet au
-# systeme au premier lancement.
+# This file tells ART what to compile from installation onwards. It is packaged
+# in the APK under `assets/dexopt/`, and `androidx.profileinstaller` hands it to
+# the system on first launch.
 #
-# **Mesure sur la Thor, 25 descentes rapides dans la grille, le 2026-08-29.**
-# Meme code, meme appareil, seule la compilation change :
+# Measured on the Thor, 25 fast scrolls down the grid, on 2026-08-29.
+# Same code, same device, only the compilation changes:
 #
-#   | build                    | mediane | 90e   | 99e   | en retard |
-#   |--------------------------|---------|-------|-------|-----------|
-#   | debug (interpretee)      |  12 ms  | 48 ms | 113 ms|   16 %    |
-#   | release, sans compilation|   9 ms  | 53 ms |  97 ms|   21 %    |
-#   | release, compilee        |   9 ms  | 31 ms |  46 ms|   16 %    |
+#   | build                     | median | 90th  | 99th  | late  |
+#   |---------------------------|--------|-------|-------|-------|
+#   | debug (interpreted)       |  12 ms | 48 ms | 113 ms|  16 % |
+#   | release, not compiled     |   9 ms | 53 ms |  97 ms|  21 % |
+#   | release, compiled         |   9 ms | 31 ms |  46 ms|  16 % |
 #
-# C'est la queue qui bouge, et c'est elle qu'on sent : les a-coups isoles a
-# 100 ms tombent de moitie. Une build *debug* ne peut pas etre compilee du tout
-# — ART refuse d'optimiser du code debuggable — donc juger la fluidite sur une
-# debug ne veut rien dire, et c'est ce qu'on faisait.
+# It is the tail that moves, and the tail is what you feel: the isolated 100 ms
+# hitches drop by half. A *debug* build cannot be compiled at all: ART refuses
+# to optimise debuggable code, so judging smoothness on a debug build means
+# nothing, and that is what we were doing.
 #
-# Cocoon, le lanceur d'a cote, en embarque un (`assets/dexopt/baseline.prof`) et
-# tourne en `speed-profile` : 5 ms de mediane, 6 ms au 90e, aucune image en
-# retard. C'est de la qu'est venue la piste.
+# Cocoon, the launcher next door, ships one (`assets/dexopt/baseline.prof`) and
+# runs in `speed-profile`: 5 ms median, 6 ms at the 90th, no late frames. That
+# is where the lead came from.
 #
-# **Ce profil est ecrit a la main, avec des jokers.** L'outil officiel demande
-# un module de macrobenchmark qui rejoue un parcours sur l'appareil ; on liste
-# ici les paquets dont on sait qu'ils sont sur le chemin chaud — la
-# bibliotheque, son curseur, la matiere plastique, le fond, le second ecran. Il
-# n'a pas besoin d'etre exhaustif : ce qu'il rate est simplement compile plus
-# tard, comme avant.
+# This profile is written by hand, with wildcards. The official tool
+# requires a macrobenchmark module that replays a journey on the device; here we
+# list the packages known to be on the hot path: the library, its cursor, the
+# plastic material, the background, the second screen. It does not have to be
+# exhaustive: what it misses is simply compiled later, as before.
 #
-# `H` = chaud (appele souvent), `S` = au demarrage, `P` = a compiler.
-
+# `H` = hot (called often), `S` = at startup, `P` = to be compiled.
 HSPLeu/emufii/app/ui/**->**(**)**
 HSPLeu/emufii/app/secondscreen/**->**(**)**
 HSPLeu/emufii/app/library/**->**(**)**

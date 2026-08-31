@@ -36,7 +36,7 @@ class NetplayPlanForRoomTest {
     private val room = RoomRef(host = "85.215.52.3", port = 24900, password = "ABC-123")
 
     @Test
-    fun `avec un salon, l'hôte le rejoint au lieu d'en porter un`() {
+    fun `with a room, the host joins it instead of carrying one`() {
         val plan = session(Session.Role.HOST, room = room).netplayPlan("Jo")
 
         // The point of the whole exercise: the host is a guest like the other.
@@ -49,7 +49,7 @@ class NetplayPlanForRoomTest {
     }
 
     @Test
-    fun `l'invité vise le salon, pas l'hôte`() {
+    fun `the guest targets the room, not the host`() {
         val plan = session(Session.Role.GUEST, room = room).netplayPlan("Clement")
 
         assertEquals("85.215.52.3", plan?.ip)
@@ -57,7 +57,7 @@ class NetplayPlanForRoomTest {
     }
 
     @Test
-    fun `un salon dispense d'attendre l'adresse de l'hôte`() {
+    fun `a room removes the wait for the host address`() {
         // A room on the VPS can be dialled before the tunnel is even up: it does
         // not go through it. Requiring `hostIp` here would hold the game back for
         // an address nobody needs any more.
@@ -66,7 +66,7 @@ class NetplayPlanForRoomTest {
     }
 
     @Test
-    fun `sans salon, l'ancien chemin ne bouge pas`() {
+    fun `with no room, the old path does not move`() {
         val plan = session(Session.Role.HOST).netplayPlan("Jo")
 
         assertEquals(NetplayPlan.Role.Host, plan?.role)
@@ -78,7 +78,7 @@ class NetplayPlanForRoomTest {
     }
 
     @Test
-    fun `sans salon ni adresse d'hôte, il n'y a rien à composer`() {
+    fun `with neither room nor host address, there is nothing to dial`() {
         assertNull(session(Session.Role.GUEST, hostIp = "").netplayPlan("Jo"))
     }
 }

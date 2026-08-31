@@ -7,7 +7,7 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 /**
- * The plaintext table of contents at the head of an NSP — the one thing a
+ * The plaintext table of contents at the head of an NSP: the one thing a
  * Switch dump says with no console key, and therefore the one thing still read
  * here: the title id a tile is named by comes out of a `.tik` entry name in
  * this table.

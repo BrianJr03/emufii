@@ -63,20 +63,14 @@ import eu.emufii.app.ui.LocalRingTone
 import eu.emufii.app.ui.RingTone
 import eu.emufii.app.ui.ringColor
 
-/** A session code is six characters; the hyphen only helps to read it. */
 private const val CODE_LENGTH = 6
 
-/** La coupe corail lisible sur le fond courant, pour les etats affaiblis. */
 private fun coralCut(dark: Boolean) = if (dark) Coral.darkBright else Coral.deep
 
 /**
- * Entering the code you were given, as six boxes rather than a form.
- *
- * La dalle de l'app remplace le champ invisible qui attendait un clavier systeme
- * qui ne s'ouvrait jamais a la manette. En deux colonnes : a gauche ce qu'on
- * lit, a droite ce avec quoi on ecrit.
- * pourquoi : docs/decisions/coquille-ecrans.md § Rejoindre : le clavier de l'app plutôt qu'un champ invisible
- * pourquoi : docs/decisions/coquille-ecrans.md § Six cases plutôt qu'un champ
+ * Six boxes rather than a form. The app's own keypad replaces the invisible field.
+ * pourquoi : docs/decisions/coquille-ecrans.md § Join: the app's keyboard rather than an invisible field
+ * pourquoi : docs/decisions/coquille-ecrans.md § Six slots rather than a field
  */
 @Composable
 fun JoinScreen(
@@ -91,26 +85,21 @@ fun JoinScreen(
     val dark = LocalEmufiiDarkTheme.current
     val landing = remember { FocusRequester() }
 
-    // **B efface une case, il ne quitte pas l'ecran tant qu'il reste du code.**
-    // La dalle n'a plus de touche d'effacement : elle tordait la grille pour
-    // loger une cible que la manette avait deja sous le pouce. Declare avant le
-    // scaffold pour passer devant le sien, qui lui sort de l'ecran — ce que B
-    // fait de nouveau des que le champ est vide.
-    // pourquoi : docs/decisions/coquille-ecrans.md § Le clavier de code n'est pas le clavier de recherche
+    // B erases a box and only leaves the screen once the code is empty: the keypad has
+    // no delete key.
+    // pourquoi : docs/decisions/coquille-ecrans.md § The code keyboard is not the search keyboard
     BackHandler(enabled = code.isNotEmpty()) { code = code.dropLast(1) }
 
-    // Le domaine social : le curseur manette y devient corail.
-    // pourquoi : docs/decisions/theme-duotone-shelves.md § FOCUS MANETTE
+    // The social domain: the pad cursor turns coral here.
+    // pourquoi : docs/decisions/theme-duotone-shelves.md § GAMEPAD FOCUS
     CompositionLocalProvider(LocalRingTone provides RingTone.CORAL) {
     EmufiiScaffold(
         title = stringResource(R.string.join_title),
         modifier = modifier,
         onBack = onBack,
         contentScrolls = false,
-        // Le scaffold ne pose pas son curseur : il le poserait sur le premier
-        // controle de l'ecran, qui est le bouton « Rejoindre », et celui-ci est
-        // desactive tant que le code n'est pas complet. On le pose nous-memes
-        // sur le clavier, qui est ce qu'il y a a faire en arrivant.
+        // The scaffold would put the cursor on the first control, which is the Join
+        // button.
         autoFocus = false
     ) { _ ->
         LandOn(landing)
@@ -131,20 +120,14 @@ fun JoinScreen(
                     rom.displayName,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
-                    // Laid on the background, outside any Surface: with no
-                    // explicit colour it falls back to black and disappears in
-                    // the dark theme.
+                    // Outside any Surface: with no explicit colour it falls back to
+                    // black.
                     color = MaterialTheme.colorScheme.onSurface,
                     textAlign = TextAlign.Center
                 )
 
-                // **Le gabarit passe au-dessus des cases.**
-                //
-                // « ex. KMR-347 » etait sous les encoches et plus discret
-                // qu'elles : il se lisait apres, donc trop tard, et rien ne
-                // reliait ses caracteres aux cases. Pose juste au-dessus, il
-                // devient un modele — trois lettres, un tiret, trois chiffres —
-                // et le tiret imprime dans la bande d'encoches y repond.
+                // The template goes above the boxes: under them it read as a seventh,
+                // fainter line.
                 Text(
                     stringResource(R.string.join_code_example),
                     style = MaterialTheme.typography.bodySmall,
@@ -158,27 +141,16 @@ fun JoinScreen(
                     repeat(CODE_LENGTH) { i ->
                         CodeSlot(
                             char = code.getOrNull(i),
-                            // The current box, and the last one once the
-                            // code is complete: the accent has to land
-                            // somewhere.
+                            // The current box, and the last once the code is complete:
+                            // the accent has to land somewhere.
                             active = i == code.length.coerceAtMost(CODE_LENGTH - 1)
                         )
-                        // The dash is a reading aid, in the middle, and
-                        // not a character to type.
                         if (i == 2) Separator()
                     }
                 }
 
-                // **Ce que fait retour, dit la ou il sert**, et dans la langue
-                // que le panneau arriere parle deja : un capuchon moule et un
-                // mot. Le clavier de code n'a plus de touche d'effacement — sans
-                // cette ligne, un joueur qui se trompe d'une lettre n'a aucun
-                // moyen de savoir qu'il peut la reprendre.
-                //
-                // La bande garde sa hauteur meme vide : elle apparait au premier
-                // caractere, et c'est exactement quand retour efface au lieu de
-                // sortir. Sans la reserve, la bande d'encoches sautait d'un cran
-                // a la premiere lettre tapee.
+                // What back does, said where it is used, in the language the panel
+                // already speaks.
                 Box(modifier = Modifier.height(LEGEND_CAP)) {
                     if (code.isNotEmpty()) PadHintRow(PadHint.ERASE)
                 }
@@ -187,11 +159,9 @@ fun JoinScreen(
                     onClick = sounded { onSubmitCode(SessionCodes.normalize(code)) },
                     enabled = complete,
                     shape = PillShape,
-                    // Rejoindre est un lien : pilule corail, coupe pleine sur
-                    // fond clair, coupe bright sur fond sombre. Desactivee, la
-                    // teinte reste lisible — le controle attend ses six caracteres,
-                    // il n'est pas absent.
-                    // pourquoi : docs/decisions/theme-duotone-shelves.md § Deux axes sémantiques
+                    // Joining is a link: a coral pill, the deep cut on light and the
+                    // bright one on dark.
+                    // pourquoi : docs/decisions/theme-duotone-shelves.md § Two semantic axes
                     colors = ButtonDefaults.buttonColors(
                         containerColor = if (dark) Coral.bright else Coral.deep,
                         contentColor = if (dark) Coral.ink else Color.White,
@@ -200,15 +170,8 @@ fun JoinScreen(
                     ),
                     modifier = Modifier.width(240.dp).height(50.dp).controlRing(PillShape).padEntry()
                 ) {
-                    // **Le bouton desactive dit ce qui manque.**
-                    //
-                    // « Rejoindre » en grise ne disait pas pourquoi il ne
-                    // marchait pas ; le joueur pouvait croire que le code etait
-                    // refuse alors qu'il etait seulement incomplet. Il compte
-                    // donc a voix haute tant qu'il manque quelque chose, et ne
-                    // reprend son nom qu'au moment ou il devient appuyable —
-                    // c'est-a-dire qu'il n'annonce jamais une action qu'il ne
-                    // peut pas rendre.
+                    // The disabled button says what is missing: a grey "Join" did not
+                    // say why.
                     Text(
                         if (complete) stringResource(R.string.join_action)
                         else pluralStringResource(
@@ -220,15 +183,8 @@ fun JoinScreen(
                 }
             }
 
-            // Le clavier, a droite. Il porte le curseur en arrivant : c'est le
-            // seul endroit de l'ecran ou il y ait quelque chose a faire tant que
-            // le code n'est pas complet.
-            //
-            // **Rien dessous.** Il a eu une plaque, puis un plateau creuse : les
-            // deux ajoutaient une surface entre le clavier et le fond, et les
-            // touches se lisaient comme des objets ranges dans une boite. Un
-            // clavier de console est pose a meme l'ecran ; sa forme lui vient de
-            // ses touches, pas d'un cadre autour.
+            // The keypad carries the cursor on arrival: it is the only thing here to
+            // press.
             Box(modifier = Modifier.weight(1.05f)) {
                 EmufiiCodeKeyboard(
                     firstKeyFocus = landing,
@@ -242,9 +198,8 @@ fun JoinScreen(
 }
 
 /**
- * One socket in the code strip: a recess rather than a plate, since a code is
- * typed *into* something. The lit one wears the cursor's own ring.
- * pourquoi : docs/decisions/coquille-ecrans.md § Six cases plutôt qu'un champ
+ * A recess rather than a plate: a code is typed into something.
+ * pourquoi : docs/decisions/coquille-ecrans.md § Six slots rather than a field
  */
 @Composable
 private fun CodeSlot(char: Char?, active: Boolean) {
@@ -252,18 +207,11 @@ private fun CodeSlot(char: Char?, active: Boolean) {
     val shape = RoundedCornerShape(16.dp)
     Box(
         modifier = Modifier
-            // **Retaille pour la colonne de gauche, pas pour l'ecran entier.**
-            //
-            // A 56 dp de large, six encoches, leur tiret et leurs ecarts
-            // demandaient plus que la moitie de l'ecran : la bande depassait sa
-            // colonne et la sixieme case sortait par la droite. Le code se lit
-            // toujours a bout de bras a 48, et c'est le nombre de caracteres
-            // qui fait la largeur, pas l'inverse.
+            // Sized for the left column: at 56 dp, six sockets and their dash
+            // overflowed it.
             .size(width = 48.dp, height = 66.dp)
             .focusRing(active, shape, width = 3.dp, glowRadius = 16.dp)
-            // Une encoche crème plate : la teinte basse de la plaque suffit à
-            // dire « ici va un caractère », le creux en relief est un monde
-            // disparu. L'encoche active se teinte de l'axe social.
+            // The plate's low tint is enough to say a character goes here.
             .socket(shape, dark)
             .then(
                 if (active) Modifier.background(Coral.soft, shape) else Modifier
@@ -278,16 +226,13 @@ private fun CodeSlot(char: Char?, active: Boolean) {
                 color = MaterialTheme.colorScheme.onSurface
             )
         } else if (active) {
-            // A caret, and a thin one. The empty active slot used to paint a
-            // pale block the size of a glyph, which read as a character already
-            // typed: the player's own code looked half entered before they had
-            // touched a key.
+            // The empty active slot used to paint a pale block the size of a glyph.
             Caret()
         }
     }
 }
 
-/** The blink of a text cursor: a bar, on and off, nothing else moving. */
+/** A bar, on and off, nothing else moving. */
 @Composable
 private fun Caret() {
     val blink = rememberInfiniteTransition(label = "caret")
@@ -304,7 +249,6 @@ private fun Caret() {
         modifier = Modifier
             .size(width = 3.dp, height = 34.dp)
             .background(
-                // Le caret dit l'axe social : corail dans le domaine corail.
                 ringColor().copy(alpha = alpha),
                 RoundedCornerShape(2.dp)
             )

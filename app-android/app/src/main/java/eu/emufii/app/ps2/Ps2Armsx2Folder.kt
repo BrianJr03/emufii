@@ -53,13 +53,10 @@ object Ps2Armsx2Folder {
     }
 
     /**
-     * La carte preparee est-elle toujours celle de l'emplacement 1, et porte-t-elle
-     * toujours notre profil ?
-     *
-     * **Ne compare surtout pas la carte octet par octet** : une carte memoire est
-     * un disque vivant, et une sauvegarde de jeu suffirait a declarer la
-     * preparation perdue.
-     * pourquoi : docs/decisions/ps2-carte-memoire.md § Une carte prête ne se vérifie pas octet par octet
+     * Is the prepared card still the one in slot 1, and does it still carry our
+     * profile? Never compare the card byte for byte: a memory card is a living disk,
+     * and one game save would be enough to declare it changed.
+     * pourquoi : docs/decisions/ps2-carte-memoire.md § A prepared card is not verified byte by byte
      */
     fun isStillValid(
         context: Context,
@@ -128,7 +125,7 @@ object Ps2Armsx2Folder {
         // the whole reason the second run behaves like the first. Without this
         // order, the run after a successful setup finds our own generated card
         // sitting in slot 1, takes it as the source, clones it, and never looks
-        // at the folder card in slot 2 — so the save import silently did
+        // at the folder card in slot 2, so the save import silently did
         // nothing at all. Measured on the Thor, 2026-08-23.
         //
         // Ours still comes last rather than never: when a player's own image was
@@ -182,7 +179,7 @@ object Ps2Armsx2Folder {
                 }
                 importedSaves++
             }
-            Log.d(TAG, "$importedSaves sauvegarde(s) écrite(s) sur la carte")
+            Log.d(TAG, "$importedSaves save(s) written to the card")
             if (savesLeftBehind > 0) {
                 savesLeftBehind = readFolderCardSaves(context, folderCard).size - importedSaves
             }
@@ -370,7 +367,7 @@ object Ps2Armsx2Folder {
         // and a silent empty result is indistinguishable from an empty card.
         // It cost a full afternoon of guessing on 2026-08-23.
         val entries = card.listFiles()
-        Log.d(TAG, "carte dossier ${card.name}: ${entries.size} entrée(s) " +
+        Log.d(TAG, "folder card ${card.name}: ${entries.size} entry(ies) " +
             entries.joinToString { "${it.name}${if (it.isDirectory) "/" else ""}" })
         return entries
             .filter { it.isDirectory && it.name != null }
@@ -386,7 +383,7 @@ object Ps2Armsx2Folder {
                         "${ordered.size} retenu(s)")
                     ordered.takeIf { it.isNotEmpty() }
                         ?.let { Ps2FolderCardImport.Save(dir.name!!, it) }
-                }.onFailure { Log.w(TAG, "sauvegarde ${dir.name} illisible, ignorée", it) }
+                }.onFailure { Log.w(TAG, "save ${dir.name} unreadable, skipped", it) }
                     .getOrNull()
             }
     }

@@ -34,22 +34,12 @@ import eu.emufii.app.ui.theme.socket
 import eu.emufii.app.ui.tap
 
 /**
- * L'interrupteur de l'app : une alvéole creusée dans la plaque, et un bouton
- * moulé qui coulisse dedans.
- *
- * Deux choses le distinguent du `Switch` de Material, et les deux sont la
- * raison de ce fichier. Material dessine une piste teintée et une pastille
- * plate, qui sur une plaque moulée se lit comme un autocollant ; ici la piste
- * est le même creux que les champs de saisie et les emplacements vides, et le
- * bouton est la même plaque que tout le reste — l'éclairage est cohérent parce
- * que c'est le même éclairage. Et Material peint un voile de focus, éteint
- * partout dans cette app, qui se lit comme « désactivé » sur une console où le
- * curseur est en permanence quelque part.
- *
- * Allumé, le creux prend l'accent : c'est le seul endroit de l'interrupteur qui
- * porte de la couleur, et il veut dire « en marche », pas « ici ». Le curseur,
- * lui, garde son anneau.
- * pourquoi : docs/decisions/reglages-ecran.md § Un réglage qui n'a que deux états est un interrupteur
+ * A socket cut into the plate, with a moulded button sliding in it. Not
+ * Material's `Switch`: its tinted track and flat thumb read as a sticker on a
+ * moulded plate, and its focus veil reads as "disabled" on a console where the
+ * cursor is always somewhere. Lit, the socket takes the accent, which means "on"
+ * and not "here".
+ * pourquoi : docs/decisions/reglages-ecran.md § A setting with only two states is a switch
  */
 private val TRACK_WIDTH = 52.dp
 private val TRACK_HEIGHT = 30.dp
@@ -57,19 +47,10 @@ private val KNOB = 24.dp
 private val PAD = 3.dp
 
 /**
- * Une rangée d'interrupteur : ce qu'il fait à gauche, l'interrupteur à droite.
- *
- * Toute la rangée est la cible **du doigt**, pas seulement l'interrupteur :
- * viser une pastille de 52 dp au bout d'une ligne à la manette est un travail,
- * et à deux mains sur une console c'est le mauvais geste.
- *
- * Mais le **focus** vit sur l'interrupteur seul. La rangée porte bien un
- * contrôle, seulement son contour faisait le tour de toute la ligne — un
- * cadre sur trois mots de libellé, qui se lisait comme une sélection et pas
- * comme un curseur. La rangée n'est donc pas un arrêt de focus
- * (`canFocus = false`) : au doigt elle toggle, à la manette c'est la pastille
- * qui porte l'anneau, et il n'y a toujours qu'un seul geste.
- * pourquoi : docs/decisions/reglages-ecran.md § Un réglage qui n'a que deux états est un interrupteur
+ * The whole row is the finger's target, but focus lives on the switch alone
+ * (`canFocus = false` on the row): a ring around three words of label reads as a
+ * selection rather than a cursor.
+ * pourquoi : docs/decisions/reglages-ecran.md § A setting with only two states is a switch
  */
 @Composable
 fun SwitchRow(
@@ -77,7 +58,7 @@ fun SwitchRow(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
-    /** La ligne sous le libellé, quand il faut dire ce que l'interrupteur coûte. */
+    /** The line under the label, when what the switch costs has to be said. */
     note: String? = null,
 ) {
     Row(
@@ -103,8 +84,7 @@ fun SwitchRow(
                 )
             }
         }
-        // Le seul arrêt de focus de la rangée : l'anneau épouse l'interrupteur,
-        // pas la ligne entière.
+        // The row's only focus stop: the ring hugs the switch, not the whole line.
         Box(
             modifier = Modifier
                 .controlRing(CircleShape)
@@ -116,15 +96,10 @@ fun SwitchRow(
 }
 
 /**
- * L'interrupteur sans son clic ni son anneau : la rangee qui le porte les a
- * deja. Publie parce que la carte de lancement a la sienne, et qu'une app n'a
- * le droit qu'a un seul interrupteur.
- *
- * DUOTONE SHELVES : plat, comme le reste. La piste est une encoche (la teinte
- * basse de la plaque), la pastille une tuile sans relief, et l'etat actif
- * prend l'axe en force — turquoise par defaut, corail si la rangee vit dans
- * une zone sociale (`LocalRingTone`).
- * pourquoi : docs/decisions/theme-duotone-shelves.md § Les creux deviennent des encoches
+ * The switch without its click or its ring, the row carrying it having both. Published
+ * because the launch card has its own, and an app is allowed one switch. Flat like the
+ * rest; the track is a socket.
+ * pourquoi : docs/decisions/theme-duotone-shelves.md § Hollows become notches
  */
 @Composable
 fun SwitchFace(checked: Boolean) {
@@ -146,12 +121,10 @@ fun SwitchFace(checked: Boolean) {
             .background(fill, CircleShape),
         contentAlignment = Alignment.CenterStart
     ) {
-        // Le bouton est **toujours** la plaque claire, quel que soit le theme.
-        // En plaque sombre sur un thème sombre, il se lisait comme un trou de
-        // plus dans l'alveole au lieu du bouton qui coulisse dedans : un
-        // interrupteur doit dire de quel cote il est, de loin, et c'est le nub
-        // clair qui le dit.
-        // pourquoi : docs/decisions/reglages-ecran.md § Un réglage qui n'a que deux états est un interrupteur
+        // The thumb is always the light plate, whatever the theme. As a dark plate on a
+        // dark theme it read as one more hole in the socket instead of the thumb
+        // sliding in it: a switch has to say which side it is on, from a distance.
+        // pourquoi : docs/decisions/reglages-ecran.md § A setting with only two states is a switch
         Box(
             modifier = Modifier
                 .offset(x = knob)

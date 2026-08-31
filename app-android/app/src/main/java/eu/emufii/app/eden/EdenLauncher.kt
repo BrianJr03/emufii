@@ -28,10 +28,10 @@ import eu.emufii.app.library.EmulatorPick
 class EdenLauncher(private val context: Context) {
 
     /**
-     * Which Eden variant Emufii drives, when the player has several : la
-     * derniere installee, par `lastUpdateTime`. A dates egales, l'ordre de
-     * [NetplayTarget.EDEN] tranche. Surchargeable par [EmulatorPick].
-     * pourquoi : docs/decisions/pilotes-emulateurs.md § Eden : la dernière installée gagne
+     * Which Eden variant Emufii drives when the player has several: the last
+     * installed, by `lastUpdateTime`. On equal dates [NetplayTarget.EDEN]'s order
+     * decides. Overridable through [EmulatorPick].
+     * pourquoi : docs/decisions/pilotes-emulateurs.md § Eden: the most recently installed wins
      */
     fun installedPackage(): String? = EmulatorPick.packageFor(context, Console.SWITCH)
 

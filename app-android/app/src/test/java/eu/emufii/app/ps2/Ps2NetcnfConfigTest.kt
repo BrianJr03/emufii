@@ -13,7 +13,7 @@ import org.junit.Test
  * card through ARMSX2 and Midnight Club 3's network utility wrote its
  * configuration to it. The console that did the writing reported i.Link ID
  * `30 27 D4 20 57 06 94 80`, and under that ID the two encrypted files decode
- * to the text below and re-encode to the same bytes — the round trip is the
+ * to the text below and re-encode to the same bytes: the round trip is the
  * proof that the shift table, the word order, and the odd-byte tail are all
  * right, since a single wrong shift garbles its word visibly.
  */
@@ -82,7 +82,7 @@ class Ps2NetcnfConfigTest {
     fun `two files encrypted for one console share their prefix when their text does`() {
         // The 38-byte header is common to both plaintexts, and the shift table
         // repeats every 24 words (48 bytes), so the first 47 bytes of the two
-        // shipped files are identical — the fingerprint of the cipher's design.
+        // shipped files are identical: the fingerprint of the cipher's design.
         val ifc = Ps2NetcnfConfig.ifcDat(benchId)
         val dev = Ps2NetcnfConfig.devDat(benchId)
         var shared = 0

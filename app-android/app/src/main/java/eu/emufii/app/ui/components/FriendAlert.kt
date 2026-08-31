@@ -72,7 +72,7 @@ fun FriendAlert(
             val shown = lastNonNull(event)
             // A friend coming online is the social axis: the card's ring and
             // its accents speak coral, never teal.
-            // pourquoi : docs/decisions/theme-duotone-shelves.md § Deux axes sémantiques
+            // pourquoi : docs/decisions/theme-duotone-shelves.md § Two semantic axes
             CompositionLocalProvider(LocalRingTone provides RingTone.CORAL) {
             SoftCard(
                 onClick = onOpen,

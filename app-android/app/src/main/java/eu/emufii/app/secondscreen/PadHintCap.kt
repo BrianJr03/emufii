@@ -30,13 +30,10 @@ import eu.emufii.app.ui.theme.PillShape
 import eu.emufii.app.ui.theme.plate
 
 /**
- * La legende du pad : un capuchon moule et ce qu'il fait.
- *
- * Sortie du panneau arriere le 2026-08-29, parce que l'ecran de face en a
- * maintenant besoin lui aussi — la saisie d'un code y annonce ce que fait
- * retour. Une seule ecriture de ce motif, sinon les deux ecrans finissent par
- * dire la meme touche de deux facons.
- * pourquoi : docs/decisions/second-ecran.md § La légende, et pourquoi les symboles sont dessinés
+ * The pad legend: a moulded cap and what it does. It left the rear panel because the
+ * front screen needs it too, the code entry announcing there what back does. One
+ * drawing of this motif, or the two drift.
+ * pourquoi : docs/decisions/second-ecran.md § The legend, and why the symbols are drawn
  */
 @Composable
 fun PadHintRow(hint: PadHint, modifier: Modifier = Modifier) {
@@ -54,12 +51,12 @@ fun PadHintRow(hint: PadHint, modifier: Modifier = Modifier) {
     }
 }
 
-/** La hauteur d'un capuchon, donc celle de la bande : [PadKeyCap] et elle sont liees. */
+/** A cap's height, and therefore the band's: [PadKeyCap] and it are tied. */
 internal val LEGEND_CAP = 26.dp
 
 /**
  * One button, moulded like the machine's own: a plate, never a recess.
- * pourquoi : docs/decisions/second-ecran.md § La légende, et pourquoi les symboles sont dessinés
+ * pourquoi : docs/decisions/second-ecran.md § The legend, and why the symbols are drawn
  */
 @Composable
 fun PadKeyCap(hint: PadHint) {
@@ -76,7 +73,7 @@ fun PadKeyCap(hint: PadHint) {
                 oled = oled,
                 lift = 2.dp,
                 // A hint about holding shows a held button: no lift, no lit edge.
-                // pourquoi : docs/decisions/second-ecran.md § La légende, et pourquoi les symboles sont dessinés
+                // pourquoi : docs/decisions/second-ecran.md § The legend, and why the symbols are drawn
                 pressed = hint.held
             )
     ) {
@@ -90,7 +87,7 @@ fun PadKeyCap(hint: PadHint) {
  *
  * Laying the text out cannot do this: the glyph is drawn and placed from
  * [android.graphics.Paint.getTextBounds], pen at `w/2 - (left + right)/2`.
- * pourquoi : docs/decisions/second-ecran.md § Une lettre est centrée sur son encre, pas sur sa boîte
+ * pourquoi : docs/decisions/second-ecran.md § A letter is centred on its ink, not on its box
  */
 @Composable
 private fun CapLetter(glyph: String, tint: Color) {
@@ -122,7 +119,7 @@ private fun CapLetter(glyph: String, tint: Color) {
 
 /**
  * The d-pad, drawn rather than typed.
- * pourquoi : docs/decisions/second-ecran.md § La légende, et pourquoi les symboles sont dessinés
+ * pourquoi : docs/decisions/second-ecran.md § The legend, and why the symbols are drawn
  */
 @Composable
 private fun DPadGlyph(tint: Color) {

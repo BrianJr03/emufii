@@ -153,7 +153,7 @@ fun IconPickerDialog(
                 // A `PadTextField`: the frame is the traversal step and A goes
                 // in, so the pad's cursor can pass over the search box without
                 // the IME springing up. That is the same failure the invisible
-                // anchor above guards against on opening — the anchor stays,
+                // anchor above guards against on opening: the anchor stays,
                 // because it also has to survive a recomposition, but the field
                 // no longer causes it.
                 PadTextField(
@@ -258,7 +258,7 @@ private fun Spacer() = Box(Modifier)
  * A moulded pill like every other pressable thing, and not the tonal `Surface`
  * that was here: `surfaceVariant` against `primary` was Material choosing two
  * flat fills of its own, in a world where relief says "object" and the one
- * accent says "this one". Selected, the pill is pushed in — the choice already
+ * accent says "this one". Selected, the pill is pushed in: the choice already
  * made is the one that is down.
  */
 @Composable

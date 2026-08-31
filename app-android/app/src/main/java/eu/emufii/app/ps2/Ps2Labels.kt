@@ -5,22 +5,13 @@ import android.util.Log
 import org.json.JSONObject
 
 /**
- * ARMSX2's labels, in all of its languages, read from its own files.
+ * ARMSX2's labels, read from the 19 JSON files it keeps under `i18n`. Same
+ * principle as `eu.emufii.app.netplay.NetplayLabels`, different container.
  *
- * The same principle as `eu.emufii.app.netplay.NetplayLabels`, a different
- * container: there we resolve the emulator's Android resources in each locale,
- * here we open its assets, where ARMSX2 keeps 19 JSON files under `i18n`.
- *
- * Why read *every* language rather than the device's: there is no reliable way
- * to know which language the app opposite is running in. It may follow the
- * system locale, it may follow an internal setting. Searching all 19 costs one
- * read at the first call and removes the question.
- *
- * English always stays in the list, and not only out of caution: the Local Link
- * labels are in *no* translation file, they are hardcoded in ARMSX2's source, so
- * for them English is the only possible answer today. The day upstream
- * translates them, they will appear in the JSON and be found without our
- * touching anything.
+ * All 19 languages, not the device's: nothing says which language the app
+ * opposite runs in, and searching them all costs one read at the first call.
+ * English stays in regardless, since the Local Link labels are in no translation
+ * file at all, hardcoded in ARMSX2's source.
  */
 class Ps2Labels(private val context: Context) {
 
@@ -68,7 +59,7 @@ class Ps2Labels(private val context: Context) {
                     .use { it.readText() }
                 JSONObject(text)
             }.getOrNull()
-        }.also { Log.d(TAG, "libellés ARMSX2 : ${it.size} langues lues") }
+        }.also { Log.d(TAG, "ARMSX2 labels: ${it.size} languages read") }
     }.getOrElse {
         // Said once, loudly: this is the difference between "the automation does
         // not bite" and "the automation does not bite in French".

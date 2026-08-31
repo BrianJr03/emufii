@@ -4,14 +4,11 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 /**
- * Surgery on a memory card the player already owns: keep every save on it,
- * put the network configuration next to them.
- *
- * L'entree n'est jamais modifiee ; la carte se lit par son superbloc, jamais par
- * supposition. [inject] prend l'identifiant i.Link car les moities YNCF sont
- * verrouillees a la console (voir [Ps2NetcnfConfig]).
- * pourquoi : docs/decisions/ps2-carte-memoire.md § Opérer la carte du joueur plutôt que lui en donner une neuve
- * pourquoi : docs/decisions/ps2-carte-memoire.md § Retrouver l'identifiant d'une carte déjà écrite
+ * Surgery on a memory card the player already owns: keep every save on it and put the
+ * network configuration beside them. The input is never modified; the card is read
+ * through its superblock, never by assumption.
+ * pourquoi : docs/decisions/ps2-carte-memoire.md § Operating on the player's card rather than handing them a new one
+ * pourquoi : docs/decisions/ps2-carte-memoire.md § Recovering the id of an already-written card
  */
 object Ps2CardPatch {
 
@@ -34,7 +31,7 @@ object Ps2CardPatch {
      * The network configuration, written into [card] for the console [consoleId].
      *
      * @throws CardFormatException when the card is not a PS2 memory card image
-     *   this can parse — wrong size, PS1, foreign magic, or a filesystem whose
+     *   this can parse: wrong size, PS1, foreign magic, or a filesystem whose
      *   declared geometry does not match the file holding it.
      */
     fun inject(
@@ -55,7 +52,7 @@ object Ps2CardPatch {
     }
 
     /**
-     * Adds an ordinary save to a card — game-shaped, not copy-protected.
+     * Adds an ordinary save to a card: game-shaped, not copy-protected.
      *
      * Product code in its own right (the same machinery the network save
      * uses), and the fixture builder for the tests: a card with several saves,
@@ -80,7 +77,7 @@ object Ps2CardPatch {
      * The console a card's own `BWNETCNF` was encrypted for, or null.
      *
      * The 38-byte header every YNCF file starts with is known plaintext, and
-     * each 16-bit word of it exposes the rotation it was given — three of
+     * each 16-bit word of it exposes the rotation it was given: three of
      * those per i.Link ID byte. Words 0-18 (the whole header) recover ID bytes
      * 0-6 outright; the eighth byte steers only words 21-23, past the header,
      * so it is found by trying all 256 values and keeping the one under which
@@ -114,7 +111,7 @@ object Ps2CardPatch {
         // Nineteen known words rebuild table entries 0-18: ID bytes 0-5 in
         // full, and the top three bits of byte 6 (entry 18 is its high part).
         // The rest of byte 6 and all of byte 7 steer words past the header,
-        // where the plaintext is unknown — so they are searched, bounded by
+        // where the plaintext is unknown, so they are searched, bounded by
         // what is known, and judged by whether the files' tails still decode
         // to text.
         val id = ByteArray(8)

@@ -125,12 +125,12 @@ class DiscImageTest {
         }
 
     @Test
-    fun `un disque PS2 se reconnait a son identifiant systeme`() {
+    fun `a PS2 disc is recognised by its system identifier`() {
         assertEquals(Console.PS2, DiscImage.identify(disc("PLAYSTATION", "SLES_50877")))
     }
 
     @Test
-    fun `un rip UMD reste a la PSP, meme lu jusqu'au descripteur`() {
+    fun `a UMD rip stays with the PSP, even read as far as the descriptor`() {
         // The regression that matters: on the Thor, the six PS2 games and the six
         // PSP games are all `.iso`.
         // The UMD rip says so itself in the descriptor, which is what settles
@@ -139,20 +139,20 @@ class DiscImageTest {
     }
 
     @Test
-    fun `le numero PS2 est celui qu'ARMSX2 affiche`() {
+    fun `the PS2 number is the one ARMSX2 shows`() {
         // The emulator writes `SLES-50877`, the disc `SLES_50877`.
         assertEquals("SLES-50877", DiscImage.gameId(disc("PLAYSTATION", "SLES_50877")))
     }
 
     @Test
-    fun `un en-tete court ne promeut rien vers la PS2`() {
+    fun `a short header promotes nothing to the PS2`() {
         // What was read stops before `0x8000`: say nothing, rather than read
         // zeroes that do not come from the file.
         assertNull(DiscImage.identify(ByteArray(DiscImage.HEADER_BYTES)))
     }
 
     @Test
-    fun `la PS2 ne reclame aucune extension`() {
+    fun `the PS2 claims no extension`() {
         // It only ever arrives through the bytes: giving it `.iso` would take
         // that from the PSP, the table being a map.
         assertTrue(Console.PS2.extensions.isEmpty())

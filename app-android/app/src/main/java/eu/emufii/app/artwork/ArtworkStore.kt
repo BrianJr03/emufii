@@ -10,22 +10,13 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 /**
- * What the app has already learned about a game's icon.
+ * What the app has learned about a game's icon. Failures are remembered too: a
+ * game the catalogue does not know produces nothing to cache, so without a
+ * negative mark it is the one we would ask about forever. The mark expires after
+ * [MISS_TTL_MS], since a missing title may be added tomorrow.
  *
- * With no memory, every display of the grid would start one search per game: a
- * library of thirty titles would make sixty requests on each return to the home
- * screen, for a result that never changes.
- *
- * Failures are remembered too, and that is the less obvious point: a game the
- * catalogue does not know is the most expensive case, since it produces nothing
- * to cache. With no negative mark, the games that cannot be found are precisely
- * the ones we would ask about forever. The mark expires after [MISS_TTL_MS]: a
- * title missing today may be added to the catalogue tomorrow, and a library must
- * not condemn itself.
- *
- * We only keep the URL. Downloading and caching the bytes is Coil's business,
- * which it already does for the whole app; redoing it here would give two caches
- * to age together.
+ * Only the URL is kept; caching the bytes is Coil's business, and redoing it
+ * here would give two caches to age together.
  */
 class ArtworkStore(context: Context) {
 
@@ -72,13 +63,11 @@ class ArtworkStore(context: Context) {
     fun chosen(key: String): String? =
         prefs.getString(PICK_PREFIX + key, null)?.takeIf { it.isNotBlank() }
 
-    /** The player picked an icon from the list. */
     fun choose(rom: Rom, url: String) {
         prefs.edit { putString(PICK_PREFIX + key(rom), url) }
         bumpRevision()
     }
 
-    /** Back to the automatically found icon, or to the ROM's. */
     fun clearChoice(rom: Rom) {
         prefs.edit { remove(PICK_PREFIX + key(rom)) }
         bumpRevision()
@@ -131,6 +120,6 @@ class ArtworkStore(context: Context) {
         const val URL_PREFIX = "url:"
         const val MISS_PREFIX = "miss:"
         const val PICK_PREFIX = "pick:"
-        const val MISS_TTL_MS = 7L * 24 * 60 * 60 * 1000 // une semaine
+        const val MISS_TTL_MS = 7L * 24 * 60 * 60 * 1000 // one week
     }
 }

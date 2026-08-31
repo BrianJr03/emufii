@@ -1,12 +1,10 @@
 package eu.emufii.app.library
 
 /**
- * The keys under which a ROM is looked up in the compatibility database.
- *
- * Une ROM rend **plusieurs** cles : une cle de famille quand la region est un
- * caractere a position connue, et toujours les identifiants exacts. Doit rester
- * d'accord avec `scripts/compat.mjs`, sinon la pastille disparait en silence.
- * pourquoi : docs/decisions/identite-et-dumps.md § Une ROM rend plusieurs clés, jamais une seule
+ * The keys a ROM is looked up under in the compatibility database. A ROM yields
+ * several: a family key when the region is a character at a known position, and always
+ * the exact identifiers. Must stay in step with `scripts/compat.mjs`.
+ * pourquoi : docs/decisions/identite-et-dumps.md § A ROM yields several keys, never one
  */
 fun Rom.compatKeys(): List<String> = compatKeys(console, productCode, titleIdHex)
 
@@ -45,8 +43,8 @@ fun compatKeys(
         //
         // The maker code was in here at first, on the reasoning that two
         // publishers might reuse a game code. It came back out on contact with
-        // the data: GameTDB — the index the rating tool resolves names against,
-        // and every other DS tool with it — keys on the four characters alone
+        // the data: GameTDB, the index the rating tool resolves names against,
+        // and every other DS tool with it: keys on the four characters alone
         // and does not publish a maker code at all. A discriminator no source
         // can ever supply does not prevent a collision, it prevents every match,
         // and a DS badge that never appears is a worse failure than a collision

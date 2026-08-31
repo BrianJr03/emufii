@@ -15,20 +15,20 @@ class UpdateInstallerTest {
     private val base = "https://coordinator.example"
 
     @Test
-    fun `sans url publiee, on tire du coordinator`() {
+    fun `with no published url, we pull from the coordinator`() {
         assertEquals("$base/download", UpdateInstaller.downloadUrl(null, base))
         assertEquals("$base/download", UpdateInstaller.downloadUrl("", base))
     }
 
     @Test
-    fun `une url du meme hote est suivie`() {
+    fun `a url on the same host is followed`() {
         val published = "$base/releases/emufii-1.9.3.apk"
 
         assertEquals(published, UpdateInstaller.downloadUrl(published, base))
     }
 
     @Test
-    fun `une url d'ailleurs n'est pas suivie`() {
+    fun `a url from elsewhere is not followed`() {
         // The case that matters: someone controls the published JSON but not the
         // server. The app falls back on its own coordinator rather than going to
         // fetch whatever it is being pointed at.
@@ -39,7 +39,7 @@ class UpdateInstallerTest {
     }
 
     @Test
-    fun `le meme hote en clair n'est pas suivi`() {
+    fun `the same host in cleartext is not followed`() {
         assertEquals(
             "$base/download",
             UpdateInstaller.downloadUrl("http://coordinator.example/emufii.apk", base)
@@ -47,7 +47,7 @@ class UpdateInstallerTest {
     }
 
     @Test
-    fun `une url illisible retombe sur le coordinator`() {
-        assertEquals("$base/download", UpdateInstaller.downloadUrl("pas une url", base))
+    fun `an unreadable url falls back on the coordinator`() {
+        assertEquals("$base/download", UpdateInstaller.downloadUrl("not a url", base))
     }
 }

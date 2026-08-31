@@ -19,30 +19,25 @@ import eu.emufii.app.ui.theme.LocalEmufiiOledTheme
 import eu.emufii.app.ui.theme.plateColors
 
 /**
- * Le remplissage opaque du curseur.
- *
- * Sorti de `screens/settings/SettingsPieces.kt` le 2026-08-28 : il y etait
- * `internal` au paquet des reglages, alors que le probleme qu'il resout — une
- * lueur est une ombre, et une ombre traverse tout ce qui n'est pas opaque — se
- * pose partout ou un controle transparent porte l'anneau. [PadTextField] en est
- * un, et il n'appartient a aucun ecran.
+ * The cursor's opaque fill. Taken out of `screens/settings/SettingsPieces.kt`, where it
+ * was `internal` to the settings package while the problem it solves is everywhere: a
+ * glow is a shadow, and a shadow crosses anything that is not opaque.
  */
 
-/** Ou se trouve une carte de reglages et quelle hauteur elle fait, en coordonnees fenetre. */
+/** Where a settings card sits and how tall it is, in window coordinates. */
 data class CardBounds(val top: Float, val height: Float)
 
 /**
- * La carte dans laquelle l'appelant dessine. Coordonnees **racine**, pas celles
- * d'un parent : ce qui en a besoin n'est pas a la meme profondeur.
- * pourquoi : docs/decisions/reglages-ecran.md § Le remplissage opaque existe pour le curseur, pas pour le look
+ * The card the caller draws into. Root coordinates, not a parent's: what needs it is
+ * not at the same depth.
+ * pourquoi : docs/decisions/reglages-ecran.md § The opaque fill exists for the cursor, not for the look
  */
 val LocalCardBounds = compositionLocalOf { CardBounds(0f, 0f) }
 
 /**
- * Un remplissage opaque qui est, au pixel pres, ce que la carte peignait deja
- * ici. **Il existe pour le curseur, pas pour le look** : une lueur est une
- * ombre, et elle traverse tout ce qui n'est pas opaque.
- * pourquoi : docs/decisions/reglages-ecran.md § Le remplissage opaque existe pour le curseur, pas pour le look
+ * An opaque fill that is, to the pixel, what the card already painted here. It exists
+ * for the cursor, not for the look.
+ * pourquoi : docs/decisions/reglages-ecran.md § The opaque fill exists for the cursor, not for the look
  */
 @Composable
 fun Modifier.cardSliceFill(shape: Shape, tint: Color = Color.Transparent): Modifier {

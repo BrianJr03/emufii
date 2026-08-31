@@ -63,28 +63,20 @@ import eu.emufii.app.ui.theme.TealCuts
 import eu.emufii.app.ui.tap
 
 /**
- * L'apparence de l'app : quatre plateaux a comparer.
- *
- * Ca remplacait une rangee depliante qui empilait neuf lignes nommees — quatre
- * luminosites puis cinq couleurs — dans une carte que le reste des reglages
- * devait faire defiler. Deux choses clochaient au-dela de la longueur. Une
- * liste de noms demande d'imaginer ce que « OLED » et « Ambre » donnent, quand
- * c'est justement le sujet ; et un choix qui repeint toute l'app n'est pas le
- * detail d'une rangee. Ca a d'abord ete un panneau, puis, le jour ou les
- * reglages sont devenus des pages, c'est devenu **la page Apparence** : un
- * panneau modal qui repeint l'ecran qu'il recouvre se juge a travers son propre
- * voile.
- * pourquoi : docs/decisions/reglages-ecran.md § Un hub et sept pages, plus un accordéon
+ * The app's look: four trays to compare. It replaced a folding row that stacked nine
+ * named lines, four brightnesses then five colours, in a card the rest of the settings
+ * had to scroll past. Beyond the length, a list of names asks you to imagine.
+ * pourquoi : docs/decisions/reglages-ecran.md § One hub and seven pages, plus an accordion
  */
 @Composable
 fun ThemeSwatches(
     theme: AppTheme,
     onTheme: (AppTheme) -> Unit,
     modifier: Modifier = Modifier,
-    /** Vrai quand le premier plateau est le premier controle de la page. */
+    /** True when the first tray is the page's first control. */
     firstIsEntry: Boolean = false
 ) {
-    // L'axe du jeu, en dur : l'accent configurable n'existe plus.
+    // The play axis, hardcoded: there is no configurable accent any more.
     val cuts = TealCuts
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -120,30 +112,22 @@ private fun ThemeSwatch(
 ) {
     val panelDark = LocalEmufiiDarkTheme.current
     /**
-     * Le choix ne porte pas d'anneau : l'anneau appartient au curseur, et garde
-     * le meme poids partout. Le choix se dit par une marque, qu'un contour ne
-     * peut pas imiter.
-     * pourquoi : docs/decisions/navigation-manette.md § L'anneau garde le même poids partout
+     * The choice carries no ring: the ring belongs to the cursor and keeps one weight
+     * everywhere. A choice is said with a mark, which an outline cannot imitate.
+     * pourquoi : docs/decisions/navigation-manette.md § The ring keeps the same weight everywhere
      */
-    // Le curseur est lu ici en plus de [controlRing], qui le garde pour lui :
-    // la vignette doit passer devant ses voisines *avant* que la bande soit
-    // dessinée, et seule la mise en page peut le faire.
+    // Read here as well as in [controlRing], which keeps it to itself: the thumbnail
+    // has to pass in front of its neighbours before the band is drawn, and only layout
+    // can do that.
     var ringed by remember { mutableStateOf(false) }
     val mark by animateFloatAsState(
         targetValue = if (selected) 1f else 0f,
         label = "theme-swatch-mark"
     )
     Column(
-        // **Au-dessus de ses voisines quand le curseur est dessus.**
-        //
-        // La bande du curseur déborde de la vignette, et une `Row` dessine ses
-        // enfants dans l'ordre : la vignette de droite passe par-dessus la
-        // bande de celle de gauche, qui s'y retrouve tranchée net sur un côté.
-        // Invisible avec l'ancien anneau, qui se dessinait à l'intérieur.
-        //
-        // Le `zIndex` va **ici**, sur l'enfant de la `Row`, et non sur la boîte
-        // à l'intérieur : il ne réordonne qu'entre frères, et posé sur la boîte
-        // il ne départageait que la boîte et son libellé — c'est-à-dire rien.
+        // Above its neighbours under the cursor. The cursor's band spills past the
+        // thumbnail, and a `Row` draws its children in order, so the right thumbnail
+        // passed over the left one's band and cut it clean off.
         modifier = modifier.zIndex(if (ringed) 1f else 0f),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -153,9 +137,8 @@ private fun ThemeSwatch(
                 .aspectRatio(1.3f)
                 .then(if (entry) Modifier.padEntry() else Modifier)
                 .onFocusEvent { ringed = it.hasFocus }
-                // Une bande plus fine qu'ailleurs : les vignettes sont a 10 dp
-                // l'une de l'autre et portent leur nom juste dessous, donc la
-                // part par defaut la faisait mordre sur les deux.
+                // A thinner band than elsewhere: the thumbnails are 10 dp apart and
+                // carry their name just below, so the default share bit into both.
                 .controlRing(
                     InsetShape,
                     width = 3.dp,
@@ -208,10 +191,9 @@ private fun ThemeSwatch(
                         shape = InsetShape
                     )
             )
-            // Le jeton, dans le coin ou rien d'autre ne se pose. Il grandit en
-            // s'installant : choisir un theme repeint tout le panneau derriere
-            // lui, et une marque qui apparaitrait d'un coup pendant que les
-            // surfaces se croisent se lirait comme un second evenement.
+            // The token, in the corner nothing else uses. It grows as it settles:
+            // choosing a theme repaints the whole panel behind it, and a mark appearing
+            // at once while the surfaces cross would read as a second event.
             if (mark > 0f) {
                 Box(
                     modifier = Modifier
@@ -236,8 +218,8 @@ private fun ThemeSwatch(
             else MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
             maxLines = 1,
-            // 12 dp et non 6 : la bande du curseur descend sous la vignette,
-            // et le nom se lisait au travers.
+            // 12 dp, not 6: the cursor's band runs below the thumbnail and the name
+            // read through it.
             modifier = Modifier.padding(top = 12.dp)
         )
     }

@@ -5,12 +5,10 @@ import eu.emufii.app.R
 import eu.emufii.app.library.Console
 
 /**
- * How Emufii plays together on one machine, in as few words as it takes.
- *
- * Deux lignes et au plus un avertissement, et ce plafond est le dessin.
- * [warning] est reserve a ce qui se decouvrirait autrement comme une panne, pas
- * aux nuances : son absence est ce qui donne du sens a sa presence.
- * pourquoi : docs/decisions/second-ecran.md § Une fiche console tient en deux lignes et un avertissement
+ * How Emufii plays together on one machine, in as few words as it takes. Two lines and
+ * at most one warning, and that ceiling is the design. [warning] is for what would
+ * otherwise be discovered as a fault, not for nuance.
+ * pourquoi : docs/decisions/second-ecran.md § A console card fits in two lines and a warning
  */
 data class ConsoleBrief(
     @StringRes val first: Int,

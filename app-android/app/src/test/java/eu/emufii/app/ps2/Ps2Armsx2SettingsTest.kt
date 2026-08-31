@@ -73,7 +73,7 @@ class Ps2Armsx2SettingsTest {
     }
 
     @Test
-    fun `the native ini parses too — measured off a live install`() {
+    fun `the native ini parses too, measured off a live install`() {
         // Verbatim shape of PCSX2-Android.ini on a real data folder: slot 1
         // holding a named card, slot 2 the default one.
         val ini = """

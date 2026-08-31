@@ -27,25 +27,25 @@ class Ps2ScreenTest {
     )
 
     @Test
-    fun `la valeur se lit sur la ligne du libelle, pas sur la suivante`() {
+    fun `the value is read on the label's row, not on the next one`() {
         assertEquals("19072", Ps2Screen.valueFor(portRow, "Local Link port")?.text)
         assertEquals("KHYZF3W6", Ps2Screen.valueFor(portRow, "Room code")?.text)
     }
 
     @Test
-    fun `deux lignes voisines ne sont pas la meme ligne`() {
+    fun `two neighbouring rows are not the same row`() {
         assertFalse(Ps2Screen.sameRow(Bounds(69, 809, 306, 867), Bounds(69, 997, 250, 1055)))
         assertTrue(Ps2Screen.sameRow(Bounds(69, 809, 306, 867), Bounds(1761, 809, 1851, 867)))
     }
 
     @Test
-    fun `un libelle absent ne rend rien plutot qu'une valeur voisine`() {
+    fun `a missing label yields nothing rather than a neighbouring value`() {
         assertNull(Ps2Screen.valueFor(portRow, "Host IPv4 address"))
         assertNull(Ps2Screen.row(portRow, "Host IPv4 address"))
     }
 
     @Test
-    fun `la rangee cliquable est la plus petite qui contienne le libelle`() {
+    fun `the clickable row is the smallest one containing the label`() {
         val nodes = portRow + listOf(
             // The whole page, clickable as well: the trap to avoid.
             text("", Bounds(0, 0, 1920, 1080), clickable = true),
@@ -56,7 +56,7 @@ class Ps2ScreenTest {
     }
 
     @Test
-    fun `l'interrupteur d'une bascule se prend a droite de son libelle`() {
+    fun `a toggle's switch is taken to the right of its label`() {
         val nodes = listOf(
             text("Enable DEV9 Ethernet", Bounds(92, 667, 1599, 721)),
             text("", Bounds(1708, 687, 1828, 797), clickable = true)
@@ -65,7 +65,7 @@ class Ps2ScreenTest {
     }
 
     @Test
-    fun `les trois modes sont des boutons visibles en meme temps`() {
+    fun `the three modes are buttons visible at the same time`() {
         val nodes = listOf(
             text("Online (Sockets)", Bounds(122, 295, 359, 353), clickable = true),
             text("Host local game", Bounds(437, 532, 669, 590), clickable = true),
@@ -88,7 +88,7 @@ class Ps2ScreenTest {
     )
 
     @Test
-    fun `le bouton Generate n'est pas pris pour le code de salon`() {
+    fun `the Generate button is not mistaken for the room code`() {
         // The infinite loop of 2026-08-17: "Generate" is further right than the
         // code, and neither is clickable in the tree.
         val row = listOf(
@@ -100,20 +100,20 @@ class Ps2ScreenTest {
     }
 
     @Test
-    fun `le clavier d'ARMSX2 se reconnait a ses deux touches de commande`() {
+    fun `ARMSX2's keyboard is recognised by its two command keys`() {
         assertTrue(Ps2Screen.keyboardIsOpen(keyboard))
         assertFalse(Ps2Screen.keyboardIsOpen(portRow))
     }
 
     @Test
-    fun `une touche se trouve quelle que soit la casse affichee`() {
+    fun `a key is found whatever case it is displayed in`() {
         // Shift only toggles case: the same key is "q" or "Q".
         assertEquals("q", Ps2Screen.key(keyboard, 'Q')?.text)
         assertEquals("1", Ps2Screen.key(keyboard, '1')?.text)
     }
 
     @Test
-    fun `une adresse IPv4 n'est pas saisissable, et il faut le savoir avant d'essayer`() {
+    fun `an IPv4 address cannot be typed, and that must be known before trying`() {
         // The wall measured on 2026-08-17: no dot key, no automatic insertion.
         // Typing "10671" displays "10671".
         assertFalse(Ps2Screen.canType("10.67.1.2"))
@@ -122,7 +122,7 @@ class Ps2ScreenTest {
     }
 
     @Test
-    fun `le code de salon suit les bornes annoncees par l'emulateur`() {
+    fun `the room code follows the bounds the emulator announces`() {
         assertTrue(Ps2Target.isValidRoomCode("KHYZF3W6"))
         assertTrue(Ps2Target.isValidRoomCode("ABCD"))
         assertFalse(Ps2Target.isValidRoomCode("ABC"))
@@ -131,14 +131,14 @@ class Ps2ScreenTest {
     }
 
     @Test
-    fun `le port par defaut est celui d'ARMSX2 et il est dans les bornes`() {
+    fun `the default port is ARMSX2's and it is within the bounds`() {
         assertEquals(19072, Ps2Target.DEFAULT_PORT)
         assertTrue(Ps2Target.isValidPort(Ps2Target.DEFAULT_PORT))
         assertFalse(Ps2Target.isValidPort(80))
     }
 
     @Test
-    fun `l'AetherSX2 d'origine n'est pas ARMSX2`() {
+    fun `the original AetherSX2 is not ARMSX2`() {
         assertTrue(Ps2Target.owns("com.armsx2"))
         assertFalse(Ps2Target.owns("xyz.aethersx2.android"))
     }

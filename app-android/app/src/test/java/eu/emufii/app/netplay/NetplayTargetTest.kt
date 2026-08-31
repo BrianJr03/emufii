@@ -21,9 +21,9 @@ class NetplayTargetTest {
     fun `each emulator is recognised by its own packages`() {
         assertEquals(NetplayTarget.AZAHAR, NetplayTarget.forPackage("org.azahar_emu.azahar"))
         assertEquals(NetplayTarget.AZAHAR, NetplayTarget.forPackage("org.azahar_emu.azahar.debug"))
-        // L'identifiant hérité de Lime3DS, que des builds Azahar portent encore.
-        // Constaté sur la Thor le 2026-08-26 : Emufii voyait « pas installé »
-        // devant un Azahar complet. Cf. AzaharPackage.
+        // The identifier inherited from Lime3DS, which some Azahar builds still
+        // carry. Seen on the Thor, 2026-08-26: Emufii showed "not installed" in
+        // front of a complete Azahar. See AzaharPackage.
         assertEquals(NetplayTarget.AZAHAR, NetplayTarget.forPackage("io.github.lime3ds.android"))
         assertEquals(NetplayTarget.EDEN, NetplayTarget.forPackage("dev.eden.eden_emulator"))
         // The nightly is what most players actually have installed.

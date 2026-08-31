@@ -17,7 +17,7 @@ import androidx.compose.ui.graphics.Color
 /**
  * The three schemes of DUOTONE SHELVES: warm neutrals, the teal axis in
  * Material's primary slot, good/error from the centralised semantic set.
- * pourquoi : docs/decisions/theme-duotone-shelves.md § PALETTE
+ * pourquoi : docs/decisions/theme-duotone-shelves.md § PALETTE (numbered contract)
  */
 private fun lightScheme(accent: AccentCuts) = lightColorScheme(
     primary = accent.deep,
@@ -108,9 +108,9 @@ fun EmufiiTheme(
     oled: Boolean = false,
     content: @Composable () -> Unit
 ) {
-    // L'axe du jeu et du systeme, en dur : il n'y a plus d'accent a resoudre.
-    // Les zones corail lisent leurs coupes dans `Coral` / `colorScheme.tertiary`,
-    // pas dans ce local.
+    // The play and system axis, hardcoded: there is no accent left to resolve. Coral
+    // zones read their cuts from `Coral` and `colorScheme.tertiary`, not from this
+    // local.
     val cuts = TealCuts
     val oledTheme = oled && darkTheme
     CompositionLocalProvider(

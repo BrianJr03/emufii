@@ -24,11 +24,9 @@ import eu.emufii.app.ui.components.GhostButton
 import eu.emufii.app.ui.components.SwitchRow
 
 /**
- * Ce qui regle l'app elle-meme : la langue, les alertes, le panneau arriere.
- *
- * Les trois blocs qui restaient dans « Application » une fois les emulateurs
- * partis chez eux. Ils n'ont rien en commun sinon de ne dependre d'aucune
- * console, et c'est exactement ce que dit le titre de la page.
+ * What sets the app itself: the language, the alerts, the rear panel. The three blocks
+ * left under Application once the emulators went home. They have nothing in common but
+ * depending on no console.
  */
 @Composable
 internal fun GeneralPage(
@@ -52,9 +50,9 @@ internal fun GeneralPage(
                     title = stringResource(R.string.settings_language),
                     state = BlockState(DetailTone.GOOD, stringResource(language.labelRes))
                 ) {
-                    // Plus serre que l'ecart ordinaire du bloc : trois choix
-                    // d'une meme liste sont un seul objet, et l'ecart qui separe
-                    // deux sujets les faisait flotter.
+                    // Tighter than the block's ordinary gap: three choices from one
+                    // list are a single object, and the gap that separates two subjects
+                    // made them float.
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     AppLanguage.entries.forEachIndexed { index, option ->
                         ChoiceRow(
@@ -86,10 +84,10 @@ internal fun GeneralPage(
 }
 
 /**
- * Les alertes. Leur ligne d'etat porte ce que personne ne devinerait : hors
- * boutique, il n'y a pas de service de notification, donc une alerte peut
- * arriver avec un quart d'heure de retard et c'est normal.
- * pourquoi : docs/decisions/reglages-ecran.md § Les lignes d'état, et ce que personne ne devinerait
+ * The alerts. Their status line carries what nobody would guess: off-store there is no
+ * notification service, so an alert can arrive a quarter of an hour late, and that is
+ * normal.
+ * pourquoi : docs/decisions/reglages-ecran.md § The status lines, and what nobody would guess
  */
 @Composable
 private fun NotificationsBlock(
@@ -99,9 +97,9 @@ private fun NotificationsBlock(
     onSetUpdates: (Boolean) -> Unit,
 ) {
     val context = LocalContext.current
-    // Demande a la composition plutot que retenu : le joueur peut partir dans
-    // les reglages d'Android et revenir, et une reponse en cache montrerait
-    // encore le refus qu'il vient de lever.
+    // Asked at composition rather than remembered: the player can leave for Android's
+    // settings and come back, and a cached answer would still show the refusal they
+    // just lifted.
     val allowed = Notifications.allowed(context)
 
     SettingsBlock(
@@ -121,11 +119,10 @@ private fun NotificationsBlock(
             )
         )
     ) {
-        // Deux interrupteurs, et non quatre boutons dont le libelle change.
-        // Un bouton « Amis coupes » ne dit pas s'il decrit l'etat ou l'action
-        // qu'il declenche : c'est la question qu'on se pose une demi-seconde
-        // avant de le presser, et un interrupteur ne la pose jamais.
-        // pourquoi : docs/decisions/reglages-ecran.md § Un réglage qui n'a que deux états est un interrupteur
+        // Two switches, not four buttons with changing labels. A button reading
+        // "Friends off" does not say whether it describes the state or the action it
+        // triggers, which is the question asked half a second before pressing it.
+        // pourquoi : docs/decisions/reglages-ecran.md § A setting with only two states is a switch
         SwitchRow(
             label = stringResource(R.string.settings_notify_friends),
             checked = friends,
@@ -137,9 +134,8 @@ private fun NotificationsBlock(
             onCheckedChange = onSetUpdates
         )
         DetailNote(stringResource(R.string.settings_notifications_note))
-        // Le seul cas ou un interrupteur d'ici ne peut rien : c'est Android qui
-        // refuse, et le remede est a trois pressions dans un ecran que personne
-        // ne trouve par hasard.
+        // The one case a switch here can do nothing about: Android is refusing, and the
+        // remedy is three presses into a screen nobody finds by accident.
         if (!allowed) {
             BlockNotice(stringResource(R.string.settings_notify_blocked))
             DetailActions {
@@ -161,11 +157,10 @@ private fun NotificationsBlock(
 }
 
 /**
- * Le second ecran. La ligne d'etat est ce qui lui vaut sa place : sans elle,
- * c'est une promesse que le joueur ne peut pas verifier — il l'active, rien ne
- * se passe, et il ne peut pas savoir si la fonction est cassee ou si son
- * appareil n'a qu'un ecran.
- * pourquoi : docs/decisions/reglages-ecran.md § Les lignes d'état, et ce que personne ne devinerait
+ * The second screen. The status line is what earns its place: without it this is a
+ * promise the player cannot check, since they turn it on, nothing happens, and they
+ * cannot tell a broken feature from a one-screen device.
+ * pourquoi : docs/decisions/reglages-ecran.md § The status lines, and what nobody would guess
  */
 @Composable
 private fun SecondScreenBlock(
@@ -192,9 +187,9 @@ private fun SecondScreenBlock(
             label = stringResource(R.string.settings_second_screen_switch),
             checked = enabled,
             onCheckedChange = onSetEnabled,
-            // L'appareil trouve, ou son absence, sous l'interrupteur : c'est ce
-            // que le joueur doit lire pour savoir si activer sert a quelque
-            // chose, et le lire au moment ou il actionne.
+            // The display found, or its absence, under the switch: that is what the
+            // player has to read to know whether turning it on does anything, and to
+            // read it as they do.
             note = panel?.name ?: stringResource(R.string.settings_second_screen_absent)
         )
         DetailNote(stringResource(R.string.settings_second_screen_note))

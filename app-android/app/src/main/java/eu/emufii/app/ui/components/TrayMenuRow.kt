@@ -29,20 +29,19 @@ import androidx.compose.ui.unit.dp
 import eu.emufii.app.ui.tap
 
 /**
- * Une ligne de menu deroulant : un glyphe, un libelle, et de quoi la surligner.
- *
- * Deux copies au pixel pres avant ceci. Le surlignage est un fond, jamais un
- * anneau : il s'agit d'une liste, pas d'un controle isole.
- * pourquoi : docs/decisions/bibliotheque.md § Une ligne de menu, pas deux copies au pixel près
+ * A dropdown row: a glyph, a label, and something to highlight it with. Two
+ * pixel-identical copies before this. The highlight is a ground, never a ring: this is
+ * a list, not an isolated control.
+ * pourquoi : docs/decisions/bibliotheque.md § One menu row, not two pixel-identical copies
  */
 @Composable
 internal fun TrayMenuRow(
     label: String,
     onClick: () -> Unit,
     glyph: DrawScope.(Color) -> Unit,
-    /** Ou le curseur se pose quand le menu s'ouvre. Nul sur une ligne ordinaire. */
+    /** Where the cursor lands when the menu opens. Null on an ordinary row. */
     landing: FocusRequester? = null,
-    /** La droite de la ligne : une coche, ou rien. */
+    /** The row's right end: a tick, or nothing. */
     trailing: (@Composable RowScope.() -> Unit)? = null,
 ) {
     val interaction = remember { MutableInteractionSource() }
@@ -66,8 +65,8 @@ internal fun TrayMenuRow(
             .tap(interactionSource = interaction, indication = null, onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
-        // Lu ici et pas dans le `Canvas` : la lambda de dessin n'est pas
-        // composable, donc le theme ne s'y atteint pas.
+        // Read here rather than in the `Canvas`: the draw lambda is not composable, so
+        // the theme is out of reach there.
         Canvas(Modifier.size(18.dp)) { glyph(tint) }
         Text(
             label,

@@ -15,12 +15,10 @@ import eu.emufii.app.library.Console
 import eu.emufii.app.library.EmulatorPick
 
 /**
- * Opens ARMSX2 with the Local Link autofill armed.
- *
- * Par composant nomme : son filtre `VIEW` ne declare aucun type MIME, donc une
- * URI SAF ne peut jamais y etre resolue. Et la preparation se fait avant le
- * demarrage du jeu, ou DEV9 ne relirait rien.
- * pourquoi : docs/decisions/pilotes-emulateurs.md § ARMSX2 se lance par composant nommé, jamais par filtrage
+ * Opens ARMSX2 with the Local Link autofill armed. By named component: its `VIEW`
+ * filter declares no MIME type, so a SAF URI can never resolve there. And the setup
+ * happens before the game starts, where DEV9 would re-read nothing.
+ * pourquoi : docs/decisions/pilotes-emulateurs.md § ARMSX2 is launched by named component, never by filtering
  */
 class Ps2Launcher(private val context: Context) {
 

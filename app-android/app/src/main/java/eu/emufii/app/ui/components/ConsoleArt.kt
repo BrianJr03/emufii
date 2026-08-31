@@ -4,13 +4,9 @@ import eu.emufii.app.R
 import eu.emufii.app.library.Console
 
 /**
- * L'image de plaque d'une console, dans la variante du theme, ou null.
- *
- * Nullable a dessein : une console nouvellement ajoutee montre son nom plutot
- * que la machine d'une autre. Hissee hors de `LibraryScreen` le 2026-08-25,
- * quand la page « A propos » a voulu montrer les sept consoles servies : deux
- * copies de cette table auraient diverge au premier ajout.
- * pourquoi : docs/decisions/bibliotheque.md § Les dossiers de console
+ * A console's plate image in the theme's variant, or null. Nullable by design: a newly
+ * added console shows its name rather than another machine's picture.
+ * pourquoi : docs/decisions/bibliotheque.md § The console folders
  */
 internal fun consoleArtwork(console: Console, dark: Boolean): Int? = when (console) {
     Console.THREE_DS -> if (dark) R.drawable.console_three_ds_dark else R.drawable.console_three_ds_light

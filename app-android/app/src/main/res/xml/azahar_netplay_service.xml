@@ -3,23 +3,22 @@
   Scoped as tightly as the platform allows: events from the Azahar and Eden
   packages only, no others. Emufii never reads the rest of the screen.
 
-  The file keeps its Azahar name for the same reason the service class does —
+  The file keeps its Azahar name for the same reason the service class does:
   renaming the component would silently switch the automation off for everyone
   who had already enabled it.
 
-  **`packageNames` est une seconde liste de paquets, et elle s'oublie.** Un
-  émulateur absent d'ici ne produit aucun événement d'accessibilité : le
-  service ne se réveille jamais, le formulaire ne se remplit pas, et il n'y a
-  ni erreur ni ligne de journal — l'appui a simplement l'air de ne rien faire.
-  C'est ce qui est arrivé aux variantes « Optimized » d'Eden, qui se déclarent
-  sous l'identité de Genshin Impact : déclarées dans `<queries>`, donc bien
-  détectées, mais muettes pour le service.
+  `packageNames` is a second package list, and it is easy to forget. An
+  emulator missing from here produces no accessibility event at all: the
+  service never wakes, the form is never filled, and there is no error and no
+  log line, so the tap simply looks inert. That is what happened to Eden's
+  "Optimized" variants, which declare themselves under Genshin Impact's
+  identity: listed in `<queries>`, so detected, but mute to the service.
 
-  Cette liste doit donc rester le miroir de `NetplayTarget.all`, de
-  `DolphinTarget.packages` **et de `Ps2Target.packages`** — Dolphin est piloté par le même service mais par
-  un pilote à part, parce que son écran est en Compose et n'a aucun identifiant
-  de vue. Un test compare les deux listes (`PackageVisibilityTest`) : le
-  compilateur, lui, ne lit pas ce fichier.
+  This list must therefore mirror `NetplayTarget.all`, `DolphinTarget.packages`
+  and `Ps2Target.packages`. Dolphin is driven by the same service through a
+  separate driver, its screen being Compose with no view ids. A test compares
+  the two lists (`PackageVisibilityTest`); the compiler does not read this
+  file.
 -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
     android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged"

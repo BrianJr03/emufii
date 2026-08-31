@@ -6,7 +6,7 @@ package eu.emufii.app.dolphin
  *
  * A plain [Node] and [Bounds], never the platform types: a JVM test gets the
  * stubbed `android.jar`, where every `Rect` method quietly returns zero.
- * pourquoi : docs/decisions/pilotes-emulateurs.md § Lire un formulaire Compose sans un seul identifiant
+ * pourquoi : docs/decisions/pilotes-emulateurs.md § Reading a Compose form with no id at all
  */
 data class Bounds(val left: Int, val top: Int, val right: Int, val bottom: Int) {
     val area: Long get() = (right - left).toLong() * (bottom - top)
@@ -57,10 +57,10 @@ data class Node(
 object DolphinScreen {
 
     /**
-     * The field a label belongs to: the `EditText` whose bounds **contain** the
+     * The field a label belongs to: the `EditText` whose bounds contain the
      * label's, since Compose draws the label inside the field's border.
      * Containment survives a reorder, an inserted row and a rotation.
-     * pourquoi : docs/decisions/pilotes-emulateurs.md § La contenance, pas la parenté, pas la position
+     * pourquoi : docs/decisions/pilotes-emulateurs.md § Containment, not parentage, not position
      */
     fun fieldFor(nodes: List<Node>, labels: Collection<String>): Node? {
         val wanted = labels.map { it.trim().lowercase() }.toSet()
@@ -75,10 +75,10 @@ object DolphinScreen {
     }
 
     /**
-     * The tab that switches role, as opposed to the button that commits it —
+     * The tab that switches role, as opposed to the button that commits it,
      * Dolphin gives both the same text, and clicking the wrong one is not a
      * no-op.
-     * pourquoi : docs/decisions/pilotes-emulateurs.md § La contenance, pas la parenté, pas la position
+     * pourquoi : docs/decisions/pilotes-emulateurs.md § Containment, not parentage, not position
      */
     fun tab(nodes: List<Node>, labels: Collection<String>): Node? =
         matching(nodes, labels).firstOrNull { !it.isField && !inButton(nodes, it) }
@@ -88,10 +88,10 @@ object DolphinScreen {
         matching(nodes, labels).firstOrNull { inButton(nodes, it) }
 
     /**
-     * Whether [node] is the label of a button, by **containment** rather than
+     * Whether [node] is the label of a button, by containment rather than
      * ancestry: measured on the Thor, the button and its caption come out as
      * siblings. The ancestor case is kept in case a future build nests them.
-     * pourquoi : docs/decisions/pilotes-emulateurs.md § La contenance, pas la parenté, pas la position
+     * pourquoi : docs/decisions/pilotes-emulateurs.md § Containment, not parentage, not position
      */
     private fun inButton(nodes: List<Node>, node: Node): Boolean =
         node.hasButtonAncestor ||
@@ -106,7 +106,7 @@ object DolphinScreen {
 
     /**
      * True when the dropdown is showing rather than the form: both options
-     * present **and** no field, since a closed dropdown still shows its text.
+     * present and no field, since a closed dropdown still shows its text.
      */
     fun isDropdownOpen(
         nodes: List<Node>,
@@ -118,10 +118,10 @@ object DolphinScreen {
             matching(nodes, traversalLabels).isNotEmpty()
 
     /**
-     * The overflow button, by **shape**: in the top strip, the clickable node
+     * The overflow button, by shape: in the top strip, the clickable node
      * with no id but a description, furthest right. Dolphin's own buttons all
      * carry an id; the framework's overflow carries none.
-     * pourquoi : docs/decisions/pilotes-emulateurs.md § Le bouton de débordement se trouve par sa forme
+     * pourquoi : docs/decisions/pilotes-emulateurs.md § The overflow button is found by its shape
      */
     fun overflow(nodes: List<Node>, window: Bounds): Node? {
         val strip = window.top + (window.bottom - window.top) / 4
@@ -135,9 +135,9 @@ object DolphinScreen {
 
     /**
      * The list entry that means [target], within tolerance: containment on
-     * normalised strings, both ways round. The longest wins, and **a tie
-     * cancels everything** — picking at random would start the wrong game.
-     * pourquoi : docs/decisions/pilotes-emulateurs.md § Apparier un jeu quand les deux côtés ne le nomment pas pareil
+     * normalised strings, both ways round. The longest wins, and a tie
+     * cancels everything: picking at random would start the wrong game.
+     * pourquoi : docs/decisions/pilotes-emulateurs.md § Matching a game when the two sides do not name it the same
      */
     fun looseOption(nodes: List<Node>, target: String): Node? {
         val wanted = normalize(target)
@@ -162,7 +162,7 @@ object DolphinScreen {
     }
 
     /**
-     * Lowercased, punctuation removed, whitespace collapsed — the punctuation
+     * Lowercased, punctuation removed, whitespace collapsed: the punctuation
      * is precisely where the two names diverge.
      */
     private fun normalize(s: String): String =

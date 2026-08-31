@@ -5,10 +5,10 @@ import com.wireguard.crypto.Key
 import com.wireguard.crypto.KeyPair
 
 /**
- * This device's WireGuard identity, generated once and **kept**: the
+ * This device's WireGuard identity, generated once and kept: the
  * coordinator is idempotent on the public key, so the same key always gets the
- * same address. Not in the keystore — WireGuard needs the raw private key.
- * pourquoi : docs/decisions/tunnel-wireguard.md § L'identité WireGuard doit persister
+ * same address. Not in the keystore: WireGuard needs the raw private key.
+ * pourquoi : docs/decisions/tunnel-wireguard.md § The WireGuard identity must persist
  */
 object WgKeys {
 
@@ -46,7 +46,7 @@ object WgKeys {
     /**
      * Drops the identity. Belongs with deleting the profile: the public key is a
      * stable identifier the coordinator sees.
-     * pourquoi : docs/decisions/tunnel-wireguard.md § L'identité WireGuard doit persister
+     * pourquoi : docs/decisions/tunnel-wireguard.md § The WireGuard identity must persist
      */
     fun reset(ctx: Context) {
         synchronized(this) {

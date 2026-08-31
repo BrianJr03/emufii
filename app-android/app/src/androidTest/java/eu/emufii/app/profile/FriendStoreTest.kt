@@ -22,7 +22,7 @@ class FriendStoreTest {
     private val context = ApplicationProvider.getApplicationContext<android.content.Context>()
     private val self = FriendCode.generate()
 
-    private fun newStore() = FriendStore(context)
+    private fun newStore() = FriendStore.reload(context)
 
     @Before
     fun clean() {
@@ -63,13 +63,13 @@ class FriendStoreTest {
         store.add(code, self)
         assertNull(store.friends.value.single().name)
 
-        store.noteNames(mapOf(code to "Léa"))
-        assertEquals("Léa", store.friends.value.single().name)
-        assertEquals("Léa", newStore().friends.value.single().name)
+        store.noteNames(mapOf(code to "Lea"))
+        assertEquals("Lea", store.friends.value.single().name)
+        assertEquals("Lea", newStore().friends.value.single().name)
 
         // A name we were told nothing about this round stays as it was.
         store.noteNames(emptyMap())
-        assertEquals("Léa", store.friends.value.single().name)
+        assertEquals("Lea", store.friends.value.single().name)
     }
 
     @Test

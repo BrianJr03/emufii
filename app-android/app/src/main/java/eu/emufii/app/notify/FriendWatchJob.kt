@@ -18,12 +18,10 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
 /**
- * The watch that runs while Emufii is closed.
- *
- * Pas de push : on demande, toutes les quinze minutes au mieux, et la limite est
- * ecrite dans les reglages plutot que cachee. `JobScheduler` et non WorkManager,
- * qui couterait une base de donnees pour une tache sans chainage.
- * pourquoi : docs/decisions/amis-et-notifications.md § Ce que la veille en arrière-plan peut promettre, et ce qu'elle ne peut pas
+ * The watch that runs while Emufii is closed. No push: we ask, every fifteen minutes at
+ * best, and the limit is written in the settings rather than hidden. `JobScheduler`
+ * rather than WorkManager, which would cost a database for one periodic job.
+ * pourquoi : docs/decisions/amis-et-notifications.md § What background watching can promise, and what it cannot
  */
 class FriendWatchJob : JobService() {
 

@@ -13,9 +13,9 @@ import kotlin.math.abs
 
 /**
  * Who you are to the other players. [id] is a stable random identifier that
- * doubles as the friend code, and is therefore **public by design** — which is
+ * doubles as the friend code, and is therefore public by design, which is
  * what lets adding a friend need no server-side directory.
- * pourquoi : docs/decisions/identite-et-dumps.md § Le code d'ami *est* l'identité, et il est public par conception
+ * pourquoi : docs/decisions/identite-et-dumps.md § The friend code is the identity, and it is public by design
  */
 data class Profile(
     val id: String,
@@ -30,18 +30,18 @@ data class Profile(
 
     companion object {
         /**
-         * The pseudo of someone who never picked one: a **fixed sentinel**,
+         * The pseudo of someone who never picked one: a fixed sentinel,
          * never a resource, translated only at the point of display.
-         * pourquoi : docs/decisions/identite-et-dumps.md § Le pseudo est contraint là où il est saisi
+         * pourquoi : docs/decisions/identite-et-dumps.md § The nickname is constrained where it is entered
          */
         const val DEFAULT_NAME = "Joueur"
         const val MAX_NAME_LENGTH = 20
 
         /**
          * Azahar's netplay form rejects a pseudo shorter than this. Enforced
-         * where the name is *entered*, and **observed on the device** — the
+         * where the name is *entered*, and observed on the device: the
          * validator lives in Azahar's DEX and its message omits the number.
-         * pourquoi : docs/decisions/identite-et-dumps.md § Le pseudo est contraint là où il est saisi
+         * pourquoi : docs/decisions/identite-et-dumps.md § The nickname is constrained where it is entered
          */
         const val MIN_NAME_LENGTH = 4
     }
@@ -49,8 +49,8 @@ data class Profile(
 
 /**
  * Local store: no account, no server-side profile, and the picture never leaves
- * the device. Durable but **device-bound** — a reinstall is a new person.
- * pourquoi : docs/decisions/identite-et-dumps.md § Le code d'ami *est* l'identité, et il est public par conception
+ * the device. Durable but device-bound: a reinstall is a new person.
+ * pourquoi : docs/decisions/identite-et-dumps.md § The friend code is the identity, and it is public by design
  */
 class ProfileStore(context: Context) {
 
@@ -78,7 +78,7 @@ class ProfileStore(context: Context) {
     /**
      * The backstop for callers that do not go through a form: nothing
      * downstream should wonder whether the stored pseudo is acceptable.
-     * pourquoi : docs/decisions/identite-et-dumps.md § Le pseudo est contraint là où il est saisi
+     * pourquoi : docs/decisions/identite-et-dumps.md § The nickname is constrained where it is entered
      */
     fun setName(name: String) {
         val trimmed = name.trim()
@@ -91,7 +91,7 @@ class ProfileStore(context: Context) {
     /**
      * Copies the picked image into our own storage, downscaled: the picker's
      * SAF grant is not persisted, and a phone photo is 50 megapixels.
-     * pourquoi : docs/decisions/identite-et-dumps.md § L'avatar est recopié, jamais référencé
+     * pourquoi : docs/decisions/identite-et-dumps.md § The avatar is copied, never referenced
      */
     fun setAvatar(source: Uri): Result<Unit> = runCatching {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
@@ -131,8 +131,8 @@ class ProfileStore(context: Context) {
 
     /**
      * Erase this identity and start over. The new code is unrelated, which is
-     * the point — and it also cuts you off from your own friends list.
-     * pourquoi : docs/decisions/identite-et-dumps.md § Le code d'ami *est* l'identité, et il est public par conception
+     * the point, and it also cuts you off from your own friends list.
+     * pourquoi : docs/decisions/identite-et-dumps.md § The friend code is the identity, and it is public by design
      */
     fun reset() {
         avatarTarget.delete()

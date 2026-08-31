@@ -3,37 +3,27 @@ package eu.emufii.app.library
 import android.content.Context
 
 /**
- * Which language a cartridge should say its name in : celle que l'app parle.
- *
- * [tag] existe parce que les titres sont mis en cache sur disque — deux langues
- * de la meme cartouche sont deux chaines sous le meme code de jeu.
- * pourquoi : docs/decisions/scan-bibliotheque.md § La langue d'une cartouche est celle de l'app
+ * Which language a cartridge says its name in: the one the app speaks. [tag]
+ * exists because titles are cached on disk, and two languages of one cartridge
+ * are two strings under the same game code.
+ * pourquoi : docs/decisions/scan-bibliotheque.md § A cartridge's language is the app's
  */
 object TitleLanguage {
 
     /**
-     * The language Emufii is *displayed* in, which is not the same as the
-     * device's.
-     *
-     * `Locale.getDefault()` was the obvious answer and the wrong one: Emufii sets
-     * a per-app locale, so an app running in French on an English phone still
-     * reports English there, and the library came back in English while every
-     * label around it was French. The resources configuration is the one that
-     * carries the per-app locale, so that is what is read, once per scan.
+     * The language Emufii is displayed in, not the device's. `Locale.getDefault()`
+     * ignores the per-app locale, so a French app on an English phone reported
+     * English and the library came back in English under French labels. The
+     * resources configuration carries it; read once per scan.
      */
     @Volatile
     private var current: String = "en"
 
-    /** Call before reading anything below; cheap, and the only place the locale enters. */
+    /** The only place the locale enters. */
     fun apply(context: Context) {
         set(context.resources.configuration.locales[0].language)
     }
 
-    /**
-     * The same thing without Android, so the readers can be tested in both
-     * languages, which is the only way to catch a preference list that names
-     * the right slots in the wrong order.
-     */
     fun set(language: String) {
         current = language
     }
@@ -56,9 +46,8 @@ object TitleLanguage {
         get() = if (isFrench) intArrayOf(2, 1, 0, 3, 4, 5) else intArrayOf(1, 2, 0, 3, 4, 5)
 
     /**
-     * Switch control entries, named rather than numbered, `icon_French.dat`,
-     * `icon_AmericanEnglish.dat`. Both English variants are tried: a European
-     * dump often carries only the British one.
+     * Named rather than numbered: `icon_French.dat`. Both English variants are
+     * tried, since a European dump often carries only the British one.
      */
     val switch: List<String>
         get() = if (isFrench) {
@@ -78,9 +67,8 @@ object TitleLanguage {
      * Wii `IMET` slots: 0 Japanese, 1 English, 2 German, 3 French, 4 Spanish,
      * 5 Italian, 6 Dutch, 7 Simplified Chinese, 8 Traditional Chinese, 9 Korean.
      *
-     * Not the same order as [gcBanner], which is exactly why they are two lists:
-     * slot 2 is French on a GameCube disc and German on a Wii one, so sharing a
-     * list would have given German titles to French players on half the shelf.
+     * Not [gcBanner]'s order, which is why they are two lists: slot 2 is French
+     * on a GameCube disc and German on a Wii one.
      */
     val wiiImet: IntArray
         get() = if (isFrench) intArrayOf(3, 1, 0, 2, 4, 5, 6) else intArrayOf(1, 3, 0, 2, 4, 5, 6)

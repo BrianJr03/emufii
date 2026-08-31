@@ -87,17 +87,17 @@ import kotlinx.coroutines.delay
 import eu.emufii.app.ui.tap
 
 /**
- * Every session currently open, joinable in one tap. Sonde plutot qu'ecoute :
- * une socket serait beaucoup pour un ecran ou l'on reste vingt secondes.
- * pourquoi : docs/decisions/lancement-et-navigation.md § Le chercheur de sessions sonde, il n'écoute pas
+ * Every session currently open, joinable in one tap. Polled rather than listened to: a
+ * socket would be a lot for a screen you stay on for twenty seconds.
+ * pourquoi : docs/decisions/lancement-et-navigation.md § The session finder polls, it does not listen
  */
 @Composable
 fun SessionFinderScreen(
     client: CoordinatorClient,
     /**
-     * The local library, to put a face on a session : le coordinator ne connait
-     * qu'un titre, qu'on apparie contre ce qu'on a localement.
-     * pourquoi : docs/decisions/lancement-et-navigation.md § Le chercheur de sessions sonde, il n'écoute pas
+     * The local library, to put a face on a session: the coordinator knows only
+     * a title, which we match against what we hold locally.
+     * pourquoi : docs/decisions/lancement-et-navigation.md § The session finder polls, it does not listen
      */
     romsRepo: RomsRepository,
     onBack: () -> Unit,
@@ -146,8 +146,8 @@ fun SessionFinderScreen(
 
     val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
-    // Le domaine social : le curseur manette y devient corail.
-    // pourquoi : docs/decisions/theme-duotone-shelves.md § FOCUS MANETTE
+    // The social domain: the pad cursor turns coral here.
+    // pourquoi : docs/decisions/theme-duotone-shelves.md § GAMEPAD FOCUS
     CompositionLocalProvider(LocalRingTone provides RingTone.CORAL) {
     EmufiiScaffold(
         title = stringResource(R.string.finder_title),
@@ -167,10 +167,9 @@ fun SessionFinderScreen(
             )
 
             sessions.isEmpty() && query.isBlank() -> FinderMessage(
-                // Une alveole, comme le dernier rang de la grille laisse un
-                // emplacement vide — mais avec sa marque dedans. « Personne pour
-                // l'instant » parle de joueurs absents, et la silhouette est ce
-                // que l'app dessine deja pour un joueur.
+                // A socket, as the grid's last row leaves an empty slot, but with its
+                // mark inside. "Nobody yet" speaks of absent players, and the
+                // silhouette is what the app already draws for one.
                 mark = { tint -> PersonMark(size = 40.dp, color = tint) },
                 hollow = true,
                 title = stringResource(R.string.finder_nobody_yet),
@@ -225,11 +224,10 @@ fun SessionFinderScreen(
 }
 
 /**
- * La barre de recherche. **C'est le clavier du systeme qui ecrit ici**, depuis le
- * 2026-08-29 : l'alveole existait pour tenir l'IME a distance et ouvrir la dalle
- * de l'app a la place, au prix d'un clavier qui n'est celui de personne. Elle
- * reste une alveole a l'oeil, c'est un champ dessous.
- * pourquoi : docs/decisions/lancement-et-navigation.md § La recherche ouvre le clavier de l'app
+ * The search bar. The system keyboard writes here: the socket existed to hold the IME
+ * off and open the app's own keypad instead, at the price of a keyboard that is
+ * nobody's. It stays a socket to the eye, with a field underneath.
+ * pourquoi : docs/decisions/lancement-et-navigation.md § Search opens the app's keyboard
  */
 @Composable
 private fun SearchField(
@@ -262,8 +260,8 @@ private fun SearchField(
             onValueChange = onQueryChange,
             singleLine = true,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            // Chercher baisse le clavier sans vider le champ : la liste est deja
-            // filtree a chaque frappe, il ne reste qu'a la regarder.
+            // Search lowers the keyboard without emptying the field: the list is
+            // already filtered on every keystroke.
             keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }),
             textStyle = MaterialTheme.typography.bodyLarge.copy(color = tint),
             cursorBrush = SolidColor(tint),
@@ -296,9 +294,9 @@ private fun SessionCard(session: OpenSession, rom: Rom?, onJoin: () -> Unit) {
     val pspBlocked = rom?.console == Console.PSP && !rememberPpssppReady()
     val joinBlocked = ps2Blocked || pspBlocked
 
-    // **Plus de `padEntry` ici** : un `FocusRequester` partage entre douze noeuds
-    // ne designe plus rien.
-    // pourquoi : docs/decisions/lancement-et-navigation.md § Une seule destination nommée par écran
+    // No `padEntry` here: a `FocusRequester` shared between twelve nodes points at
+    // nothing.
+    // pourquoi : docs/decisions/lancement-et-navigation.md § One named destination per screen
     SoftCard(
         onClick = onJoin,
         modifier = Modifier.animateContentSize()
@@ -333,7 +331,7 @@ private fun SessionCard(session: OpenSession, rom: Rom?, onJoin: () -> Unit) {
                     // editions of the same game apart, and therefore the only
                     // honest answer to "is this really my version?".
                     (rom?.titleIdHex ?: rom?.productCode)?.let { MetaChip(it) }
-                    // Le code est le lien que l'on donne : pilule corail.
+                    // The code is the link you hand out: a coral pill.
                     MetaChip(session.code, highlight = true)
                 }
                 Spacer(Modifier.height(4.dp))
@@ -406,26 +404,26 @@ private fun FinderMessage(
     subtitle: String,
     topPadding: androidx.compose.ui.unit.Dp,
     /**
-     * Vrai quand le bloc parle d'une **absence** : la marque se pose alors dans
-     * une alveole plutot que sur une plaque. Le plateau a deja un mot pour
-     * « rien ici », et c'est le trou.
+     * True when the block speaks of an absence: the mark then sits in a socket rather
+     * than on a plate. The tray already has a word for nothing here, and it is the
+     * hollow.
      */
     hollow: Boolean = false
 ) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            // La meme marge en haut et en bas, et c'est ce qui le centre : un ecran
-            // vide n'a rien d'autre a regarder, le decalage se voit.
-            // pourquoi : docs/decisions/lancement-et-navigation.md § Un écran vide se centre sur l'écran, pas sous l'en-tête
+            // The same margin top and bottom, which is what centres it: an empty screen
+            // has nothing else to look at, so the offset shows.
+            // pourquoi : docs/decisions/lancement-et-navigation.md § An empty screen is centred on the screen, not under the header
             .padding(top = topPadding, bottom = topPadding, start = 32.dp, end = 32.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // La marque tient sur un objet moule ; une alveole seulement quand l'ecran
-        // parle d'une absence, et **avec sa marque dedans** — nue, elle se lit
-        // comme une icone qui n'a pas charge.
-        // pourquoi : docs/decisions/lancement-et-navigation.md § Un écran vide se centre sur l'écran, pas sous l'en-tête
+        // The mark sits on a moulded object; a socket only when the screen speaks of an
+        // absence, and with its mark inside, since bare it reads as an icon that failed
+        // to load.
+        // pourquoi : docs/decisions/lancement-et-navigation.md § An empty screen is centred on the screen, not under the header
         Box(
             modifier = Modifier
                 .size(88.dp)
@@ -445,9 +443,9 @@ private fun FinderMessage(
         Text(
             title,
             style = MaterialTheme.typography.headlineSmall,
-            // Cette colonne est posee a meme le fond d'ecran : rien ne fournit
-            // de couleur de contenu, et un Text sans couleur retombe en noir,
-            // invisible sur le theme sombre.
+            // This column sits straight on the wallpaper: nothing supplies a content
+            // colour, and a Text without one falls back to black, invisible on the dark
+            // theme.
             color = MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Center
         )
@@ -464,9 +462,9 @@ private fun FinderMessage(
 private const val REFRESH_MS = 4000L
 
 /**
- * A metadata pill: console, ROM id, session code. Des pastilles et non une
- * phrase : une phrase se lit en entier, des pastilles se balaient.
- * pourquoi : docs/decisions/lancement-et-navigation.md § Le chercheur de sessions sonde, il n'écoute pas
+ * A metadata pill: console, ROM id, session code. Pills rather than a sentence: a
+ * sentence is read whole, pills are scanned.
+ * pourquoi : docs/decisions/lancement-et-navigation.md § The session finder polls, it does not listen
  */
 @Composable
 private fun MetaChip(text: String, highlight: Boolean = false) {
@@ -477,9 +475,8 @@ private fun MetaChip(text: String, highlight: Boolean = false) {
         color = if (highlight) (if (dark) Coral.darkBright else Coral.ink)
                 else MaterialTheme.colorScheme.onSurfaceVariant,
         maxLines = 1,
-        // Ellipsis plutot que la coupe brute par defaut : un mot tranche au
-        // milieu d'un glyphe se lit comme un defaut d'affichage, trois points
-        // disent qu'il en manque.
+        // An ellipsis rather than the default hard clip: a word sliced mid-glyph reads
+        // as a rendering fault, three dots say something is missing.
         overflow = TextOverflow.Ellipsis,
         modifier = Modifier
             .clip(RoundedCornerShape(50))

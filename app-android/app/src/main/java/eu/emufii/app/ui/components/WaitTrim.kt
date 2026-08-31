@@ -14,25 +14,23 @@ import eu.emufii.app.ui.theme.Coral
 import eu.emufii.app.ui.theme.Teal
 
 /**
- * Le liseré corail→turquoise : les deux axes portés par le contour d'une carte.
- *
- * Le tracé est le contour lui-même et en fait le tour — il borde, il ne barre
- * pas. [phase] fait dériver le dégradé ; à zéro il ne bouge pas.
- * pourquoi : docs/decisions/theme-duotone-shelves.md § Le liseré des deux axes borde, il ne barre pas
+ * The coral-to-teal edge light: both axes carried on a card's contour. The path is the
+ * contour itself and goes all the way round: it borders, it does not bar. [phase]
+ * drifts the gradient; at zero it does not move.
+ * pourquoi : docs/decisions/theme-duotone-shelves.md § The two-axis rim borders, it does not bar
  */
 fun Modifier.waitTrim(phase: Float = 0f): Modifier = drawWithContent {
     drawContent()
     val stroke = TRIM_STROKE.toPx()
-    // Rentré d'un demi-trait : un contour chevauche son tracé, et la moitié
-    // extérieure tomberait hors de la plaque.
+    // Inset by half a stroke: a contour straddles its path, and the outer half would
+    // fall off the plate.
     inset(stroke / 2f) {
         val outline = Path().apply {
             addOutline(CardShape.createOutline(size, layoutDirection, this@drawWithContent))
         }
-        // La bande de transition balaie la diagonale plutôt que de rester au
-        // milieu : à phase 0 le contour est presque tout turquoise, à 1 presque
-        // tout corail, et entre les deux il tourne sans qu'aucun côté ne
-        // change de rôle.
+        // The transition sweeps the diagonal rather than sitting in the middle: at
+        // phase 0 the contour is nearly all teal, at 1 nearly all coral, and in between
+        // it turns without either side changing role.
         val travel = 2f * phase - 0.5f
         val start = Offset(size.width * travel, size.height * travel)
         drawPath(
@@ -48,8 +46,7 @@ fun Modifier.waitTrim(phase: Float = 0f): Modifier = drawWithContent {
 }
 
 /**
- * L'épaisseur du liseré. Trois, pas six : posé sur l'arête il double
- * visuellement le contour de la carte, là où le même poids en travers de la
- * face était une balafre.
+ * Three, not six: laid on the edge it visually doubles the card's contour, where the
+ * same weight across the face was a scar.
  */
 private val TRIM_STROKE = 3.dp

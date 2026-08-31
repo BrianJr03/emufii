@@ -18,22 +18,17 @@ import androidx.compose.ui.semantics.Role
 import eu.emufii.app.R
 
 /**
- * Les deux sons de l'interface : le curseur qui se pose, et l'appui.
- *
- * `SoundPool` et non `MediaPlayer` : ces sons durent 96 et 144 ms et doivent
- * partir sans latence. Ils se rangent derriere le reglage de sons d'interface
- * d'Android plutot que d'en inventer un second.
- * pourquoi : docs/decisions/sons.md § Deux sons, une seule famille
+ * The interface's two sounds: the cursor landing, and the press. `SoundPool` rather
+ * than `MediaPlayer`: these last 96 and 144 ms and must fire without latency. They sit
+ * behind Android's own interface-sound setting rather than inventing a second one.
+ * pourquoi : docs/decisions/sons.md § Two sounds, one family
  */
 object Sfx {
 
     /**
-     * Le contexte applicatif, retenu a la preparation.
-     *
-     * Il permet a [click] et [hover] de ne rien demander a l'appelant : les
-     * points de passage du son ne sont pas tous des composables — la grille lit
-     * la touche de confirmation dans une lambda ordinaire — et faire descendre
-     * un `Context` jusque-la aurait touche cinq signatures pour un son.
+     * The application context, kept at preparation. It lets [click] and [hover] ask
+     * nothing of the caller: not every place a sound fires is a composable, and the
+     * grid reads confirm in an ordinary lambda.
      */
     private var app: Context? = null
 
@@ -41,15 +36,15 @@ object Sfx {
     private var hoverId = 0
     private var clickId = 0
 
-    /** Ce qui est decode : jouer un identifiant pas encore pret ne fait rien. */
+    /** What is decoded: playing an id that is not ready yet does nothing. */
     private val loaded = mutableSetOf<Int>()
 
     fun prepare(context: Context) {
         if (pool != null) return
         app = context.applicationContext
         val attrs = AudioAttributes.Builder()
-            // La famille des sons d'interface : suit le volume systeme, se tait
-            // pendant un appel, et ne coupe pas la musique de quelqu'un.
+            // The interface-sound family: follows the system volume, goes quiet during
+            // a call, and does not cut someone's music.
             .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
             .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
             .build()
@@ -60,10 +55,10 @@ object Sfx {
         pool = p
     }
 
-    /** Le curseur vient de se poser sur autre chose. */
+    /** The cursor has just landed on something else. */
     fun hover() = play(hoverId, HOVER_VOLUME)
 
-    /** Quelque chose a ete presse — a la manette comme au doigt. */
+    /** Something was pressed: on the gamepad as with a finger. */
     fun click() = play(clickId, CLICK_VOLUME)
 
     private fun play(id: Int, volume: Float) {
@@ -79,39 +74,29 @@ object Sfx {
         if (on) pool?.play(id, volume, volume, 1, 0, 1f)
     }
 
-    /** Quatre : le curseur peut glisser pendant qu'un appui resonne encore. */
+    /** Four: the cursor can slide while a press is still ringing. */
     private const val MAX_STREAMS = 4
 
     /**
-     * Le survol est plus bas que l'appui : il part a chaque case traversee, et
-     * un deplacement aussi fort qu'une action fait croire qu'il s'est passe
-     * quelque chose.
+     * Hover sits below the press: it fires on every cell crossed, and a move as loud as
+     * an action suggests something happened.
      */
     private const val HOVER_VOLUME = 0.45f
     private const val CLICK_VOLUME = 0.85f
 }
 
 /**
- * L'action, rendue sonore.
- *
- * `Modifier.tap` couvre tout ce que l'app rend cliquable elle-meme, mais pas les
- * controles de Material, qui prennent leur `onClick` en parametre et ne passent
- * par aucun modificateur a nous : `Button`, `OutlinedButton`, `Surface(onClick)`.
- * Ceux-la etaient muets — la moitie des boutons secondaires de l'app, dont tous
- * les [GhostButton], puisque la pastille est un `Surface` cliquable.
- *
- * Un enrobage plutot qu'un `Sfx.click()` recopie dans chaque lambda : le son
- * appartient a l'appui, pas a ce que l'appui declenche, et une lambda existante
- * n'a pas a etre relue pour qu'on lui en ajoute un.
- * pourquoi : docs/decisions/sons.md § Le son et le clic sont un seul appel
+ * `Modifier.tap` covers everything the app makes clickable itself, but not Material's
+ * controls, which take their `onClick` as a parameter and pass through no modifier of
+ * ours: `Button`, `OutlinedButton`, `Surface(onClick)`. Those were silent.
+ * pourquoi : docs/decisions/sons.md § The sound and the click are one call
  */
 fun sounded(onClick: () -> Unit): () -> Unit = { Sfx.click(); onClick() }
 
 /**
- * Cliquable **et sonore** : le remplacant de `Modifier.clickable` dans cette app.
- *
- * Un seul appel pour les deux, a dessein.
- * pourquoi : docs/decisions/sons.md § Le son et le clic sont un seul appel
+ * Clickable and audible: this app's replacement for `Modifier.clickable`. One call for
+ * both, deliberately.
+ * pourquoi : docs/decisions/sons.md § The sound and the click are one call
  */
 @Composable
 fun Modifier.tap(
@@ -122,7 +107,7 @@ fun Modifier.tap(
     return this.clickable(enabled = enabled, role = role) { Sfx.click(); onClick() }
 }
 
-/** [tap], pour un controle qui fournit sa source d'interaction et son indication. */
+/** [tap], for a control that supplies its own interaction source and indication. */
 @Composable
 fun Modifier.tap(
     interactionSource: MutableInteractionSource,
@@ -140,8 +125,8 @@ fun Modifier.tap(
 }
 
 /**
- * L'appui court et le maintien, tous deux sonores.
- * pourquoi : docs/decisions/sons.md § Le son et le clic sont un seul appel
+ * The short press and the hold, both audible.
+ * pourquoi : docs/decisions/sons.md § The sound and the click are one call
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -162,19 +147,17 @@ fun Modifier.tapOrHold(
 }
 
 /**
- * Coupe les sons d'interface d'Android **pour cette fenetre**.
- *
- * A poser a la racine de chaque fenetre : l'activite, chaque `Dialog`, et le
- * panneau arriere. Emufii a les siens, et les deux se superposaient.
- * pourquoi : docs/decisions/sons.md § Couper ceux d'Android se fait vue par vue
+ * Silences Android's interface sounds for this window. Lay it at the root of every
+ * window: the activity, each `Dialog`, and the rear panel. Emufii has its own, and the
+ * two overlapped.
+ * pourquoi : docs/decisions/sons.md § Silencing Android's own is done view by view
  */
 @Composable
 fun SilenceSystemSfx() {
     val view = LocalView.current
     SideEffect {
-        // Toute la chaine jusqu'a la racine : `playSoundEffect` est gate par le
-        // drapeau de la vue qui l'appelle, et ce n'est pas toujours celle de
-        // Compose — la vue de decor d'un `Dialog` en est une autre.
+        // The whole chain to the root: `playSoundEffect` is gated by the flag on the
+        // calling view, which is not always Compose's.
         var v: View? = view
         while (v != null) {
             v.isSoundEffectsEnabled = false

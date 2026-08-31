@@ -38,12 +38,10 @@ import eu.emufii.app.ui.theme.ErrorLight
 import eu.emufii.app.ui.theme.ErrorDark
 
 /**
- * The inside of an unfolded settings row, and the reason this file exists.
- *
- * Trois choses et rien d'autre : [DetailNote], [DetailActions], [DetailStatus].
- * Le creux de l'etat est le vocabulaire du plateau — un ecran de reglages n'a
- * qu'une sorte de creux, et elle veut dire « voila ce qui est ».
- * pourquoi : docs/decisions/coquille-ecrans.md § Une rangée dépliée est faite de trois choses, et de rien d'autre
+ * The inside of an unfolded settings row, and the reason this file exists. Three things
+ * and nothing else: [DetailNote], [DetailActions], [DetailStatus]. The state's hollow
+ * is the tray's vocabulary: a settings screen has one kind of state.
+ * pourquoi : docs/decisions/coquille-ecrans.md § An expanded row is made of three things, and nothing else
  */
 @Composable
 fun DetailNote(text: String, modifier: Modifier = Modifier) {
@@ -84,7 +82,7 @@ data class DetailFact(val label: String, val value: String)
  *
  * [headline] is the one sentence that matters, and it comes first because it is
  * what the player opened the section to find out. [facts] are the identifiers
- * behind it — a filename, a BIOS, a console id — which belong in a column of
+ * behind it, a filename, a BIOS, a console id, which belong in a column of
  * aligned rows: they are looked *up*, not read, and prose separated by middle
  * dots makes that impossible.
  *

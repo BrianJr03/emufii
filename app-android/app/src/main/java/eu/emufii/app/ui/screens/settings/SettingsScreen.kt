@@ -71,9 +71,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
 /**
- * Les reglages : un hub qui ne contient que des entrees, et sept pages. Le hub
- * ne se lit pas, il se traverse.
- * pourquoi : docs/decisions/reglages-ecran.md § Un hub et sept pages, plus un accordéon
+ * A hub holding nothing but entries, and seven pages. The hub is crossed, not read.
+ * pourquoi : docs/decisions/reglages-ecran.md § One hub and seven pages, plus an accordion
  */
 @Composable
 fun SettingsScreen(
@@ -83,7 +82,7 @@ fun SettingsScreen(
     settingsStore: SettingsStore,
     romsRepo: RomsRepository,
     libraryFolder: String?,
-    /** Le second dossier de ROMs, optionnel : il s'ajoute au premier. */
+    /** The optional second ROM folder; it adds to the first. */
     librarySecondFolder: String?,
     libraryScanning: Boolean,
     libraryCount: Int?,
@@ -96,7 +95,7 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
 
-    /** La page ouverte. Le hub est la racine de cet ecran, pas une page de plus. */
+    /** The open page. The hub is this screen's root, not one more page. */
     var page by remember { mutableStateOf(SettingsPageId.HUB) }
 
     var name by remember(profile.id) {
@@ -113,20 +112,18 @@ fun SettingsScreen(
     val ppssppConfig = remember(context) { PpssppConfigStore(context) }
     var ppssppConfigReady by remember { mutableStateOf(ppssppConfig.isReady()) }
 
-    // Le joueur l'a-t-il importee dans ARMSX2 ? Rien ici ne peut le verifier.
-    // Prise a la reponse pas chere, confirmee hors du fil principal juste
-    // apres : ouvrir les reglages ne doit pas attendre 175 ms de lecture de
-    // carte.
+    // Has the player imported it into ARMSX2? Nothing here can check. Taken from the
+    // cheap answer and confirmed off the main thread just after: opening the settings
+    // must not wait 175 ms of card reading.
     var ps2ProfileReady by remember { mutableStateOf(Ps2NetworkProfile.isReadyQuick(context)) }
     LaunchedEffect(Unit) { ps2ProfileReady = Ps2NetworkProfile.verifyReady(context) }
 
     var hiddenCount by remember { mutableStateOf(HiddenRoms(context).count()) }
 
-    // Quelques jaquettes reelles pour le bloc des icones de jeu. Prises dans le
-    // cache que l'app a deja chauffe au demarrage, hors du fil principal, et
-    // seulement celles qui portent une image : une bande de plaques vides ne
-    // montrerait rien.
-    // pourquoi : docs/decisions/reglages-ecran.md § Les images des pages viennent de l'appareil, pas d'une banque
+    // Real cover art for the game-icon block, from the cache warmed at startup, off the
+    // main thread, and only those carrying an image: a strip of empty plates would show
+    // nothing.
+    // pourquoi : docs/decisions/reglages-ecran.md § The pages' images come from the device, not from a stock library
     var artworkSample by remember { mutableStateOf<List<Rom>>(emptyList()) }
     LaunchedEffect(libraryCount) {
         artworkSample = withContext(Dispatchers.IO) {
@@ -136,9 +133,9 @@ fun SettingsScreen(
         }
     }
 
-    // Relu tant que l'ecran est la, et pas une fois : la reponse n'existe
-    // qu'au retour des reglages d'Android.
-    // pourquoi : docs/decisions/reglages-ecran.md § Les lignes d'état, et ce que personne ne devinerait
+    // Re-read while the screen is up rather than once: the answer only exists on return
+    // from Android's settings.
+    // pourquoi : docs/decisions/reglages-ecran.md § The status lines, and what nobody would guess
     val autofillLauncher = remember { AzaharLauncher(context) }
     var autofillOn by remember { mutableStateOf(autofillLauncher.isNetplayAutomationEnabled()) }
     LaunchedEffect(Unit) {
@@ -160,20 +157,20 @@ fun SettingsScreen(
         ActivityResultContracts.OpenDocumentTree()
     ) { uri: Uri? -> if (uri != null) onSecondFolderPicked(uri) }
 
-    /** Le pseudo est ecrit au moment de quitter les reglages, pas a chaque touche. */
+    /** The nickname is written on leaving the settings, not on every keystroke. */
     val leave = {
         profileStore.setName(name)
         onBack()
     }
 
-    // Une page est un sous-niveau : B revient au hub avant de quitter l'ecran.
+    // A page is a sub-level: B returns to the hub before leaving the screen.
     BackHandler(enabled = page != SettingsPageId.HUB) { page = SettingsPageId.HUB }
 
     /**
-     * Le panneau garde la categorie ou l'on est : le hub publie la case visee et
-     * se vide en partant. Republie a chaque changement d'etat, et rien n'est
-     * publie sur le hub — deux publieurs pour une face.
-     * pourquoi : docs/decisions/reglages-ecran.md § Le hub est une grille, et le panneau montre la case visée
+     * The panel keeps the category you are in: the hub publishes the aimed tile and
+     * clears on the way out. Republished on every state change, and nothing is
+     * published on the hub: two publishers for one face.
+     * pourquoi : docs/decisions/reglages-ecran.md § The hub is a grid, and the panel shows the selected cell
      */
     val face = settingsFace(
         page = page,
@@ -187,9 +184,8 @@ fun SettingsScreen(
         languageLabel = stringResource(language.labelRes),
     )
     LaunchedEffect(face) { face?.let { SecondScreen.publish(it) } }
-    // Filet : quitter l'ecran depuis une page ne doit pas laisser une face de
-    // reglages allumee derriere. Le hub a le sien, mais il n'est pas la quand
-    // une page est ouverte.
+    // A net: leaving the screen from a page must not leave a settings face lit behind.
+    // The hub has its own, but it is not there while a page is open.
     DisposableEffect(Unit) { onDispose { SecondScreen.clear() } }
 
     val toHub = { page = SettingsPageId.HUB }
@@ -203,7 +199,7 @@ fun SettingsScreen(
             libraryScanning = libraryScanning,
             hiddenConsoleCount = hiddenConsoles.size,
             emulatorsReady = listOf(ppssppConfigReady, ps2ProfileReady, autofillOn).count { it },
-            // L'accent configurable est parti : la ligne ne nomme plus que le
+            // The configurable accent is gone: the row now names the theme alone.
             // theme. pourquoi : theme-duotone-shelves.md § Réglages
             themeLabel = stringResource(theme.labelRes),
             languageLabel = stringResource(language.labelRes),
@@ -299,15 +295,14 @@ fun SettingsScreen(
                 GhostButton(
                     label = stringResource(R.string.profile_reset),
                     onClick = {
-                        // Les deux, toujours : la liste d'amis est indexee sur
-                        // une identite qui n'existe plus, et la laisser
-                        // afficherait des rangees qui ne reviendront jamais en
-                        // ligne.
+                        // Both, always: the friends list is indexed on an identity that
+                        // no longer exists, and leaving it would show rows that never
+                        // come back online.
                         friendStore.clear()
                         profileStore.reset()
-                        // La cle publique WireGuard est un identifiant stable
-                        // que le coordinator voit ; la laisser survivrait au
-                        // profil auquel elle allait.
+                        // The WireGuard public key is a stable identifier the
+                        // coordinator sees; leaving it would outlive the profile it
+                        // belonged to.
                         WgKeys.reset(context)
                         name = ""
                         confirmingReset = false
@@ -322,15 +317,15 @@ fun SettingsScreen(
     }
 }
 
-/** Combien de jaquettes la bande du bloc des icones montre. */
+/** How many covers the icon block's strip shows. */
 private const val ARTWORK_SAMPLE = 5
 
-/** Les sept pages, et le hub qui y mene. */
+/** The seven pages, and the hub that leads to them. */
 /**
- * La face que le panneau montre pour une categorie : **une seule source pour les
- * deux moments**, la tuile et la page, sinon elles racontent deux choses.
- * `@Composable` parce que tout y est traduit et date.
- * pourquoi : docs/decisions/reglages-ecran.md § Le hub est une grille, et le panneau montre la case visée
+ * The face the panel shows for a category: one source for both moments, the tile and
+ * the page, or they tell two stories. `@Composable` because everything in it is
+ * translated.
+ * pourquoi : docs/decisions/reglages-ecran.md § The hub is a grid, and the panel shows the selected cell
  */
 @Composable
 private fun settingsFace(
@@ -354,7 +349,7 @@ private fun settingsFace(
             social = social
         )
     return when (page) {
-        // Le hub n'a pas de face a lui : c'est la case visee qui parle.
+        // The hub has no face of its own: the aimed tile speaks.
         SettingsPageId.HUB -> null
         SettingsPageId.PROFILE -> face(
             stringResource(R.string.settings_page_profile),
@@ -404,10 +399,10 @@ internal enum class SettingsPageId {
 }
 
 /**
- * Le hub : quatre groupes d'entrees, et rien d'autre. **Aucun reglage ne se
- * change ici**, et c'est la seule regle de cette page.
- * pourquoi : docs/decisions/reglages-ecran.md § Un hub et sept pages, plus un accordéon
- * pourquoi : docs/decisions/reglages-ecran.md § Une entrée du hub est une plaque, pas une rangée
+ * Four groups of entries and nothing else. No setting changes here, and that is this
+ * page's only rule.
+ * pourquoi : docs/decisions/reglages-ecran.md § One hub and seven pages, plus an accordion
+ * pourquoi : docs/decisions/reglages-ecran.md § A hub entry is a plate, not a row
  */
 @Composable
 private fun SettingsHub(
@@ -426,11 +421,10 @@ private fun SettingsHub(
 ) {
     val root = stringResource(R.string.settings_title)
 
-    // Le panneau arriere montre la case visee. Il ne se vide plus en partant :
-    // la page qu'on ouvre republie la face de sa categorie, et un `clear` pose
-    // ici l'effacerait juste apres. C'est l'ecran des reglages entier, un cran
-    // au-dessus, qui eteint le panneau en le quittant.
-    // pourquoi : docs/decisions/reglages-ecran.md § Le hub est une grille, et le panneau montre la case visée
+    // The panel shows the aimed tile and no longer clears on the way out: the page
+    // being opened republishes its category's face, and a `clear` here would erase it
+    // just after. The settings screen as a whole puts the panel out on leaving.
+    // pourquoi : docs/decisions/reglages-ecran.md § The hub is a grid, and the panel shows the selected cell
 
     SettingsPage(
         title = root,
@@ -439,9 +433,8 @@ private fun SettingsHub(
     ) {
         val displayName = playerDisplayName(name.ifBlank { Profile.DEFAULT_NAME })
 
-        // La tuile publie exactement ce que la page republiera en s'ouvrant :
-        // passer le curseur sur « Bibliotheque » puis y entrer ne doit rien
-        // changer au panneau, sinon l'entree se lit comme un changement d'ecran.
+        // The tile publishes exactly what the page republishes on opening: hovering
+        // Library then entering it must change nothing on the panel.
         @Composable
         fun faceOf(page: SettingsPageId) = settingsFace(
             page = page,
@@ -455,9 +448,9 @@ private fun SettingsHub(
             languageLabel = languageLabel,
         )!!
 
-        // Les intitules de famille sont partis avec la colonne : une grille n'a
-        // pas de rayons, elle a des cases, et sept cases se cherchent au nom.
-        // pourquoi : docs/decisions/reglages-ecran.md § Le hub est une grille, et le panneau montre la case visée
+        // The family headings went with the column: a grid has no aisles, it has tiles,
+        // and seven tiles are found by name.
+        // pourquoi : docs/decisions/reglages-ecran.md § The hub is a grid, and the panel shows the selected cell
         val entries = listOf<@Composable (Boolean, Modifier) -> Unit>(
             { first, mod ->
                 val face = faceOf(SettingsPageId.PROFILE)
@@ -469,11 +462,11 @@ private fun SettingsHub(
                     onOpen = { onOpen(SettingsPageId.PROFILE) },
                     entry = first,
                     modifier = mod,
-                    // Le profil est le seul domaine social du hub.
+                    // The profile is the hub's only social domain.
                     domain = EntryDomain.SOCIAL,
-                    // L'avatar tient lieu de marque : c'est la seule entree dont
-                    // l'etat est une image, et la seule couleur du hub — elle
-                    // vient du contenu, jamais du chrome.
+                    // The avatar stands in for the mark: the only entry whose state is
+                    // an image, and the hub's only colour, which comes from content and
+                    // never from chrome.
                     leading = {
                         Avatar(name = displayName, imageFile = profile.avatarFile, size = 34.dp)
                     },
@@ -511,11 +504,10 @@ private fun SettingsHub(
                 )
             },
             { first, mod ->
-                // Pas de pastille : masquer une console est un gout, pas un
-                // etat a rattraper, et une pastille verte y dirait « rien a
-                // faire » sur une page ou il n'y a jamais rien a faire. Le
-                // compte tient dans le resume, la ou il se lit comme un fait et
-                // non comme un verdict.
+                // No pill: hiding a console is a taste, not a state to catch up on, and
+                // a green one would say "nothing to do" on a page where there never is.
+                // The count sits in the summary, where it reads as a fact rather than a
+                // verdict.
                 val face = faceOf(SettingsPageId.CONSOLES)
                 val label = face.title
                 val summary = face.summary
@@ -541,10 +533,9 @@ private fun SettingsHub(
                     modifier = mod,
                     icon = { ChipMark(color = it) },
                     state = EntryState(
-                        // Verte seulement quand les trois preparations sont
-                        // faites : cette page existe pour ce qui reste a
-                        // preparer, et « 2 / 3 » en vert se lirait comme
-                        // « rien a faire ».
+                        // Green only once all three preparations are done: this page
+                        // exists for what is left to prepare, and "2 / 3" in green
+                        // would read as nothing to do.
                         if (emulatorsReady == EMULATOR_STEPS) DetailTone.GOOD else DetailTone.WARN,
                         stringResource(R.string.settings_pill_ratio, emulatorsReady, EMULATOR_STEPS)
                     ),
@@ -596,13 +587,10 @@ private fun SettingsHub(
 }
 
 /**
- * Les cases du hub : deux colonnes a parts egales, et ca descend.
- *
- * Rien de paresseux ici, et c'est le point : les sept cases sont composees, donc
- * la traversee de focus trouve toujours sa destination. Sept cases ne valent pas
- * la machinerie de la bibliotheque.
- * pourquoi : docs/decisions/reglages-ecran.md § Deux colonnes, et ça descend — jamais de côté
- * pourquoi : docs/decisions/reglages-ecran.md § Le hub est une grille, et le panneau montre la case visée
+ * Two equal columns, going down. Nothing lazy here, and that is the point: all seven
+ * tiles are composed, so focus traversal always finds its destination.
+ * pourquoi : docs/decisions/reglages-ecran.md § Two columns, and it goes down, never sideways
+ * pourquoi : docs/decisions/reglages-ecran.md § The hub is a grid, and the panel shows the selected cell
  */
 @Composable
 private fun HubGrid(entries: List<@Composable (Boolean, Modifier) -> Unit>) {
@@ -618,9 +606,9 @@ private fun HubGrid(entries: List<@Composable (Boolean, Modifier) -> Unit>) {
                         Modifier.weight(1f).height(HUB_TILE_HEIGHT)
                     )
                 }
-                // Le rang incomplet garde les places manquantes : sans cela la
-                // derniere case s'etire sur la largeur de deux et se lit comme
-                // plus importante que ses voisines.
+                // The incomplete row keeps its missing places: without them the last
+                // tile stretches over two widths and reads as more important than its
+                // neighbours.
                 repeat(HUB_COLUMNS - chunk.size) {
                     Box(modifier = Modifier.weight(1f))
                 }
@@ -629,18 +617,18 @@ private fun HubGrid(entries: List<@Composable (Boolean, Modifier) -> Unit>) {
     }
 }
 
-/** Combien de cases de front. Deux, a parts egales, de chaque cote de la page. */
+/** How many cells abreast. Two, evenly, one on each side of the page. */
 private const val HUB_COLUMNS = 2
 
-/** L'ecart entre deux cases, dans les deux sens. */
+/** The gap between two tiles, both ways. */
 private val HUB_GAP = 12.dp
 
 /**
- * La hauteur d'une case, la meme pour toutes : un resume sur deux lignes
- * grandirait sa case seule et casserait l'alignement du rang.
- * pourquoi : docs/decisions/reglages-ecran.md § Deux colonnes, et ça descend — jamais de côté
+ * One height for every tile: a two-line summary would grow its own tile and break the
+ * row's alignment.
+ * pourquoi : docs/decisions/reglages-ecran.md § Two columns, and it goes down, never sideways
  */
 private val HUB_TILE_HEIGHT = 92.dp
 
-/** Combien de preparations la page des emulateurs compte : PPSSPP, PS2, remplissage. */
+/** How many preparations the emulators page counts: PPSSPP, PS2, artwork. */
 private const val EMULATOR_STEPS = 3

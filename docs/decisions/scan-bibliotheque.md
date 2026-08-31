@@ -1,174 +1,164 @@
-# Scanner la bibliothèque : le cache, la chaîne de décision, les identités
+# Scanning the library: the cache, the decision chain, the identities
 
-Le récit qui vivait dans `library/RomsRepository.kt`, sorti du code le
-2026-08-24 (cf. `docs/STYLE_COMMENTAIRES.md`). Voir aussi
-[`identite-disques.md`](identite-disques.md). Titres = ancres citées depuis le code.
+The narrative that lived in `library/RomsRepository.kt`, taken out of the code on
+2026-08-24 (see `docs/STYLE_COMMENTAIRES.md`). See also
+[`identite-disques.md`](identite-disques.md). Headings are anchors cited from the
+code.
 
-## Le cache appartient au processus, pas à l'écran
+## The cache belongs to the process, not to the screen
 
-Le résultat du dernier scan est gardé pour que les appelants qui n'ont qu'une
-chose à retrouver ne remarchent pas tout l'arbre : rejoindre depuis le annuaire
-faisait exactement ça, une seconde marche complète pour apparier un seul
-identifiant de titre.
+The result of the last scan is kept so callers with a single thing to find do not
+walk the whole tree again: joining from the finder did exactly that, a second
+full walk to match one title id.
 
-Il est **délibérément partagé entre instances** et non tenu par dépôt. Un dépôt
-est mémorisé par composition, donc tourner l'appareil en fabriquait un nouveau et
-rescannait de zéro — avec une ROM 3DS de 2 Go dans le dossier, assez longtemps
-pour provoquer un ANR, et plusieurs rotations mettaient plusieurs scans en file.
+It is deliberately shared between instances rather than held per repository. A
+repository is remembered per composition, so rotating the device built a new one
+and rescanned from scratch, which with a 2 GB 3DS ROM in the folder took long
+enough to cause an ANR, and several rotations queued several scans.
 
-## Les noms choisis par le joueur sont posés à la sortie, jamais dans le cache
+## Player-chosen names are applied on the way out, never into the cache
 
-Renommer un jeu ne rescanne rien — ça change une préférence — donc un cache
-contenant les titres renommés était un cache que rien n'invalidait : le
-renommage n'apparaissait qu'au prochain démarrage à froid, ce qui se lit comme
-« renommer ne fait rien ».
+Renaming a game rescans nothing, it changes a preference, so a cache holding
+renamed titles was a cache nothing invalidated: the rename only appeared at the
+next cold start, which reads as "renaming does nothing".
 
-Le cache garde donc les titres lus dans les fichiers, et les noms choisis sont
-appliqués **à chaque lecture**. Effet de bord bienvenu : effacer un nom rend
-immédiatement le titre d'origine, là où avant le nom personnalisé restait en place
-jusqu'à un rescan.
+The cache therefore keeps the titles read from the files, and chosen names are
+applied on every read. Welcome side effect: clearing a name immediately gives the
+original title back, where before the custom name stayed until a rescan.
 
-**Le tri appartient au même endroit, et pour la même raison** : un jeu renommé
-doit aller à sa nouvelle place dans l'alphabet, pas rester où son ancien titre
-l'avait mis.
+Sorting belongs in the same place, for the same reason: a renamed game must go to
+its new place in the alphabet, not stay where its old title put it.
 
-Même logique pour le titre lu dans le fichier : chaque console a son propre
-chemin de lecture, et appliquer le nom choisi par chemin aurait donné une
-bibliothèque où renommer marche pour la 3DS et pas pour la DS. **Un seul endroit,
-à la sortie, pour toutes.**
+Same logic for the title read from the file: every console has its own reading
+path, and applying the chosen name per path would have given a library where
+renaming works for 3DS and not for DS. One place, on the way out, for all of
+them.
 
-## La marche de l'arbre
+## Walking the tree
 
-Les gens rangent leurs ROMs dans `3DS/`, `GameCube/`, `Jeux/` — un scan à plat ne
-trouvait rien. On marche donc les sous-dossiers, mais pas indéfiniment : au-delà
-de quelques niveaux on est presque sûrement là où on ne devrait pas être, et
-chaque niveau supplémentaire coûte une requête par répertoire.
+People file their ROMs in `3DS/`, `GameCube/`, `Jeux/`, and a flat scan found
+nothing. So subfolders are walked, but not indefinitely: beyond a few levels you
+are almost certainly somewhere you should not be, and each extra level costs one
+query per directory.
 
-**`DocumentsContract` est interrogé directement, pas `DocumentFile`** : ce dernier
-émet une requête par entrée pour répondre à `isFile`/`name`, ce qui sur une
-bibliothèque de quelques milliers de fichiers fait quelques milliers d'allers-
-retours. Ici, une requête par répertoire rend tout ce qu'il faut.
+`DocumentsContract` is queried directly, not `DocumentFile`: the latter issues
+one query per entry to answer `isFile`/`name`, which on a library of a few
+thousand files is a few thousand round trips. Here one query per directory
+returns everything needed.
 
-**En largeur d'abord**, pour que les dossiers peu profonds et bien nommés soient
-visités avant les profonds : ça compte quand la limite de fichiers coupe la marche.
+Breadth first, so shallow, well-named folders are visited before deep ones: that
+matters when the file limit cuts the walk short.
 
-## Une chaîne de décision, le moins cher d'abord
+## A decision chain, cheapest first
 
-1. **Le nom du dossier**, quand il nomme une console : le joueur a trié ce fichier
-   lui-même.
-2. **L'extension**, quand elle appartient à une seule console.
-3. **Les octets**, pour les extensions que trois consoles partagent.
+1. The folder name, when it names a console: the player sorted this file
+   themselves.
+2. The extension, when it belongs to one console only.
+3. The bytes, for extensions three consoles share.
 
-Une extension partagée qu'aucune lecture ne cautionne est un disque qu'Emufii ne
-sert pas (une PS1, une Dreamcast, un fournisseur illisible) : **il n'est pas listé**
-plutôt que pointé vers un émulateur incapable de l'ouvrir.
+A shared extension no reading vouches for is a disc Emufii does not serve (a PS1,
+a Dreamcast, an unreadable provider): it is not listed, rather than pointed at an
+emulator that cannot open it.
 
-Exception assumée : les conteneurs Nintendo (`rvz`, `wia`) **gardent la réponse de
-l'extension** quand la lecture ne dit rien — les deux se jouent sur Dolphin de
-toute façon, et un hoquet de fournisseur ne doit pas vider une bibliothèque.
+Deliberate exception: Nintendo containers (`rvz`, `wia`) keep the extension's
+answer when reading says nothing. Both play on Dolphin anyway, and a provider
+hiccup must not empty a library.
 
-De même, `.iso` et `.chd` ne disent rien de la console qui les a gravés : la PS2,
-la Xbox et une pile de systèmes d'arcade en portent aussi, et ces jeux
-atterrissaient dans la grille sous leur nom de fichier alors qu'Emufii ne peut rien
-en faire. Pour ces deux conteneurs, le fichier doit **prouver** qu'il est un jeu
-PSP — un `PSP_GAME` dans sa table des matières — faute de quoi il n'est pas listé.
-`.pbp` et `.cso` restent admis sur leur seule extension : ils n'appartiennent qu'à
-la PSP.
+Likewise, `.iso` and `.chd` say nothing about the console that burned them: the
+PS2, the Xbox and a stack of arcade systems carry them too, and those games
+landed in the grid under their filename while Emufii can do nothing with them.
+For those two containers the file must prove it is a PSP game, a `PSP_GAME` in
+its table of contents, failing which it is not listed. `.pbp` and `.cso` are
+still admitted on extension alone: they belong to the PSP only.
 
-## Ce qu'on ouvre, et ce qu'on ne peut pas ouvrir
+## What we open, and what we cannot open
 
-**3DS et DS sont ouverts**, parce que les deux portent leur vrai titre et leur
-icône à l'intérieur — un SMDH pour la 3DS, une bannière pour la DS — et que les
-deux sont bon marché à atteindre.
+3DS and DS are opened, because both carry their real title and their icon inside,
+an SMDH for the 3DS and a banner for the DS, and both are cheap to reach.
 
-**La PSP aussi** : un UMD porte son icône et son titre dans son système de
-fichiers, sous `PSP_GAME` — quelques kilooctets à lire sur un disque qui en pèse un
-million. Le titre vient du `PARAM.SFO` et vaut nettement mieux que le nom de
-fichier, qui traîne d'ordinaire sa région et sa révision entre parenthèses.
+PSP too: a UMD carries its icon and title in its filesystem, under `PSP_GAME`, a
+few kilobytes to read on a disc weighing a million. The title comes from
+`PARAM.SFO` and is clearly better than the filename, which usually drags its
+region and revision along in brackets.
 
-**Les images de disque prennent leur *titre* dans le nom de fichier**, et c'est
-accepté : un `.rvz` est compressé, donc aucune bannière ne se trouve à un décalage
-fixe, et il faudrait décompresser un jeu entier pour aller chercher son
-`opening.bnr`. Leur **identité** est une autre affaire : une image non compressée
-livre pour presque rien son identifiant de disque de six caractères, et c'est ce
-que le garde-fou de session compare. Sans lui, la session ne publie rien et
-l'invité s'entend dire qu'il n'a pas le jeu qu'il a sous les yeux — **exactement le
-défaut corrigé pour la PSP en versionCode 12**.
+Disc images take their title from the filename, and that is accepted: an `.rvz`
+is compressed, so no banner sits at a fixed offset, and you would have to
+decompress a whole game to fetch its `opening.bnr`. Their identity is another
+matter: an uncompressed image yields its six-character disc id for almost
+nothing, and that is what the session guard compares. Without it the session
+publishes nothing and the guest is told they do not have the game in front of
+them, exactly the flaw fixed for the PSP in versionCode 12.
 
-Les icônes décodées atterrissent dans le répertoire de cache sous le code du jeu,
-pour qu'un rescan ne redécode pas chaque bannière.
+Decoded icons land in the cache directory under the game code, so a rescan does
+not decode every banner again.
 
-## `productCode` et `titleIdHex` ne jouent pas le même rôle
+## `productCode` and `titleIdHex` do not play the same role
 
-L'identifiant de disque sert de clé de cache, **mais pas d'identité de session** :
-il va dans `productCode`, comme pour la DS, et non dans `titleIdHex`, qui décide si
-deux joueurs ont vraiment le même jeu.
+The disc id serves as a cache key, but not as a session identity: it goes into
+`productCode`, as for the DS, and not into `titleIdHex`, which decides whether
+two players really have the same game.
 
-C'est délibéré et ça vaut pour la PSP comme pour le GameCube/Wii : **deux dumps
-régionaux du même titre portent deux identifiants**, et rien ne dit encore qu'ils
-refusent de jouer ensemble. `sessionId` sait retrouver un jeu par l'un ou l'autre,
-mais le garde-fou « ce n'est pas le même jeu » ne refuse que sur un identifiant de
-**titre**. Refuser sur un identifiant de disque reviendrait à interdire une partie
-sur une supposition.
+That is deliberate and holds for PSP as for GameCube/Wii: two regional dumps of
+the same title carry two ids, and nothing yet says they refuse to play together.
+`sessionId` can find a game by either, but the "this is not the same game" guard
+only refuses on a title id. Refusing on a disc id would amount to forbidding a
+game on a guess.
 
-La PS2 suit le chemin des disques Nintendo pour la même raison : le titre vient du
-nom de fichier, mais le numéro est lu dans le disque — `SLES-50877` sur
-TimeSplitters 2, exactement ce qu'ARMSX2 affiche.
+The PS2 follows the Nintendo disc path for the same reason: the title comes from
+the filename, but the number is read from the disc, `SLES-50877` on
+TimeSplitters 2, exactly what ARMSX2 shows.
 
-## Les clés Switch : ramassées, jamais fournies
+## Switch keys: picked up, never supplied
 
-Un dump Switch ne dit rien de lui-même sans elles : ni icône, ni titre. **Emufii
-n'embarque aucune clé et n'en télécharge aucune** : il ramasse un `prod.keys` que
-le joueur a déjà mis dans son propre dossier de ROMs, ce que tout émulateur Switch
-lui demande de faire de toute façon. Gardées en mémoire seulement.
+A Switch dump says nothing about itself without them: no icon, no title. Emufii
+ships no key and downloads none: it picks up a `prod.keys` the player already put
+in their own ROM folder, which every Switch emulator asks them to do anyway. Held
+in memory only.
 
-Absentes, les tuiles Switch gardent leurs initiales, exactement comme un fichier
-non reconnu — et c'est ici le cas **courant**, pas l'exception.
+Absent, Switch tiles keep their initials, exactly like an unrecognised file, and
+here that is the common case, not the exception.
 
-## Ce que le joueur voit du dossier choisi
+## What the player sees of the chosen folder
 
-SAF nous rend un identifiant de document de la forme `primary:Roms/3DS` : le
-préfixe de volume ne veut rien dire pour quiconque hors du framework, donc seule
-la partie qui suit est montrée. Repli sur le dernier segment de l'URI pour les
-fournisseurs dont le format d'identifiant nous est inconnu.
+SAF returns a document id shaped like `primary:Roms/3DS`: the volume prefix means
+nothing to anybody outside the framework, so only the part after it is shown.
+Falls back to the last URI segment for providers whose id format we do not know.
 
-## Un nom que le fichier ne donne pas se demande à l'index
+## A name the file does not give is asked of the index
 
-Une ROM dit toujours **quel jeu elle est** — l'identifiant de titre, le code de
-jeu, l'identifiant de disque, le serial vivent dans des en-têtes qu'aucun
-chiffrement ne touche — mais pas toujours son **titre** : pas de clés console
-signifie pas de NACP sur un dump Switch, pas de SMDH sur un 3DS, et les formats
-de disque ne portent aucune bannière une fois sur deux. La grille retombe alors
-sur le nom de fichier, étiquettes de release comprises.
+A ROM always says which game it is, since the title id, game code, disc id and
+serial live in headers no encryption touches, but not always its title: no
+console keys means no NACP on a Switch dump, no SMDH on a 3DS, and disc formats
+carry no banner half the time. The grid then falls back on the filename, release
+tags included.
 
-C'est donc le seul endroit où un vrai nom est *demandé*, par identifiant, aux
-mêmes index publics contre lesquels l'outil de compatibilité résout les siens.
-Toutes les consoles sont couvertes : une tuile qui nomme son jeu sur une console
-et son fichier sur la suivante est le désordre que ça existe pour éviter.
+So this is the one place a real name is asked for, by id, of the same public
+indexes the compatibility tool resolves its own against. Every console is
+covered: a tile naming its game on one console and its file on the next is the
+mess this exists to avoid.
 
-Servi et mis en cache comme tout autre document public (`/compat`, `/meta`) : les
-portables sont hors ligne la moitié du temps, et un vrai titre qui disparaît sans
-Wi-Fi renverrait la grille au jargon de scène, ce qui se lit comme une panne.
+Served and cached like any other public document (`/compat`, `/meta`): handhelds
+are offline half the time, and a real title vanishing without Wi-Fi would send the
+grid back to scene jargon, which reads as a fault.
 
-La surcouche ne remplace **jamais** qu'un nom dérivé du fichier, et perd contre
-les deux choses qui la dominent : un titre lu dans le fichier lui-même (la
-cartouche parle sa propre langue) et le nom choisi par le joueur.
+The overlay never replaces anything but a name derived from the file, and loses
+against the two things above it: a title read from the file itself (the cartridge
+speaks its own language) and the name the player chose.
 
-## La langue d'une cartouche est celle de l'app
+## A cartridge's language is the app's
 
-Chaque format qu'Emufii lit porte son titre plusieurs fois — une bannière DS en
-six langues, un SMDH 3DS en douze, un control Switch en seize — et chaque lecteur
-choisissait dans une liste figée à « français, puis anglais, puis japonais ». Une
-app en anglais affichait donc « Pokémon Version Blanche 2 », sans moyen de
-demander autre chose. La cartouche connaît les deux noms ; la seule question est
-lequel lire, et la réponse est la langue que l'app elle-même parle.
+Every format Emufii reads carries its title several times, a DS banner in six
+languages, a 3DS SMDH in twelve, a Switch control in sixteen, and every reader
+picked from a list frozen at "French, then English, then Japanese". An app in
+English therefore showed "Pokémon Version Blanche 2", with no way to ask for
+anything else. The cartridge knows both names; the only question is which to
+read, and the answer is the language the app itself speaks.
 
-L'app est bilingue, donc chaque ordre nomme sa langue d'abord et l'autre ensuite,
-puis garde l'ancienne queue : une cartouche japonaise qui ne porte ni français ni
-anglais doit quand même produire *quelque chose*, et un titre japonais vaut mieux
-qu'un nom de fichier.
+The app is bilingual, so each order names its own language first and the other
+next, then keeps the old tail: a Japanese cartridge carrying neither French nor
+English must still produce something, and a Japanese title beats a filename.
 
-Le marqueur de langue existe parce que les titres sont mis en cache sur disque.
-Deux langues de la même cartouche sont deux chaînes différentes sous le même code
-de jeu : la clé de cache doit donc porter la langue, sans quoi changer la langue
-de l'app afficherait la précédente jusqu'au prochain scan.
+The language marker exists because titles are cached on disk. Two languages of
+the same cartridge are two different strings under the same game code: the cache
+key must therefore carry the language, or changing the app's language would show
+the previous one until the next scan.

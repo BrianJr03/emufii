@@ -14,12 +14,10 @@ import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import android.view.View
 
 /**
- * The three owners Compose insists on, owned by nobody in particular.
- *
- * Autonome des la premiere ligne : le service de premier plan qui garde le
- * panneau vivant pendant que l'emulateur possede l'ecran de face n'a aucune
- * activite a qui emprunter les siens.
- * pourquoi : docs/decisions/second-ecran.md § Les trois propriétaires sont autonomes dès la première ligne
+ * The three owners Compose insists on, owned by nobody in particular. Standalone from
+ * the first line: the foreground service keeping the panel alive while the emulator
+ * owns the front screen has no activity to borrow from.
+ * pourquoi : docs/decisions/second-ecran.md § The three owners are self-contained from the first line
  */
 class SecondScreenWindowOwner : LifecycleOwner, ViewModelStoreOwner, SavedStateRegistryOwner {
 

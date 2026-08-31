@@ -1,55 +1,54 @@
-# Third-Party Notices — application Android
+# Third-Party Notices: Android application
 
-Détail des apports tiers de l'APK. La licence d'Emufii elle-même, le copyright et
-la liste complète des attributions sont dans le `NOTICE.md` et le `LICENSE` à
-la racine du dépôt.
+Third-party content shipped in the APK. Emufii's own licence, the copyright and
+the full list of attributions are in the `NOTICE.md` and `LICENSE` at the
+repository root.
 
-**Emufii est sous AGPL-3.0** depuis le 2026-08-09, en remplacement de
-l'Apache-2.0 qui tenait depuis le 2026-07-28. Les versions jusqu'à la 1.10.8
-incluse restent sous Apache-2.0.
+Emufii is under AGPL-3.0 since 2026-08-09, replacing the Apache-2.0 that held
+from 2026-07-28. Versions up to and including 1.10.8 stay under Apache-2.0.
 
-## WireGuard (couche réseau des sessions)
+## WireGuard (session network layer)
 
-- Source : https://github.com/WireGuard/wireguard-android
-- Artefact : `com.wireguard.android:tunnel`
-- Licence : **Apache License 2.0**
+- Source: https://github.com/WireGuard/wireguard-android
+- Artifact: `com.wireguard.android:tunnel`
+- Licence: Apache License 2.0
 
-Utilisé via son backend userspace (`GoBackend`), qui passe par le `VpnService`
-d'Android et ne demande donc pas le root. Aucun binaire natif n'est vendoré :
-la bibliothèque est une dépendance Maven ordinaire.
+Used through its userspace backend (`GoBackend`), which goes through Android's
+`VpnService` and therefore needs no root. No native binary is vendored: the
+library is an ordinary Maven dependency.
 
 ## Interface
 
-AndroidX et Jetpack Compose, Coil, Haze — toutes sous **Apache License 2.0**.
+AndroidX and Jetpack Compose, Coil, Haze, all under Apache License 2.0.
 
-## Décompression CHD
+## CHD decompression
 
-Aircompressor (`io.airlift:aircompressor`), sous **Apache License 2.0**, fournit
-le décodeur Zstandard pur Java des CHD PS2. XZ for Java (`org.tukaani:xz`) est
-dans le domaine public et fournit leur décodeur LZMA. Emufii ne décompresse que
-les hunks nécessaires à `SYSTEM.CNF` et à l'ELF de démarrage ; aucune image de
-jeu n'est extraite ni redistribuée.
+Aircompressor (`io.airlift:aircompressor`), under Apache License 2.0, provides
+the pure-Java Zstandard decoder for PS2 CHDs. XZ for Java (`org.tukaani:xz`) is
+public domain and provides their LZMA decoder. Emufii decompresses only the
+hunks needed for `SYSTEM.CNF` and the boot ELF; no game image is extracted or
+redistributed.
 
 ## Rounded M+ (M PLUS Rounded 1c)
 
-Sous **SIL Open Font License 1.1**. Le texte de la licence voyage avec l'APK :
-`assets/ROUNDED-MPLUS-OFL.txt`, comme l'OFL l'exige de toute copie du logiciel
-de police. Attribution complète dans le `NOTICE.md` à la racine du dépôt.
+Under SIL Open Font License 1.1. The licence text travels with the APK, at
+`assets/ROUNDED-MPLUS-OFL.txt`, as the OFL requires of every copy of the font
+software. Full attribution in the `NOTICE.md` at the repository root.
 
 ---
 
-## Historique — pourquoi la GPL v2 a été envisagée, puis abandonnée
+## History: why GPL v2 was considered, then dropped
 
-Jusqu'au 2026-07-28, Emufii embarquait du code dérivé de **ZerotierFix** (kaaass,
-GPL v2) et de **ZeroTier One** (BSL 1.1) : des stubs Java `com.zerotier.sdk.*`
-et un `libZeroTierOneJNI.so`. C'est de ce lien que venait l'obligation de
-distribuer Emufii sous GPL v2.
+Until 2026-07-28, Emufii shipped code derived from ZerotierFix (kaaass, GPL v2)
+and ZeroTier One (BSL 1.1): Java stubs `com.zerotier.sdk.*` and a
+`libZeroTierOneJNI.so`. That link is where the obligation to distribute Emufii
+under GPL v2 came from.
 
-**Ce code a été entièrement retiré** lors de la bascule vers WireGuard — paquet
-`zt/`, stubs `com.zerotier.sdk.*`, les deux `.so` (6,7 Mo) et les fichiers de
-licence qui les accompagnaient.
+All of that code was removed when the app moved to WireGuard: the `zt/` package,
+the `com.zerotier.sdk.*` stubs, both `.so` files (6.7 MB) and the licence files
+that came with them.
 
-La contrainte ayant disparu, la licence a été choisie librement : d'abord
-Apache-2.0, puis AGPL-3.0 le 2026-08-09 pour rendre un fork hébergé sans intérêt
-commercial. Le raisonnement complet, options écartées comprises, est dans
-`NOTICE.md` à la racine et dans `docs/M10_LICENCES.md`.
+With the constraint gone, the licence was chosen freely: Apache-2.0 first, then
+AGPL-3.0 on 2026-08-09, to make a hosted fork commercially pointless. The full
+reasoning, including the options set aside, is in the root `NOTICE.md` and in
+`docs/M10_LICENCES.md`.

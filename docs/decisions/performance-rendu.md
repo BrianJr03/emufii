@@ -1,145 +1,137 @@
-# Ce qui coûte à l'affichage, mesuré plutôt que supposé
+# What rendering costs, measured rather than assumed
 
-Campagne du 2026-08-29, partie d'un constat de l'utilisateur : la grille n'était
-pas fluide quand on change vite de jeu. Les titres sont des ancres citées depuis
-le code.
+Campaign of 2026-08-29, started from an observation by the user: the grid was not
+smooth when moving quickly between games. The headings are anchors cited from the
+code.
 
-Le compagnon de cette page est `docs/STYLE_COMMENTAIRES.md` pour la forme, et la
-section « Une build debug ne se juge pas sur sa fluidité » du `CLAUDE.md` pour la
-condition préalable — sans laquelle aucune de ces mesures n'a de sens.
+The companion to this page is `docs/STYLE_COMMENTAIRES.md` for form, and the
+section of `CLAUDE.md` on not judging a debug build for smoothness, which is the
+precondition without which none of these measurements mean anything.
 
-## Le point de comparaison : Cocoon
+## The reference point: Cocoon
 
-`rip.moth.cocoonshell` 3.04, installé sur la Thor, mesuré dans les mêmes
-conditions (25 descentes rapides, `dumpsys gfxinfo`).
+`rip.moth.cocoonshell` 3.04, installed on the Thor, measured under the same
+conditions (25 fast scrolls, `dumpsys gfxinfo`).
 
-| | Cocoon | Emufii (avant) |
+| | Cocoon | Emufii (before) |
 |---|---|---|
-| médiane / 90ᵉ | 5 ms / 6 ms | 9 ms / 31-53 ms |
-| images en retard | 0 % | 12-23 % |
-| état ART | `speed-profile` | `run-from-apk` |
-| masques logiciels | 75 Ko / 1 | 1,1 Mo / 14 |
-| cibles hors écran | 4,9 Mo / 16 | 34 Mo / 23 |
-| mémoire GPU | 17,6 Mo | 61,6 Mo |
-| images par pas de curseur | ~1,1 | ~2,3 |
+| median / 90th | 5 ms / 6 ms | 9 ms / 31-53 ms |
+| janky frames | 0% | 12-23% |
+| ART state | `speed-profile` | `run-from-apk` |
+| software masks | 75 KB / 1 | 1.1 MB / 14 |
+| offscreen targets | 4.9 MB / 16 | 34 MB / 23 |
+| GPU memory | 17.6 MB | 61.6 MB |
+| frames per cursor step | ~1.1 | ~2.3 |
 
-Ce qu'on lui a pris : le profil de compilation, et la chasse aux calques
-intermédiaires. Ce qu'on ne lui prend pas : ses tuiles sont légères — une image,
-pas de plaque moulée, pas d'ombre portée colorée, pas de liseré — et sa sélection
-ne déclenche aucune animation. Troquer notre direction visuelle contre la sienne
-serait payer la fluidité en identité.
+What we took from it: the compilation profile, and the hunt for intermediate
+layers. What we do not take: its tiles are light, one image, no moulded plate, no
+coloured drop shadow, no rim, and its selection triggers no animation. Trading
+our visual direction for its would be paying for smoothness in identity.
 
-Détail d'analyse : Cocoon n'utilise **pas** les listes paresseuses de Compose
-(aucune trace de `androidx.compose.foundation.lazy` ni de `LazyListState` dans
-ses six fichiers dex, alors que `androidx.compose.foundation` y est). Il a son
-propre défilement.
+Analysis detail: Cocoon does not use Compose lazy lists (no trace of
+`androidx.compose.foundation.lazy` nor `LazyListState` in its six dex files,
+while `androidx.compose.foundation` is there). It has its own scrolling.
 
-## Le profil de compilation
+## The compilation profile
 
-`app/src/main/baseline-prof.txt`, avec `androidx.profileinstaller`. Android
-n'installe pas une application compilée : ART l'interprète, compile à la volée ce
-qui revient souvent, et ne compile sérieusement qu'après des heures
-d'inactivité — précisément après les premières sessions, celles où l'on juge si
-l'app est fluide.
+`app/src/main/baseline-prof.txt`, with `androidx.profileinstaller`. Android does
+not install a compiled application: ART interprets it, compiles on the fly what
+comes up often, and only compiles seriously after hours of idleness, which is to
+say after the first sessions, the ones where you judge whether the app is smooth.
 
-Mesuré, même code, même appareil, seule la compilation change :
+Measured, same code, same device, only compilation changing:
 
-| build | médiane | 90ᵉ | 99ᵉ |
+| build | median | 90th | 99th |
 |---|---|---|---|
 | debug | 12 ms | 48 ms | 113 ms |
-| release, pas encore compilée | 9 ms | 53 ms | 97 ms |
-| release compilée | 9 ms | 31 ms | **46 ms** |
+| release, not yet compiled | 9 ms | 53 ms | 97 ms |
+| release compiled | 9 ms | 31 ms | 46 ms |
 
-C'est la queue qui bouge, et c'est elle qu'on sent. Le profil est écrit à la main
-avec des jokers sur les paquets chauds : l'outil officiel demande un module de
-macrobenchmark, et un profil approximatif vaut infiniment mieux qu'aucun. Ce
-qu'il rate est simplement compilé plus tard, comme avant.
+It is the tail that moves, and the tail is what you feel. The profile is written
+by hand with wildcards on the hot packages: the official tool wants a
+macrobenchmark module, and an approximate profile is infinitely better than none.
+What it misses is simply compiled later, as before.
 
-## La source du flou ne se branche que quand quelque chose floute
+## The blur source is only wired up when something blurs
 
-`hazeSource` enregistre tout ce qu'il porte dans un calque hors écran, pour que
-la dalle du clavier puisse le flouter au travers. Il était posé sur la
-bibliothèque entière, **en permanence**, alors que le seul `hazeEffect` de
-l'écran vit dans la dalle de recherche, qui n'est composée que clavier ouvert.
-Toute la grille passait donc par une cible de rendu plein écran à chaque image,
-pour personne.
+`hazeSource` records everything it carries into an offscreen layer, so the
+keyboard plate can blur through it. It was placed on the entire library,
+permanently, while the screen's only `hazeEffect` lives in the search plate,
+which is composed only when the keyboard is open. The whole grid therefore went
+through a full-screen render target on every frame, for nobody.
 
-Branché sur `searchOpen` et non sur `keyboardOpen` : une longueur d'avance sur
-l'ouverture de la dalle, pour que le flou soit déjà enregistré quand elle arrive.
+Wired to `searchOpen` rather than `keyboardOpen`: a head start on the plate
+opening, so the blur is already recorded when it arrives.
 
-## Un calque hors écran n'est pas un réglage de dessin
+## An offscreen layer is not a drawing setting
 
-Le titre de chaque tuile portait un `CompositingStrategy.Offscreen` pour un
-dégradé de fondu qui ne se dessine que si le titre déborde — donc, la plupart du
-temps, jamais. Quatorze cibles de rendu allouées, effacées et recomposées par
-image, pour rien.
+Each tile's title carried a `CompositingStrategy.Offscreen` for a fade gradient
+that is only drawn if the title overflows, which is to say, most of the time,
+never. Fourteen render targets allocated, cleared and recomposed per frame, for
+nothing.
 
-La règle : un `Offscreen` se pose **quand l'effet qui l'exige est actif**, pas en
-prévision de son éventualité.
+The rule: an `Offscreen` is placed when the effect that requires it is active,
+not in anticipation of its possibility.
 
-## Ce qui a été mesuré et n'a rien donné
+## What was measured and came to nothing
 
-- Le seuil de publication au second écran est déjà débattu (110 ms à l'époque) :
-  ce n'était pas la cause, mais il a quand même été porté à 200 ms — voir
+- The publication threshold to the second screen is discussed elsewhere (110 ms
+  at the time): it was not the cause, but it was raised to 200 ms anyway, see
   `bibliotheque.md`.
-- `RomTagReader.read`, `CompatDb.ratingFor` et `GameMetaDb.metaFor` s'exécutent
-  sur le fil d'UI dans `PublishHovered` : suspecté, écarté. Ce sont des recherches
-  dans des tables en mémoire et des opérations de chaînes.
-- `rememberTileArt` ouvre trois collectes de flux par tuile : suspecté, écarté.
-  `SettingsStore` est un singleton dont les flux sont adossés aux
-  `SharedPreferences`, donc s'y abonner est presque gratuit.
+- `RomTagReader.read`, `CompatDb.ratingFor` and `GameMetaDb.metaFor` run on the
+  UI thread in `PublishHovered`: suspected, ruled out. They are lookups in
+  in-memory tables and string operations.
+- `rememberTileArt` opens three flow collections per tile: suspected, ruled out.
+  `SettingsStore` is a singleton whose flows are backed by `SharedPreferences`,
+  so subscribing costs almost nothing.
 
-## Ce qui reste ouvert
+## What is still open
 
-Des images isolées à 100-150 ms subsistent, probablement un décodage de jaquette
-ou la composition d'une rangée entrante. Le pilotage par `adb` envoie un
-événement toutes les ~200 ms et ne reproduit pas un pouce : les départager
-demande une trace Perfetto prise pendant que quelqu'un descend réellement dans la
-grille.
+Isolated frames at 100-150 ms remain, probably artwork decoding or the
+composition of an incoming row. Driving through `adb` sends an event every
+~200 ms and does not reproduce a thumb: telling them apart needs a Perfetto trace
+taken while somebody actually scrolls the grid.
 
-## Une seule horloge pour tout ce qui bouge en permanence
+## One clock for everything that moves continuously
 
-Deux choses tournent sans arrêt dans l'app — le fond et le curseur — et chacune
-avait la sienne. Rien ne les alignait : à douze et quinze pas par seconde, elles
-écrivaient à des instants différents, donc l'app redessinait **vingt-sept fois
-par seconde au lieu de douze**.
+Two things run without stopping in the app, the background and the cursor, and
+each had its own. Nothing aligned them: at twelve and fifteen steps per second
+they wrote at different instants, so the app redrew twenty-seven times a second
+instead of twelve.
 
-Or ce qui coûte n'est pas *combien* on dessine mais *combien de fois* : chaque
-repeint force la fenêtre entière — quatorze tuiles avec leurs plaques, leurs
-moulages et leurs ombres — soit une douzaine de millisecondes de processeur,
-quelle que soit la raison du repeint.
+What costs is not how much is drawn but how many times: every repaint forces the
+whole window, fourteen tiles with their plates, mouldings and shadows, a dozen
+milliseconds of CPU whatever the reason for the repaint.
 
-Les deux battent donc ensemble, et l'app ne se redessine qu'une fois par
-battement. Mesuré sur la Thor, bibliothèque immobile : 85 % d'un cœur au départ,
-0 % quand rien ne bouge.
+Both therefore beat together, and the app redraws once per beat. Measured on the
+Thor with the library still: 85% of a core at the start, 0% when nothing moves.
 
-**Ne pas en créer une seconde.** Tout ce qui doit avancer tout seul se dérive de
-celle-ci : c'est la seule garantie que le nombre de repeints ne remonte pas en
-douce au fil des ajouts. Elle est immobile si le système a coupé les animations —
-ce réglage existe pour les personnes que le mouvement gêne, et c'est aussi celui
-que prennent ceux qui ménagent leur batterie.
+Do not create a second one. Anything that has to advance on its own derives from
+this one: that is the only guarantee the repaint count does not creep back up as
+things get added. It is still when the system has turned animations off, a
+setting that exists for people bothered by motion, and also the one taken by
+people saving battery.
 
-## Le dégradé du curseur n'est pas un balayage angulaire
+## The cursor gradient is not an angular sweep
 
-Un `SweepGradient` tourne autour d'un centre : sur un carré ses bandes s'écartent
-aux coins, et sur une rangée large elles s'écrasent aux extrémités — la couleur
-n'avance plus à vitesse constante le long du trait, ce qui est précisément ce
-qu'on veut voir.
+A `SweepGradient` turns around a centre: on a square its bands spread out at the
+corners, and on a wide row they compress at the ends, so the colour no longer
+advances at constant speed along the stroke, which is precisely what one wants to
+see.
 
-Ici chaque pixel est ramené à sa **position en abscisse curviligne sur le
-périmètre** du rectangle arrondi, et la couleur ne dépend que de cette distance
-parcourue. Elle avance donc à la même vitesse sur un bord droit et dans un coin,
-quelle que soit la forme.
+Here each pixel is reduced to its arc-length position along the perimeter of the
+rounded rectangle, and the colour depends only on that distance travelled. It
+therefore advances at the same speed on a straight edge and in a corner, whatever
+the shape.
 
 ```
-u   = frac(t / périmètre − phase)
-mix = 0.5 − 0.5·cos(2π·u)
+u   = frac(t / perimeter - phase)
+mix = 0.5 - 0.5*cos(2*pi*u)
 ```
 
-Le cosinus est ce qui rend le cycle **sans couture** : il vaut 0 en 0 et en 1,
-donc la couleur revient d'elle-même à son point de départ après un tour complet.
-Une interpolation linéaire y aurait laissé une cassure nette qui aurait tourné
-avec l'anneau.
+The cosine is what makes the cycle seamless: it is 0 at 0 and at 1, so the colour
+returns to its starting point by itself after a full turn. A linear interpolation
+would have left a hard break there, turning with the ring.
 
-Le rendu est un petit bitmap étiré, pas un shader par pixel : le calcul ne se
-refait qu'aux changements de pas de phase, et le résultat est mis en cache.
+Rendering is a small stretched bitmap, not a per-pixel shader: the computation is
+redone only when the phase step changes, and the result is cached.

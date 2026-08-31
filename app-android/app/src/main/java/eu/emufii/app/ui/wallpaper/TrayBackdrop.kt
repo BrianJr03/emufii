@@ -40,46 +40,28 @@ import kotlin.math.max
 import kotlin.math.sin
 
 /**
- * Le plateau sur lequel tout est posé : deux étagères, leurs ondes, une vignette.
- *
- * **Le budget de mouvement est le sujet de ce fichier** : ce qui est immobile est
- * cuit dans un bitmap, et aucune lueur ne passe par un flou gaussien. Le lustre
- * qui le traversait a été retiré le 2026-08-29 — ne pas le réintroduire.
- * pourquoi : docs/decisions/theme-duotone-shelves.md § MATIÈRE (fond)
- * pourquoi : docs/decisions/theme-duotone-shelves.md § Le lustre est parti
+ * Two shelves, their waves and a vignette. The movement budget is the subject:
+ * everything here is drawn once and reused.
+ * pourquoi : docs/decisions/theme-duotone-shelves.md § MATERIAL (background)
+ * pourquoi : docs/decisions/theme-duotone-shelves.md § The lustre is gone
  */
 @Composable
 fun TrayBackdrop(
     modifier: Modifier = Modifier,
     dark: Boolean = false,
-    // Lu dans le thème plutôt que passé : les six appelants passent déjà `dark`,
-    // et leur faire porter un second drapeau qu'aucun ne calcule lui-même
-    // n'aurait ajouté que des occasions d'en oublier un.
+    // Read from the theme rather than passed: the six callers already pass `dark`.
     oled: Boolean = LocalEmufiiOledTheme.current,
     /**
-     * Faux pour un plateau qui ne bouge pas. Plus aucun appelant ne le passe.
-     * pourquoi : docs/decisions/second-ecran.md § Le panneau arrière s'anime, finalement
+     * False for a still tray. No caller passes it any more.
+     * pourquoi : docs/decisions/second-ecran.md § The rear panel animates, in the end
      */
     animated: Boolean = true
 ) {
-    // En cycles de fond, depuis l'horloge que tout le monde partage.
     val time = (if (animated) rememberSlowMillis() else FROZEN_MS) / CYCLE_MS
 
     /**
-     * Le plateau immobile, **cuit dans une image**.
-     *
-     * Il a d'abord été enregistré dans une `Picture`, ce qui évitait de
-     * reconstruire les dégradés à chaque image — et ne changeait rien, mesuré :
-     * une `Picture` rejoue les ordres de dessin, donc elle **re-rastérise**.
-     * Or ce qui coûte ici est justement le remplissage : quatre dégradés
-     * radiaux ou linéaires étalés sur 1920 × 1080, chacun calculé pixel par
-     * pixel, à chaque image.
-     *
-     * Cuit une fois dans un bitmap, tout cela devient une seule recopie de
-     * texture — l'opération la moins chère qu'un GPU connaisse. À **demi
-     * résolution**, parce qu'un dégradé n'a aucun détail à perdre et que
-     * l'agrandissement ne se voit pas : quatre fois moins de pixels à calculer,
-     * et 2 Mo au lieu de 8.
+     * The still tray, baked into a bitmap. A `Picture` avoided rebuilding the paths but
+     * still replayed every gradient per frame.
      */
     val still = remember { mutableStateOf<ImageBitmap?>(null) }
     var baked by remember { mutableStateOf<StillKey?>(null) }
@@ -95,9 +77,8 @@ fun TrayBackdrop(
             val h = (size.height * STILL_SCALE).toInt().coerceAtLeast(1)
             val bitmap = ImageBitmap(w, h)
             CanvasDrawScope().draw(
-                // La densité suit la réduction : sans ça le contour de 2 dp des
-                // étagères serait tracé à sa taille en pixels puis agrandi, donc
-                // deux fois trop épais.
+                // Density follows the scale, or the shelves' 2 dp contour would be
+                // drawn at pixel size then enlarged.
                 density = Density(density * STILL_SCALE, fontScale),
                 layoutDirection = LayoutDirection.Ltr,
                 canvas = androidx.compose.ui.graphics.Canvas(bitmap),
@@ -118,17 +99,10 @@ fun TrayBackdrop(
     }
 }
 
-/**
- * La réduction de l'image cuite.
- *
- * Un demi de côté, donc un quart des pixels. Le plateau n'est fait que de
- * dégradés larges et d'un contour de 2 dp : le seul détail qui pourrait souffrir
- * est ce contour, et à cette échelle l'agrandissement le rend indiscernable d'un
- * tracé plein.
- */
+/** Half a side, so a quarter of the pixels: the tray is only wide gradients. */
 private const val STILL_SCALE = 0.5f
 
-/** Ce qui périme l'image cuite : la taille et le thème, rien d'autre. */
+/** What stales the baked image: size and theme, nothing else. */
 private data class StillKey(
     val width: Float,
     val height: Float,
@@ -137,19 +111,17 @@ private data class StillKey(
 )
 
 /**
- * Où sont les deux étagères, calculé une fois par image et partagé entre le
- * plateau figé et les ondes — sans quoi les deux dériveraient au premier
- * réglage changé d'un seul côté.
+ * Computed once per frame and shared between the still tray and the waves, or the two
+ * drift apart.
  */
 private class TrayGeometry(size: Size) {
-    /** Assez grand pour sortir par deux bords de chaque étagère. */
     val side = 0.58f * max(size.width, size.height)
     val radius = CornerRadius(side * 0.30f, side * 0.30f)
 
     val coral = shelfRect(size.width * 0.02f, size.height * -0.06f)
     val teal = shelfRect(size.width * 0.98f, size.height * 1.06f)
 
-    /** Le coin qui regarde le milieu de l'écran : le motif, et la source des ondes. */
+    /** The corner facing the middle of the screen: the motif, and the waves' source. */
     val coralCorner = Offset(coral.right, coral.bottom)
     val tealCorner = Offset(teal.left, teal.top)
 
@@ -162,13 +134,7 @@ private class TrayGeometry(size: Size) {
     )
 }
 
-/**
- * Le plateau immobile : le fond, les deux étagères et la vignette.
- *
- * **Rien ici ne lit l'horloge.** Ce qui est dessiné dans cette fonction est
- * enregistré une fois : ce qui devrait bouger et qu'on y poserait par
- * distraction gèlerait sans qu'aucune erreur ne le dise.
- */
+/** The ground, the two shelves and the vignette. Nothing here reads the clock. */
 private fun DrawScope.drawStillTray(
     geometry: TrayGeometry,
     dark: Boolean,
@@ -202,9 +168,8 @@ private fun DrawScope.drawStillTray(
         ground: Color,
     ) {
         val path = Path().apply { addRoundRect(rect) }
-        // Une paire verticale dans la tuile : clair à son bord haut, profond à
-        // son pied. Un aplat la faisait paraître imprimée dessus ; la paire lui
-        // donne un corps sans lui donner un reflet qu'elle n'a pas mérité.
+        // A vertical pair inside the tile: a flat fill made it look printed rather than
+        // moulded.
         drawPath(
             path,
             brush = Brush.verticalGradient(
@@ -218,15 +183,8 @@ private fun DrawScope.drawStillTray(
         )
         drawPath(path, color = axisBright.copy(alpha = stroke), style = Stroke(width = 2.dp.toPx()))
 
-        // **Ce qui dissout les longs côtés, et pourquoi le coin n'y touche pas.**
-        //
-        // D'une étagère on voit trois choses : le coin qui regarde le milieu —
-        // le motif — et les deux longs côtés qui filent hors de l'écran. Sur
-        // crème, la vignette et le grain les avalent. Sur du noir absolu, non :
-        // ils deviennent deux droites franches, et une droite franche est ce que
-        // l'œil trouve en premier quand tout le reste est noir. On repeint donc
-        // le fond par-dessus la tuile en s'éloignant du coin : près du coin rien,
-        // loin tout. Le motif garde son arête là où il la veut.
+        // What dissolves the long sides, and why the corner is left alone: a shelf
+        // shows a sharp corner and two edges running off screen.
         if (dark || oled) {
             drawPath(
                 path,
@@ -242,10 +200,8 @@ private fun DrawScope.drawStillTray(
             )
         }
 
-        // La lueur du coin. L'étagère est un aplat à arête nette — c'est ce
-        // qu'on lui demande — mais son coin s'arrêtait sur rien. Le halo lui
-        // donne de quoi finir, et l'arête garde son tranchant puisqu'il est plus
-        // clair qu'elle.
+        // The shelf is a flat fill with a sharp edge, but its corner stopped on
+        // nothing.
         drawCircle(
             brush = Brush.radialGradient(
                 colorStops = arrayOf(
@@ -276,9 +232,7 @@ private fun DrawScope.drawStillTray(
         bottom
     )
 
-    // La vignette assoit le plateau dans sa coque : sans elle les halos filent
-    // par les quatre bords et l'écran se lit comme un échantillon plutôt que
-    // comme une surface qui a des bords.
+    // Without it the halos run off all four edges and the screen reads as unframed.
     if (!oled) {
         drawRect(
             brush = Brush.radialGradient(
@@ -294,19 +248,7 @@ private fun DrawScope.drawStillTray(
     }
 }
 
-/**
- * Les ondes que les deux étagères émettent vers le milieu.
- *
- * La même forme, gonflée, répétée à trois distances. Gonfler le carré arrondi
- * plutôt que tracer des cercles : une onde circulaire partant d'un coin carré se
- * lit comme un objet étranger posé dessus, un contour parallèle se lit comme
- * quelque chose que l'étagère *fait*. C'est aussi la seule façon de garder la
- * grammaire du logo dans un mouvement.
- *
- * Elles s'éteignent en chemin, donc aucune n'atteint jamais un bord : une onde
- * qui disparaît au bord de l'écran serait une ligne qui sort, pas une onde qui
- * s'éteint.
- */
+/** One shape, inflated, repeated at three distances. */
 private fun DrawScope.drawWaves(
     geometry: TrayGeometry,
     time: Double,
@@ -322,7 +264,6 @@ private fun DrawScope.drawWaves(
     fun waves(rect: RoundRect, axisBright: Color) {
         repeat(WAVES) { i ->
             val p = ((time * WAVE_SPEED) + i.toDouble() / WAVES).mod(1.0).toFloat()
-            // Nulle au départ et à l'arrivée, pleine au milieu du trajet.
             val alpha = waveAlpha * sin(p * PI).toFloat()
             if (alpha <= 0.002f) return@repeat
             val reach = p * geometry.side * 0.75f
@@ -340,9 +281,7 @@ private fun DrawScope.drawWaves(
                     )
                 )
             }
-            // Trois traits concentriques, du plus large et pâle au plus fin et
-            // dense : c'est le profil d'un flou, échantillonné en trois points,
-            // et le GPU le trace sans repasser par le processeur.
+            // Three concentric strokes: a blur's profile, sampled in three.
             for ((width, share) in WAVE_HALO) {
                 drawPath(
                     ripple,
@@ -357,33 +296,20 @@ private fun DrawScope.drawWaves(
     waves(geometry.teal, if (dark) Teal.darkBright else Teal.bright)
 }
 
-/** Combien d'ondes chaque étagère tient en vol. */
 private const val WAVES = 2
 
-/**
- * Leur vitesse, en cycles de [CYCLE_MS] : environ trente-cinq secondes par onde.
- * Assez lent pour qu'on ne puisse pas la suivre du regard, ce qui est la
- * condition pour qu'un fond reste un fond.
- */
+/** About thirty-five seconds a wave: slow enough that it cannot be followed. */
 private const val WAVE_SPEED = 0.55
 
-/** Le trait net de l'onde : il porte la forme. */
 private val WAVE_STROKE = 2.5.dp
 
-/**
- * Le halo, en traits empilés : largeur, puis part de l'opacité. Du plus large et
- * pâle au plus fin et dense. Le dernier est le trait de l'onde elle-même.
- */
+/** Width, then share of the opacity, widest and palest first. */
 private val WAVE_HALO: List<Pair<Dp, Float>> = listOf(
     13.dp to 0.22f,
     WAVE_STROKE to 1.0f,
 )
 
-/** La durée d'un cycle de fond, à vitesse 1. */
 private const val CYCLE_MS = 19_000
 
-/**
- * L'instant où un plateau immobile se fige : les ondes à mi-chemin. Pas zéro,
- * où elles naissent — la seule composition qui ne montre rien.
- */
+/** Where a still tray freezes: the waves half way, never zero, where they show nothing. */
 private const val FROZEN_MS = 8_000.0

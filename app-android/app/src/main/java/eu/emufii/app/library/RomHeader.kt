@@ -79,7 +79,7 @@ class RomHeaderReader(private val context: Context) {
      *
      * The offset is a plain `u32` at 0x18, but a file we misidentified as a CIA
      * would read garbage there, so the value has to prove it lands inside the
-     * file and past the header's fixed regions before anything is read at it —
+     * file and past the header's fixed regions before anything is read at it,
      * the NCCH magic check at the destination does the rest.
      */
     private fun contentOffset(header: ByteBuffer, fileSize: Long): Long? {

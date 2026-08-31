@@ -26,14 +26,14 @@ import kotlinx.coroutines.launch
 import java.io.ByteArrayInputStream
 
 /**
- * The session tunnel, carried by a **foreground** service.
+ * The session tunnel, carried by a foreground service.
  *
  * `GoBackend` ships its own `VpnService` but starts it with `startService` and
  * never calls `startForeground`, so the tunnel would die exactly when the player
  * switches to the emulator. Hence subclassing `GoBackend.VpnService` and
  * starting it ourselves. The service owns the tunnel's lifecycle so the ordering
  * is a property of the code rather than a hope about timing.
- * pourquoi : docs/decisions/tunnel-wireguard.md § Pourquoi Emufii a son propre `VpnService`
+ * pourquoi : docs/decisions/tunnel-wireguard.md § Why Emufii has its own `VpnService`
  */
 class EmufiiWgService : GoBackend.VpnService() {
 
@@ -70,16 +70,16 @@ class EmufiiWgService : GoBackend.VpnService() {
 
     /**
      * Keeps the Wi-Fi radio awake for the session. Measured: 25 % loss at one
-     * ping/s, 0 % at three, jitter 46→369 ms — and the Switch's LDN handshake is
+     * ping/s, 0 % at three, jitter 46→369 ms, and the Switch's LDN handshake is
      * made of exactly those rare packets.
-     * pourquoi : docs/decisions/tunnel-wireguard.md § Le verrou Wi-Fi n'est pas un détail de confort
+     * pourquoi : docs/decisions/tunnel-wireguard.md § The Wi-Fi lock is not a comfort detail
      */
     private var wifiLock: WifiManager.WifiLock? = null
 
     /**
      * The library reports handshake progress here. `Online` means the interface
-     * exists — not that a player joined, nor that a handshake landed.
-     * pourquoi : docs/decisions/tunnel-wireguard.md § « En ligne » veut dire moins qu'on ne croit
+     * exists, not that a player joined, nor that a handshake landed.
+     * pourquoi : docs/decisions/tunnel-wireguard.md § "Online" means less than you think
      */
     private inner class SessionTunnel(val code: String, val ip: String) : Tunnel {
         override fun getName(): String = TUNNEL_NAME
@@ -108,7 +108,7 @@ class EmufiiWgService : GoBackend.VpnService() {
         if (code == null || configText == null || ip == null) {
             // START_STICKY had the system restart us with a null intent; there is
             // no session to rejoin, so go away rather than sit on the VPN slot.
-            Log.w(TAG, "démarrage sans configuration — arrêt")
+            Log.w(TAG, "started with no configuration, stopping")
             stopSelf()
             return START_NOT_STICKY
         }
@@ -129,8 +129,8 @@ class EmufiiWgService : GoBackend.VpnService() {
                 b.setState(t, Tunnel.State.UP, config)
                 notify(getString(R.string.svc_wg_online, ip))
             } catch (e: Exception) {
-                Log.e(TAG, "montage du tunnel: ${e.message}", e)
-                _state.value = WgState.Error(e.message ?: "échec du tunnel")
+                Log.e(TAG, "bringing the tunnel up: ${e.message}", e)
+                _state.value = WgState.Error(e.message ?: "tunnel failed")
                 stopSelf()
             }
         }
@@ -157,14 +157,14 @@ class EmufiiWgService : GoBackend.VpnService() {
         lock.setReferenceCounted(false)
         runCatching { lock.acquire() }
             .onSuccess { Log.d(TAG, "verrou Wi-Fi basse latence pris") }
-            .onFailure { Log.w(TAG, "verrou Wi-Fi refusé", it) }
+            .onFailure { Log.w(TAG, "Wi-Fi lock refused", it) }
         wifiLock = lock
     }
 
     private fun releaseWifi() {
         wifiLock?.let { lock ->
             runCatching { if (lock.isHeld) lock.release() }
-                .onFailure { Log.w(TAG, "libération du verrou Wi-Fi", it) }
+                .onFailure { Log.w(TAG, "releasing the Wi-Fi lock", it) }
         }
         wifiLock = null
     }
@@ -177,7 +177,7 @@ class EmufiiWgService : GoBackend.VpnService() {
         if (b != null && t != null && s != null) {
             s.launch {
                 runCatching { b.setState(t, Tunnel.State.DOWN, null) }
-                    .onFailure { Log.w(TAG, "arrêt du tunnel: ${it.message}") }
+                    .onFailure { Log.w(TAG, "stopping the tunnel: ${it.message}") }
                 stopSelf()
             }
         } else {
@@ -188,7 +188,7 @@ class EmufiiWgService : GoBackend.VpnService() {
     /**
      * Swiped out of recents: bring the tunnel down. A foreground service
      * survives task dismissal by design, so the VPN key outlived the app.
-     * pourquoi : docs/decisions/tunnel-wireguard.md § Pourquoi Emufii a son propre `VpnService`
+     * pourquoi : docs/decisions/tunnel-wireguard.md § Why Emufii has its own `VpnService`
      */
     override fun onTaskRemoved(rootIntent: Intent?) {
         Log.d(TAG, "Emufii swiped away, taking the session tunnel down")
@@ -205,7 +205,7 @@ class EmufiiWgService : GoBackend.VpnService() {
         backend = null
         // Never skip the library's onDestroy: it resets the static future that
         // lets GoBackend find this service.
-        // pourquoi : docs/decisions/tunnel-wireguard.md § Pourquoi Emufii a son propre `VpnService`
+        // pourquoi : docs/decisions/tunnel-wireguard.md § Why Emufii has its own `VpnService`
         super.onDestroy()
         _state.value = WgState.Idle
     }

@@ -3,13 +3,11 @@ package eu.emufii.app.profile
 import java.security.SecureRandom
 
 /**
- * The string you give someone so they can add you.
- *
- * Le code **est** l'identite : il n'y a pas d'annuaire. Onze symboles base32 de
- * Crockford, plus une somme de controle qui distingue une faute de frappe d'un
- * ami hors ligne.
- * pourquoi : docs/decisions/identite-et-dumps.md § Le code d'ami *est* l'identité, et il est public par conception
- * pourquoi : docs/decisions/identite-et-dumps.md § L'alphabet du code d'ami, et son douzième symbole
+ * The string you give someone so they can add you. The code is the identity: there is
+ * no directory. Eleven Crockford base32 symbols plus a checksum, which tells a typo
+ * from a friend who is offline.
+ * pourquoi : docs/decisions/identite-et-dumps.md § The friend code is the identity, and it is public by design
+ * pourquoi : docs/decisions/identite-et-dumps.md § The friend code alphabet, and its twelfth symbol
  */
 object FriendCode {
 

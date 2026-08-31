@@ -93,7 +93,7 @@ fun Avatar(
 /**
  * Remixes of the logo's own two axes, nothing else: coral crossing teal, each
  * crossing violet (the gradient's depth end), each axis against its own deep
- * cut. Eight rather than twelve — the old palette imported hues this world does
+ * cut. Eight rather than twelve: the old palette imported hues this world does
  * not carry (blues, yellows, pure greens); the cost is a collision more often,
  * and the gain is that a player's circle is made of the app's own colours.
  * pourquoi : docs/decisions/theme-duotone-shelves.md § Avatars

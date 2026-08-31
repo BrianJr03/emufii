@@ -21,7 +21,7 @@ private const val TAG = "UpdateInstaller"
 /**
  * The largest APK we agree to pull: room above the current 32 MB, and a stop on
  * a chatty server filling the cache while we look away.
- * pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § Trois issues, pas deux
+ * pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § Three outcomes, not two
  */
 private const val MAX_APK_BYTES = 200L * 1024 * 1024
 
@@ -31,9 +31,9 @@ sealed interface UpdateOutcome {
     data object HandedToAndroid : UpdateOutcome
 
     /**
-     * Android does not let Emufii install applications yet. **Not an error**: a
+     * Android does not let Emufii install applications yet. Not an error: a
      * permission to grant once, and [settings] opens the exact screen.
-     * pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § Deux refus qui ne sont pas des erreurs
+     * pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § Two refusals that are not errors
      */
     data class NeedsPermission(val settings: Intent) : UpdateOutcome
 
@@ -55,16 +55,16 @@ sealed interface UpdateOutcome {
  *
  * This reopens a path `docs/SECURITY_REVIEW.md` (S5) had ruled out, and closes
  * it with three locks: the URL is not followed as given (coordinator host over
- * HTTPS only), **the signature decides rather than the provenance**, and
+ * HTTPS only), the signature decides rather than the provenance, and
  * nothing starts without a tap. Lock 2 is what carries the security.
- * pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § Pourquoi ceci est acceptable alors que la revue S5 l'avait exclu
+ * pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § Why this is acceptable when the S5 review excluded it
  */
 object UpdateInstaller {
 
     /**
      * The link to follow, or null if none is acceptable. With no `url`
      * published we fall back on the coordinator's `/download`.
-     * pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § Deux refus qui ne sont pas des erreurs
+     * pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § Two refusals that are not errors
      */
     fun downloadUrl(
         published: String?,
@@ -76,7 +76,7 @@ object UpdateInstaller {
         val target = runCatching { URL(candidate) }.getOrNull() ?: return fallback
         // Same host and HTTPS. A link elsewhere is not followed, and not
         // treated as an attack either: "View" opens it in the browser.
-        // pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § Deux refus qui ne sont pas des erreurs
+        // pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § Two refusals that are not errors
         val sameOrigin = target.protocol == "https" && target.host.equals(base.host, ignoreCase = true)
         return if (sameOrigin) candidate else fallback
     }
@@ -100,7 +100,7 @@ object UpdateInstaller {
         val url = downloadUrl(latest.url) ?: return@withContext UpdateOutcome.Unavailable
         // In the cache: an APK forgotten in the player's documents would be
         // this feature's only lasting trace.
-        // pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § Trois issues, pas deux
+        // pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § Three outcomes, not two
         val target = File(app.cacheDir, "update.apk")
         when (download(url, target)) {
             Fetched.Ok -> Unit
@@ -120,7 +120,7 @@ object UpdateInstaller {
         }
 
         val handed = runCatching { hand(app, target) }
-            .onFailure { Log.w(TAG, "remise à Android impossible", it) }
+            .onFailure { Log.w(TAG, "handing over to Android failed", it) }
             .getOrDefault(false)
         if (!handed) {
             target.delete()
@@ -130,9 +130,9 @@ object UpdateInstaller {
     }
 
     /**
-     * What a download can come to. **Three outcomes, not two**: a boolean made
+     * What a download can come to. Three outcomes, not two: a boolean made
      * a stalled transfer report "not downloadable here yet".
-     * pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § Trois issues, pas deux
+     * pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § Three outcomes, not two
      */
     private enum class Fetched { Ok, Missing, Broken }
 
@@ -143,7 +143,7 @@ object UpdateInstaller {
             connectTimeout = 10_000
             // 60 s: a 32 MB APK is not an API call. At 30 s a briefly stalled
             // transfer was abandoned, measured on the Thor.
-            // pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § Trois issues, pas deux
+            // pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § Three outcomes, not two
             readTimeout = 60_000
             // A redirect can leave the host checked above; following it would
             // silently undo the first lock.
@@ -179,12 +179,12 @@ object UpdateInstaller {
         } finally {
             conn.disconnect()
         }
-    }.onFailure { Log.w(TAG, "téléchargement échoué", it) }.getOrDefault(Fetched.Broken)
+    }.onFailure { Log.w(TAG, "download failed", it) }.getOrDefault(Fetched.Broken)
 
     /**
      * Is the APK really an Emufii version signed with the same key? The central
-     * lock: certificate **and** version, the second closing the rollback.
-     * pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § Le verrou central : deux questions, et les deux doivent tenir
+     * lock: certificate and version, the second closing the rollback.
+     * pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § The central lock: two questions, and both must hold
      */
     private fun isGenuine(context: Context, apk: File, announcedVersion: Int): Boolean {
         val pm = context.packageManager
@@ -198,7 +198,7 @@ object UpdateInstaller {
         }
         val downloadedVersion = info.longVersionCode.toInt()
         if (downloadedVersion < announcedVersion || downloadedVersion <= BuildConfig.VERSION_CODE) {
-            Log.w(TAG, "APK en version $downloadedVersion, refusé")
+            Log.w(TAG, "APK is version $downloadedVersion, refused")
             return false
         }
 
@@ -211,7 +211,7 @@ object UpdateInstaller {
     /**
      * Compares certificates rather than key pairs. Reading the wrong array
      * returns an empty list, which would compare "equal" to another empty one.
-     * pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § Le verrou central : deux questions, et les deux doivent tenir
+     * pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § The central lock: two questions, and both must hold
      */
     private fun sameCertificates(mine: SigningInfo?, theirs: SigningInfo?): Boolean {
         if (mine == null || theirs == null) return false
@@ -226,14 +226,14 @@ object UpdateInstaller {
         if (ours.isEmpty() || other.isEmpty()) return false
         // Intersection, never equality: after a key rotation, demanding
         // equality would fail the one update that must succeed that day.
-        // pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § Le verrou central : deux questions, et les deux doivent tenir
+        // pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § The central lock: two questions, and both must hold
         return ours.any { it in other }
     }
 
     /**
      * Hands the file to Android. [PackageInstaller] rather than
      * `ACTION_INSTALL_PACKAGE`, deprecated since Oreo.
-     * pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § Deux refus qui ne sont pas des erreurs
+     * pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § Two refusals that are not errors
      */
     private fun hand(context: Context, apk: File): Boolean {
         val installer = context.packageManager.packageInstaller
@@ -262,7 +262,7 @@ object UpdateInstaller {
 /**
  * The install's outcome. Only `STATUS_PENDING_USER_ACTION` demands anything,
  * and without this relay the button would pass for dead where it applies.
- * pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § Pourquoi ceci est acceptable alors que la revue S5 l'avait exclu
+ * pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § Why this is acceptable when the S5 review excluded it
  */
 class UpdateInstallReceiver : android.content.BroadcastReceiver() {
 

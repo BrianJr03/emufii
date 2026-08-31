@@ -74,7 +74,7 @@ class MainActivity : ComponentActivity() {
      * Re-arms the splash on every real start of the activity. Without this,
      * a process Android kept alive skipped the logo entirely on reopening and
      * dropped the player straight onto the grid. Configuration changes
-     * (rotation, locale) are excluded — they are not openings — and the gate
+     * (rotation, locale) are excluded, they are not openings, and the gate
      * itself refuses while a session lives, so returning from the emulator
      * still lands in the session's screen.
      */
@@ -85,9 +85,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Decode les deux sons avant le premier ecran : charges a la volee, le
-        // tout premier survol serait muet.
-        // pourquoi : docs/decisions/sons.md § Deux sons, une seule famille
+        // Decodes both sounds before the first screen: loaded lazily, the very first
+        // hover would be silent.
+        // pourquoi : docs/decisions/sons.md § Two sounds, one family
         Sfx.prepare(this)
         enableEdgeToEdge()
         setContent {

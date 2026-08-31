@@ -29,12 +29,10 @@ import eu.emufii.app.ui.theme.WarnDark
 import eu.emufii.app.ui.theme.WarnLight
 
 /**
- * What Emufii knows about a game, on the game's own tile.
- *
- * Trois marques, une par verdict, et un jeu que personne n'a note n'en montre
- * aucune : le silence veut deja dire « inconnu ». Trois couleurs **fixes**,
- * jamais l'accent choisi — un verdict est le meme fait pour chaque joueur.
- * pourquoi : docs/decisions/theme-duotone-shelves.md § La pastille de compatibilité est l'exception documentée à l'accent unique
+ * What Emufii knows about a game, on the game's own tile. Three marks, one per verdict,
+ * and a game nobody has rated shows none: silence already means unknown. Three fixed
+ * colours, never the chosen accent: a verdict is the same fact for every player.
+ * pourquoi : docs/decisions/theme-duotone-shelves.md § The compatibility badge is the documented exception to the single accent
  */
 @Composable
 fun CompatBadge(rating: CompatRating, modifier: Modifier = Modifier) {
@@ -65,7 +63,7 @@ fun CompatBadge(rating: CompatRating, modifier: Modifier = Modifier) {
                 // A cross, and not the crossed circle it was: inside a bead that
                 // is already a circle, a second outline just thickened the rim
                 // and the bar across it read as a scratch. A bare cross against
-                // the tick is also the plainer pair — one says yes, one says no,
+                // the tick is also the plainer pair: one says yes, one says no,
                 // and the triangle between them says "with caveats".
                 CompatRating.BROKEN -> CrossIcon(size = 12.dp, color = Color.White)
                 CompatRating.UNTESTED -> TildeIcon(size = 14.dp, color = Color.White)
@@ -77,11 +75,11 @@ fun CompatBadge(rating: CompatRating, modifier: Modifier = Modifier) {
 /**
  * The three beads, on the theme's semantic set.
  *
- * Good is pulled towards teal, error towards coral — the duotone world's own
- * hues — and each gradient runs from the semantic light cut down to the axis's
+ * Good is pulled towards teal, error towards coral: the duotone world's own
+ * hues, and each gradient runs from the semantic light cut down to the axis's
  * ink, so the bead keeps its lit-from-above read without a hex of its own. The
  * glyph inside stays white, so the top of each pair must carry white on its own.
- * pourquoi : docs/decisions/theme-duotone-shelves.md § Sémantique (centralisée)
+ * pourquoi : docs/decisions/theme-duotone-shelves.md § Semantics (centralised)
  */
 private val GreenBead = listOf(GoodLight, Teal.ink)
 private val AmberBead = listOf(WarnLight, WarnDark)
@@ -101,7 +99,7 @@ private val SlateBead = listOf(InkTextMuted, InkText)
  *
  * Shared rather than written twice: the bead reads it out to a screen reader
  * and the launch card prints it, and two copies of this table would drift the
- * day a fifth verdict appears, in the silent direction — a badge whose spoken
+ * day a fifth verdict appears, in the silent direction: a badge whose spoken
  * name no longer matches the line under the title.
  */
 @Composable

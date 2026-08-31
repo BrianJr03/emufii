@@ -1,338 +1,326 @@
-# Thème « DUOTONE SHELVES » — contrat de direction
+# "DUOTONE SHELVES" theme, direction contract
 
-Remplace « HOME MENU » (plastique moulé sur plateau gravé). Décision prise le
-2026-08-27 à partir du logo v3 (`emufii_logo_v3.png`), validée par l'utilisateur.
-Ce document est le contrat : les écrans s'auditent contre lui.
+Replaces "HOME MENU" (moulded plastic on an engraved board). Decided on
+2026-08-27 from the v3 logo (`emufii_logo_v3.png`), approved by the user. This
+document is the contract: screens are audited against it.
 
-**Révision du 2026-08-28 — le monde n'est pas plat.** La première passe avait
-lu « couches plates » comme « aucun relief » : ni biseau, ni encoche creusée,
-un fond en deux halos flous. À l'écran, ça ne tenait pas. Une plaque blanche à
-quatre points de luminance au-dessus d'une coquille crème, avec une arête à
-24 % et une ombre à 14 %, ne se décolle pas de son fond : chaque écran se lisait
-comme une seule feuille. Et deux halos qui se chevauchent à 12 % d'alpha ne sont
-plus corail et turquoise, ce sont un lavis rose sale — l'escalier signature
-n'était visible nulle part. Deux corrections, décidées par l'utilisateur :
-l'escalier devient **littéral** (des tuiles, avec un contour) et le **relief
-revient** (moulure éclairée, encoche creusée). Ce qui ne revient pas du monde
-HOME MENU : l'ombre portée dure et décalée, le plateau gravé, et l'accent
-unique. Les sections ci-dessous portent ces corrections.
+Revision of 2026-08-28, the world is not flat. The first pass had read "flat
+layers" as "no relief": no bevel, no sunken notch, a background of two blurred
+halos. On screen it did not hold. A white plate four points of luminance above a
+cream shell, with a 24% edge and a 14% shadow, does not lift off its background:
+every screen read as a single sheet. And two halos overlapping at 12% alpha are
+no longer coral and turquoise, they are a dirty pink wash, and the signature
+staircase was visible nowhere. Two corrections, decided by the user: the
+staircase becomes literal (tiles, with an outline) and relief comes back (lit
+moulding, sunken notch). What does not come back from the HOME MENU world: the
+hard offset drop shadow, the engraved board, and the single accent. The sections
+below carry those corrections.
 
-## THÈSE
+## THESIS
 
-Le logo devient la grammaire de l'interface. Trois tuiles arrondies en escalier
-diagonal — corail en haut-gauche, crème au premier plan avec le glyphe, turquoise
-en bas-droite. L'app passe d'un monde *monochrome moulé + un accent* à un monde
-**bicolore en couches plates** : deux axes de couleur qui se croisent, une tuile
-neutre chaude au centre. Refusé : le menu-console gris plastique à relief gravé,
-et l'accent unique cyan qui ne distinguait pas « jouer » de « se connecter ».
+The logo becomes the interface's grammar. Three rounded tiles in a diagonal
+staircase: coral top left, cream in the foreground with the glyph, turquoise
+bottom right. The app moves from a monochrome-moulded-plus-one-accent world to a
+two-colour world in flat layers: two colour axes crossing, a warm neutral tile at
+the centre. Refused: the grey plastic console menu with engraved relief, and the
+single cyan accent that did not distinguish "play" from "connect".
 
-## LE MONDE
+## THE WORLD
 
-- **Surfaces en couches** qui se chevauchent, comme les tuiles du logo — mais
-  des couches qui ont une épaisseur. Une tuile = micro-dégradé vertical (≤3 %
-  luminosité), une arête 1 dp, une **moulure** (liseré éclairé sur l'arête
-  intérieure haute, ombré en bas), et une ombre ambiante qui grandit avec
-  l'élévation logique. Une seule source de lumière pour toute l'app : haute,
-  légèrement à gauche. Restent interdits : la grille gravée et l'ombre offset
-  dure du monde HOME MENU.
-### L'escalier diagonal
+- Layered surfaces overlapping, like the logo's tiles, but layers with a
+  thickness. One tile = a vertical micro-gradient (<=3% lightness), a 1 dp edge, a
+  moulding (a lit rim on the upper inner edge, shaded at the bottom), and an
+  ambient shadow growing with logical elevation. One light source for the whole
+  app: high, slightly to the left. Still forbidden: the engraved grid and the
+  hard offset shadow of the HOME MENU world.
 
-Le motif signature : halos en filigrane du fond,
-  carte sélectionnée qui monte *et* glisse en diagonale, dialogues qui
-  chevauchent un volet en biais derrière eux.
-### Deux axes sémantiques
+### The diagonal staircase
 
-Pas un accent :
-  - **Corail** = le social : sessions, amis, rejoindre, présence. Créer un lien.
-  - **TURQUOISE** = le jeu et le système : lancer, valider, naviguer, bibliothèque.
-  - Le neutre crème chaud = le premier plan (la tuile du glyphe).
-### Les creux deviennent des encoches
+The signature motif: watermark halos in the background, a selected card that
+rises and slides diagonally, dialogs overlapping a slanted panel behind them.
 
-Des encoches creusées : teinte basse de la plaque *et*
-  moulure inversée — ombrée en haut sous la lèvre, éclairée en bas où la
-  lumière atteint le fond. C'est la même source, frappant un creux au lieu
-  d'une bosse ; une fois la lumière posée, c'est la seule façon honnête de dire
-  « enfoncé ».
+### Two semantic axes
 
-## PALETTE (contrat chiffré)
+Not one accent:
 
-### Axes (trois coupes chacun : bright / deep / ink ; soft = bright à 20 %)
+- Coral = the social: sessions, friends, joining, presence. Making a link.
+- Turquoise = play and system: launching, confirming, navigating, the library.
+- The warm cream neutral = the foreground (the glyph's tile).
 
-| Axe | bright | deep (fond clair, texte blanc) | ink (texte sur fond clair) | dark bright |
+### Hollows become notches
+
+Sunken notches: the plate's low tone and an inverted moulding, shaded at the top
+under the lip, lit at the bottom where the light reaches the floor. It is the
+same source striking a hollow instead of a bump; once the light is set, that is
+the only honest way to say "pushed in".
+
+## PALETTE (numbered contract)
+
+### Axes (three cuts each: bright / deep / ink; soft = bright at 20%)
+
+| Axis | bright | deep (light ground, white text) | ink (text on light ground) | dark bright |
 |---|---|---|---|---|
-| Corail | `#EE6FA3` | `#C24B7E` | `#5A1D3E` | `#F793BC` |
+| Coral | `#EE6FA3` | `#C24B7E` | `#5A1D3E` | `#F793BC` |
 | Turquoise | `#3FCFC0` | `#0E9C8F` | `#0A4A44` | `#5CE0D2` |
 
-Violet de profondeur (liens, sheen, bas de dégradé du logo) : `#6B72E0`
-(dark `#8E93EC`). Glyphe/encre chaude : `#221B26`.
+Depth violet (links, sheen, bottom of the logo gradient): `#6B72E0` (dark
+`#8E93EC`). Glyph/warm ink: `#221B26`.
 
-### Neutres chauds (light) — la tuile crème étendue
+### Warm neutrals (light), the cream tile extended
 
-- Coquille : `#F1EFEA` / basse `#E2DFD7` — deux fois déplacée le 2026-08-28, en
-  sens contraires, et les deux fois à raison. Partie de `#F5F1E8`, à quatre
-  points sous la plaque blanche : une carte n'avait pas de sol. Approfondie à
-  `#EDE6D6`, elle l'a eu, mais toute l'app a jauni — dix points de saturation,
-  sur un plein écran, ce n'est plus un neutre, c'est une couleur. La valeur
-  retenue garde l'écart dont la moulure et l'ombre ont besoin en retirant
-  l'essentiel du jaune
-- Plaque : `#FFFFFF` / basse `#F7F5F1`
-- Encre : `#221B26`, muted `#6E6475`
-- Arêtes : noir chaud `#241610` à alpha (remplace le noir-bleu)
+- Shell: `#F1EFEA` / low `#E2DFD7`, moved twice on 2026-08-28, in opposite
+  directions, and rightly both times. It started at `#F5F1E8`, four points below
+  the white plate: a card had no floor. Deepened to `#EDE6D6` it got one, but the
+  whole app yellowed: ten points of saturation, full screen, is no longer a
+  neutral, it is a colour. The value kept holds the gap the moulding and the
+  shadow need while taking most of the yellow out.
+- Plate: `#FFFFFF` / low `#F7F5F1`
+- Ink: `#221B26`, muted `#6E6475`
+- Edges: warm black `#241610` at alpha (replaces the blue-black)
 
-### Neutres violacés (dark) — le bas du dégradé turquoise
+### Purpled neutrals (dark), the bottom of the turquoise gradient
 
-- Coquille : `#120F1D` / basse `#090711`
-- Plaque : `#272238` / basse `#1C1929`
-- Encre : `#F0EAF5`, muted `#9B93AC`
+- Shell: `#120F1D` / low `#090711`
+- Plate: `#272238` / low `#1C1929`
+- Ink: `#F0EAF5`, muted `#9B93AC`
 
 ### OLED
 
-Coquille `#000000`, plaque `#16131F` / basse `#0F0D17` ; halos du fond à alpha
-réduit pour rester noir.
+Shell `#000000`, plate `#16131F` / low `#0F0D17`; background halos at reduced
+alpha to stay black.
 
-### Sémantique (centralisée)
+### Semantics (centralised)
 
-Plus jamais dupliquée en dur.
+Never again duplicated by hand.
 
-- Bon/vert tiré vers le turquoise : `#1FA98B` (dark `#3BC4A6`)
-- Attention/ambre : `#C98A12` (dark `#E3A83C`)
-- Erreur tirée vers le corail : `#E5604F` (dark `#F0796A`)
-- Info/bleu : `#5A8FD8` (dark `#82AFE6`)
+- Good/green pulled towards turquoise: `#1FA98B` (dark `#3BC4A6`)
+- Warning/amber: `#C98A12` (dark `#E3A83C`)
+- Error pulled towards coral: `#E5604F` (dark `#F0796A`)
+- Info/blue: `#5A8FD8` (dark `#82AFE6`)
 
-### Stratégie de couleur
+### Colour strategy
 
-Committed duo : les deux axes portent la structure (rings, actions primaires,
-domaines), le fond et les surfaces restent neutres chauds. Le coloris n'est
-jamais décoratif : il encode *jeu* ou *lien*.
+Committed duo: the two axes carry the structure (rings, primary actions,
+domains), the background and surfaces stay warm neutrals. Colour is never
+decorative: it encodes play or link.
 
-## MATIÈRE (remplace Plastic.kt)
+## MATERIAL (replaces Plastic.kt)
 
-- `plate()` : micro-dégradé + arête 1 dp + moulure + ombre ambiante. La lèvre
-  s'élargit avec l'élévation (1,5 dp, 2 dp au-delà de 10 dp de lift) — un
-  dialogue ne porte pas le même liseré qu'une pastille. `pressed` : la tuile
-  s'enfonce (scale 0.98, ombre au tiers) **et retourne sa lumière**.
-- `socket()` : teinte basse de la plaque + moulure inversée. Le nom reste,
-  vingt appelants le disent encore.
-- `engravedGrid` reste vide : le fond porte déjà son relief, et deux motifs sur
-  le même sol se battraient.
-- Le fond (TrayBackdrop) : neutre chaud + **deux tuiles squircle énormes** —
-  corail haut-gauche, turquoise bas-droite — chacune avec un dégradé de corps
-  (bright en haut, deep en bas) et **un contour de 2 dp**. C'est le coin et
-  l'arête qui disent « tuile », pas la teinte : sans contour on retombe sur le
-  lavis. Assez grandes pour déborder de deux côtés chacune. La troisième tuile,
-  la crème du premier plan, ce sont les plaques de l'app elles-mêmes — le fond
-  ne dessine que les deux qui sont derrière. Puis sheen diagonal violet et
-  vignette, gelés si les animations sont désactivées.
-- Chevauchement : un élément au premier plan (dialogue, tuile sélectionnée)
-  peut déborder en diagonale sur ce qui est derrière.
+- `plate()`: micro-gradient plus 1 dp edge plus moulding plus ambient shadow. The
+  lip widens with elevation (1.5 dp, 2 dp beyond 10 dp of lift): a dialog does not
+  carry the same rim as a chip. `pressed`: the tile sinks (scale 0.98, shadow at a
+  third) and flips its light.
+- `socket()`: the plate's low tone plus an inverted moulding. The name stays,
+  twenty callers still say it.
+- `engravedGrid` stays empty: the background already carries its own relief, and
+  two motifs on the same floor would fight.
+- The background (TrayBackdrop): warm neutral plus two enormous squircle tiles,
+  coral top left and turquoise bottom right, each with a body gradient (bright at
+  the top, deep at the bottom) and a 2 dp outline. It is the corner and the edge
+  that say "tile", not the hue: without an outline you fall back on the wash. Big
+  enough to run off two sides each. The third tile, the foreground cream, is the
+  app's plates themselves: the background draws only the two behind. Then a
+  diagonal violet sheen and a vignette, frozen if animations are off.
+- Overlap: a foreground element (a dialog, a selected tile) may run diagonally
+  over what is behind it.
 
-## FOCUS MANETTE
+## GAMEPAD FOCUS
 
-Le ring (contour 4 dp + halo, entrée 140 ms, sortie 0, bring-into-view) est
-conservé tel quel mais devient **turquoise** par défaut et **corail** sur les
-zones sociales (chips session/amis, listes d'amis, join). La couleur du curseur
-dit la zone. L'ombre de la tuile sélectionnée prend la teinte de l'axe.
+The ring (4 dp outline plus halo, 140 ms in, 0 out, bring-into-view) is kept as
+it is but becomes turquoise by default and coral on social areas (session/friend
+chips, friend lists, join). The cursor's colour says the area. The selected
+tile's shadow takes the axis's hue.
 
-## TYPOGRAPHIE
+## TYPOGRAPHY
 
-M PLUS Rounded 1c conservée (ses rondes épousent les squircles du logo).
-Contraste de graisse assumé : titres Black/ExtraBold, corps Regular. Pas de
-texte en dégradé, pas de bicolore sur les titres.
+M PLUS Rounded 1c kept (its curves match the logo's squircles). Weight contrast
+owned: titles Black/ExtraBold, body Regular. No gradient text, no two-colour
+titles.
 
-## FORMES
+## SHAPES
 
-Squircles du logo : tuile bibliothèque 16 → **20 dp**, artwork 13 → 16 dp,
-cartes 22 → **28 dp** (le premier plan est plus rond), inset 14 dp, actions
-18 dp, pilules 50 %. « Un seul langage de coins » conservé.
+The logo's squircles: library tile 16 -> 20 dp, artwork 13 -> 16 dp, cards
+22 -> 28 dp (the foreground is rounder), inset 14 dp, actions 18 dp, pills 50%.
+"One language of corners" kept.
 
-## DÉCLINAISON PAR ÉCRAN
+## PER-SCREEN TREATMENT
 
-- **Splash** — LED corail → turquoise (rééchantillonnées du logo v3). Option :
-  assemblage des trois tuiles en diagonale puis apparition du glyphe.
-- **Bibliothèque** — tuiles crème squircle sur coquille crème plus sombre ;
-  focus : scale + ring turquoise + ombre teintée. Badge console pilule ;
-  compat garde le code sémantique. En-tête flottant conservé (jamais une
-  barre) : pilules plates sur encoches, chips Sessions/Amis/Profil **corail**
-  quand actives, contrôles bibliothèque neutres/turquoise.
-### Fiche de jeu (dialogue)
+- Splash: coral -> turquoise LEDs (resampled from the v3 logo). Option: the three
+  tiles assembling diagonally, then the glyph appearing.
+- Library: cream squircle tiles on a darker cream shell; focus: scale plus
+  turquoise ring plus tinted shadow. Console badge as a pill; compat keeps the
+  semantic code. Floating header kept (never a bar): flat pills on notches,
+  Sessions/Friends/Profile chips coral when active, library controls
+  neutral/turquoise.
 
- grande carte au premier plan, et le liseré des
-  deux axes **sur son contour**, dont la couleur dérive d'un axe à l'autre
-  (7 s, aller-retour, figée à mi-course si les animations système sont coupées).
-  C'est le seul écran où les deux sont vrais à la fois — la carte propose de
-  créer une session (corail) et de lancer (turquoise) — et une teinte figée y
-  prendrait un parti que l'écran ne prend pas. Lancer = pilule turquoise pleine ;
-  privé/session = corail.
+### Game card (dialog)
 
-  **Une tuile posée derrière a été essayée trois fois, puis retirée.** C'était la
-  troisième tuile du logo prise au pied de la lettre : une plaque turquoise
-  débordant de la carte, d'abord en `matchParentSize` (donc de la taille de
-  l'écran entier), puis à la taille de la carte et penchée de 3°, puis droite
-  avec une marge égale de 6 dp. Les trois avaient le même défaut de fond : pour
-  dire « il y a une couche en dessous », elles ajoutaient un objet de plus à un
-  écran qui en a déjà deux — la carte, et la bibliothèque assombrie derrière. Le
-  contour dit la même chose sans rien ajouter, et il porte la dérive aussi bien.
+A large foreground card, with the two-axis rim on its outline, its colour
+drifting from one axis to the other (7 s, back and forth, frozen mid-course if
+system animations are off). It is the one screen where both are true at once, the
+card offering to create a session (coral) and to launch (turquoise), and a frozen
+hue there would take a side the screen does not take. Launch = solid turquoise
+pill; private/session = coral.
 
-  Piège de forme, payé deux fois : le liseré est un `drawWithContent`, donc il
-  prend la taille de **ce qu'il enveloppe**. Placé en tête de chaîne il
-  enveloppait aussi le padding extérieur et traçait un contour 48 dp plus large
-  que la carte, flottant autour d'elle. Il va sous les bornes de taille, et sous
-  `scale`/`alpha` pour arriver avec la carte au lieu de rester fixe pendant
-  qu'elle grandit.
+A tile placed behind was tried three times, then removed. It was the logo's third
+tile taken literally: a turquoise plate overflowing the card, first in
+`matchParentSize` (so the size of the whole screen), then at the card's size and
+tilted 3 degrees, then straight with an even 6 dp margin. All three had the same
+underlying flaw: to say "there is a layer underneath", they added one more object
+to a screen that already has two, the card, and the darkened library behind it.
+The outline says the same thing without adding anything, and it carries the drift
+just as well.
 
-### Session / Join — domaine corail
+A form trap, paid for twice: the rim is a `drawWithContent`, so it takes the size
+of what it wraps. Placed at the head of the chain it also wrapped the outer
+padding and drew an outline 48 dp wider than the card, floating around it. It
+goes below the size bounds, and below `scale`/`alpha` so it arrives with the card
+instead of staying put while it grows.
 
-Session, Join, Friends, Finder, Wfc, PspOnline : domaine corail :
-  codes, présence, rejoindre, alertes. Slots de code en encoches crème, caret
-  corail. Quitter = erreur.
-### Réglages
+### Session / Join, coral domain
 
-Hub neutre, cartes crème, icônes en encoches teintées par
-  domaine (turquoise système, corail profil/social). L'accent configurable est
-  retiré : deux couleurs sémantiques le remplacent (SYSTEM/Material You peut
-  rester en option qui teinte les deux axes).
+Session, Join, Friends, Finder, Wfc, PspOnline: the coral domain, codes,
+presence, joining, alerts. Code slots as cream notches, coral caret. Leaving =
+error.
+
+### Settings
+
+A neutral hub, cream cards, icons in notches tinted by domain (turquoise for
+system, coral for profile/social). The configurable accent is removed: two
+semantic colours replace it (SYSTEM/Material You can stay as an option tinting
+both axes).
+
 ### Onboarding / Preparing
 
- cartes neutres avec le liseré corail→turquoise
-  **sur tout le contour**, pour les flux d'attente et de connexion. Il vit dans
-  `ui/components/WaitTrim.kt`.
+Neutral cards with the coral-to-turquoise rim around the whole outline, for
+waiting and connecting flows. It lives in `ui/components/WaitTrim.kt`.
 
-  Repris trois fois le 2026-08-28. Ce qui était écrit n'était pas un liseré sur
-  une arête mais une **corde** : un segment droit joignant un point du bord
-  gauche à un point du bord haut, donc une barre en biais posée en travers de la
-  face. Premier défaut, elle n'était pas découpée à la silhouette, donc ses deux
-  bouts sortaient de la plaque par le coin *arrondi* et flottaient sur le fond.
-  Découpée, le second est apparu : elle restait une balafre de 6 dp barrant le
-  quart supérieur gauche, à pleine saturation, et sur un écran qui arrive en
-  fondu la carte est encore transparente quand la bande est déjà pleine —
-  pendant un instant on ne voit qu'elle. Ramenée sur l'arête, elle n'en tenait
-  plus qu'un coin, ce qui se lisait comme un accident de tracé.
+Redone three times on 2026-08-28. What had been written was not a rim on an edge
+but a chord: a straight segment joining a point on the left edge to a point on
+the top edge, so a slanted bar laid across the face. First flaw, it was not
+clipped to the silhouette, so both its ends came out of the plate through the
+rounded corner and floated on the background. Clipped, the second appeared: it
+was still a 6 dp gash across the upper left quarter, at full saturation, and on a
+screen that fades in the card is still transparent while the band is already
+solid, so for a moment it is all you see. Brought back onto the edge, it held
+only one corner of it, which read as a drawing accident.
 
-  Le tracé est le **contour de la carte lui-même, sur tout son tour** : 3 dp, le
-  dégradé court sur la diagonale du logo, donc chaque côté porte la couleur de
-  son coin. Il borde au lieu de barrer.
+The stroke is the card's own outline, all the way round: 3 dp, the gradient
+running along the logo's diagonal, so each side carries its corner's colour. It
+borders instead of barring.
 
-- **Second écran** (SecondScreenHost) — même thème, mêmes tokens.
+- Second screen (SecondScreenHost): same theme, same tokens.
 
 ### Avatars
 
-L'avatar prend la teinte de l'axe social — corail — et jamais l'accent choisi :
-c'est une personne, pas un réglage. Sa pastille de crayon est déclarée après
-l'anneau du curseur, sinon le trait de l'anneau lui passe au travers.
+The avatar takes the social axis's hue, coral, and never the chosen accent: it is
+a person, not a setting. Its pencil badge is declared after the cursor ring, or
+the ring's stroke passes straight through it.
 
-## GARDÉ TEL QUEL
+## KEPT AS IS
 
-Navigation manette (Gamepad.kt comportement), en-tête flottant + WallpaperVeil,
-structure des écrans (sealed Screen), grille 2–4 colonnes, clavier maison,
-PadDialog/PadTextField, densité « menu console » : peu d'éléments, gros,
-espacés.
+Gamepad navigation (Gamepad.kt behaviour), floating header plus WallpaperVeil,
+screen structure (sealed Screen), 2-4 column grid, in-house keyboard,
+PadDialog/PadTextField, "console menu" density: few elements, large, spaced out.
 
-## CONTRAINTES (aucun hex en dur)
+## CONSTRAINTS (no hard-coded hex)
 
-- Contraste : turquoise plein sur crème est limite en texte → réservé aux fonds
-  de boutons (encre foncée ou blanche selon coupe) et aux rings, jamais au
-  corps de texte. Muted se teinte de l'hue de sa surface, jamais gris neutre.
-- Toute couleur vit dans le thème (Color.kt / objet sémantique) ; plus aucun
-  hex en dur dans les écrans (badges, statuts, avatars, splash, voiles).
-- Avatars : dégradés remixés depuis les deux axes du logo.
+- Contrast: solid turquoise on cream is borderline as text, so reserved for
+  button grounds (dark or white ink depending on the cut) and for rings, never
+  for body text. Muted takes its surface's hue, never neutral grey.
+- Every colour lives in the theme (Color.kt / semantic object); no hard-coded hex
+  left in the screens (badges, statuses, avatars, splash, scrims).
+- Avatars: gradients remixed from the logo's two axes.
 
-## ANTI-RÉFÉRENCES
+## ANTI-REFERENCES
 
-L'accent cyan unique, la grille gravée et l'ombre offset chaude du monde HOME
-MENU — remplacés, pas adoucis. Le « Liquid Glass » (flou, translucide, halos
-iOS) reste interdit comme avant. **Le biseau et l'encoche creusée ne sont plus
-des anti-références** depuis le 2026-08-28 : c'était le seul point du contrat
-qui, appliqué, vidait l'interface de sa matière.
+The single cyan accent, the engraved grid and the warm offset shadow of the HOME
+MENU world: replaced, not softened. "Liquid Glass" (blur, translucency, iOS
+halos) stays forbidden as before. The bevel and the sunken notch are no longer
+anti-references since 2026-08-28: that was the one point of the contract which,
+applied, emptied the interface of its material.
 
-## Le lustre est parti
+## The lustre is gone
 
-La large bande de lumière qui traversait le plateau en dix-neuf secondes a été
-retirée le 2026-08-29. Elle se lisait comme un voile semi-transparent balayant
-l'écran, ce qu'un fond ne doit pas faire.
+The wide band of light crossing the board every nineteen seconds was removed on
+2026-08-29. It read as a semi-transparent veil sweeping the screen, which a
+background must not do.
 
-Et sur le panneau arrière, où le plateau est figé, elle était peinte immobile :
-sa boîte de découpe laissait alors une arête franche en bas à gauche, un grand
-carré que rien n'expliquait. Le même défaut des deux côtés, invisible d'un côté
-et flagrant de l'autre.
+And on the rear panel, where the board is frozen, it was painted still: its clip
+box then left a hard edge at the bottom left, a large square nothing explained.
+The same flaw on both sides, invisible on one and glaring on the other.
 
-Restent les deux étagères, leurs ondes et la vignette. Ne pas la réintroduire :
-c'est la seule chose du fond dont le mouvement se remarquait.
+The two shelves, their waves and the vignette remain. Do not reintroduce it: it
+is the one thing in the background whose movement got noticed.
 
-## MATIÈRE (fond)
+## MATERIAL (background)
 
-### Deux étagères, et un budget de mouvement
+### Two shelves, and a movement budget
 
-Les deux étagères sont l'escalier du logo à l'échelle de l'écran — corail en haut
-à gauche, turquoise en bas à droite. Ce sont des carrés arrondis assez grands
-pour sortir par deux bords : seul le coin qui regarde le milieu reste visible, et
-ce coin est tout le motif. **C'est le coin et l'arête qui disent « tuile », pas
-la teinte** ; deux halos flous à 12 % ne donnaient qu'un lavis rose sale, sans
-bord, sans escalier, sans logo.
+The two shelves are the logo's staircase at screen scale, coral top left and
+turquoise bottom right. They are rounded squares large enough to run off two
+edges: only the corner facing the middle stays visible, and that corner is the
+whole motif. It is the corner and the edge that say "tile", not the hue; two
+blurred halos at 12% gave only a dirty pink wash, with no edge, no staircase, no
+logo.
 
-La couleur n'encode que les deux axes. Avec des jaquettes par-dessus, deux
-palettes se battent : les étagères restent donc sous le contenu et jamais sous un
-texte.
+The colour encodes the two axes and nothing else. With artwork on top, two
+palettes fight: the shelves therefore stay under the content and never under
+text.
 
-**Le budget de mouvement est le sujet de ce fond.** Il a tenu la moitié d'un
-processeur à repeindre à 120 Hz sans que rien ne se passe à l'écran, et il l'a
-refait une seconde fois : 85 % d'un cœur, mesuré sur une bibliothèque immobile,
-contre 3,7 % pour le lanceur d'à côté. Deux causes, toutes deux corrigées, toutes
-deux à ne pas réintroduire :
+The movement budget is the subject of this background. It held half a CPU
+repainting at 120 Hz with nothing happening on screen, and it did it a second
+time: 85% of a core, measured on a still library, against 3.7% for the launcher
+next door. Two causes, both fixed, both not to be reintroduced:
 
-1. **Tout était redessiné à chaque image**, y compris ce qui ne bouge pas — une
-   dizaine de dégradés reconstruits trente fois par seconde pour un résultat
-   identique. Ce qui est immobile est cuit dans un bitmap à demi résolution,
-   enregistré une fois ; seules les ondes se redessinent.
-2. **Le flou gaussien retombait en rendu logiciel.** `BlurMaskFilter` n'a pas
-   d'équivalent GPU : Android dessinait ces chemins sur le processeur, dans une
-   image intermédiaire, douze fois par image. La lueur des ondes se fait en
-   traits empilés, que le GPU trace sans y penser. Même leçon que le curseur —
-   voir `navigation-manette.md` § Les quatre couches du curseur néon.
+1. Everything was redrawn every frame, including what does not move, a dozen
+   gradients rebuilt thirty times a second for an identical result. What is still
+   is baked into a half-resolution bitmap, recorded once; only the waves redraw.
+2. The Gaussian blur fell back to software rendering. `BlurMaskFilter` has no GPU
+   equivalent: Android drew those paths on the CPU, into an intermediate image,
+   twelve times per frame. The waves' glow is done with stacked strokes, which the
+   GPU draws without thinking. Same lesson as the cursor, see
+   `navigation-manette.md` on the four layers of the neon cursor.
 
-## Le liseré des deux axes borde, il ne barre pas
+## The two-axis rim borders, it does not bar
 
-Le contrat disait « un liseré diagonal sur une arête », et ce qui a été écrit
-était une **corde** : un segment droit joignant un point du bord gauche à un
-point du bord haut, donc une barre en biais posée en travers de la face. Deux
-défauts, dont le second n'est apparu qu'une fois le premier corrigé :
+The contract said "a diagonal rim on an edge", and what was written was a chord:
+a straight segment joining a point on the left edge to a point on the top edge,
+so a slanted bar laid across the face. Two flaws, the second appearing only once
+the first was fixed:
 
-1. Elle n'était pas découpée à la silhouette, donc ses deux bouts sortaient de la
-   plaque par le coin *arrondi* et flottaient sur le fond.
-2. Découpée, elle restait une balafre de 6 dp barrant le quart supérieur gauche,
-   à pleine saturation. Sur un écran qui arrive en fondu, la carte est encore
-   transparente quand la bande est déjà pleine : pendant un instant, on ne voit
-   qu'elle.
+1. It was not clipped to the silhouette, so both its ends came out of the plate
+   through the rounded corner and floated on the background.
+2. Clipped, it was still a 6 dp gash across the upper left quarter, at full
+   saturation. On a screen that fades in, the card is still transparent while the
+   band is already solid: for a moment, it is all you see.
 
-Le tracé est le **contour de la carte lui-même**, et il en fait le tour : le
-dégradé court sur la diagonale du logo, corail en haut à gauche, turquoise en bas
-à droite, donc chaque côté porte la couleur de son coin. Il borde au lieu de
-barrer.
+The stroke is the card's own outline, and it goes all the way round: the gradient
+runs along the logo's diagonal, coral top left, turquoise bottom right, so each
+side carries its corner's colour. It borders instead of barring.
 
-La phase fait dériver le dégradé le long de cette diagonale. À zéro il ne bouge
-pas — c'est ce que veulent les écrans d'attente, où la seule chose qui doit
-tourner est le disque de progression. La carte de session, elle, le fait respirer
-d'un axe à l'autre : c'est le seul écran où les deux axes sont vrais à la fois,
-et une teinte figée y prendrait un parti que l'écran ne prend pas.
+The phase drifts the gradient along that diagonal. At zero it does not move,
+which is what the waiting screens want, where the only thing that should turn is
+the progress disc. The session card makes it breathe from one axis to the other:
+it is the one screen where both axes are true at once, and a frozen hue there
+would take a side the screen does not take.
 
-## La pastille de compatibilité est l'exception documentée à l'accent unique
+## The compatibility badge is the documented exception to the single accent
 
-Trois marques, une par verdict, et un jeu que personne n'a noté n'en montre
-aucune. **Cette dernière distinction est celle qui compte** : un jeu non testé et
-un jeu connu comme fonctionnel ne doivent pas se ressembler, sinon la pastille
-cesse d'être une information et devient une décoration. Une coche veut dire que
-quelqu'un a vérifié.
+Three marks, one per verdict, and a game nobody has rated shows none. That last
+distinction is the one that counts: an untested game and a game known to work
+must not look alike, or the badge stops being information and becomes decoration.
+A tick means somebody checked.
 
-Ça a été construit dans l'autre sens d'abord — rien de dessiné pour un jeu qui
-marche, au motif qu'une bibliothèque est surtout faite de jeux qui marchent et
-que tous les marquer poserait une marque sur presque chaque tuile. Ce raisonnement
-tient pour la *densité* et se trompait sur le *sens* : le silence veut déjà dire
-« inconnu » ici, donc le dépenser aussi pour « vérifié » rendait les deux
-indiscernables.
+It was built the other way round first, nothing drawn for a game that works, on
+the grounds that a library is mostly made of games that work and marking them all
+would put a mark on nearly every tile. That reasoning holds for density and was
+wrong about meaning: silence already means "unknown" here, so spending it on
+"verified" too made the two indistinguishable.
 
-Sur les couleurs : le chrome reste achromatique et le seul accent est réservé au
-curseur. Ceci est l'exception documentée, et elle est étroite — une marque qui ne
-paraît que sur les jeux que quelqu'un a réellement jugés, en trois couleurs
-fixes, dont aucune n'est l'accent. **Fixes plutôt que suivant l'accent choisi**,
-à dessein : un verdict est le même fait pour chaque joueur, et une pastille qui
-changerait de couleur avec un réglage personnel dirait quelque chose du réglage
-au lieu de dire quelque chose du jeu.
+On the colours: the chrome stays achromatic and the only accent is reserved for
+the cursor. This is the documented exception, and it is narrow, a mark appearing
+only on games somebody actually judged, in three fixed colours, none of which is
+the accent. Fixed rather than following the chosen accent, by design: a verdict is
+the same fact for every player, and a badge that changed colour with a personal
+setting would say something about the setting instead of about the game.

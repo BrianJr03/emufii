@@ -83,12 +83,12 @@ object DolphinTreeDump {
         // are not told on screen they will never know they have something to
         // send, and the dump will have been for nothing.
         val message =
-            if (ok) "Emufii : diagnostic écrit dans Téléchargements/$name"
-            else "Emufii : le diagnostic n'a pas pu être écrit"
+            if (ok) "Emufii: diagnostic written to Downloads/$name"
+            else "Emufii: the diagnostic could not be written"
         Handler(Looper.getMainLooper()).post {
             Toast.makeText(context, message, Toast.LENGTH_LONG).show()
         }
-        Log.i(TAG, "$message (${nodes.size} nœuds, motif=$reason)")
+        Log.i(TAG, "$message (${nodes.size} nodes, reason=$reason)")
     }
 
     private fun render(
@@ -97,21 +97,21 @@ object DolphinTreeDump {
         nodes: List<Node>,
         reason: String
     ): String = buildString {
-        appendLine("Emufii — arbre d'accessibilité Dolphin")
-        appendLine("motif        : $reason")
+        appendLine("Emufii: Dolphin accessibility tree")
+        appendLine("reason       : $reason")
         appendLine("date         : ${Date()}")
         appendLine("emufii       : ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
-        appendLine("paquet visé  : $pkg ${versionOf(context, pkg)}")
-        appendLine("appareil     : ${Build.MANUFACTURER} ${Build.MODEL}, Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})")
-        appendLine("langues      : ${context.resources.configuration.locales.toLanguageTags()}")
-        appendLine("nœuds        : ${nodes.size}")
+        appendLine("target pkg   : $pkg ${versionOf(context, pkg)}")
+        appendLine("device       : ${Build.MANUFACTURER} ${Build.MODEL}, Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})")
+        appendLine("locales      : ${context.resources.configuration.locales.toLanguageTags()}")
+        appendLine("nodes        : ${nodes.size}")
         appendLine()
 
         // The labels first: one unresolved label explains a silent driver all by
         // itself, and that is half the cases. Zero translations for a name means
         // the string does not exist in this Dolphin build; a full list means the
         // word is known and it is the tree that does not contain it.
-        appendLine("--- libellés résolus dans les ressources de $pkg ---")
+        appendLine("--- labels resolved in the resources of $pkg ---")
         for (name in LABELS) {
             val values = NetplayLabels.of(context, pkg, name)
             appendLine("$name (${values.size}) : ${values.joinToString(" | ")}")
@@ -131,7 +131,7 @@ object DolphinTreeDump {
         }
     }
 
-    private fun String.quote(): String = if (isEmpty()) "-" else "«$this»"
+    private fun String.quote(): String = if (isEmpty()) "-" else "\"$this\""
 
     private fun versionOf(context: Context, pkg: String): String = runCatching {
         val info = context.packageManager.getPackageInfo(pkg, 0)

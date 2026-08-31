@@ -1,116 +1,110 @@
-# Les deux sons de l'interface
+# The two interface sounds
 
-Ajoutés le 2026-08-29, à la demande de l'utilisateur, qui a fourni les deux
-fichiers. Les titres sont des ancres citées depuis le code.
+Added on 2026-08-29, at the user's request, who supplied both files. The
+headings are anchors cited from the code.
 
-## Deux sons, une seule famille
+## Two sounds, one family
 
-`hoversoundemufii` (96 ms) part quand le curseur se pose sur autre chose,
-`clicksoundemufii` (144 ms) quand quelque chose est pressé. Ils vivent dans
-`res/raw/` sous `sfx_hover` et `sfx_click`.
+`hoversoundemufii` (96 ms) fires when the cursor lands on something new,
+`clicksoundemufii` (144 ms) when something is pressed. They live in `res/raw/`
+as `sfx_hover` and `sfx_click`.
 
-**`SoundPool` et non `MediaPlayer`.** Ces sons durent moins de deux dixièmes de
-seconde, partent plusieurs fois par seconde quand on balaie une grille, et
-doivent se déclencher sans latence. `MediaPlayer` prépare une source à chaque
-lecture et ne sait pas en superposer deux ; `SoundPool` décode une fois en
-mémoire et joue depuis là. Quatre flux simultanés : le curseur peut glisser
-pendant qu'un appui résonne encore.
+`SoundPool` rather than `MediaPlayer`. These sounds last under two tenths of a
+second, fire several times a second when sweeping a grid, and must trigger with
+no latency. `MediaPlayer` prepares a source on every play and cannot overlap
+two; `SoundPool` decodes once into memory and plays from there. Four concurrent
+streams: the cursor can move on while a press is still ringing.
 
-Ils sont décodés au démarrage de l'activité et non à la première lecture, sinon
-le tout premier survol serait muet — celui qui arrive avant que le joueur ait
-compris que l'app fait du son.
+They are decoded when the activity starts rather than on first play, or the very
+first hover would be silent, the one that happens before the player has worked
+out that the app makes sound.
 
-**Le survol est plus bas que l'appui** (0,45 contre 0,85). Il part à chaque case
-traversée ; un déplacement aussi fort qu'une action ferait croire qu'il s'est
-passé quelque chose.
+Hover is quieter than press (0.45 against 0.85). It fires on every cell crossed;
+a movement as loud as an action would suggest something had happened.
 
-## Le réglage d'Android fait autorité
+## Android's own setting is authoritative
 
-L'app ne crée pas son propre interrupteur de sons : elle lit
-`Settings.System.SOUND_EFFECTS_ENABLED`. Quelqu'un qui a coupé les sons
-d'interface les a coupés pour toutes les applications, et la nôtre n'a aucune
-raison de faire exception.
+The app does not create its own sound switch: it reads
+`Settings.System.SOUND_EFFECTS_ENABLED`. Somebody who has turned interface
+sounds off has turned them off for every application, and ours has no reason to
+be an exception.
 
-Les `AudioAttributes` les rangent dans la famille des sons d'interface
-(`USAGE_ASSISTANCE_SONIFICATION`) : ils suivent le volume système, se taisent
-pendant un appel, et ne coupent pas la musique de quelqu'un.
+The `AudioAttributes` file them under interface sounds
+(`USAGE_ASSISTANCE_SONIFICATION`): they follow system volume, go quiet during a
+call, and do not duck somebody's music.
 
-## Le survol se déclenche là où le curseur se dessine
+## Hover fires where the cursor is drawn
 
-`focusRing` est le point de passage **unique** de tout ce qui porte le curseur :
-les contrôles ordinaires y arrivent par `controlRing`, et les tuiles de la grille
-l'appellent directement avec leur propre index calculé. Un son posé là couvre
-donc les deux familles, y compris la grille qui ne se sert pas du focus de
-Compose.
+`focusRing` is the single point every cursor passes through: ordinary controls
+reach it through `controlRing`, and grid tiles call it directly with their own
+computed index. A sound placed there therefore covers both families, including
+the grid, which does not use Compose focus.
 
-C'est aussi ce qui garantit qu'on ne peut pas ajouter un curseur silencieux : la
-règle de l'app était déjà « tout ce qui prend le focus doit le montrer », elle
-devient « et le dire ».
+It is also what guarantees a silent cursor cannot be added: the app's rule was
+already "everything that takes focus must show it", and it becomes "and say it".
 
-## Le son et le clic sont un seul appel
+## The sound and the click are one call
 
-`Modifier.tap` et `Modifier.tapOrHold` remplacent `clickable` et
-`combinedClickable` dans toute l'app — 32 endroits. Ce n'est pas un modificateur
-de son posé à côté du clic : c'est **le même appel**, parce qu'un `clickable`
-ajouté plus tard sans son serait une chose qui répond en silence au milieu d'une
-interface qui parle, et rien ne le signalerait.
+`Modifier.tap` and `Modifier.tapOrHold` replace `clickable` and
+`combinedClickable` throughout the app, 32 places. This is not a sound modifier
+placed next to the click: it is the same call, because a `clickable` added later
+without sound would be a thing that answers silently in the middle of an
+interface that speaks, and nothing would flag it.
 
-Trois exceptions, toutes voulues :
+Three exceptions, all deliberate:
 
-- **Les avaleurs d'appui** (`onClick = {}`) restent des `clickable` nus. Ils
-  n'existent que pour empêcher un appui d'atteindre ce qui est derrière — la
-  dalle du clavier, la carte d'un dialogue — et un son y annoncerait une action
-  qui n'a pas lieu.
-- **Les voiles de renvoi** sonnent, eux : toucher à côté pour fermer le clavier
-  ou un dialogue *est* une action, avec une conséquence visible.
-- **Le chemin manette passe par `gamepadClick`**, pas par `tap` : `Key.ButtonA`
-  n'est pas une des touches que Compose reconnaît lui-même. Le son y est donc
-  posé aussi. Les deux chemins ne se croisent pas — `gamepadClick` avale
-  l'appui correspondant pour qu'une pression ne compte pas double.
+- Press swallowers (`onClick = {}`) stay bare `clickable`s. They exist only to
+  stop a press reaching what is behind, the keyboard plate, a dialog card, and a
+  sound there would announce an action that does not happen.
+- Dismiss scrims do sound: touching outside to close the keyboard or a dialog is
+  an action, with a visible consequence.
+- The gamepad path goes through `gamepadClick`, not `tap`: `Key.ButtonA` is not
+  one of the keys Compose recognises itself. The sound is placed there too. The
+  two paths do not cross, `gamepadClick` swallowing the matching press so one
+  push does not count twice.
 
-## Cinq gestionnaires de touche court-circuitent `tap`
+## Five key handlers short-circuit `tap`
 
-Le premier essai a laissé l'ouverture d'un jeu muette : on entendait le survol de
-la carte qui s'ouvrait, jamais le clic qui l'avait ouverte. La cause est
-structurelle et vaut d'être nommée, parce qu'elle se reproduira.
+The first attempt left opening a game silent: you heard the hover of the card
+opening, never the click that opened it. The cause is structural and worth
+naming, because it will happen again.
 
-`Modifier.tap` ne couvre que ce que `clickable` traite : le doigt, et les touches
-que Compose reconnaît lui-même (Entrée, centre de la croix). Mais **cette app lit
-souvent la touche de confirmation elle-même**, parce qu'elle tient ses propres
-curseurs. Cinq endroits le font, et aucun ne passait par `tap` :
+`Modifier.tap` covers only what `clickable` handles: the finger, and the keys
+Compose recognises itself (Enter, D-pad centre). But this app often reads the
+confirm key itself, because it holds its own cursors. Five places do, and none
+of them went through `tap`:
 
-- `gamepadClick` — le cas général de `Key.ButtonA` ;
-- `entryKeys`, la grille — appui court, maintien, et `Y` qui ouvre le menu ;
-- l'écran de session, pour l'étape désignée sur le panneau arrière ;
-- la dalle du clavier, dont les touches ne sont pas focalisables ;
-- `PadTextField`, où confirmer ouvre le clavier.
+- `gamepadClick`, the general `Key.ButtonA` case;
+- `entryKeys`, the grid: short press, hold, and `Y` opening the menu;
+- the session screen, for the step selected on the rear panel;
+- the keyboard plate, whose keys are not focusable;
+- `PadTextField`, where confirming opens the keyboard.
 
-Le son y est donc posé à la main. **La règle à retenir :** un écran qui tient son
-propre curseur tient aussi son propre son. Chercher `CONFIRM_KEYS` donne la liste
-complète des endroits concernés.
+The sound is placed by hand in those. The rule to remember: a screen that holds
+its own cursor holds its own sound too. Searching for `CONFIRM_KEYS` gives the
+full list of places involved.
 
-C'est aussi ce qui a fait tomber le `Context` : `entryKeys` est une lambda
-ordinaire, pas un composable. Plutôt que de faire descendre un `Context` jusqu'à
-elle, `Sfx` retient le contexte applicatif à sa préparation — et `click()` comme
-`hover()` ne demandent plus rien à l'appelant.
+It is also what made the `Context` fall out: `entryKeys` is an ordinary lambda,
+not a composable. Rather than threading a `Context` down to it, `Sfx` keeps the
+application context from its own preparation, and neither `click()` nor
+`hover()` asks the caller for anything.
 
-## Couper ceux d'Android se fait vue par vue
+## Silencing Android's own is done view by view
 
-Les sons d'interface d'Android continuaient de se superposer aux nôtres. Ce
-n'est pas un réglage d'application ni un attribut de thème : `playSoundEffect`
-est **gaté par le drapeau de la vue qui l'appelle**, et il n'existe pas de
-commutateur global côté app.
+Android's interface sounds kept layering over ours. This is not an application
+setting nor a theme attribute: `playSoundEffect` is gated by the flag on the
+view that calls it, and there is no app-wide switch.
 
-`SilenceSystemSfx()` éteint donc ce drapeau sur `LocalView.current` **et sur
-toute sa chaîne de parents** — la vue de Compose n'est pas toujours l'émettrice,
-la vue de décor d'un `Dialog` en est une autre.
+`SilenceSystemSfx()` therefore clears that flag on `LocalView.current` and on
+its whole chain of parents: the Compose view is not always the emitter, and a
+`Dialog`'s decor view is another one.
 
-Il faut le poser **une fois par fenêtre**, et une fenêtre n'est pas un écran :
+It has to be placed once per window, and a window is not a screen:
 
-- l'activité (couvre tous les écrans, et les couches posées dedans — la carte de
-  lancement n'est pas une fenêtre à part) ;
-- chaque `Dialog` de Compose, qui ouvre la sienne : `PadDialog` et
-  `IconPickerDialog` ;
-- le panneau arrière, qui est une `Presentation`.
+- the activity (covers every screen, and the layers placed inside it, the launch
+  card not being a window of its own);
+- every Compose `Dialog`, which opens its own: `PadDialog` and
+  `IconPickerDialog`;
+- the rear panel, which is a `Presentation`.
 
-Un `Dialog` ajouté plus tard sans cet appel ramènera les deux sons ensemble.
+A `Dialog` added later without this call will bring both sounds back together.

@@ -3,7 +3,7 @@ package eu.emufii.app.library
 /**
  * What a ROM is, and what plays it. The grid stays one grid: which emulator is
  * launched, and what the network needs first, is our problem.
- * pourquoi : docs/decisions/reglages-et-consoles.md § La grille reste une grille
+ * pourquoi : docs/decisions/reglages-et-consoles.md § The grid stays a grid
  */
 enum class Console(
     val label: String,
@@ -19,7 +19,7 @@ enum class Console(
     /**
      * PSP: no room to create and no dialog to fill in, just a fixed ad hoc
      * server address the relay translates towards the session's host.
-     * pourquoi : docs/decisions/reglages-et-consoles.md § Les quatre familles de multijoueur
+     * pourquoi : docs/decisions/reglages-et-consoles.md § The four multiplayer families
      */
     PSP(
         label = "PSP",
@@ -42,9 +42,9 @@ enum class Console(
     ),
 
     /**
-     * GameCube and Wii, deliberately **without** `.iso`: the table is a map,
+     * GameCube and Wii, deliberately without `.iso`: the table is a map,
      * one owner per key, so claiming it would take it from the PSP.
-     * pourquoi : docs/decisions/reglages-et-consoles.md § La table d'extensions est une carte : un propriétaire par clé
+     * pourquoi : docs/decisions/reglages-et-consoles.md § The extension table is a map: one owner per key
      */
     GAMECUBE(
         label = "GameCube",
@@ -59,9 +59,9 @@ enum class Console(
     ),
 
     /**
-     * PS2, without a single extension of its own, and that is **not** an
+     * PS2, without a single extension of its own, and that is not an
      * oversight. It arrives by its folder (`ps2/`) or by reading the bytes.
-     * pourquoi : docs/decisions/reglages-et-consoles.md § La table d'extensions est une carte : un propriétaire par clé
+     * pourquoi : docs/decisions/reglages-et-consoles.md § The extension table is a map: one owner per key
      */
     PS2(
         label = "PS2",
@@ -71,8 +71,8 @@ enum class Console(
 
     /**
      * The name the coordinator receives, and what decides on a VPS room.
-     * Stable lowercase, **never derived from [label]**: this is a contract.
-     * pourquoi : docs/decisions/reglages-et-consoles.md § Le nom réseau est un contrat, jamais un libellé
+     * Stable lowercase, never derived from [label]: this is a contract.
+     * pourquoi : docs/decisions/reglages-et-consoles.md § The network name is a contract, never a label
      */
     val wireName: String
         get() = when (this) {
@@ -105,14 +105,14 @@ enum class Console(
 
         fun forExtension(ext: String): Console? = byExtension[ext.lowercase()]
 
-        /** Every extension worth opening. Used to skip files fast during a scan. */
+        /** Used to skip files fast during a scan. */
         val allExtensions: Set<String> = byExtension.keys
 
         /**
-         * The console a folder name says — the cheapest and truest answer, the
+         * The console a folder name says: the cheapest and truest answer, the
          * player having sorted the file themselves. Normalised, and the
-         * **direct** folder only, never its ancestors.
-         * pourquoi : docs/decisions/reglages-et-consoles.md § Le nom du dossier est la réponse la moins chère et la plus vraie
+         * direct folder only, never its ancestors.
+         * pourquoi : docs/decisions/reglages-et-consoles.md § The folder name is the cheapest and truest answer
          */
         private val byFolder: Map<String, Console> = mapOf(
             "ps2" to PS2,
@@ -142,9 +142,7 @@ enum class Console(
     }
 }
 
-/** How Emufii gets a game into multiplayer, once it's launched. */
 enum class Backend {
-    /** Rooms over the session network; Azahar's own netplay dialog. */
     AZAHAR,
 
     /**
@@ -157,51 +155,51 @@ enum class Backend {
     PPSSPP,
 
     /**
-     * Kaeru WFC, reached by **moving DNS** rather than building a network: no
+     * Kaeru WFC, reached by moving DNS rather than building a network: no
      * session code, no tunnel, each console talks to the revival server.
-     * pourquoi : docs/decisions/reglages-et-consoles.md § Les quatre familles de multijoueur
+     * pourquoi : docs/decisions/reglages-et-consoles.md § The four multiplayer families
      */
     MELONDS_WFC,
 
     /**
      * GameCube and Wii, by Dolphin's own netplay: Compose screen, no view ids,
-     * its own driver, and ENet/UDP **2626** rather than 24872.
-     * pourquoi : docs/decisions/reglages-et-consoles.md § Le port fait partie du plan
+     * its own driver, and ENet/UDP 2626 rather than 24872.
+     * pourquoi : docs/decisions/reglages-et-consoles.md § The port is part of the plan
      */
     DOLPHIN,
 
     /**
-     * PS2 via ARMSX2's **Local Link** — the ~57 games with a LAN mode. Real
+     * PS2 via ARMSX2's Local Link: the ~57 games with a LAN mode. Real
      * Android views but no translatable strings, hence hardcoded labels. PS2
      * *online* play does not go through this at all.
-     * pourquoi : docs/decisions/reglages-et-consoles.md § Les quatre familles de multijoueur
+     * pourquoi : docs/decisions/reglages-et-consoles.md § The four multiplayer families
      */
     ARMSX2,
 
     /**
      * Recognised, but with no multiplayer path built yet. These ROMs still
      * belong in the grid.
-     * pourquoi : docs/decisions/reglages-et-consoles.md § Les quatre familles de multijoueur
+     * pourquoi : docs/decisions/reglages-et-consoles.md § The four multiplayer families
      */
     NONE;
 
     /**
      * True where a room must be joined before the game boots. WFC is out: there
      * is no room at all, only a resolver.
-     * pourquoi : docs/decisions/reglages-et-consoles.md § Les quatre familles de multijoueur
+     * pourquoi : docs/decisions/reglages-et-consoles.md § The four multiplayer families
      */
     val hasNetplay: Boolean get() =
         this == AZAHAR || this == EDEN || this == DOLPHIN || this == ARMSX2
 
     /**
-     * The emulator's own name, **not** a translated string: product names are
+     * The emulator's own name, not a translated string: product names are
      * the same everywhere. Hardcoding one made a Switch session announce Azahar.
-     * pourquoi : docs/decisions/reglages-et-consoles.md § Le nom réseau est un contrat, jamais un libellé
+     * pourquoi : docs/decisions/reglages-et-consoles.md § The network name is a contract, never a label
      */
     /**
      * The port this emulator's netplay listens on: 24872 for Azahar and Eden,
      * 2626 for Dolphin. The wrong one reads as a broken tunnel.
-     * pourquoi : docs/decisions/reglages-et-consoles.md § Le port fait partie du plan
+     * pourquoi : docs/decisions/reglages-et-consoles.md § The port is part of the plan
      */
     val defaultNetplayPort: Int
         get() = when (this) {

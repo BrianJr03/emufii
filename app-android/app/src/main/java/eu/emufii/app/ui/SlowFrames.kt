@@ -7,11 +7,10 @@ import androidx.compose.runtime.remember
 import kotlinx.coroutines.delay
 
 /**
- * L'horloge lente : **une seule pour tout ce qui bouge en permanence**.
- *
- * Ne pas en creer une seconde — ce qui coute n'est pas combien on dessine, mais
- * combien de fois. Immobile si le systeme a coupe les animations.
- * pourquoi : docs/decisions/performance-rendu.md § Une seule horloge pour tout ce qui bouge en permanence
+ * The one slow clock for everything that moves continuously. Do not add a
+ * second: the cost is how often we draw, not how much. Frozen when the system
+ * has animations off.
+ * pourquoi : docs/decisions/performance-rendu.md § One clock for everything that moves continuously
  */
 @Composable
 fun rememberSlowMillis(): Double {
@@ -19,19 +18,10 @@ fun rememberSlowMillis(): Double {
 
     val millis = remember { mutableLongStateOf(0L) }
     LaunchedEffect(Unit) {
-        // **`delay`, et surtout pas `withInfiniteAnimationFrameNanos`.**
-        //
-        // Celui-ci rappelle à *chaque image de l'écran* — 120 fois par seconde
-        // sur la Thor — même quand on n'écrit rien. Le rappel maintient la
-        // boucle d'images éveillée : l'app ne s'endort jamais, et la cadence
-        // qu'on croit régler ne gate que l'écriture, pas le réveil. C'est ce qui
-        // faisait qu'abaisser le battement de 30 à 12 ne changeait rien du tout
-        // à la dépense — mesuré deux fois, 30 % dans les deux cas.
-        //
-        // `delay` dort. Entre deux battements l'app ne reçoit rien, ne mesure
-        // rien, ne recompose rien. L'animation n'est plus alignée sur la
-        // synchronisation verticale, et à douze battements par seconde pour un
-        // dégradé qui met dix-neuf secondes à traverser, cela ne se voit pas.
+        // `delay`, not `withInfiniteAnimationFrameNanos`: the latter calls back on
+        // every display frame (120 Hz on the Thor) even when nothing is written, and
+        // keeps the frame loop awake, so lowering the beat from 30 to 12 changed
+        // nothing at all. Measured twice, 30 % both times.
         val origin = System.nanoTime()
         while (true) {
             millis.longValue = (System.nanoTime() - origin) / 1_000_000
@@ -42,21 +32,11 @@ fun rememberSlowMillis(): Double {
 }
 
 /**
- * Le battement : douze fois par seconde.
- *
- * Choisi sur ce que les mouvements montrent, jamais sur ce que l'écran sait
- * faire. Le cycle du fond dure dix-neuf secondes, une onde
- * trente-cinq, et le dégradé du curseur fait un tour en 1,8 s : à 120 Hz, tous
- * avancent d'une fraction de pixel entre deux images. La fréquence n'achetait
- * aucune douceur, seulement de la chaleur.
+ * Twelve beats a second. The background cycle runs nineteen seconds, a wave
+ * thirty-five, the cursor gradient 1.8 s: at 120 Hz each advances a fraction of
+ * a pixel between frames.
  */
 private const val FRAME_INTERVAL_MS = 1_000L / 12
 
-/**
- * L'instant auquel tout se fige quand les animations sont coupées.
- *
- * Pas zéro : à zéro les ondes sont à leur naissance,
- * donc l'écran se fige sur la seule composition qui ne montre rien. Huit
- * secondes, c'est les ondes à mi-chemin.
- */
+/** Where everything freezes with animations off. Not zero: at zero the waves show nothing. */
 private const val FROZEN_MS = 8_000.0

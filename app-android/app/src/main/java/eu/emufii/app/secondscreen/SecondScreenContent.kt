@@ -140,7 +140,7 @@ import eu.emufii.app.ui.SilenceSystemSfx
 /**
  * What the second panel draws, whoever is holding the window.
  *
- * pourquoi : docs/decisions/second-ecran.md § Le panneau n'a pas de style à lui
+ * pourquoi : docs/decisions/second-ecran.md § The panel has no style of its own
  */
 @Composable
 fun SecondScreenContent(model: SecondScreenModel) {
@@ -148,9 +148,8 @@ fun SecondScreenContent(model: SecondScreenModel) {
     val dark = LocalEmufiiDarkTheme.current
     val page by SecondScreen.page.collectAsState()
 
-    // Deux ecoutes, une par ecran : le focus clavier va a une fenetre, pas a
-    // l'appareil, et le panneau est tactile depuis qu'il porte les etapes.
-    // pourquoi : docs/decisions/second-ecran.md § R tourne la page depuis les deux écrans
+    // One listener per screen: keyboard focus goes to a window, not to the device.
+    // pourquoi : docs/decisions/second-ecran.md § R turns the page from both screens
     val keys = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { keys.requestFocus() } }
 
@@ -159,9 +158,7 @@ fun SecondScreenContent(model: SecondScreenModel) {
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
             .focusRequester(keys)
-            // Focalisable sans etre focalisable a la croix : ce n'est pas une
-            // destination de curseur, c'est une oreille. Rien ici ne se
-            // selectionne.
+            // Focusable, but not a cursor destination: this is an ear, not a stop.
             .focusProperties { canFocus = true }
             .focusable()
             .onKeyEvent { event ->
@@ -177,13 +174,11 @@ fun SecondScreenContent(model: SecondScreenModel) {
         // than shown through.
         TrayBackdrop(modifier = Modifier.fillMaxSize(), dark = dark)
 
-        // Toutes les faces se centrent au meme endroit : un fondu croise ne
-        // tolere pas deux geometries.
-        // pourquoi : docs/decisions/second-ecran.md § Toutes les faces se centrent au même endroit
+        // Every face centres in the same place: a crossfade tolerates only one
+        // geometry.
+        // pourquoi : docs/decisions/second-ecran.md § Every face centres in the same place
         Column(modifier = Modifier.fillMaxSize()) {
-            // The panel reports on the app as well as on the game, and both
-            // bands are permanent: the eye learns where a thing appears once
-            // and stops searching for it.
+            // Both bands are permanent, so the eye learns where a thing is said.
             PanelHeader(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -198,21 +193,18 @@ fun SecondScreenContent(model: SecondScreenModel) {
 
                     .padding(start = 36.dp, end = 36.dp, top = 10.dp)
             ) {
-                // Cle sur l'identite du jeu, pas sur le modele : les faits
-                // tardifs se remplissent sans dissoudre une face en elle-meme.
-                // Et `fillMaxSize`, sinon la face qui part se recentre dans une
-                // boite qui n'est plus la sienne.
-                // pourquoi : docs/decisions/second-ecran.md § Le fondu entre deux faces n'est pas une décoration
-                // pourquoi : docs/decisions/second-ecran.md § Toutes les faces se centrent au même endroit
+                // Keyed on the game's identity, not the model: late facts fill in
+                // without dissolving a face.
+                // pourquoi : docs/decisions/second-ecran.md § The fade between two faces is not decoration
+                // pourquoi : docs/decisions/second-ecran.md § Every face centres in the same place
                 Crossfade(
                     targetState = faceKey(model),
                     animationSpec = tween(220),
                     label = "panel-face",
                     modifier = Modifier.fillMaxSize()
                 ) { key ->
-                    // The model is read here rather than captured with the key:
-                    // during a fade the outgoing face is still composed, and it
-                    // must not redraw itself with the incoming face's content.
+                    // Read here, not captured with the key: during a fade the outgoing
+                    // face is still composed.
                     val shown = remember(key) { model }
                     Box(
                         contentAlignment = Alignment.Center,
@@ -220,34 +212,29 @@ fun SecondScreenContent(model: SecondScreenModel) {
                     ) {
                         when (shown) {
                             is SecondScreenModel.Idle -> Idle()
-                            // Live, not frozen: every console shares one key, so
-                            // the remembered value would never change its text.
-                            // pourquoi : docs/decisions/second-ecran.md § La console se lit en direct, les autres faces sont gelées
+                            // Live, not frozen: every console shares one key, so a
+                            // remembered value never changes.
+                            // pourquoi : docs/decisions/second-ecran.md § The console is read live, the other faces are frozen
                             is SecondScreenModel.ConsoleFolder -> ConsoleCard(
                                 (model as? SecondScreenModel.ConsoleFolder)?.console
                                     ?: shown.console
                             )
                             is SecondScreenModel.Browsing -> BrowsingPages(shown, page)
-                            // En direct, comme la fiche console : toutes les
-                            // entrees partagent une cle de face, donc la valeur
-                            // gelee resterait sur la premiere visee.
-                            // pourquoi : docs/decisions/second-ecran.md § La console se lit en direct, les autres faces sont gelées
+                            // Live, like the console card: every entry shares one face
+                            // key.
+                            // pourquoi : docs/decisions/second-ecran.md § The console is read live, the other faces are frozen
                             is SecondScreenModel.SettingsEntry -> SettingsFace(
                                 (model as? SecondScreenModel.SettingsEntry) ?: shown
                             )
                             is SecondScreenModel.Friends -> FriendsFace(
-                                // En direct, comme la fiche console : la liste
-                                // change pendant qu'on la regarde — quelqu'un se
-                                // connecte, quelqu'un lance un jeu — et la valeur
-                                // gelee sur la cle de face resterait sur l'etat du
-                                // moment de l'ouverture.
-                                // pourquoi : docs/decisions/second-ecran.md § La console se lit en direct, les autres faces sont gelées
+                                // Live: the list changes while you watch it, as people
+                                // connect and disconnect.
+                                // pourquoi : docs/decisions/second-ecran.md § The console is read live, the other faces are frozen
                                 (model as? SecondScreenModel.Friends) ?: shown
                             )
                             is SecondScreenModel.Asking -> AskingFace(
-                                // En direct : la question peut changer sans que
-                                // la couche modale se ferme — l'interrupteur de
-                                // session privee reecrit sa propre consequence.
+                                // Live: the question can change without the modal layer
+                                // closing.
                                 (model as? SecondScreenModel.Asking) ?: shown
                             )
                             is SecondScreenModel.InSession -> InSession(shown)
@@ -268,30 +255,25 @@ fun SecondScreenContent(model: SecondScreenModel) {
 
 /**
  * What counts as a different face, for the fade: identity, not content.
- * pourquoi : docs/decisions/second-ecran.md § Le fondu entre deux faces n'est pas une décoration
+ * pourquoi : docs/decisions/second-ecran.md § The fade between two faces is not decoration
  */
 private fun faceKey(model: SecondScreenModel): String = when (model) {
     is SecondScreenModel.Idle -> "idle"
-    // Every console shares one key: the card must not be replaced when the
-    // cursor moves from one folder to the next, because it animates that change
-    // itself — see [ConsoleCard]. The outer fade is for changing *face*.
+    // One key for every console: the card resizes between folders rather than being
+    // replaced.
     is SecondScreenModel.ConsoleFolder -> "console"
-    // Une seule cle pour toutes les entrees : la face ne doit pas etre
-    // remplacee quand le curseur passe d'une case a la voisine — c'est le
-    // meme objet qui change de contenu, pas une autre face.
+    // One key for every entry: the face must not be replaced when the cursor moves.
     is SecondScreenModel.SettingsEntry -> "settings"
     is SecondScreenModel.Browsing -> "rom:${model.rom.uri}"
     is SecondScreenModel.Friends -> "friends"
-    // Une seule cle : le contenu de la question change en place (l'interrupteur
-    // de session privee reecrit sa consequence), et remplacer la face a chaque
-    // mot ferait clignoter le panneau.
+    // One key: the question's content changes in place.
     is SecondScreenModel.Asking -> "asking"
     is SecondScreenModel.InSession -> "session:${model.code}"
 }
 
 /**
  * The band across the top: are we reachable, and is there any news.
- * pourquoi : docs/decisions/second-ecran.md § La lumière de service a sa propre couleur
+ * pourquoi : docs/decisions/second-ecran.md § The service light has its own colour
  */
 @Composable
 private fun PanelHeader(modifier: Modifier = Modifier) {
@@ -306,9 +288,8 @@ private fun PanelHeader(modifier: Modifier = Modifier) {
 }
 
 /**
- * Where the news comes out. It leaves on its own: nothing here can be
- * dismissed, so anything needing acknowledgement would stay forever.
- * pourquoi : docs/decisions/second-ecran.md § Les nouvelles arrivent d'en haut et repartent seules
+ * It leaves on its own: nothing here can be dismissed.
+ * pourquoi : docs/decisions/second-ecran.md § News arrives from above and leaves by itself
  */
 @Composable
 private fun NoteStrip(modifier: Modifier = Modifier) {
@@ -316,8 +297,8 @@ private fun NoteStrip(modifier: Modifier = Modifier) {
     val dark = LocalEmufiiDarkTheme.current
     val oled = LocalEmufiiOledTheme.current
 
-    // Retired by the note's own id, so the friend who came online a second
-    // later is not swept away with the one before them.
+    // Retired by the note's own id, so a later note is not swept away with the one
+    // before.
     LaunchedEffect(note?.id) {
         val shown = note ?: return@LaunchedEffect
         delay(NOTE_LIFETIME_MS)
@@ -334,8 +315,8 @@ private fun NoteStrip(modifier: Modifier = Modifier) {
         modifier = modifier
     ) { shown ->
         if (shown == null) {
-            // Nothing to say takes no room and leaves no empty plate: a strip
-            // sitting there greyed out reads as a thing that is broken.
+            // Nothing to say takes no room: a greyed strip reads as something that is
+            // broken.
             Box(Modifier.fillMaxWidth().height(1.dp))
         } else {
             Row(
@@ -365,15 +346,13 @@ private fun Idle() {
     val dark = LocalEmufiiDarkTheme.current
     val axis = if (dark) Teal.darkBright else Teal.deep
 
-    // Une marque, pas un vide avec un numero dedans : cette face parait
-    // plusieurs fois par minute depuis que le curseur monte dans l'en-tete.
-    // pourquoi : docs/decisions/second-ecran.md § La marque au repos est une marque, pas un vide avec un numéro dedans
+    // A mark, not a void with a number in it: this face appears many times a minute.
+    // pourquoi : docs/decisions/second-ecran.md § The resting mark is a mark, not an emptiness with a number in it
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(22.dp)
     ) {
-        // Le vrai logo, pas une citation dessinee a la main : une marque
-        // approchee posee a cote de la vraie se lit comme un logo rate.
+        // The real logo: an approximation next to the real one reads as a mistake.
         Image(
             painter = painterResource(R.drawable.emufii_logo_v3),
             contentDescription = null,
@@ -386,13 +365,11 @@ private fun Idle() {
             Text(
                 stringResource(R.string.app_name),
                 style = MaterialTheme.typography.headlineMedium,
-                // Dimmed on purpose: at rest this panel is the least interesting
-                // thing in the room, not a second logo competing with the front
-                // screen.
+                // At rest this panel is the least interesting thing in the room.
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             // A step smaller and dimmer than the name: a footnote to it.
-            // pourquoi : docs/decisions/second-ecran.md § La version s'affiche sur la face au repos
+            // pourquoi : docs/decisions/second-ecran.md § The version is shown on the resting face
             Text(
                 stringResource(R.string.panel_idle_version, BuildConfig.VERSION_NAME),
                 style = MaterialTheme.typography.labelLarge,
@@ -406,7 +383,7 @@ private fun Idle() {
  * The cursor is on a console's folder: what playing together means on that
  * machine. The machine's name leads, then two lines, then a warning if it has
  * one.
- * pourquoi : docs/decisions/second-ecran.md § La fiche console : ce qu'elle dit, et ce qu'elle ne dit pas
+ * pourquoi : docs/decisions/second-ecran.md § The console card: what it says, and what it does not
  */
 @Composable
 private fun ConsoleCard(console: Console) {
@@ -415,14 +392,13 @@ private fun ConsoleCard(console: Console) {
 
     // One plate that stays and is resized, never replaced. Centred, so it
     // opens from its middle in both directions.
-    // pourquoi : docs/decisions/second-ecran.md § La fiche console est une plaque qui grandit, pas une plaque qu'on remplace
+    // pourquoi : docs/decisions/second-ecran.md § The console card is a plate that grows, not a plate that gets replaced
     AnimatedContent(
         targetState = console,
         transitionSpec = {
             (fadeIn(tween(200, delayMillis = 80)) togetherWith fadeOut(tween(140)))
-                // The frame takes longer than the text on purpose: the words are
-                // gone before the plate has finished travelling, so nothing is
-                // ever read while it moves.
+                // The frame outlasts the text, so the words are gone before the plate
+                // stops moving.
                 .using(SizeTransform(clip = false) { _, _ -> tween(280) })
         },
         label = "console-card",
@@ -457,7 +433,7 @@ private fun ConsoleCard(console: Console) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // A bar, never a warning triangle: this panel does not shout.
-                    // pourquoi : docs/decisions/second-ecran.md § Le panneau ne crie pas
+                    // pourquoi : docs/decisions/second-ecran.md § The panel does not shout
                     Box(
                         modifier = Modifier
                             .width(3.dp)
@@ -477,11 +453,8 @@ private fun ConsoleCard(console: Console) {
 }
 
 /**
- * Le curseur est sur une case du hub des reglages : la meme chose, en grand.
- *
- * Le panneau complete, il ne prend rien a personne. Un fondu croise et pas un
- * glissement : le hub est un tableau, pas une suite ordonnee.
- * pourquoi : docs/decisions/second-ecran.md § La face du hub complète, elle ne prend rien
+ * The settings hub's tile, shown large. The panel completes, it takes nothing away.
+ * pourquoi : docs/decisions/second-ecran.md § The hub face completes, it takes nothing
  */
 @Composable
 private fun SettingsFace(model: SecondScreenModel.SettingsEntry) {
@@ -493,9 +466,8 @@ private fun SettingsFace(model: SecondScreenModel.SettingsEntry) {
     }
     val axis = if (model.social) Coral.bright else Teal.bright
 
-    // Hauteur constante par construction : chaque texte a son compte de lignes
-    // fige, sinon la marque remonte a chaque mouvement du curseur.
-    // pourquoi : docs/decisions/second-ecran.md § Toutes les faces se centrent au même endroit
+    // Constant height by construction: each text has a fixed line count.
+    // pourquoi : docs/decisions/second-ecran.md § Every face centres in the same place
     Crossfade(
         targetState = model,
         animationSpec = tween(180),
@@ -506,8 +478,7 @@ private fun SettingsFace(model: SecondScreenModel.SettingsEntry) {
             verticalArrangement = Arrangement.spacedBy(14.dp),
             modifier = Modifier.fillMaxWidth(0.86f)
         ) {
-            // La marque dans son encoche, comme sur la tuile de face — a la
-            // taille du panneau. Une icone nue a cette echelle flotte.
+            // The mark in its socket, as on the front tile, at panel scale.
             Box(
                 modifier = Modifier
                     .size(84.dp)
@@ -534,7 +505,6 @@ private fun SettingsFace(model: SecondScreenModel.SettingsEntry) {
                 maxLines = SUMMARY_LINES,
                 overflow = TextOverflow.Ellipsis
             )
-            // Le chemin, en dernier et en petit : il situe, il ne titre pas.
             Text(
                 shown.root + "  ›  " + shown.title,
                 style = MaterialTheme.typography.labelMedium,
@@ -549,10 +519,8 @@ private fun SettingsFace(model: SecondScreenModel.SettingsEntry) {
 
 
 /**
- * Ce que le panneau montre pendant qu'une couche modale attend devant :
- * **il repete la question, il n'en pose pas une autre**. Un rond, un titre,
- * une ligne — la reponse se donne sur l'ecran de face.
- * pourquoi : docs/decisions/second-ecran.md § La face d'une question répète, elle n'en pose pas une autre
+ * It repeats the question, it does not ask one.
+ * pourquoi : docs/decisions/second-ecran.md § A question's face repeats, it does not ask another
  */
 @Composable
 private fun AskingFace(model: SecondScreenModel.Asking) {
@@ -597,11 +565,7 @@ private fun AskingFace(model: SecondScreenModel.Asking) {
     }
 }
 
-/**
- * Le point d'interrogation, dessine plutot qu'ecrit : un caractere prendrait
- * la police du texte, son italique et ses metriques, dans une pastille ou les
- * trois se voient. Chaque symbole de cette app est trace par son fichier.
- */
+/** Drawn rather than typed: a character would take the text font and its italic. */
 @Composable
 private fun AskGlyph(tint: Color) {
     Canvas(Modifier.size(30.dp)) {
@@ -618,16 +582,9 @@ private fun AskGlyph(tint: Color) {
     }
 }
 
-/**
- * Combien de lignes le resume occupe, remplies ou non.
- *
- * Deux : c'est le plus long des sept resumes des reglages une fois mis a la
- * largeur du panneau. Une troisieme ne servirait a personne et creuserait un
- * trou sous les six autres.
- */
+/** Two: the longest of the seven settings summaries once wrapped. */
 private const val SUMMARY_LINES = 2
 
-/** La marque nommee par le modele, dessinee ici. Voir [PanelMark]. */
 @Composable
 private fun PanelMarkGlyph(mark: PanelMark, tint: Color) {
     val size = 38.dp
@@ -648,10 +605,8 @@ private fun PanelMarkGlyph(mark: PanelMark, tint: Color) {
 }
 
 /**
- * The game, on two pages, the second reached from the *front* screen.
- *
- * Sliding rather than cross-fading: the page arrives the way the player asked.
- * pourquoi : docs/decisions/second-ecran.md § La face de survol : deux pages, la seconde vraiment optionnelle
+ * Two pages, the second reached from the front screen. Sliding, not cross-fading.
+ * pourquoi : docs/decisions/second-ecran.md § The hover face: two pages, the second genuinely optional
  */
 @Composable
 private fun BrowsingPages(model: SecondScreenModel.Browsing, page: Int) {
@@ -671,7 +626,7 @@ private fun BrowsingPages(model: SecondScreenModel.Browsing, page: Int) {
 
 /**
  * The game under the cursor: its box on the left, what we know of it on the right.
- * pourquoi : docs/decisions/second-ecran.md § La face de survol : deux pages, la seconde vraiment optionnelle
+ * pourquoi : docs/decisions/second-ecran.md § The hover face: two pages, the second genuinely optional
  */
 @Composable
 private fun Browsing(model: SecondScreenModel.Browsing) {
@@ -683,7 +638,7 @@ private fun Browsing(model: SecondScreenModel.Browsing) {
             modifier = Modifier.fillMaxWidth().align(Alignment.Center)
         ) {
             // The control sits under the thing it acts on, not mid-panel.
-            // pourquoi : docs/decisions/second-ecran.md § Le contrôle appartient à ce sur quoi il agit
+            // pourquoi : docs/decisions/second-ecran.md § A control belongs to what it acts on
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(14.dp),
@@ -720,14 +675,13 @@ private fun Browsing(model: SecondScreenModel.Browsing) {
                     }
                 }
                 // Absent halves are not printed: nothing here is guessed.
-                // pourquoi : docs/decisions/second-ecran.md § La face de survol : deux pages, la seconde vraiment optionnelle
+                // pourquoi : docs/decisions/second-ecran.md § The hover face: two pages, the second genuinely optional
                 DumpLine(model)
             }
         }
     }
 }
 
-/** Region, revision and genre, on one engraved line. Nothing when nothing is known. */
 @Composable
 private fun DumpLine(model: SecondScreenModel.Browsing) {
     val parts = listOfNotNull(
@@ -747,7 +701,7 @@ private fun DumpLine(model: SecondScreenModel.Browsing) {
 /**
  * The second page: what the game is, rather than which file it is. Everything
  * here is editorial and can be missing; nothing is claimed.
- * pourquoi : docs/decisions/second-ecran.md § La face de survol : deux pages, la seconde vraiment optionnelle
+ * pourquoi : docs/decisions/second-ecran.md § The hover face: two pages, the second genuinely optional
  */
 @Composable
 private fun Details(model: SecondScreenModel.Browsing) {
@@ -755,7 +709,7 @@ private fun Details(model: SecondScreenModel.Browsing) {
     val meta = model.meta
 
     // Laid out to fit, never to scroll; the paragraph yields its lines first.
-    // pourquoi : docs/decisions/second-ecran.md § Rien ne défile, donc tout doit tenir
+    // pourquoi : docs/decisions/second-ecran.md § Nothing scrolls, so everything has to fit
     Column(
         verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.fillMaxSize()
@@ -770,9 +724,7 @@ private fun Details(model: SecondScreenModel.Browsing) {
 
         val facts = listOfNotNull(
             meta?.genreFor(locale),
-            // The year alone. A glance at a panel is answering "how old is
-            // this", and `2016-01-21` makes the eye parse a date to get to a
-            // number that was already there.
+            // The year alone: `2016-01-21` makes the eye parse a date at a glance.
             meta?.released?.take(4)?.let { stringResource(R.string.panel_released, it) },
             model.tags.line(),
         )
@@ -795,8 +747,8 @@ private fun Details(model: SecondScreenModel.Browsing) {
             }
         }
 
-        // The pictures already on the card come first; the catalogue's links
-        // only fill in for a game Cocoon has never seen.
+        // The card's own pictures first; the catalogue only fills in for a game Cocoon
+        // never saw.
         val local = rememberCocoonStills(model.rom)
         val stills = local.ifEmpty { meta?.screenshots.orEmpty() }
         val summary = meta?.summaryFor(locale)
@@ -808,15 +760,12 @@ private fun Details(model: SecondScreenModel.Browsing) {
                         summary,
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurface,
-                        // Fewer lines when there are pictures to leave room for.
-                        // A synopsis is a taste, not a manual read at arm's
-                        // length under the player's hands.
+                        // Fewer lines when pictures need the room: a synopsis is a
+                        // taste, not a manual.
                         maxLines = if (stills.isEmpty()) 9 else 5,
                         overflow = TextOverflow.Ellipsis
                     )
-                    // Whose words these are. The licence the text comes under
-                    // asks for it, and the panel has room for four quiet
-                    // characters.
+                    // The licence asks for it, and the panel has room.
                     meta.source?.let { source ->
                         Text(
                             source,
@@ -826,9 +775,7 @@ private fun Details(model: SecondScreenModel.Browsing) {
                     }
                 }
             } else if (stills.isEmpty() && (meta == null || meta.isEmpty(locale))) {
-                // Said only when the page really has nothing — pictures count.
-                // A page showing two stills and the sentence "nothing is known"
-                // is the app arguing with itself in front of the player.
+                // Only when the page really has nothing; pictures count.
                 Text(
                     stringResource(R.string.panel_details_unknown),
                     style = MaterialTheme.typography.bodyMedium,
@@ -848,10 +795,8 @@ private fun Details(model: SecondScreenModel.Browsing) {
 }
 
 /**
- * The language this window is drawn in, read off *this* window's configuration
- * rather than the process default — `Locale.getDefault()` would be right by
- * accident.
- * pourquoi : docs/decisions/second-ecran.md § La langue vient de la fenêtre, pas du processus
+ * Read off this window's configuration, never the process default.
+ * pourquoi : docs/decisions/second-ecran.md § The language comes from the window, not from the process
  */
 @Composable
 private fun panelLocale(): java.util.Locale {
@@ -862,12 +807,7 @@ private fun panelLocale(): java.util.Locale {
     }
 }
 
-/**
- * The stills Cocoon has already downloaded for this exact file, if any.
- *
- * Off the main thread: the folder listing is a real provider query, and it
- * happens while a page is turning.
- */
+/** Off the main thread: the folder listing is a disk read. */
 @Composable
 private fun rememberCocoonStills(rom: eu.emufii.app.library.Rom): List<Any> {
     val context = LocalContext.current
@@ -888,7 +828,6 @@ private fun rememberCocoonStills(rom: eu.emufii.app.library.Rom): List<Any> {
     return stills.value
 }
 
-/** A row of stills, each moulded into the tray like the cover is. */
 @Composable
 private fun Screenshots(urls: List<Any>) {
     val context = LocalContext.current
@@ -913,9 +852,8 @@ private fun Screenshots(urls: List<Any>) {
                     // screen cropped loses exactly the words printed on it.
                     contentScale = ContentScale.Fit,
                     placeholder = ColorPainter(Color.Transparent),
-                    // A still that will not load leaves the empty frame it was
-                    // going to fill, which is the shape this tray already uses
-                    // for nothing.
+                    // A still that will not load leaves its empty frame, the shape this
+                    // tray already uses.
                     error = ColorPainter(Color.Transparent),
                     modifier = Modifier.fillMaxSize().clip(ArtworkShape)
                 )
@@ -926,7 +864,7 @@ private fun Screenshots(urls: List<Any>) {
 
 /**
  * The way to the other page: an arrow on a cap, and the button that turns it.
- * pourquoi : docs/decisions/second-ecran.md § Le contrôle appartient à ce sur quoi il agit
+ * pourquoi : docs/decisions/second-ecran.md § A control belongs to what it acts on
  */
 @Composable
 private fun PageTurn(up: Boolean, label: String, modifier: Modifier = Modifier) {
@@ -957,7 +895,7 @@ private fun PageTurn(up: Boolean, label: String, modifier: Modifier = Modifier) 
 
 /**
  * The arrow, drawn rather than typed.
- * pourquoi : docs/decisions/second-ecran.md § La légende, et pourquoi les symboles sont dessinés
+ * pourquoi : docs/decisions/second-ecran.md § The legend, and why the symbols are drawn
  */
 @Composable
 private fun ArrowGlyph(tint: Color, up: Boolean) {
@@ -965,9 +903,7 @@ private fun ArrowGlyph(tint: Color, up: Boolean) {
         val w = size.width
         val h = size.height
         val stem = w * 0.26f
-        // A shaft and a head, the proportions of a moulded arrow on a shell:
-        // a head about half the height, and wide enough to be seen before it is
-        // recognised.
+        // A head about half the height, wide enough to read as moulded.
         drawRoundRect(
             color = tint,
             topLeft = Offset((w - stem) / 2f, 0f),
@@ -988,12 +924,11 @@ private fun ArrowGlyph(tint: Color, up: Boolean) {
  * The box, moulded onto the tray, its shadow tinted with the colour the artwork
  * gave up (`Rom.accentArgb`). No extracted tone: the tray's own shadow, and
  * nothing else changes.
- * pourquoi : docs/decisions/second-ecran.md § La jaquette est moulée dans le plateau, et son ombre est de sa couleur
+ * pourquoi : docs/decisions/second-ecran.md § The artwork is moulded into the board, and its shadow is its colour
  */
 /**
- * Les coins de la jaquette du panneau, en part de son cote et non en dp : elle
- * est la meme tuile que celles de la grille, dessinee 1,7 fois plus grand.
- * pourquoi : docs/decisions/second-ecran.md § Les coins de la jaquette suivent son échelle, pas sa mesure
+ * As a fraction of its side, not in dp: it is the same tile as the grid's.
+ * pourquoi : docs/decisions/second-ecran.md § The artwork's corners follow its scale, not its measurement
  */
 private val CoverShape = RoundedCornerShape(17)
 private val CoverArtworkShape = RoundedCornerShape(15)
@@ -1011,9 +946,7 @@ private fun Cover(model: SecondScreenModel.Browsing, modifier: Modifier = Modifi
     Box(
         modifier = modifier
             .aspectRatio(1f)
-            // The game's own tone, and it arrives as depth rather than as a
-            // wash over the chrome: a real offset shadow, in the colour the
-            // artwork gave up. A title with none casts the tray's own.
+            // The game's tone as depth, not a wash over the chrome.
             .shadow(
                 // On OLED the tray is truly off and a shadow draws nothing; the
                 // edge and bevel below carry the separation alone.
@@ -1023,9 +956,9 @@ private fun Cover(model: SecondScreenModel.Browsing, modifier: Modifier = Modifi
                 ambientColor = shadow.copy(alpha = if (dark) 0.55f else 0.30f),
                 spotColor = shadow.copy(alpha = if (dark) 0.75f else 0.42f)
             )
-            // A plate with the picture inset, not a rim: measured, a rim
-            // survives 0.38% of the cover's width here and vanishes.
-            // pourquoi : docs/decisions/second-ecran.md § La jaquette est moulée dans le plateau, et son ombre est de sa couleur
+            // A plate with the picture inset, not a rim: a rim survives 0.38% of the
+            // cover's width.
+            // pourquoi : docs/decisions/second-ecran.md § The artwork is moulded into the board, and its shadow is its colour
             .plate(CoverShape, dark = dark, oled = oled, lift = 0.dp)
             .padding(9.dp)
     ) {
@@ -1033,9 +966,7 @@ private fun Cover(model: SecondScreenModel.Browsing, modifier: Modifier = Modifi
             modifier = Modifier
                 .fillMaxSize()
                 .clip(CoverArtworkShape)
-                // White under the artwork in daylight, as the tiles do: box art
-                // of any colour has to read against something, and the tray is
-                // not it.
+                // White under the artwork in daylight, as the tiles do.
                 .background(tilePlateBrush(dark, oled))
                 // The picture keeps its own contour inside the frame, drawn over
                 // the image the way a tile does it.
@@ -1053,8 +984,7 @@ private fun Cover(model: SecondScreenModel.Browsing, modifier: Modifier = Modifi
                     modifier = Modifier.fillMaxSize()
                 )
             } else {
-                // No art: an empty slot rather than a broken picture, which is
-                // the shape this tray already uses for nothing.
+                // An empty slot rather than a broken picture.
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier.fillMaxSize().socket(CoverArtworkShape, dark)
@@ -1070,7 +1000,6 @@ private fun Cover(model: SecondScreenModel.Browsing, modifier: Modifier = Modifi
     }
 }
 
-/** The machine, engraved into the tray: a label on the shell, not an object on it. */
 @Composable
 private fun ConsoleBadge(console: Console) {
     val dark = LocalEmufiiDarkTheme.current
@@ -1086,7 +1015,7 @@ private fun ConsoleBadge(console: Console) {
 
 /**
  * A session is up, and the code is the whole point. It carries no label.
- * pourquoi : docs/decisions/second-ecran.md § Le code de session ne porte pas d'étiquette
+ * pourquoi : docs/decisions/second-ecran.md § The session code carries no label
  */
 @Composable
 private fun InSession(model: SecondScreenModel.InSession) {
@@ -1095,24 +1024,18 @@ private fun InSession(model: SecondScreenModel.InSession) {
     val accent = LocalAccent.current
     val steps by SecondScreen.steps.collectAsState()
 
-    // Une seule colonne : coupee en deux, chaque moitie tombait a 268 dp et le
-    // port s'ecrivait un chiffre par ligne.
-    // pourquoi : docs/decisions/second-ecran.md § Une seule colonne, et le code prend toute la largeur
+    // One column: split, each half fell to 268 dp and the port wrapped one digit per
+    // line.
+    // pourquoi : docs/decisions/second-ecran.md § One column, and the code takes the whole width
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(14.dp),
-        // **Aucune compensation de hauteur.** Il y en avait une — 62 dp de creux
-        // en bas — au motif que la legende de cette face est vide et que son
-        // centre tombait donc plus bas que celui des autres. Ce n'est plus vrai :
-        // la bande de legende garde sa hauteur meme vide, et la boite qui centre
-        // les faces l'exclut deja. Les 62 dp remontaient donc la colonne de 31,
-        // mesures a la capture du panneau : le contenu tenait dans les deux tiers
-        // hauts et laissait un vide de la hauteur d'un bouton sous lui.
-        // pourquoi : docs/decisions/second-ecran.md § Les deux bandes sont permanentes, la légende comprise
+        // No height compensation: the 62 dp hollow was there for a legend this face
+        // does not draw.
+        // pourquoi : docs/decisions/second-ecran.md § Both bands are permanent, the legend included
         modifier = Modifier.fillMaxWidth()
     ) {
-        // La console et le jeu sur une meme ligne : deux etiquettes de ce que
-        // la session est, et aucune des deux ne merite sa rangee.
+        // Console and game on one line: two labels of what the session is.
         Row(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -1130,10 +1053,7 @@ private fun InSession(model: SecondScreenModel.InSession) {
             }
         }
 
-        // Ten of lift rather than the usual four: this is the one object on the
-        // screen and it has to read as such from across a room. **Jamais sur
-        // deux lignes** : un code coupe en deux n'est plus un code, c'est deux
-        // morceaux qu'il faut recoller a voix haute.
+        // Ten of lift rather than four: this is the one object on the screen.
         Box(
             modifier = Modifier
                 .plate(CardShape, dark = dark, oled = oled, lift = 10.dp)
@@ -1144,8 +1064,8 @@ private fun InSession(model: SecondScreenModel.InSession) {
                 model.code,
                 fontSize = codeSize,
                 lineHeight = codeSize * 1.05f,
-                // Monospace : a distance, un 2 et un Z se distinguent par la
-                // largeur de leur trace autant que par sa forme.
+                // Monospace: at a distance a 2 and a Z differ by stroke width as much
+                // as by shape.
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Black,
                 letterSpacing = 3.sp,
@@ -1157,7 +1077,7 @@ private fun InSession(model: SecondScreenModel.InSession) {
         }
 
         // Engraved, not plated: a reference to read off, not an object to reach for.
-        // pourquoi : docs/decisions/second-ecran.md § Le code de session ne porte pas d'étiquette
+        // pourquoi : docs/decisions/second-ecran.md § The session code carries no label
         if (model.hostAddress != null || model.port != null) {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 model.hostAddress?.let { Fact(stringResource(R.string.session_host_address), it) }
@@ -1165,18 +1085,12 @@ private fun InSession(model: SecondScreenModel.InSession) {
             }
         }
 
-        // Les commandes cote a cote, et la manette en designe une par un index
-        // qui voyage par le singleton : le focus ne traverse pas les fenetres.
-        // pourquoi : docs/decisions/second-ecran.md § Une seule colonne, et le code prend toute la largeur
+        // The pad aims with an index carried by the singleton: focus does not cross
+        // windows.
+        // pourquoi : docs/decisions/second-ecran.md § One column, and the code takes the whole width
         if (steps.isNotEmpty()) {
             val stepCursor by SecondScreen.stepCursor.collectAsState()
-            // `IntrinsicSize.Min` : les deux plaques prennent la hauteur du plus
-            // long des deux libelles. C'etait une hauteur fixe, pour qu'un
-            // libelle sur deux lignes ne fasse pas grandir sa plaque a cote de sa
-            // voisine — la paire se serait lue comme deux boutons de rangs
-            // differents. La hauteur commune tient cette promesse sans plafonner
-            // le texte : « 1. Paramétrage automatique de Dolphin » ne rentrait pas
-            // et se coupait en plein mot.
+            // `IntrinsicSize.Min`: both plates take the height of the longer label.
             Row(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.fillMaxWidth().padding(top = 2.dp).height(IntrinsicSize.Min)
@@ -1190,18 +1104,13 @@ private fun InSession(model: SecondScreenModel.InSession) {
 }
 
 /**
- * La liste d'amis, au dos.
- *
- * Deux colonnes des que ca depasse cinq : le panneau est large et court, et une
- * colonne de dix rangees deborderait la boite centree, qui rogne en silence.
- * pourquoi : docs/decisions/second-ecran.md § La liste d'amis descend au dos, les deux cartes restent devant
+ * Two columns past five: the panel is wide and short.
+ * pourquoi : docs/decisions/second-ecran.md § The friends list goes to the back, both cards stay in front
  */
 @Composable
 private fun FriendsFace(model: SecondScreenModel.Friends) {
-    // La question de retrait vit **ici**, pas sur l'ecran de face : le doigt
-    // vient de presser au dos, et une question posee de l'autre cote de la
-    // machine ne se voit pas.
-    // pourquoi : docs/decisions/second-ecran.md § La liste d'amis descend au dos, les deux cartes restent devant
+    // The removal question lives here, where the finger just pressed.
+    // pourquoi : docs/decisions/second-ecran.md § The friends list goes to the back, both cards stay in front
     var confirming by remember { mutableStateOf<PanelFriend?>(null) }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -1209,8 +1118,7 @@ private fun FriendsFace(model: SecondScreenModel.Friends) {
             verticalArrangement = Arrangement.spacedBy(14.dp),
             modifier = Modifier.fillMaxSize()
         ) {
-            // En haut a gauche, et en gras : c'est le nom de ce que la face
-            // porte, pas une legende posee au-dessus d'un objet centre.
+            // The name of what the face carries, not a caption over an object.
             Text(
                 stringResource(R.string.friends_panel_title),
                 style = MaterialTheme.typography.titleLarge,
@@ -1227,11 +1135,7 @@ private fun FriendsFace(model: SecondScreenModel.Friends) {
                 return@Column
             }
 
-            // **Deux colonnes, toujours.** Une casse ne depasse jamais la moitie
-            // de l'ecran : a pleine largeur, un nom et deux mots s'etalent sur
-            // 500 dp et la rangee se lit comme une barre. Avec un seul ami, la
-            // colonne de droite reste vide plutot que de laisser la casse
-            // grandir.
+            // Always two columns: a full-width name and two words never fill the panel.
             val half = (model.entries.size + 1) / 2
             Row(
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
@@ -1262,12 +1166,9 @@ private fun FriendsFace(model: SecondScreenModel.Friends) {
 }
 
 /**
- * La question, posee sur le panneau lui-meme.
- *
- * Pas un `Dialog` : une fenetre de dialogue appartient a l'ecran qui la lance,
- * et celle-ci s'ouvrirait devant le joueur au lieu de sous ses pouces. C'est un
- * voile et une plaque, dans la fenetre du panneau.
- * pourquoi : docs/decisions/second-ecran.md § La liste d'amis descend au dos, les deux cartes restent devant
+ * Asked on the panel itself, never a `Dialog`: that belongs to the window that opens
+ * it.
+ * pourquoi : docs/decisions/second-ecran.md § The friends list goes to the back, both cards stay in front
  */
 @Composable
 private fun PanelConfirm(friend: PanelFriend, onCancel: () -> Unit, onConfirm: () -> Unit) {
@@ -1276,7 +1177,6 @@ private fun PanelConfirm(friend: PanelFriend, onCancel: () -> Unit, onConfirm: (
     Box(
         modifier = Modifier
             .fillMaxSize()
-            // Le plateau s'assombrit, il ne se givre pas.
             .background(InkText.copy(alpha = if (dark) 0.74f else 0.62f))
             .tap(
                 interactionSource = remember { MutableInteractionSource() },
@@ -1319,7 +1219,6 @@ private fun PanelConfirm(friend: PanelFriend, onCancel: () -> Unit, onConfirm: (
     }
 }
 
-/** Un ami : son avatar, son nom avec son point, ce qu'il fait, et la croix. */
 @Composable
 private fun PanelFriendRow(friend: PanelFriend, onRemove: () -> Unit) {
     val dark = LocalEmufiiDarkTheme.current
@@ -1333,8 +1232,7 @@ private fun PanelFriendRow(friend: PanelFriend, onRemove: () -> Unit) {
     ) {
         Avatar(name = friend.name, size = 34.dp)
         Column(modifier = Modifier.weight(1f)) {
-            // Le point de presence contre le pseudo, et non a l'autre bout de la
-            // casse : c'est une propriete de la personne, pas une colonne.
+            // Against the name, not at the far end: it is a property of the person.
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -1365,9 +1263,8 @@ private fun PanelFriendRow(friend: PanelFriend, onRemove: () -> Unit) {
                 overflow = TextOverflow.Ellipsis
             )
         }
-        // 48 dp : la cible faisait 38, sous le minimum, et c'est le seul endroit
-        // du panneau ou une erreur de visee retire quelqu'un de la liste d'amis.
-        // La croix reste a 16 — on agrandit la zone, pas le symbole.
+        // 48 dp: the target was 38, under the minimum, and a miss here removes a
+        // friend.
         Box(
             modifier = Modifier
                 .size(48.dp)
@@ -1381,21 +1278,13 @@ private fun PanelFriendRow(friend: PanelFriend, onRemove: () -> Unit) {
 }
 
 /**
- * Une etape, pressee au dos.
- *
- * Le meme dessin que sur l'ecran de face — plaque d'action, verte et cochee une
- * fois faite — parce que c'est le meme geste : un joueur qui apprend le bouton
- * devant doit le reconnaitre derriere.
- * pourquoi : docs/decisions/second-ecran.md § Le panneau prend les etapes, parce qu'il est tactile
+ * The same drawing as on the front screen: an action plate, green and ticked once done.
+ * pourquoi : docs/decisions/second-ecran.md § The panel takes the steps, because it is touch
  */
 @Composable
 private fun StepButton(step: PanelStep, selected: Boolean, modifier: Modifier = Modifier) {
     val dark = LocalEmufiiDarkTheme.current
-    // L'anneau de selection est **le meme dessin que partout ailleurs** —
-    // trait et halo de focusRing — pose autour de la plaque, dans une marge
-    // reservee. Un contour maison colle au bouton mordait le libelle ; ici
-    // l'anneau flotte a distance comme il flotte autour des commandes de
-    // l'ecran de face.
+    // The same ring as everywhere else, stroke and glow from focusRing.
     Box(
         modifier = modifier
             .padding(6.dp)
@@ -1405,10 +1294,9 @@ private fun StepButton(step: PanelStep, selected: Boolean, modifier: Modifier = 
             onClick = sounded(step.onPress),
             enabled = step.enabled,
             shape = ActionShape,
-            // Une etape verrouillee garde une plaque et une encre franches :
-            // elle n'est pas hors service, elle est **la suivante**. C'est
-            // l'absence d'anneau qui dit qu'on ne peut pas encore la presser.
-            // pourquoi : docs/decisions/second-ecran.md § Une étape verrouillée doit rester lisible à bout de bras
+            // A locked step keeps a solid plate and ink: it is not out of order, it is
+            // next.
+            // pourquoi : docs/decisions/second-ecran.md § A locked step has to stay readable at arm's length
             colors = if (step.done) {
                 ButtonDefaults.buttonColors(containerColor = if (dark) GoodDark else GoodLight)
             } else {
@@ -1419,18 +1307,13 @@ private fun StepButton(step: PanelStep, selected: Boolean, modifier: Modifier = 
                         MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f)
                 )
             },
-            // Les 24 dp de Material de chaque cote sont regles pour un bouton de
-            // dialogue, pas pour deux plaques qui se partagent la largeur d'un
-            // panneau : ils prenaient un tiers de la place du libelle.
+            // Material's 24 dp are set for a dialog button, not two plates sharing a
+            // row.
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
-            // Le plancher, pas la mesure : la rangee donne la hauteur commune.
             modifier = Modifier.fillMaxWidth().fillMaxHeight().heightIn(min = 64.dp)
         ) {
-            // **La coche, que le vert seul ne remplace pas.** Une plaque verte
-            // dit « c'est fait » a qui connait le code couleur ; la coche le dit
-            // a tout le monde, et elle survit aux deux themes comme au coup
-            // d'oeil de trois quarts qu'on jette a un panneau pose a plat.
-            // pourquoi : docs/decisions/second-ecran.md § Le panneau prend les etapes, parce qu'il est tactile
+            // The tick, which green alone does not replace.
+            // pourquoi : docs/decisions/second-ecran.md § The panel takes the steps, because it is touch
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -1441,9 +1324,8 @@ private fun StepButton(step: PanelStep, selected: Boolean, modifier: Modifier = 
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center,
-                    // Trois, parce qu'un libelle en porte deja deux et qu'une
-                    // langue plus longue que le francais n'a pas a se faire
-                    // couper.
+                    // Three, because a label already takes two and a longer language
+                    // must not be squeezed.
                     maxLines = 3,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -1452,7 +1334,6 @@ private fun StepButton(step: PanelStep, selected: Boolean, modifier: Modifier = 
     }
 }
 
-/** One reference value in a recess: what it is, then what it says. */
 @Composable
 private fun Fact(label: String, value: String) {
     val dark = LocalEmufiiDarkTheme.current
@@ -1463,11 +1344,9 @@ private fun Fact(label: String, value: String) {
             .socket(RoundedCornerShape(14.dp), dark)
             .padding(horizontal = 18.dp, vertical = 9.dp)
     ) {
-        // Ni l'etiquette ni la valeur ne passent a la ligne. Serre entre deux
-        // colonnes, « Port » s'ecrivait « Por / t » et le numero un chiffre par
-        // ligne : un creux de reference qui se casse ne se lit plus, il se
-        // dechiffre.
-        // pourquoi : docs/decisions/second-ecran.md § Le panneau prend les etapes, parce qu'il est tactile
+        // Neither label nor value wraps: squeezed between two columns, "Port" broke as
+        // "Por / t".
+        // pourquoi : docs/decisions/second-ecran.md § The panel takes the steps, because it is touch
         Text(
             label,
             style = MaterialTheme.typography.bodySmall,
@@ -1486,17 +1365,14 @@ private fun Fact(label: String, value: String) {
 }
 
 /**
- * The button legend, in the two bottom corners: leave on the left, act on the
- * right. An empty side takes no room.
- * pourquoi : docs/decisions/second-ecran.md § La légende, et pourquoi les symboles sont dessinés
+ * Leave on the left, act on the right. An empty side takes no room.
+ * pourquoi : docs/decisions/second-ecran.md § The legend, and why the symbols are drawn
  */
 @Composable
 private fun Legend(legend: PadLegend, modifier: Modifier = Modifier) {
     Row(
-        // Elle garde sa hauteur meme vide : la face au repos n'a pas de legende,
-        // et sa disparition faisait plonger le fondu de 29 dp avant qu'il ne
-        // commence.
-        // pourquoi : docs/decisions/second-ecran.md § Les deux bandes sont permanentes, la légende comprise
+        // It keeps its height when empty, or the resting face makes the ground drop.
+        // pourquoi : docs/decisions/second-ecran.md § Both bands are permanent, the legend included
         modifier = modifier.heightIn(min = LEGEND_CAP),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
@@ -1515,10 +1391,9 @@ private fun Cluster(hints: List<PadHint>) {
 }
 
 /**
- * La coche d'une etape faite, dessinee plutot qu'importee : elle se pose ou on
- * la met, la ou un glyphe se centre sur sa boite de ligne et non sur son encre.
- * Le meme trace que celle de l'ecran de face — c'est la meme etape.
- * pourquoi : docs/decisions/second-ecran.md § Le panneau prend les etapes, parce qu'il est tactile
+ * Drawn rather than imported: it sits where it is put, where a glyph centres on its
+ * line box.
+ * pourquoi : docs/decisions/second-ecran.md § The panel takes the steps, because it is touch
  */
 @Composable
 private fun StepCheck(color: Color, size: Dp) {

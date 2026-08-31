@@ -4,12 +4,10 @@ import eu.emufii.app.dolphin.Bounds
 import eu.emufii.app.dolphin.Node
 
 /**
- * Reading ARMSX2's Settings -> Network screen.
- *
- * Etiquette et valeur sont deux `TextView` freres, apparies par leur bande
- * horizontale et jamais par l'ordre des noeuds. [Node] et [Bounds] viennent du
- * cote Dolphin : donnees inertes, deux copies deriveraient.
- * pourquoi : docs/decisions/pilotes-emulateurs.md § ARMSX2 : deux `TextView` frères, appariés par leur bande horizontale
+ * Reading ARMSX2's Settings, Network screen. Label and value are two sibling
+ * `TextView`s, paired by their horizontal band and never by node order. [Node] and
+ * [Bounds] come from the Dolphin side: inert data, two copies deliberately.
+ * pourquoi : docs/decisions/pilotes-emulateurs.md § ARMSX2: two sibling `TextView`s, paired by their horizontal band
  */
 object Ps2Screen {
 
@@ -88,10 +86,10 @@ object Ps2Screen {
     }
 
     /**
-     * ARMSX2 n'a aucun `EditText` : la saisie se fait touche par touche sur son
-     * clavier maison, et ce clavier n'a pas de point — une IPv4 y est
-     * impossible a saisir, par nous comme par le joueur.
-     * pourquoi : docs/decisions/pilotes-emulateurs.md § ARMSX2 n'a aucun champ éditable, et c'est un mur
+     * ARMSX2 has no `EditText`: input goes key by key on its own keypad, and that
+     * keypad has no dot, so an IPv4 address cannot be typed there, by us or by the
+     * player.
+     * pourquoi : docs/decisions/pilotes-emulateurs.md § ARMSX2 has no editable field, and that is a wall
      */
     const val KEY_CLEAR = "Clear"
     const val KEY_DONE = "Done"

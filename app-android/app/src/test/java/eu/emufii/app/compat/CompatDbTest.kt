@@ -63,8 +63,8 @@ class CompatDbTest {
         val db = CompatDb.parse(
             """
             {"games": [
-              {"name": "Cassé", "rating": "excellent", "keys": ["ps2:A"]},
-              {"name": "Sans clé", "rating": "perfect", "keys": []},
+              {"name": "Broken", "rating": "excellent", "keys": ["ps2:A"]},
+              {"name": "No key", "rating": "perfect", "keys": []},
               {"name": "Bon", "rating": "partial", "keys": ["ps2:B"]}
             ]}
             """.trimIndent()

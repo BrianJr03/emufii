@@ -51,7 +51,7 @@ fun rememberTileArt(rom: Rom): State<TileArt> {
     // having to go back.
     LaunchedEffect(rom.uri, apiKey, cocoon, revision) {
         // Cocoon comes before the catalogue, and only the player's own explicit
-        // choice comes before Cocoon — which `iconUrl` already honours.
+        // choice comes before Cocoon, which `iconUrl` already honours.
         //
         // The order is the whole feature: this artwork sits on the device, was
         // downloaded for this exact file, and in places was re-cropped by hand.

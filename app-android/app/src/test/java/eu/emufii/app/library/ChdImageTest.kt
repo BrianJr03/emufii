@@ -161,7 +161,7 @@ class ChdImageTest {
         val path = System.getenv("EMUFII_CHD_PS2")
         assumeTrue(path != null && File(path).exists())
         val sector = requireNotNull(ChdImage.readSector(fileSource(path!!))) {
-            "le secteur 16 du disque reel n'a pas ete decode"
+            "sector 16 of the real disc was not decoded"
         }
         assertEquals(Console.PS2, requireNotNull(DiscImage.fromSector(sector)).first)
     }
@@ -173,14 +173,14 @@ class ChdImageTest {
         val crc = System.getenv("EMUFII_CHD_PS2_CRC")
         assumeTrue(path != null && File(path).exists() && serial != null && crc != null)
         val reader = requireNotNull(ChdImage.open(fileSource(path!!))) {
-            "le CHD reel n'a pas ete ouvert"
+            "the real CHD was not opened"
         }
         assertEquals(
             serial,
             DiscImage.ps2Serial { offset, into -> reader.read(offset, into, into.size) },
         )
         val boot = requireNotNull(Ps2DiscIdentityReader.locateBoot(reader)) {
-            "SYSTEM.CNF est lisible, mais son ELF BOOT2 est introuvable"
+            "SYSTEM.CNF is readable, but its BOOT2 ELF cannot be found"
         }
         assertEquals(serial, boot.serial)
         val actual = Ps2DiscIdentityReader.read(reader)

@@ -45,7 +45,7 @@ fun PrimaryButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    /** Une marque posee avant le libelle : le visage de la destination. */
+    /** A mark laid before the label: the destination's face. */
     leading: (@Composable () -> Unit)? = null
 ) {
     val dark = LocalEmufiiDarkTheme.current
@@ -86,8 +86,8 @@ fun PrimaryButton(
  *
  * It replaces `AlertDialog`, which was the last Material component left with a
  * say in the look of a screen. Two things were wrong with it, and only one was
- * cosmetic. Its container is a tonal surface, not a plate — no offset shadow,
- * no lit bevel, no moulding edge — so it landed on the tray as a flat rectangle
+ * cosmetic. Its container is a tonal surface, not a plate: no offset shadow,
+ * no lit bevel, no moulding edge, so it landed on the tray as a flat rectangle
  * of colour. And its buttons are `TextButton`s: bare text, focusable, with the
  * Material focus veil turned off across the app. On a pad the cursor went into
  * a dialog and disappeared, which on a screen whose whole job is to ask a
@@ -104,28 +104,21 @@ fun PadDialog(
     /** Dismissable by tapping outside, except where the choice has to be made. */
     dismissOnOutside: Boolean = true,
     /**
-     * La consequence, en une phrase, pour le panneau arriere.
-     *
-     * Le corps de ce dialogue est un `@Composable`, donc illisible d'ici : la
-     * phrase se redonne, elle ne se recupere pas. C'est le prix a payer pour que
-     * le panneau cesse de contredire l'ecran de face, et il est modique — un
-     * dialogue qui n'a rien a dire de plus que son titre laisse ce parametre
-     * nul et le panneau n'affiche que le titre.
+     * The consequence in one sentence, for the rear panel. This dialog's body is a
+     * `@Composable` and therefore unreadable from here: the sentence is given again,
+     * not recovered. That is the price of the panel no longer contradicting the front
+     * screen.
      */
     panelDetail: String? = null,
-    /** Corail quand la question porte sur une session ou sur quelqu'un. */
+    /** Coral when the question is about a session or someone. */
     panelSocial: Boolean = false,
     actions: @Composable () -> Unit,
     content: @Composable () -> Unit
 ) {
-    // **Le panneau apprend qu'on demande quelque chose devant.**
-    //
-    // Pose ici et pas chez les appelants : c'est le seul dialogue de
-    // confirmation de l'app, donc le seul endroit ou brancher la regle, et un
-    // futur dialogue en heritera sans que personne ait a y penser. Le panneau
-    // affichait jusqu'ici la scene d'avant — le code d'une session pendant
-    // qu'on demandait s'il fallait la fermer.
-    // pourquoi : docs/decisions/second-ecran.md § Ce qui voyage jusqu'au panneau
+    // The panel learns something is being asked in front. Laid here rather than at the
+    // call sites: this is the app's only confirmation dialog, so the only place to wire
+    // the rule, and a future one inherits it.
+    // pourquoi : docs/decisions/second-ecran.md § What travels to the panel
     DisposableEffect(title, panelDetail, panelSocial) {
         val token = SecondScreen.putAside(
             SecondScreenModel.Asking(

@@ -1,487 +1,456 @@
-# Session : l'ordre hôte/invité, les deux panneaux, les cartes par console
-
-Le récit qui vivait dans `ui/screens/SessionScreen.kt`, sorti du code le
-2026-08-24 (cf. `docs/STYLE_COMMENTAIRES.md`). Titres = ancres citées depuis le
-code.
-
-## L'ordre hôte puis invité n'est pas un détail de confort
-
-Un invité qui s'installe avant l'hôte **ne trouve rien**. Le salon n'existe pas
-encore, l'émulateur répond « aucune session », et le joueur conclut que le jeu
-est cassé alors qu'il est simplement arrivé trop tôt. Rien à l'écran n'énonçait
-cet ordre : les deux joueurs voyaient le même bouton, prêt à être pressé.
-
-L'état par défaut est **vrai** : c'est ce que répondra un coordinator qui ignore
-la question, et c'est aussi ce qui vaut pour l'hôte, qui n'attend personne.
-
-**Un salon d'amont ne change rien à cet ordre**, et c'était une erreur de
-raisonnement corrigée le 2026-08-10 après une partie à deux. La première version
-excluait les sessions à salon d'amont : personne n'y héberge, les deux joueurs
-rejoignent le même salon, donc — pensais-je — aucun ordre à respecter. Le
-garde-fou ne se montrait jamais, puisque toute session Switch en a un.
-
-Ce que ce raisonnement confondait : **le salon et la partie ne sont pas la même
-chose.** Le salon existe dès la création de la session, mais ce que l'invité
-cherche dans Eden est la session LDN *du jeu*, qui n'existe qu'une fois que
-l'hôte l'a ouverte depuis son jeu. Arriver le premier, c'est fixer une liste
-vide — exactement le symptôme d'origine.
-
-L'ordre vaut donc pour **tout backend ayant un salon à rejoindre**, avec ou sans
-relais sur le VPS.
-
-### Deux preuves qu'un salon existe, et la seconde est assumée plus faible
-
-L'automatisation ne va au bout **qu'avec le service d'accessibilité** ; un hôte
-qui l'a refusé s'installe à la main. Sans second signal, ses invités
-attendraient un « Terminé » qui ne vient jamais, et une file sans sortie est pire
-que pas de file du tout.
-
-Le second signal est donc le simple fait d'être **revenu dans Emufii** après
-avoir ouvert l'émulateur. Il est plus faible, et c'est accepté : au pire un
-invité part quelques secondes trop tôt, ce qu'il faisait de toute façon avant.
-
-Le drapeau « l'installation est allée jusqu'au salon » est **verrouillé** plutôt
-que lu en direct sur le flux de progression : démarrer la partie désarme le plan,
-ce qui remet ce flux au repos, et l'installation cesserait de paraître faite au
-moment précis où ça commence à compter. Il est distinct de « l'émulateur a été
-ouvert », qui ne dit que ça.
-
-Le retour depuis l'émulateur est aussi le moment de remarquer que
-**l'automatisation n'a jamais donné signe de vie** (`NetplayAutomation.neverStarted`) :
-ce silence a une cause sur laquelle le joueur peut agir, et ne rien dire se lit
-comme « l'app est cassée ».
-
-## Seul un 404 prouve qu'un salon est fermé
-
-Un invité dont l'hôte a fermé le salon restait devant un écran d'apparence vivante
-pour toujours. On tolère donc quelques échecs — les réseaux mobiles perdent des
-requêtes — puis on le dit et on sort.
-
-Mais **seul un coordinator qui *répond* 404 prouve que le salon a disparu.** Un
-coordinator muet ne prouve qu'une chose : qu'on ne l'atteint pas. Sur un hoquet
-Wi-Fi, ça annonçait « l'hôte a fermé la session » et démontait un tunnel dont les
-deux pairs étaient encore là. Désormais l'app dit ce qu'elle sait et laisse la
-session tranquille : WireGuard refait sa poignée de main tout seul dès que le
-réseau revient.
-
-De même, un coordinator devenu muet **n'est délibérément pas une erreur** : le
-tunnel est un appairage WireGuard direct qui n'a plus besoin de lui une fois
-levé, donc une partie qui tourne continue de tourner. Seule la liste de qui est
-là cesse d'être digne de foi.
-
-## L'adresse affichée est celle qu'on doit taper, jamais une autre
-
-**Sur PSP, l'adresse de l'hôte n'est l'adresse de personne à l'écran** : le
-joueur ne la tape nulle part. Ce qu'il règle dans PPSSPP est la sentinelle, que
-le relais traduit vers l'hôte de sa session. Afficher les deux mettait deux
-adresses différentes sur le même écran, présentées comme celles du même hôte — et
-l'inutile était celle qui portait le mot « adresse ».
-
-**Avec un salon sur le VPS, l'adresse à composer est celle du salon**, et celle
-de l'hôte n'est plus l'adresse de rien : personne n'héberge. L'afficher quand
-même mettrait à l'écran, sous le mot « hôte », une adresse que le joueur ne doit
-pas saisir — et c'est précisément l'écran qu'il regarde quand l'automatisation
-échoue et qu'il tape à la main.
-
-La valeur est calculée en dehors des deux colonnes : calculée dans l'une, elle ne
-serait vraie que d'un côté.
-
-## Deux panneaux, parce qu'empilé cet écran ne tient pas
-
-Empilé, cet écran fait huit cartes pleine largeur et trois boutons de 56 dp dans
-une colonne défilante : sur les 468 dp de la Thor, le joueur ne voit jamais plus
-d'un tiers de sa propre session, et **le code — la seule chose qu'il lit à voix
-haute à quelqu'un — quitte l'écran dès qu'il défile**.
-
-À gauche l'état, qui ne bouge pas : le code, qui est là, l'adresse. À droite ce
-qu'il reste à faire, boutons épinglés en bas. La règle qui a coûté cher tient
-toujours, et gratuitement cette fois : **la réponse à une pression est sous le
-bouton qui l'a produite**, dans un panneau qui ne défile pas.
-
-### Le panneau d'état ne défile pas, donc il doit tenir
-
-Il a eu un `verticalScroll`, et une carte s'est retrouvée décalée hors du panneau
-sans que rien ne le demande : un panneau d'état capable de cacher son état ne
-fait pas son travail. Il tient parce que **le code est monté dans l'en-tête** : à
-deux cartes, les deux gardent leur forme pleine, là où en serrer trois finissait
-par rogner l'adresse.
-
-**C'est la présence qui cède, jamais l'adresse.** Le panneau ne défile pas et sa
-hauteur est celle de l'écran : ce qui ne tient pas est rogné. Sans poids, les
-deux cartes étaient mesurées dans l'ordre, la présence prenait ce qu'elle voulait
-et l'adresse héritait du reste ; à deux joueurs la liste des arrivées grandit et
-le reste a cessé de suffire — les libellés des boutons de copie ont disparu, puis
-le bouton de port lui-même a été coupé.
-
-Le poids **inverse l'ordre de mesure** : Compose mesure d'abord les enfants sans
-poids, donc l'adresse obtient sa hauteur naturelle, entière, et la présence se
-débrouille avec ce qui reste, en défilant à l'intérieur plutôt qu'en étant
-coupée. Perdre de vue la troisième ligne d'une liste de joueurs ne coûte rien ;
-perdre le bouton qui copie le port empêche d'installer la partie.
-
-Ce qui dépasse du pied du panneau **s'efface** au lieu d'être tranché au milieu
-d'un mot : la hauteur du panneau est celle de l'écran et son contenu est un
-paragraphe ; tranchée, la dernière ligne se lisait comme un défaut de rendu — la
-même plainte que les demi-rangées du plateau.
-
-### Descendre vise le premier bouton qui répond
-
-La destination « bas » est **le premier bouton qui existe et qui répond**. C'était
-« Lancer », le seul que tout backend affiche, mais celui-là est désactivé tant que
-l'étape précédente n'est pas faite — et un bouton désactivé ne prend pas le
-focus : descendre échouait et le curseur partait dans la colonne de gauche.
-
-Le panneau s'efface, puis un vrai espace, puis les boutons. Sans cet espace, la
-dernière ligne se dissolvait directement dans le haut de la pastille et les deux
-se lisaient comme un seul élément cassé plutôt que comme un texte qui continue
-sous la ligne de flottaison.
-
-**Un bouton grisé reste atteignable à la manette.** Un `Button` désactivé cesse
-d'être focalisable, et c'est ici le seul arrêt de la colonne : un invité en
-attente se retrouvait sur un écran où la croix ne trouve rien du tout, donc figé.
-Le focus ne promet pas qu'un clic aboutira, il dit **où l'on est**.
-
-## Ce qui se fait à la main se dit avant le bouton, jamais après
-
-La carte PSP passe avant tout le reste, juste après le code : c'est une chose à
-faire **dans un autre programme**, une fois. La laisser au bas de la colonne, sous
-le bouton qui démarre la partie, revenait à la montrer après le moment où elle
-servait. Les autres consoles gardent leur carte en fin d'écran : elles n'ont rien
-à régler avant de jouer.
-
-Même raisonnement pour le pseudo d'Azahar : **avant les boutons, pas après.**
-C'est la seule chose que le joueur doit faire à la main dans l'émulateur, et
-Azahar refuse le salon pour cette raison **en accusant l'adresse** — un
-prérequis imprimé sous le bouton auquel il s'applique est lu après la faute, si
-tant est qu'il le soit.
-
-Et la réponse à une pression s'affiche **directement sous le bouton qui la
-produit**, pas au bout de la colonne : cette colonne défile, et sur une portable
-en paysage son bas est hors écran. Rendue en dernier, la réponse atterrissait là
-où l'utilisateur ne pouvait pas la voir, et un lancement refusé pour une bonne
-raison — un émulateur sans interface multijoueur, par exemple — était
-indiscernable d'un bouton mort.
-
-## Les cartes par console, et ce que chacune doit empêcher
-
-- **PPSSPP** n'a aucun netplay à piloter, aucun service d'accessibilité ne peut
-  le faire, mais il a des réglages que le joueur doit saisir lui-même et qui ne
-  se devinent pas. Le bouton **ne les applique pas** : il ouvre l'émulateur, ce
-  qui est tout ce qu'Emufii peut faire, et le dit franchement dans son libellé
-  plutôt que de laisser croire à une installation automatique comme celle
-  d'Azahar. Les quatre réglages sont affichés **avec l'adresse déjà dans le
-  presse-papier** : copier à l'affichage plutôt qu'au clic, parce que le joueur
-  s'apprête à quitter Emufii pour PPSSPP, et devoir revenir presser un bouton
-  qu'il n'a pas vu avant de partir est exactement l'aller-retour que cette carte
-  existe pour éviter. Le bouton reste, pour qui revient plus tard.
-- **Eden** : son multijoueur n'est pas dans un tiroir de jeu mais dans les
-  réglages de l'app. La carte dit donc où aller et, quand le remplissage
-  automatique est actif, qu'il n'y a plus rien à taper une fois arrivé. **L'hôte
-  est invité à Créer et l'invité à Rejoindre** : contrairement à Azahar, cet
-  écran peut s'ouvrir avant qu'un jeu tourne, et dire la même chose aux deux
-  mettrait les deux joueurs du même côté du salon.
-- **Dolphin** n'a pas d'étape 2. Le jeu n'est pas lancé ici puis rejoint : il est
-  choisi dans le salon, par l'hôte, une fois celui-ci levé — et Dolphin ne peut
-  de toute façon pas se voir remettre un jeu de l'extérieur. La carte ne dit donc
-  jamais « démarre ta partie », et le dire franchement vaut mieux que de retomber
-  sur « pas encore pris en charge », qui était faux et décourageant.
-- **PS2** : ARMSX2 sait faire deux multijoueurs sans rapport. Le mode local
-  (Local Link) est celui qu'Emufii sert, pour la soixantaine de jeux livrés avec
-  un mode LAN ou System Link. Le mode en ligne passe par un serveur de
-  renaissance, en DNS clair, sans session ni tunnel : Emufii n'y sert à rien, et
-  laisser croire le contraire produirait exactement la mauvaise attente. D'où
-  l'avertissement en tête de carte, avant toute autre chose.
-
-### Le prérequis Dolphin que personne ne vérifie
-
-Les deux côtés ont besoin du **même dump, octet pour octet** : le netplay le
-hache et refuse silencieusement sinon. Ça, l'émulateur ne le mentionne qu'une
-fois trop tard.
-
-Mais la **sauvegarde** est aussi bruyante et plus traîtresse : le dump, Dolphin
-le vérifie et le refuse ; la sauvegarde, personne ne la vérifie. Deux joueurs
-partant d'états différents rejoignent le salon, démarrent la partie, et voient
-chacun un match qui n'existe pas chez l'autre, **sans message nulle part**.
-Mesuré sur Brawl le 2026-08-16 : l'un était au menu « créer une sauvegarde »,
-l'autre l'avait déjà passé, et il a fallu une soirée pour en arriver là.
-
-Le Dolphin de bureau a « Sync Save Data », qui pousse la sauvegarde de l'hôte et
-rend tout ça invisible. Cette version Android ne l'expose pas, et Emufii ne peut
-pas s'en charger : les sauvegardes vivent dans le stockage privé de Dolphin. On
-avertit donc, faute de pouvoir agir.
-
-## Ce que chaque backend reçoit au lancement
-
-**Azahar : les deux rôles pointent vers l'adresse tunnel de l'hôte** — l'invité
-pour l'atteindre, l'hôte parce que `netPlayCreateRoom` se lie et se rejoint
-lui-même sur la même adresse (voir `PHASE0_AZAHAR.md`). Sa propre IP de tunnel est
-la seule valeur qui marche pour les deux.
-
-**Le pseudo, sur Eden seulement, et pour les deux rôles** : deux joueurs de même
-pseudo ne peuvent pas partager un salon, et Eden livre le même à tout le monde
-par défaut — deux joueurs Emufii s'y présenteraient donc comme la même personne.
-Azahar garde le sien : Emufii y écrivait le nom de profil, ce qui remplaçait un
-pseudo valide par un pseudo de deux lettres que le formulaire refusait, avec un
-message accusant l'adresse.
-
-**Le code de session sert aussi de code de salon sur PS2** : ARMSX2 en exige un,
-identique des deux côtés, et ne négocie rien. C'est le secret que les deux joueurs
-partagent déjà. Inutile ailleurs — les autres émulateurs n'ont pas de champ où le
-mettre — sauf pour les salons VPS, qui portent le leur.
-
-**Dolphin : un retour, pas un lancement.** Le jeu est choisi et démarré dans le
-salon Dolphin. Ce bouton doit ramener le joueur là où la partie l'attend, après
-un aller-retour par Emufii. L'intent de lancement **reprend la tâche existante**
-au lieu d'en ouvrir une neuve : le salon est encore à l'écran derrière, et on
-retombe droit dessus. Si Dolphin a été tué entre-temps on atterrit sur sa grille
-de jeux, ce qui est le mieux possible — `NetplayActivity` n'est pas exportée et ne
-peut pas être visée. Et surtout : **aucun plan armé.** Le salon est déjà ouvert ;
-ré-armer enverrait le pilote remplir le formulaire par-dessus une partie qui
-tourne.
-
-**PS2 : un vrai lancement**, contrairement à Dolphin — la `MainActivity` d'ARMSX2
-est exportée avec un filtre VIEW sur `content`, donc la ROM SAF voyage avec
-l'intent. Pas de plan armé pour autant : le réseau a été posé à l'étape un, et
-ré-armer enverrait là aussi le pilote par-dessus une partie qui tourne.
-
-Enfin, une image PS2 **dont l'ELF de démarrage est illisible** prend une branche à
-part : sa forme réseau peut toujours passer par le pilote d'accessibilité établi,
-mais la carte préparée réclame d'abord l'unique affectation globale héritée que
-les fichiers par jeu évitent. On garde cette navigation supplémentaire hors de
-tous les ISO/CHD pris en charge, et on la rend explicite ici plutôt que de lancer
-en silence une partie sans profil réseau.
-
-## Le retour ferme la session, et il le dit
-
-Il y avait **deux contrôles pour un seul geste** : le bouton de retour de
-l'en-tête, qui quittait sur-le-champ, et « Fermer la session » à l'autre bout de
-la même barre. Le premier promettait de remonter d'un écran ; il coupait le
-tunnel.
-
-Un seul reste, et c'est celui qu'on trouve sans le chercher parce qu'il est là
-sur tous les autres écrans. Il change de marque — **une croix, au rouge coque**
-— et il demande avant d'agir. Le rouge n'apparaît que deux fois dans toute
-l'app ; ceci en est une, et c'est ce qui le rend lisible.
-
-La question n'est pas la même des deux côtés : l'hôte ferme la session **pour
-tout le monde**, l'invité s'en retire. Et les deux formulations disent ce que la
-fermeture ne fait pas — le jeu déjà lancé continue de tourner.
-
-En portrait, le bouton du bas reste : la page y est une colonne qu'on parcourt,
-et finir sur l'action de sortie est l'ordre naturel. Il passe par la même
-question.
-
-## Le jeu s'affiche dans le vide que le panneau a laissé
-
-Quand le panneau arrière porte l'adresse et les étapes, la colonne d'état de
-l'écran de face se termine par trois cents pixels de vide — sur un écran où
-l'on attend quelqu'un, et où il n'y a donc rien d'autre à regarder.
-
-La jaquette y va, encadrée comme sur sa tuile : même plaque, même contour, même
-lueur empruntée à ses propres couleurs. C'est ce que la session **est**, et
-c'est la seule couleur de l'écran — elle vient du contenu, jamais du chrome.
-
-Deux points de plomberie :
-
-- **La session ne porte qu'une référence de ROM**, sans icône ni couleur
-  extraite. La jaquette se retrouve dans la bibliothèque par son URI, dans le
-  cache déjà chaud, hors du fil principal, et sans jamais déclencher un scan à
-  elle seule. Rien ne s'affiche si elle n'est pas trouvée.
-- **La présence garde la priorité.** Les deux blocs sont en `weight(fill =
-  false)` : la carte des joueurs prend ce qu'il lui faut, l'image prend ce qui
-  reste, et une liste plus longue que sa moitié défile dans sa carte comme
-  avant. L'image disparaît plutôt que de tasser quoi que ce soit sous 96 dp.
-
-**Et le fondu de la colonne de droite ne vit qu'en mono-écran**, aux deux bouts.
-Il est là pour qu'un texte trop long se dissolve au lieu d'être coupé au milieu
-d'un mot, ce qui arrive quand les deux commandes vivent sous lui et lui prennent
-sa hauteur. Panneau allumé, elles sont au dos, la colonne a l'écran entier — et
-un dégradé qui éteint le bas d'une carte pleine se lit alors comme un défaut
-d'affichage.
-
-Même règle, même raison, que la jaquette : **ce que le panneau prend, la face le
-récupère ; ce que le panneau rend, la face le remet.** Un état intermédiaire où
-la face garde les habitudes des deux ne marche dans aucun des deux cas — la
-première version affichait la jaquette dans les deux, et en mono-écran elle
-plafonnait la carte de présence à la moitié d'une colonne qui portait déjà
-l'adresse.
-
-## Copier l'adresse n'a plus de sens depuis qu'Emufii la remplit
-
-La carte de connexion portait deux pastilles, « copier l'adresse » et « copier le
-port ». Elles viennent d'une époque où le joueur remplissait le formulaire de
-l'émulateur à la main.
-
-Trois raisons de les retirer, et la troisième suffit :
-
-- **Emufii remplit le formulaire.** C'est la fonction que le service
-  d'accessibilité existe pour rendre.
-- **Quand elle ne peut pas** — Android ayant coupé le service — la carte
-  d'explication au-dessus dit quoi taper, et la valeur est affichée juste à
-  côté. Le presse-papier, lui, ne tient **qu'une valeur à la fois** alors que la
-  boîte de dialogue en demande deux : il n'a jamais été la bonne réponse à ce
-  problème.
-- **Elles coûtaient 62 dp**, et c'est exactement ce qui manquait pour que le
-  panneau tienne sans défiler.
-
-Le **code**, lui, se copie toujours : c'est ce qu'on envoie à un ami dans une
-autre application, et rien d'autre ne le porte.
-
-## Ce que le panneau arrière porte, l'écran de face ne le redit pas
-
-Le panneau affiche déjà, en session, le code en grand, l'adresse et le port dans
-leurs alvéoles, et le nom du jeu. Tant que l'écran de face les redisait, le
-joueur lisait deux fois la même chose et la carte de connexion mangeait 150 dp.
-
-Quand le panneau est **réellement allumé** — le réglage activé *et* un second
-écran présent — la carte de connexion quitte l'écran de face. Le réglage seul ne
-suffit pas à décider : un appareil peut n'avoir qu'un écran.
-
-**Les boutons, eux, ne bougent pas, et ne peuvent pas.** La fenêtre du panneau
-porte `FLAG_NOT_TOUCHABLE` : rien dessus n'est pressable, par construction, pour
-qu'elle ne vole jamais un appui destiné au jeu. Le panneau rapporte, il ne
-commande pas — c'est écrit dans `second-ecran.md`, et c'est aussi ce que le
-matériel impose. Déplacer les étapes 1 et 2 au dos donnerait deux boutons que
-personne ne peut presser.
-
-Ce qui bouge à la place, et qui rend la place demandée : la colonne d'état
-passe de 272 à 220 dp quand le panneau est allumé, puisqu'il n'y reste que la
-présence. Les 52 dp rendus vont à la colonne de droite, où l'explication tient
-alors sur moins de lignes.
-
-**Une divergence trouvée en chemin, et corrigée.** L'écran de face calculait
-`room?.host ?: hostIp` et le panneau recevait `hostIp` brut : une session Eden
-avec salon aurait affiché au dos une adresse que l'émulateur n'attend pas. Tant
-que les deux s'affichaient côte à côte, ça se voyait à peine ; le jour où la
-face cesse de le redire, ça devient l'unique valeur affichée. La règle vit
-désormais **une seule fois**, sur `Session.shownAddress` / `shownPort`, avec le
-cas PSP dedans — son serveur ad hoc a un nom fixe et pas de port.
-
-## Les partis pris de dessin de cet écran
-
-**Le code est monté dans l'en-tête** : c'est ce qu'on lit à voix haute à
-quelqu'un, donc il doit rester visible en permanence. La pastille est celle des
-puces de la bibliothèque — même hauteur, même rayon, même ombre — pour que
-l'en-tête reste une rangée d'objets flottants. Une pression copie : c'est le geste
-qu'on a envie de faire devant un code.
-
-**Le bouton destructeur est une pastille moulée**, comme tout ce qui se presse. Il
-était un texte rouge nu flottant sur le plateau — le seul contrôle de l'écran fait
-de rien, et c'était justement le destructeur. De l'encre rouge sur une plaque dit
-la même chose sans prétendre être un lien.
-
-**La coche est dessinée** plutôt qu'importée : deux traits coûtent moins que de
-tirer tout l'artefact material-icons pour un glyphe, et contrairement à un
-caractère « ✓ » elle se pose exactement où on la met — les glyphes de texte sont
-centrés sur leur boîte de ligne, pas sur leur encre.
-
-**La liste de présence** est tout l'intérêt de la boucle de présence : héberger
-était un écran avec un code dessus et aucun moyen de savoir si quelqu'un était
-venu. Son défilement interne n'est actif **que dans le panneau**, dont la hauteur
-est fixe. Ailleurs c'est faux, et ce n'est pas une question de goût : la page à
-une colonne défile déjà, donc elle mesure ses enfants à hauteur infinie, et
-Compose refuse — en levant une exception — de mesurer du contenu défilant sous une
-contrainte non bornée.
-
-**Le dégradé d'effacement se déclare avant le défilement**, et l'ordre est tout le
-sujet. Placé après, il travaille dans les coordonnées du contenu *déroulé* :
-`size.height` y vaut la hauteur totale du texte et le dégradé atterrirait sous la
-ligne de flottaison, invisible. Placé avant, il enveloppe le nœud défilant, donc
-il mesure la fenêtre et l'effacement reste collé au bas de la carte. Il devient
-**opaque avant d'atteindre le bord**, et pas seulement au bord : un dégradé
-linéaire courant jusqu'en bas laissait le haut de la dernière ligne sous 40 % de
-couverture — donc lisible et tranchée, mesuré. Sa hauteur doit **effacer une ligne
-entière**, interligne compris : à 28 dp la ligne coupée restait à moitié lisible.
-
-**Le nom du jeu n'est pas affiché dans le panneau**, où ses quarante dp étaient
-exactement ce qui rognait les boutons de copie. Le nom du jeu n'est pas un état
-sur lequel on agit — le joueur vient de le lancer — et l'autre panneau parle déjà
-de son émulateur, alors que l'adresse, elle, se copie.
-
-**La note importante est un creux, et sa marque est dessinée.** Deux tours pour en
-arriver là. Elle a commencé en `errorContainer` rempli à 55 % sous un « IMPORTANT »
-en capitales espacées : un sourcil, que la charte bannit, sur un champ rouge
-saturé de la taille d'un paragraphe qui détournait l'attention du panneau au
-détriment des boutons qui sont le vrai travail. C'est devenu un creux avec une
-barre rouge de 3 dp le long du bord de lecture — mieux, et encore deux choses de
-travers : une bordure latérale colorée au-delà du cheveu est refusée sur les
-encarts, et le rouge est la couleur de danger de ce produit, dépensée exactement
-deux fois dans toute l'app ; deux avertissements sur un écran la dépensaient
-quatre fois, ce qui est ce qui lui fait perdre tout sens quand quelque chose ne va
-vraiment pas. Donc : le creux du plateau, l'encre ordinaire, et la même perle
-d'avertissement que la bibliothèque porte déjà sur un jeu qui marche à moitié.
-Dessinée, ni tapée ni remplie : elle dit « lis celle-ci » sans prétendre que quoi
-que ce soit est cassé.
-
-Le conseil de confort de la carte PSP est **en fin de carte**, pas au milieu :
-c'est le plus long paragraphe de l'écran, et glissé entre l'adresse et son bouton
-« Copier », il séparait le geste de ce sur quoi il agit. Il n'est délibérément
-**pas** une note importante — ce bloc est réservé à ce qui empêche de jouer — mais
-pas non plus dans la voix grise des notes du dessus, où il se lirait comme du
-remplissage. D'où un titre, et un corps à pleine force.
-
-**La liste des présents est mise en phrase par ICU** (« Toi, Bibi et Théo » /
-« You, Bibi and Théo ») : l'écrire à la main allait tant que l'app parlait une
-seule langue, mais la conjonction et la place des virgules changent avec la
+# Session: the host/guest order, the two panels, the per-console cards
+
+The narrative that lived in `ui/screens/SessionScreen.kt`, taken out of the code
+on 2026-08-24 (see `docs/STYLE_COMMENTAIRES.md`). Headings are anchors cited from
+the code.
+
+## Host then guest is not a comfort detail
+
+A guest who settles in before the host finds nothing. The room does not exist
+yet, the emulator answers "no session", and the player concludes the game is
+broken when they simply arrived too early. Nothing on screen stated that order:
+both players saw the same button, ready to be pressed.
+
+The default state is true: that is what a coordinator ignorant of the question
+will answer, and it is also what holds for the host, who waits for nobody.
+
+An upstream room changes nothing about that order, and that was a reasoning error
+corrected on 2026-08-10 after a two-player game. The first version excluded
+sessions with an upstream room: nobody hosts there, both players join the same
+room, so, I thought, no order to respect. The guard therefore never showed, since
+every Switch session has one.
+
+What that reasoning conflated: the room and the game are not the same thing. The
+room exists from the session's creation, but what the guest looks for in Eden is
+the game's LDN session, which only exists once the host has opened it from their
+game. Arriving first means staring at an empty list, exactly the original
+symptom.
+
+The order therefore holds for any backend with a room to join, with or without a
+relay on the VPS.
+
+### Two proofs that a room exists, and the second is knowingly weaker
+
+The automation only runs to the end with the accessibility service; a host who
+refused it sets up by hand. With no second signal their guests would wait for a
+"Done" that never comes, and a queue with no exit is worse than no queue at all.
+
+The second signal is therefore the simple fact of having come back into Emufii
+after opening the emulator. It is weaker, and that is accepted: at worst a guest
+leaves a few seconds too early, which they did anyway before.
+
+The "setup went as far as the room" flag is latched rather than read live off the
+progress flow: starting the game disarms the plan, which returns that flow to
+rest, and the setup would stop appearing done at the precise moment it starts
+mattering. It is distinct from "the emulator was opened", which says only that.
+
+Coming back from the emulator is also the moment to notice that the automation
+never showed any sign of life (`NetplayAutomation.neverStarted`): that silence has
+a cause the player can act on, and saying nothing reads as "the app is broken".
+
+## Only a 404 proves a room is closed
+
+A guest whose host has closed the room was left in front of a screen that looked
+alive forever. So a few failures are tolerated, mobile networks losing requests,
+and then it is said and we leave.
+
+But only a coordinator that answers 404 proves the room has gone. A silent
+coordinator proves one thing only: that we cannot reach it. On a Wi-Fi hiccup,
+that announced "the host has closed the session" and tore down a tunnel whose two
+peers were both still there. The app now says what it knows and leaves the session
+alone: WireGuard redoes its handshake by itself as soon as the network returns.
+
+Likewise, a coordinator gone silent is deliberately not an error: the tunnel is a
+direct WireGuard pairing that no longer needs it once up, so a running game keeps
+running. Only the list of who is there stops being trustworthy.
+
+## The address shown is the one to type, never another
+
+On PSP, the host's address is nobody's address on screen: the player types it
+nowhere. What they set in PPSSPP is the sentinel, which the relay translates to
+their session's host. Showing both put two different addresses on the same screen,
+presented as the same host's, and the useless one was the one carrying the word
+"address".
+
+With a room on the VPS, the address to dial is the room's, and the host's is no
+longer anybody's address: nobody hosts. Showing it anyway would put on screen,
+under the word "host", an address the player must not enter, and that is precisely
+the screen they are looking at when the automation fails and they type by hand.
+
+The value is computed outside both columns: computed in one, it would only be true
+on one side.
+
+## Two panels, because stacked this screen does not fit
+
+Stacked, this screen is eight full-width cards and three 56 dp buttons in a
+scrolling column: on the Thor's 468 dp, the player never sees more than a third of
+their own session, and the code, the one thing they read aloud to somebody, leaves
+the screen as soon as they scroll.
+
+On the left the state, which does not move: the code, who is there, the address.
+On the right what is left to do, buttons pinned at the bottom. The rule that cost
+dearly still holds, and for free this time: the answer to a press is under the
+button that produced it, in a panel that does not scroll.
+
+### The state panel does not scroll, so it has to fit
+
+It had a `verticalScroll`, and a card ended up shifted out of the panel with
+nothing asking for it: a state panel able to hide its state is not doing its job.
+It fits because the code moved up into the header: at two cards, both keep their
+full shape, where squeezing three in ended up clipping the address.
+
+It is presence that gives way, never the address. The panel does not scroll and
+its height is the screen's: what does not fit is clipped. Without weights, the two
+cards were measured in order, presence took what it wanted and the address
+inherited the rest; at two players the arrivals list grows and the rest stopped
+being enough, the copy buttons' labels disappeared, then the port button itself
+was cut off.
+
+The weight inverts the measuring order: Compose measures unweighted children
+first, so the address gets its natural height, whole, and presence makes do with
+what is left, scrolling inside rather than being cut. Losing sight of the third
+line of a player list costs nothing; losing the button that copies the port stops
+you setting the game up.
+
+What overflows the panel's foot fades out rather than being sliced mid-word: the
+panel's height is the screen's and its content is a paragraph; sliced, the last
+line read as a rendering fault, the same complaint as the board's half-rows.
+
+### Down aims at the first button that answers
+
+The "down" destination is the first button that exists and answers. It was
+"Launch", the only one every backend shows, but that one is disabled until the
+previous step is done, and a disabled button does not take focus: going down
+failed and the cursor went off into the left column.
+
+The panel fades, then a real gap, then the buttons. Without that gap the last line
+dissolved straight into the top of the pill and the two read as one broken element
+rather than as text continuing below the fold.
+
+A greyed button stays reachable from the pad. A disabled `Button` stops being
+focusable, and it is the column's only stop here: a waiting guest ended up on a
+screen where the D-pad finds nothing at all, and so was stuck. Focus does not
+promise a click will succeed, it says where you are.
+
+## What is done by hand is said before the button, never after
+
+The PSP card comes before everything else, right after the code: it is a thing to
+do in another program, once. Leaving it at the foot of the column, under the
+button that starts the game, meant showing it after the moment it was useful. The
+other consoles keep their card at the end of the screen: they have nothing to set
+before playing.
+
+Same reasoning for the Azahar nickname: before the buttons, not after. It is the
+one thing the player has to do by hand in the emulator, and Azahar refuses the
+room for that reason while blaming the address; a prerequisite printed under the
+button it applies to is read after the mistake, if it is read at all.
+
+And the answer to a press is shown directly under the button that produced it, not
+at the foot of the column: that column scrolls, and on a handheld in landscape its
+bottom is off screen. Rendered last, the answer landed where the user could not see
+it, and a launch refused for a good reason, an emulator with no multiplayer
+interface for instance, was indistinguishable from a dead button.
+
+## The per-console cards, and what each must prevent
+
+- PPSSPP has no netplay to drive, no accessibility service can do it, but it has
+  settings the player has to enter themselves and cannot guess. The button does
+  not apply them: it opens the emulator, which is all Emufii can do, and says so
+  plainly in its label rather than implying an automatic setup like Azahar's. The
+  four settings are shown with the address already in the clipboard: copied on
+  display rather than on click, because the player is about to leave Emufii for
+  PPSSPP, and having to come back and press a button they did not see before
+  leaving is exactly the round trip this card exists to avoid. The button stays,
+  for whoever comes back later.
+- Eden: its multiplayer is not in a game drawer but in the app's settings. The
+  card therefore says where to go and, when autofill is active, that there is
+  nothing left to type once there. The host is invited to Create and the guest to
+  Join: unlike Azahar, this screen can open before a game is running, and saying
+  the same thing to both would put both players on the same side of the room.
+- Dolphin has no step 2. The game is not launched here and then joined: it is
+  chosen in the room, by the host, once the room is up, and Dolphin cannot be
+  handed a game from outside anyway. The card therefore never says "start your
+  game", and saying so plainly beats falling back on "not supported yet", which
+  was false and discouraging.
+- PS2: ARMSX2 can do two unrelated multiplayers. Local mode (Local Link) is the
+  one Emufii serves, for the sixty-odd games shipped with a LAN or System Link
+  mode. Online mode goes through a revival server, over plain DNS, with no session
+  and no tunnel: Emufii is of no use there, and implying otherwise would produce
+  exactly the wrong expectation. Hence the warning at the head of the card, before
+  anything else.
+
+### The Dolphin prerequisite nobody checks
+
+Both sides need the same dump, byte for byte: netplay hashes it and silently
+refuses otherwise. That, the emulator only mentions once it is too late.
+
+But the save is just as loud and more treacherous: the dump, Dolphin checks and
+refuses; the save, nobody checks. Two players starting from different states join
+the room, start the game, and each see a match that does not exist for the other,
+with no message anywhere. Measured on Brawl on 2026-08-16: one was at the "create
+a save" menu, the other had already passed it, and it took an evening to work that
+out.
+
+Desktop Dolphin has "Sync Save Data", which pushes the host's save and makes all
+this invisible. This Android version does not expose it, and Emufii cannot take it
+on: the saves live in Dolphin's private storage. So we warn, for want of being
+able to act.
+
+## What each backend receives at launch
+
+Azahar: both roles point at the host's tunnel address, the guest to reach it, the
+host because `netPlayCreateRoom` binds and joins itself on the same address (see
+`PHASE0_AZAHAR.md`). Its own tunnel IP is the only value that works for both.
+
+The nickname, on Eden only, and for both roles: two players with the same nickname
+cannot share a room, and Eden ships the same one to everybody by default, so two
+Emufii players would introduce themselves there as the same person. Azahar keeps
+its own: Emufii used to write the profile name there, which replaced a valid
+nickname with a two-letter one the form refused, with a message blaming the
+address.
+
+The session code doubles as the room code on PS2: ARMSX2 demands one, identical on
+both sides, and negotiates nothing. It is the secret both players already share.
+Useless elsewhere, the other emulators having no field to put it in, except for
+VPS rooms, which carry their own.
+
+Dolphin: a return, not a launch. The game is chosen and started in the Dolphin
+room. This button has to bring the player back to where the game is waiting, after
+a round trip through Emufii. The launch intent resumes the existing task instead of
+opening a fresh one: the room is still on screen behind, and you land straight back
+on it. If Dolphin has been killed meanwhile you land on its game grid, which is the
+best available, `NetplayActivity` not being exported and therefore not targetable.
+And above all: no armed plan. The room is already open; re-arming would send the
+driver to fill the form over a running game.
+
+PS2: a real launch, unlike Dolphin, ARMSX2's `MainActivity` being exported with a
+VIEW filter on `content`, so the SAF ROM travels with the intent. No armed plan for
+all that: the network was set at step one, and re-arming would there too send the
+driver over a running game.
+
+Finally, a PS2 image whose boot ELF is unreadable takes a separate branch: its
+network shape can still go through the established accessibility driver, but the
+prepared card first demands the single inherited global assignment that per-game
+files avoid. We keep that extra navigation out of every supported ISO/CHD, and make
+it explicit here rather than silently starting a game with no network profile.
+
+## Back closes the session, and it says so
+
+There were two controls for one gesture: the header's back button, which left
+immediately, and "Close session" at the other end of the same bar. The first
+promised to go up one screen; it cut the tunnel.
+
+One remains, and it is the one you find without looking because it is there on
+every other screen. It changes its mark, a cross, in shell red, and it asks before
+acting. The red appears twice in the whole app; this is one of them, and that is
+what makes it readable.
+
+The question is not the same on both sides: the host closes the session for
+everybody, the guest withdraws from it. And both wordings say what closing does
+not do: a game already launched keeps running.
+
+In portrait the bottom button stays: the page there is a column you go down, and
+ending on the exit action is the natural order. It goes through the same question.
+
+## The game is shown in the space the panel left
+
+When the rear panel carries the address and the steps, the front screen's state
+column ends with three hundred pixels of nothing, on a screen where you are
+waiting for somebody, and where there is therefore nothing else to look at.
+
+The artwork goes there, framed as on its tile: same plate, same outline, same glow
+borrowed from its own colours. It is what the session is, and it is the screen's
+only colour, coming from content, never from chrome.
+
+Two points of plumbing:
+
+- The session carries only a ROM reference, with no icon and no extracted colour.
+  The artwork is found back in the library by its URI, in the already-warm cache,
+  off the main thread, and never triggering a scan on its own. Nothing is shown if
+  it is not found.
+- Presence keeps priority. Both blocks are `weight(fill = false)`: the players'
+  card takes what it needs, the image takes what is left, and a list longer than
+  its half scrolls in its card as before. The image disappears rather than
+  squeezing anything below 96 dp.
+
+And the right column's fade only exists on a single screen, at both ends. It is
+there so over-long text dissolves instead of being cut mid-word, which happens
+when both controls live under it and take its height. With the panel lit they are
+on the back, the column has the whole screen, and a gradient dimming the foot of a
+full card then reads as a display fault.
+
+Same rule, same reason, as the artwork: what the panel takes, the front gets back;
+what the panel gives back, the front puts back. An in-between state where the front
+keeps the habits of both works in neither case; the first version showed the
+artwork in both, and on a single screen it capped the presence card at half a
+column that was already carrying the address.
+
+## Copying the address stopped making sense once Emufii fills it in
+
+The connection card carried two chips, "copy address" and "copy port". They come
+from a time when the player filled the emulator's form by hand.
+
+Three reasons to remove them, and the third is enough:
+
+- Emufii fills the form. It is the function the accessibility service exists to
+  provide.
+- When it cannot, Android having switched the service off, the explanation card
+  above says what to type, and the value is shown right next to it. The clipboard,
+  meanwhile, holds only one value at a time while the dialog asks for two: it was
+  never the right answer to this problem.
+- They cost 62 dp, and that is exactly what was missing for the panel to fit
+  without scrolling.
+
+The code is still copyable: it is what you send a friend in another application,
+and nothing else carries it.
+
+## What the rear panel carries, the front screen does not repeat
+
+In session, the panel already shows the code large, the address and the port in
+their sockets, and the game's name. While the front screen repeated them, the
+player read the same thing twice and the connection card ate 150 dp.
+
+When the panel is really lit, the setting on and a second screen present, the
+connection card leaves the front screen. The setting alone is not enough to
+decide: a device may have only one screen.
+
+The buttons, though, do not move, and cannot. The panel's window carries
+`FLAG_NOT_TOUCHABLE`: nothing on it is pressable, by construction, so it never
+steals a press meant for the game. The panel reports, it does not command, which is
+written in `second-ecran.md`, and it is also what the hardware imposes. Moving
+steps 1 and 2 to the back would give two buttons nobody can press.
+
+What moves instead, and gives back the room asked for: the state column goes from
+272 to 220 dp when the panel is lit, only presence being left in it. The 52 dp
+returned go to the right column, where the explanation then fits on fewer lines.
+
+A divergence found along the way, and fixed. The front screen computed
+`room?.host ?: hostIp` and the panel received a raw `hostIp`: an Eden session with
+a room would have shown on the back an address the emulator does not expect. While
+both were shown side by side it barely showed; the day the front stops repeating
+it, it becomes the only value shown. The rule now lives once, on
+`Session.shownAddress` / `shownPort`, with the PSP case inside it, its ad hoc
+server having a fixed name and no port.
+
+## This screen's drawing decisions
+
+The code moved up into the header: it is what you read aloud to somebody, so it
+has to stay permanently visible. The chip is the library's chips', the same
+height, the same radius, the same shadow, so the header stays a row of floating
+objects. A press copies: it is the gesture you want to make in front of a code.
+
+The destructive button is a moulded chip, like everything you press. It was bare
+red text floating on the board, the screen's only control made of nothing, and it
+was precisely the destructive one. Red ink on a plate says the same thing without
+pretending to be a link.
+
+The tick is drawn rather than imported: two strokes cost less than pulling in the
+whole material-icons artefact for one glyph, and unlike a "✓" character it sits
+exactly where it is put, text glyphs being centred on their line box, not on their
+ink.
+
+The presence list is the whole point of the presence loop: hosting was a screen
+with a code on it and no way to know whether anybody had come. Its internal
+scrolling is active only in the panel, whose height is fixed. Elsewhere it is
+false, and that is not a matter of taste: the single-column page already scrolls,
+so it measures its children at infinite height, and Compose refuses, by throwing,
+to measure scrolling content under an unbounded constraint.
+
+The fade-out gradient is declared before the scroll, and the order is the whole
+subject. Placed after, it works in the unrolled content's coordinates:
+`size.height` there is the total height of the text and the gradient would land
+below the fold, invisible. Placed before, it wraps the scrolling node, so it
+measures the window and the fade stays stuck to the foot of the card. It becomes
+opaque before reaching the edge, not only at the edge: a linear gradient running
+to the bottom left the top of the last line under 40% coverage, therefore readable
+and sliced, measured. Its height has to erase a whole line, leading included: at
+28 dp the cut line stayed half readable.
+
+The game's name is not shown in the panel, where its forty dp were exactly what
+was clipping the copy buttons. The game's name is not a state you act on, the
+player has just launched it, and the other panel already talks about its emulator,
+whereas the address does get copied.
+
+The important note is a hollow, and its mark is drawn. Two rounds to get there. It
+started as an `errorContainer` filled at 55% under an "IMPORTANT" in spaced
+capitals: an eyebrow, which the guidelines ban, on a saturated red field the size
+of a paragraph that pulled attention away from the panel at the expense of the
+buttons that are the real work. It became a hollow with a 3 dp red bar along the
+reading edge, better, and still two things wrong: a coloured side border beyond a
+hairline is refused on insets, and red is this product's danger colour, spent
+exactly twice in the whole app; two warnings on one screen spent it four times,
+which is what makes it lose all meaning when something really is wrong. So: the
+board's hollow, ordinary ink, and the same warning bead the library already
+carries on a game that half works. Drawn, neither typed nor filled: it says "read
+this one" without claiming anything is broken.
+
+The PSP card's comfort tip is at the end of the card, not in the middle: it is the
+screen's longest paragraph, and slipped between the address and its "Copy" button
+it separated the gesture from what it acts on. It is deliberately not an important
+note, that block being reserved for what stops you playing, but not in the grey
+voice of the notes above either, where it would read as filler. Hence a title, and
+a body at full strength.
+
+The list of who is present is put into a sentence by ICU ("Toi, Bibi et Théo" /
+"You, Bibi and Théo"): writing it by hand was fine while the app spoke one
+language, but the conjunction and the placing of the commas change with the
 locale.
 
-## Un seul `focusRequester` par nœud, et c'est celui de la coquille
+## One `focusRequester` per node, and it is the shell's
 
-Il y en avait deux empilés sur le même nœud — celui du pilote et celui de la
-coquille — et la trace disait que le nœud ne prenait **jamais** le focus : ni
-`focus=true`, ni même `hasFocus=true`, pas une fois. Conséquence, la demande que
-l'en-tête envoie sur Bas tombait dans le vide, la touche était consommée quand
-même, et il en fallait une seconde pour revenir au panneau — pendant que Haut,
-qui ne demande rien à personne, marchait du premier coup.
+There were two stacked on the same node, the driver's and the shell's, and the
+trace said the node never took focus: neither `focus=true`, nor even
+`hasFocus=true`, not once. As a result, the request the header sends on Down fell
+into the void, the key was consumed anyway, and a second one was needed to get back
+to the panel, while Up, which asks nobody for anything, worked first time.
 
-Le pilote *reçoit* les touches sans avoir le focus, parce qu'il est près de la
-racine et qu'un événement clavier remonte la chaîne. Mais recevoir n'est pas être
-désigné : pour qu'on puisse lui **rendre** le curseur, il faut qu'il soit une
-destination, et une destination n'a qu'une adresse.
+The driver receives keys without having focus, because it is near the root and a
+key event bubbles up the chain. But receiving is not being designated: for the
+cursor to be given back to it, it has to be a destination, and a destination has
+only one address.
 
-Le pilote réclame ensuite le curseur image par image. Une seule demande après
-150 ms tenait avant : le focus initial de Compose désigne l'en-tête, déclaré avant
-le contenu, et il gagnait contre elle. Le délai était un pari sur le calendrier ;
-la boucle est la même réponse que celle de la coquille — redemander tant que le
-nœud n'est pas placé, sans regarder si ça a marché, et borner.
+The driver then claims the cursor frame by frame. A single request after 150 ms
+held before: Compose's initial focus designates the header, declared before the
+content, and it won against it. The delay was a bet on timing; the loop is the same
+answer as the shell's, ask again while the node is not placed, without checking
+whether it worked, and bound it.
 
-## Le retour ferme la session, donc il porte une croix et il demande
+## Back closes the session, so it carries a cross and it asks
 
-Il y avait deux contrôles pour un seul geste : le bouton de retour, qui quittait
-sur-le-champ, et « Fermer la session » à l'autre bout de l'en-tête. Un seul reste
-— celui qu'on trouve sans le chercher, parce qu'il est là sur tous les autres
-écrans — et il cesse de promettre un retour en arrière : une croix rouge, et une
-question avant de couper le tunnel.
+There were two controls for one gesture: the back button, which left immediately,
+and "Close session" at the other end of the header. One remains, the one you find
+without looking, because it is there on every other screen, and it stops promising
+to go back: a red cross, and a question before cutting the tunnel.
 
-## Ce que le panneau porte, l'écran de face le rend en place
+## What the panel carries, the front screen gives back in space
 
-Trois endroits appliquent la même règle, et chacun rend sa place à autre chose :
+Three places apply the same rule, and each gives its space back to something else:
 
-- **La pastille du code** ne paraît de face que si le panneau ne la porte pas :
-  il l'affiche en 64 sp au dos, la redire en 19 sp ne sert personne.
-- **Le volet d'état** est plus étroit panneau allumé — il ne reste que la
-  présence — et les 52 dp rendus vont à la colonne de droite, où l'explication
-  passe alors sur moins de lignes.
-- **Le jeu encadré** ne s'affiche **que** dans le vide que le panneau a laissé.
-  Rendu dans les deux cas, il cassait la carte de présence en mono-écran : deux
-  enfants pondérés se partagent l'espace libre, donc la carte des joueurs se
-  retrouvait plafonnée à la moitié d'une colonne. Sans panneau, il n'y a pas de
-  vide à remplir — c'est le panneau qui le crée en prenant l'adresse.
+- The code chip only appears on the front if the panel does not carry it: it shows
+  it at 64 sp on the back, and repeating it at 19 sp serves nobody.
+- The state pane is narrower with the panel lit, only presence being left, and the
+  52 dp returned go to the right column, where the explanation then fits on fewer
+  lines.
+- The framed game is shown only in the space the panel left. Rendered in both
+  cases, it broke the presence card on a single screen: two weighted children
+  share the free space, so the players' card ended up capped at half a column.
+  With no panel there is no space to fill, the panel being what creates it by
+  taking the address.
 
-Et le fondu du bas **n'existe qu'en mono-écran**. Il est là pour qu'un texte trop
-long se dissolve au lieu d'être coupé au milieu d'un mot, ce qui est le cas quand
-les deux commandes vivent sous lui et lui prennent sa hauteur. Panneau allumé,
-elles sont au dos, la colonne a l'écran entier — et un dégradé qui éteint le bas
-d'une carte pleine se lit alors comme un défaut d'affichage.
+And the bottom fade only exists on a single screen. It is there so over-long text
+dissolves instead of being cut mid-word, which is the case when both controls live
+under it and take its height. With the panel lit they are on the back, the column
+has the whole screen, and a gradient dimming the foot of a full card then reads as
+a display fault.
 
-## Copier l'adresse n'a plus de sens depuis qu'Emufii la remplit
+## Copying the address stopped making sense once Emufii fills it in
 
-Les boutons « copier » venaient d'une époque où le joueur remplissait le
-formulaire de l'émulateur à la main. Emufii le remplit pour lui, et quand elle ne
-peut pas — Android ayant coupé le service — la carte au-dessus dit quoi taper.
+The "copy" buttons come from a time when the player filled the emulator's form by
+hand. Emufii fills it for them, and when it cannot, Android having switched the
+service off, the card above says what to type.
 
-Le presse-papier ne saurait de toute façon porter la chose qu'à moitié : il ne
-tient qu'une valeur à la fois et la boîte de dialogue en veut deux.
+The clipboard could only ever carry half the thing anyway: it holds one value at a
+time and the dialog wants two.
 
-Ils coûtaient 62 dp, et c'est exactement ce qui manquait pour que ce panneau
-tienne sans défiler.
+They cost 62 dp, and that is exactly what was missing for this panel to fit without
+scrolling.

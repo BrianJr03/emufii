@@ -39,7 +39,7 @@ class WgConfigTest {
     }
 
     @Test
-    fun `le MTU est declare, et sous la barre du lien porteur`() {
+    fun `the MTU is declared, and below the carrier link's bar`() {
         // With no explicit line the backend falls back to 1280, and Switch LDN
         // breaks on it: discovery and connection get through, then the game frames
         // exceed it and are dropped without fragmentation. Measured on the Thor,

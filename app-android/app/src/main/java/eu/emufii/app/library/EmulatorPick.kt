@@ -4,21 +4,18 @@ import android.content.Context
 import eu.emufii.app.eden.pickEden
 
 /**
- * Quelle **build** d'un emulateur Emufii doit ouvrir, quand le joueur en a
- * plusieurs.
- *
- * L'heuristique reste le defaut ; ceci ne fait que la rendre surchargeable. Un
- * choix qui pointe un paquet absent est ignore **et efface**, pour ne pas
- * ressusciter si le paquet revient.
- * pourquoi : docs/decisions/pilotes-emulateurs.md § Une build se choisit, elle ne se devine plus
+ * Which build of an emulator to open when the player has several. The heuristic stays
+ * the default; this only makes it overridable. A choice pointing at an absent package
+ * is ignored and erased, so it cannot come back if the package does.
+ * pourquoi : docs/decisions/pilotes-emulateurs.md § A build is chosen, it is no longer guessed
  */
 object EmulatorPick {
 
     private const val PREFS = "emufii_emulator_pick"
 
     /**
-     * La build choisie pour [console], ou null quand le joueur n'a rien choisi
-     * ou que son choix n'est plus installe.
+     * The build chosen for [console], or null when nothing was chosen or the choice is
+     * no longer installed.
      */
     fun chosen(context: Context, console: Console): String? {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -28,7 +25,7 @@ object EmulatorPick {
         return null
     }
 
-    /** Fixe la build, ou revient au defaut avec [pkg] nul. */
+    /** Sets the build, or returns to the default with a null [pkg]. */
     fun choose(context: Context, console: Console, pkg: String?) {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         if (pkg == null) prefs.edit().remove(console.name).apply()
@@ -36,28 +33,19 @@ object EmulatorPick {
     }
 
     /**
-     * Le paquet a ouvrir pour [console] : le choix du joueur s'il tient, sinon
-     * le defaut.
-     *
-     * **Seul point de passage.** Les six lanceurs appellent ceci, et la page des
-     * consoles lit la meme fonction : aucun ne peut donc ouvrir une build que
-     * la page n'annonce pas. C'est la regle qui manquait — chaque lanceur
-     * tranchait chez lui, et deux d'entre eux ne tranchaient deja pas pareil.
+     * The package to open for [console]: the player's choice if it holds, else the
+     * default. The single point of passage: the six launchers call this and the
+     * consoles page reads the same function, so none can open a build the page does not
+     * announce.
      */
     fun packageFor(context: Context, console: Console): String? =
         chosen(context, console) ?: defaultPackage(context, console)
 
     /**
-     * Ce qu'on ouvre quand le joueur n'a rien choisi.
-     *
-     * Pour la Switch, **la derniere installee gagne** : Eden se decline en une
-     * matrice de paquets, et celle qu'on vient de poser est precisement celle
-     * qu'on voulait ouvrir. A dates egales, l'ordre de la liste tranche, ce qui
-     * garde notre fork devant. Le calcul vit dans [pickEden], que des tests
-     * figent.
-     *
-     * Pour les cinq autres, l'ordre de la liste de candidats du backend, qui
-     * est deja classee par preference.
+     * What opens when the player has chosen nothing. On the Switch the last installed
+     * wins: Eden ships a matrix of packages, and the one just laid down is precisely
+     * the one meant to open. On equal dates the list's order decides, which keeps our
+     * fork first.
      */
     private fun defaultPackage(context: Context, console: Console): String? {
         val variants = variants(context, console)
@@ -69,13 +57,9 @@ object EmulatorPick {
     }
 
     /**
-     * Toutes les builds reellement installees pour [console], dans l'ordre de
-     * la liste de candidats du backend.
-     *
-     * Le libelle vient du systeme (`getApplicationLabel`) et non d'une table
-     * ici : c'est ce que le joueur lit sur son propre lanceur, et c'est la
-     * seule chose qui distingue « Azahar » de « Lime3DS » quand les deux
-     * jouent la 3DS.
+     * Every build actually installed for [console], in the backend's candidate order.
+     * The label comes from the system (`getApplicationLabel`) rather than a table here:
+     * it is what the player reads on their own launcher.
      */
     fun variants(context: Context, console: Console): List<EmulatorVariant> {
         val pm = context.packageManager
@@ -97,7 +81,7 @@ object EmulatorPick {
         runCatching { context.packageManager.getPackageInfo(pkg, 0) }.isSuccess
 }
 
-/** Une build installee : son paquet, son nom tel que le systeme l'affiche, sa version. */
+/** An installed build: its package, its name as the system shows it, its version. */
 data class EmulatorVariant(
     val packageName: String,
     val label: String,

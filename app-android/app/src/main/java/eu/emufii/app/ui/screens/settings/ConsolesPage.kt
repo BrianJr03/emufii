@@ -24,11 +24,9 @@ import eu.emufii.app.ui.components.DetailNote
 import eu.emufii.app.ui.components.DetailTone
 
 /**
- * Quelles consoles apparaissent dans la grille, et **avec quelle build**.
- *
- * Une console porte une rangee et non une tuile : c'est la question de la build
- * qui a tranche la forme.
- * pourquoi : docs/decisions/reglages-ecran.md § Une console porte une rangée, pas une tuile
+ * Which consoles appear in the grid, and with which build. A console carries a row
+ * rather than a tile: the build question decided the shape.
+ * pourquoi : docs/decisions/reglages-ecran.md § A console carries a row, not a tile
  */
 @Composable
 internal fun ConsolesPage(
@@ -38,10 +36,9 @@ internal fun ConsolesPage(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    // Relu quand un choix de build change : l'icone, le nom et la version de la
-    // rangee viennent tous du paquet choisi, donc la rangee ment jusqu'a ce
-    // qu'on la relise. La lecture coute une requete de paquet par console, donc
-    // pas a chaque composition.
+    // Re-read when a build choice changes: the row's icon, name and version all come
+    // from the chosen package, so the row lies until it is re-read. It costs one
+    // package query per console, so not on every composition.
     var pickRevision by remember { mutableIntStateOf(0) }
     val emulators = remember(pickRevision) { allEmulators(context) }
 
@@ -60,23 +57,21 @@ internal fun ConsolesPage(
         },
         modifier = modifier
     ) {
-        // Serre contre les rangees (10 dp) la ou la page respire au-dessus : la
-        // phrase leur appartient, elle n'est pas une section.
+        // Tight against the rows at 10 dp where the page breathes above: the sentence
+        // belongs to them, it is not a section.
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            // Bornee : la phrase courait sur toute la largeur, soit pres de
-            // 1700 px sur la Thor, ou l'oeil perd la ligne avant d'en trouver
-            // la fin.
-            // pourquoi : docs/decisions/reglages-ecran.md § La grille des consoles n'a pas le droit à une orpheline
+            // Bounded: the sentence ran the full width, nearly 1700 px on the Thor,
+            // where the eye loses the line before finding its end.
+            // pourquoi : docs/decisions/reglages-ecran.md § The console grid is not allowed an orphan
             DetailNote(
                 stringResource(R.string.consoles_pick_body),
                 modifier = Modifier.widthIn(max = 560.dp)
             )
 
             BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-                // Deux colonnes des que chacune tient une rangee entiere sans
-                // abreger un nom de build. En dessous, une seule : deux
-                // colonnes de rangees tronquees valent moins qu'une colonne
-                // qui se lit.
+                // Two columns as soon as each holds a whole row without abbreviating a
+                // build name. Below that, one: two columns of truncated rows are worth
+                // less than one that reads.
                 val columns = if (maxWidth >= TWO_COLUMN_ROWS) 2 else 1
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     repeat(columns) { side ->
@@ -85,10 +80,9 @@ internal fun ConsolesPage(
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             emulators.forEachIndexed { index, info ->
-                                // En alternance, jamais coupees au milieu : une
-                                // console appartient a une colonne entiere,
-                                // sinon son interrupteur et son choix de build
-                                // finissent de part et d'autre de la gouttiere.
+                                // Alternating, never cut mid-console: a console owns a
+                                // whole column, or its switch and its build choice end
+                                // up either side of the gutter.
                                 if (index % columns != side) return@forEachIndexed
                                 ConsoleRow(
                                     info = info,
@@ -109,5 +103,5 @@ internal fun ConsolesPage(
     }
 }
 
-/** La largeur en dessous de laquelle les rangees restent sur une colonne. */
+/** Below this width the rows stay on one column. */
 private val TWO_COLUMN_ROWS = 640.dp

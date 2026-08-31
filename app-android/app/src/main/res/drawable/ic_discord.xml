@@ -1,7 +1,6 @@
-<!-- La marque officielle de Discord, telle que Discord la publie. Elle garde
-     son bleu de marque : c'est un lien vers un ailleurs, donc du contenu, pas
-     du chrome — comme les icones de console.
-     pourquoi : docs/decisions/reglages-ecran.md § Les deux liens sortants, et leur ordre -->
+<!-- Discord's official mark, as Discord publishes it. It keeps its brand blue:
+     a link to somewhere else is content, not chrome, like the console icons.
+     pourquoi : docs/decisions/reglages-ecran.md § The two outbound links, and their order -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"

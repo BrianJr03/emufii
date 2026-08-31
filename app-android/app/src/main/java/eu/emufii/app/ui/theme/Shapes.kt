@@ -6,7 +6,7 @@ import androidx.compose.ui.unit.dp
 /**
  * One corner language, the logo's squircles. The foreground is rounder than
  * the old world: cards 28, tiles 20, artwork 16.
- * pourquoi : docs/decisions/theme-duotone-shelves.md § FORMES
+ * pourquoi : docs/decisions/theme-duotone-shelves.md § SHAPES
  */
 val TileShape = RoundedCornerShape(20.dp)
 
@@ -14,7 +14,7 @@ val TileShape = RoundedCornerShape(20.dp)
 val ArtworkShape = RoundedCornerShape(16.dp)
 
 /**
- * The panel radius, named rather than written twice — the cursor's ring reads
+ * The panel radius, named rather than written twice: the cursor's ring reads
  * it too, and a second copy went stale once already.
  */
 val CardCorner = 28.dp

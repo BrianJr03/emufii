@@ -24,12 +24,8 @@ import eu.emufii.app.settings.SettingsStore
 import eu.emufii.app.ui.theme.EmufiiTheme
 
 /**
- * Mounts the second screen while there is a reason to light it: a
- * [Presentation], the first of the two hosts the scout named.
- *
- * Bound to the activity's *lifetime*, which is not the same as its being in
- * front — hence [secondScreenWanted] deciding rather than the binding.
- * pourquoi : docs/decisions/second-ecran.md § Le panneau ne s'allume que s'il a une raison
+ * Mounts the second screen while there is a reason to light it, as a [Presentation].
+ * pourquoi : docs/decisions/second-ecran.md § The panel only lights up if it has a reason
  */
 @Composable
 fun SecondScreenHost(enabled: Boolean) {
@@ -40,23 +36,16 @@ fun SecondScreenHost(enabled: Boolean) {
 
     val wanted = secondScreenWanted(enabled, foreground, model)
 
-    // Le sondage n'est plus attache au panneau : la lampe est aussi dans la
-    // barre de la bibliotheque depuis le 2026-08-28, et l'ecran principal ne
-    // depend de rien qui vive derriere. Il est lance la ou la lampe est lue —
-    // ici pour le panneau, dans la bibliotheque pour la barre — et le premier
-    // arrive suffit, l'etat etant partage.
+    // The poll is no longer tied to the panel: the lamp is in the library's bar too.
 
-    // Keyed on all of it: turning the setting off, leaving the app, or the panel
-    // going away must take the window down the same way, and a new display gets
-    // a new window rather than a reused one pointing at the old one.
+    // Keyed on all of it: setting off, app left, or panel gone must take the window
+    // down alike.
     DisposableEffect(display, wanted) {
         val target = display
         if (!wanted || target == null) return@DisposableEffect onDispose {}
 
         val presentation = EmufiiPresentation(context, target)
-        // A display can go dark between the moment it is listed and the moment
-        // the window is shown; the platform answers that race by throwing.
-        // Losing the second screen must never be able to take the app with it.
+        // A display can go dark between being listed and being shown.
         val shown = runCatching { presentation.show() }.isSuccess
 
         onDispose {
@@ -67,9 +56,8 @@ fun SecondScreenHost(enabled: Boolean) {
 }
 
 /**
- * Whether the rear panel has anything to be lit for: Emufii in front, or a
- * session running. Pure, so the rule is testable without a second display.
- * pourquoi : docs/decisions/second-ecran.md § Le panneau ne s'allume que s'il a une raison
+ * Emufii in front, or a session running. Pure, so the rule is testable.
+ * pourquoi : docs/decisions/second-ecran.md § The panel only lights up if it has a reason
  */
 fun secondScreenWanted(
     enabled: Boolean,
@@ -78,9 +66,9 @@ fun secondScreenWanted(
 ): Boolean = enabled && (foreground || model is SecondScreenModel.InSession)
 
 /**
- * The window itself. It carries its own [SecondScreenWindowOwner] rather than
- * the activity's: the service host has no activity to borrow from.
- * pourquoi : docs/decisions/second-ecran.md § L'état du panneau vit à portée de processus, pas dans la composition
+ * Carries its own [SecondScreenWindowOwner]: the service host has no activity to borrow
+ * from.
+ * pourquoi : docs/decisions/second-ecran.md § The panel's state lives process-wide, not in the composition
  */
 private class EmufiiPresentation(
     context: Context,
@@ -90,41 +78,26 @@ private class EmufiiPresentation(
     private val owner = SecondScreenWindowOwner()
 
     /**
-     * **Retour ne ferme pas le panneau.** Un `Presentation` est un `Dialog`, et
-     * un `Dialog` qui reçoit retour se ferme — or la Thor livre la touche a
-     * l'ecran qui a le focus, et le panneau est tactile : l'avoir touche une
-     * fois suffisait donc a ce que A l'eteigne, jusqu'a la recomposition
-     * suivante. Le panneau n'est pas une boite de dialogue qu'on annule ; sa
-     * duree de vie est celle de l'ecran qu'il decrit (cf. [SecondScreenHost]).
+     * Back does not close the panel: a `Presentation` is a `Dialog`, and a `Dialog`
+     * closes on back.
      */
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
-        // Deliberately empty.
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // **Le panneau est tactile.** Il ne l'etait pas : la fenetre portait
-        // `FLAG_NOT_TOUCHABLE` et `FLAG_NOT_FOCUSABLE` pour qu'elle ne vole
-        // jamais un appui destine au jeu, ce qui en faisait un afficheur et
-        // rien d'autre. La Thor arbitre le focus entre ses deux ecrans — une
-        // pression donne le focus a l'ecran presse — donc l'appui destine au
-        // jeu ne se perd pas, et le panneau peut porter des commandes.
-        //
-        // `FLAG_NOT_TOUCH_MODAL` reste : ce qui est presse **a cote** de la
-        // fenetre continue d'aller a ce qu'il y a derriere, au lieu d'etre
-        // avale par une fenetre plein ecran qui n'en voulait pas.
-        // pourquoi : docs/decisions/second-ecran.md § Le panneau prend les etapes, parce qu'il est tactile
+        // The panel is touchable. It was not: the window carried `FLAG_NOT_TOUCHABLE`
+        // and `FLAG_NOT_FOCUSABLE`.
+        // pourquoi : docs/decisions/second-ecran.md § The panel takes the steps, because it is touch
         window?.apply {
             addFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL)
         }
 
-        // WARNING: `context` here is NOT the constructor parameter — a
-        // non-`val` parameter is out of scope in a member function, so the name
-        // resolves to the inherited `Dialog.getContext()`, which drops the
-        // per-app locale. Keep its configuration, put only the locales back.
-        // pourquoi : docs/decisions/second-ecran.md § La fenêtre : le contexte n'est pas celui qu'on croit
+        // `context` here is not the constructor parameter: a non-`val` parameter is out
+        // of scope in a member function.
+        // pourquoi : docs/decisions/second-ecran.md § The window: the context is not the one you think
         val view = ComposeView(context.withAppLocales()).apply {
             setContent { SecondScreenSurface() }
         }
@@ -132,15 +105,12 @@ private class EmufiiPresentation(
         setContentView(view)
     }
 
-    /** Called by the host on the way out; a dismissed dialog does not do this itself. */
     fun release() = owner.detach()
 }
 
 /**
- * The same context, speaking the language the player chose. Read back from
- * [LocaleManager], so a change made in Android's own settings counts too;
- * empty is handed back untouched rather than pinned to today's answer.
- * pourquoi : docs/decisions/second-ecran.md § La langue vient de la fenêtre, pas du processus
+ * Read back from [LocaleManager], so an Android-side change reaches this window.
+ * pourquoi : docs/decisions/second-ecran.md § The language comes from the window, not from the process
  */
 private fun Context.withAppLocales(): Context {
     val locales = getSystemService(LocaleManager::class.java)
@@ -152,9 +122,9 @@ private fun Context.withAppLocales(): Context {
 }
 
 /**
- * The themed root, shared by every host. The theme is read from the store, not
- * inherited: the service host has no enclosing composition.
- * pourquoi : docs/decisions/second-ecran.md § L'état du panneau vit à portée de processus, pas dans la composition
+ * The theme is read from the store, not inherited: the service host has no enclosing
+ * one.
+ * pourquoi : docs/decisions/second-ecran.md § The panel's state lives process-wide, not in the composition
  */
 @Composable
 private fun SecondScreenSurface() {
@@ -165,18 +135,13 @@ private fun SecondScreenSurface() {
     val aside by SecondScreen.aside.collectAsState()
 
     /**
-     * La face de repos attend [IDLE_GRACE] : changer d'ecran de face n'est pas
-     * atomique, et le panneau repassait par le logo entre les deux. Ici et non
-     * dans [SecondScreen], qui n'a pas de portee de coroutine.
-     * pourquoi : docs/decisions/second-ecran.md § La face de repos attend son tour
+     * The resting face waits [IDLE_GRACE]: switching front screens is not atomic.
+     * pourquoi : docs/decisions/second-ecran.md § The resting face waits its turn
      */
     var model by remember { mutableStateOf(published) }
     LaunchedEffect(published, aside) {
-        // Le sursis ne vaut que pour un repos **subi** : un écran est parti et
-        // le suivant n'a pas encore parlé. Un repos **posé** — le curseur qui
-        // quitte la grille pour l'en-tête, qui pose délibérément la face de
-        // repos par-dessus — est déjà la réponse, et l'attendre faisait traîner
-        // le panneau d'une demi-seconde derrière le curseur.
+        // The grace covers a rest that is suffered, one screen gone before the next
+        // speaks, never one laid deliberately.
         if (published is SecondScreenModel.Idle &&
             model !is SecondScreenModel.Idle &&
             aside == null
@@ -186,9 +151,7 @@ private fun SecondScreenSurface() {
         model = published
     }
 
-    // Resolved against this window's own configuration, which is the second
-    // display's: a player on the system theme should see both panels agree,
-    // and hard-coding either value here would make them disagree at dusk.
+    // Against this window's configuration, which is the second display's.
     EmufiiTheme(
         darkTheme = theme.isDark(androidx.compose.foundation.isSystemInDarkTheme()),
         oled = theme.isOled
@@ -197,12 +160,5 @@ private fun SecondScreenSurface() {
     }
 }
 
-/**
- * Le sursis avant que le panneau ne retombe au repos.
- *
- * Regle sur la seule chose qu'il doit couvrir : le temps qu'un ecran de face
- * se compose et pose son curseur. Mesure sur la Thor a moins de 100 ms entre
- * le `clear` des reglages et la face de la bibliotheque ; 400 laisse de la
- * marge sans qu'une vraie mise au repos se fasse attendre.
- */
+/** Set on the only thing it must cover: the time one screen takes to replace another. */
 private const val IDLE_GRACE_MS = 400L

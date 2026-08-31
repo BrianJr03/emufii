@@ -46,12 +46,9 @@ import eu.emufii.app.ui.ringColor
 import eu.emufii.app.ui.Sfx
 
 /**
- * A text field that waits to be asked before opening: **the field is not a step
- * in the traversal, its frame is**. A field taking focus opens the keyboard, so
- * merely passing over one used to swallow the screen.
- *
- * `canFocus` is denied while not editing — non-clickable is not enough.
- * pourquoi : docs/decisions/coquille-ecrans.md § Un champ de texte ne doit pas être un arrêt du curseur
+ * The field is not a step in the traversal, its frame is: confirm on the frame opens
+ * the field.
+ * pourquoi : docs/decisions/coquille-ecrans.md § A text field must not be a cursor stop
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -72,7 +69,6 @@ fun PadTextField(
     val field = remember { FocusRequester() }
     val interaction = remember { MutableInteractionSource() }
 
-    /** True while the frame holds the cursor, which is when the ring is drawn. */
     val framed by interaction.collectIsFocusedAsState()
     val keyboard = LocalSoftwareKeyboardController.current
 
@@ -85,18 +81,14 @@ fun PadTextField(
         }
     }
 
-    // Leaving the field returns focus to the frame. Without that, closing the
-    // keyboard left focus in a field that had become non-focusable, hence
-    // nowhere: the directions stopped responding and the screen had to be
-    // touched.
+    // Without it, closing the keyboard left focus in a field that had stopped editing.
     BackHandler(enabled = editing) {
         editing = false
         runCatching { frame.requestFocus() }
     }
 
-    // The keyboard's disappearance ends the edit, not the key: the keyboard
-    // swallows the first B. [opened] covers the instant before it is visible.
-    // pourquoi : docs/decisions/coquille-ecrans.md § C'est la disparition du clavier qui termine l'édition, pas la touche
+    // The keyboard swallows the first B, so its disappearance ends the edit.
+    // pourquoi : docs/decisions/coquille-ecrans.md § It is the keyboard disappearing that ends editing, not the key
     val imeVisible = WindowInsets.isImeVisible
     var opened by remember { mutableStateOf(false) }
     LaunchedEffect(editing, imeVisible) {
@@ -111,22 +103,9 @@ fun PadTextField(
     }
 
     Column(modifier = modifier) {
-        // **L'etiquette est posee au-dessus du cadre, pas dedans.**
-        //
-        // `OutlinedTextField` reserve en haut la place ou son etiquette ira
-        // flotter, meme quand elle est encore au repos : le texte se retrouve
-        // assis nettement sous le milieu, avec beaucoup d'air au-dessus et peu
-        // en dessous. Dans un cadre dont l'anneau *est* le contour, cette
-        // asymetrie se lit comme un anneau mal dimensionne.
-        //
-        // Et la reserve ne servait a rien ici : une etiquette qui flotte se
-        // pose dans l'encoche du contour de Material, contour que ce champ
-        // efface au profit de l'anneau. Elle serait donc allee flotter sur
-        // l'anneau lui-meme des qu'on aurait tape un caractere.
-        //
-        // Au-dessus, elle reste lisible en permanence — y compris une fois le
-        // champ rempli, ou la version flottante disparaissait dans le trait.
-        // pourquoi : docs/decisions/coquille-ecrans.md § L'anneau *est* le contour du champ, et c'est le seul arrangement qui tienne
+        // The label sits above the frame, not in it: `OutlinedTextField` reserves room
+        // for its own.
+        // pourquoi : docs/decisions/coquille-ecrans.md § The ring is the field's outline, and it is the only arrangement that holds
         if (label != null) {
             Text(
                 label,
@@ -138,34 +117,20 @@ fun PadTextField(
         }
         Box(
             modifier = Modifier
-                // The ring *is* the field's outline here: one outline at a
-                // time, so there is nothing left to align. Placed BEFORE the
-                // `focusable`, or it never sees the frame's focus.
-                // pourquoi : docs/decisions/coquille-ecrans.md § L'anneau *est* le contour du champ, et c'est le seul arrangement qui tienne
+                // One outline at a time, so there is nothing left to align. Before the
+                // fill.
+                // pourquoi : docs/decisions/coquille-ecrans.md § The ring is the field's outline, and it is the only arrangement that holds
                 .controlRing(shape, enabled = !editing)
-                // **Opaque, sinon la lueur passe au travers.**
-                //
-                // La lueur du curseur est une ombre, et une ombre traverse tout
-                // ce qui n'est pas opaque. Le cadre de ce champ ne peignait
-                // rien — il laissait voir la carte derriere — donc pendant les
-                // 140 ms ou l'elevation monte, l'ombre se voyait *dedans* : un
-                // halo qui se remplit puis se vide au milieu du champ.
-                //
-                // Le remplissage est la tranche exacte du degrade que la carte
-                // peignait deja ici, donc rien ne change a l'oeil. Pose apres
-                // l'anneau : dans une chaine de modificateurs, l'ombre dessine
-                // en premier, ce fond par-dessus, et le trait de l'anneau
-                // par-dessus encore.
-                // pourquoi : docs/decisions/reglages-ecran.md § Le remplissage opaque existe pour le curseur, pas pour le look
+                // Opaque, or the glow shows through: the cursor's glow is a shadow.
+                // pourquoi : docs/decisions/reglages-ecran.md § The opaque fill exists for the cursor, not for the look
                 .cardSliceFill(shape)
                 .focusRequester(frame)
                 .focusable(interactionSource = interaction)
                 .onKeyEvent { event ->
                     if (editing) return@onKeyEvent false
                     if (event.key in CONFIRM_KEYS) {
-                        // Opened on release, as everywhere else in the app; the
-                        // key-down is swallowed so one press does not count
-                        // twice.
+                        // Opened on release, as everywhere else; the key-down is
+                        // swallowed so one press counts once.
                         if (event.type == KeyEventType.KeyUp) { Sfx.click(); editing = true }
                         true
                     } else {
@@ -176,23 +141,15 @@ fun PadTextField(
             OutlinedTextField(
                 value = value,
                 onValueChange = onValueChange,
-                // Nulle : voir le commentaire de l'etiquette, plus haut.
                 label = null,
                 placeholder = placeholder?.let { { Text(it) } },
                 isError = isError,
                 singleLine = singleLine,
                 shape = shape,
                 keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-                // Transparent exactly when the ring is drawn, so the two never
-                // show at once. Editing puts the cursor inside the field, the
-                // ring goes out, and Material's own outline comes back to say
-                // where the caret is.
-                //
-                // The caret speaks the zone's axis: teal by default, coral
-                // wherever the field feeds the social domain (join codes,
-                // session names) — the caller wraps itself in
-                // `LocalRingTone provides CORAL` and the field follows.
-                // pourquoi : docs/decisions/theme-duotone-shelves.md § Session / Join — domaine corail
+                // Transparent exactly when the ring is drawn, so the two never show at
+                // once.
+                // pourquoi : docs/decisions/theme-duotone-shelves.md § Session / Join, coral domain
                 colors = OutlinedTextFieldDefaults.colors(
                     cursorColor = ringColor(),
                     focusedBorderColor = ringColor(),
@@ -202,19 +159,9 @@ fun PadTextField(
                     disabledBorderColor =
                         if (framed) Color.Transparent
                         else MaterialTheme.colorScheme.outline,
-                    // **Le contour d'erreur s'efface comme les autres.**
-                    //
-                    // Il manquait, et Material le fait passer devant les trois
-                    // autres : un champ en erreur gardait donc son trait rouge
-                    // sous l'anneau, deux contours de tailles differentes l'un
-                    // dans l'autre. Ca se voyait a chaque ouverture du profil,
-                    // ou le pseudo est vide donc en erreur des l'arrivee.
-                    //
-                    // `framed` est faux pendant l'edition — le curseur est alors
-                    // dans le champ, pas sur son cadre — donc le rouge revient
-                    // exactement quand l'anneau s'eteint, ce qui est la regle
-                    // que les trois autres suivaient deja.
-                    // pourquoi : docs/decisions/coquille-ecrans.md § L'anneau *est* le contour du champ, et c'est le seul arrangement qui tienne
+                    // The error outline clears like the others: Material puts it ahead
+                    // of the other three.
+                    // pourquoi : docs/decisions/coquille-ecrans.md § The ring is the field's outline, and it is the only arrangement that holds
                     errorBorderColor =
                         if (framed) Color.Transparent
                         else MaterialTheme.colorScheme.error
@@ -223,16 +170,14 @@ fun PadTextField(
                     .fillMaxWidth()
                     .focusRequester(field)
                     .focusProperties { canFocus = editing }
-                    // The field can also lose focus other than through B, the
-                    // keyboard closed with the system gesture, for instance. We
-                    // then go back to frame mode, otherwise the ring never
-                    // returns and the screen looks frozen.
+                    // Focus can leave other than through B, the system gesture for
+                    // instance.
                     .onFocusChanged { if (editing && !it.isFocused) editing = false }
             )
 
-            // Drawn after the field, hence touched before it: Compose tests
-            // children first, and the field consumed taps it then refused.
-            // pourquoi : docs/decisions/coquille-ecrans.md § Le doigt n'atteignait pas le cadre
+            // Compose tests children first, and the field consumed taps it then did
+            // nothing with.
+            // pourquoi : docs/decisions/coquille-ecrans.md § The finger could not reach the frame
             if (!editing) {
                 Box(
                     modifier = Modifier
@@ -241,9 +186,7 @@ fun PadTextField(
                 )
             }
         }
-        // Outside the frame, and therefore outside the ring: the helper text is
-        // not the control being aimed at. It keeps the place and the style
-        // `OutlinedTextField` gave it.
+        // Outside the ring: the helper text is not the control being aimed at.
         if (supportingText != null) {
             Box(modifier = Modifier.padding(start = 20.dp, top = 4.dp)) {
                 ProvideTextStyle(
@@ -257,6 +200,5 @@ fun PadTextField(
     }
 }
 
-/** The field's radius. The ring needs it to trace a parallel outline. */
 private val FIELD_CORNER = 16.dp
 

@@ -18,12 +18,11 @@ import java.net.URL
 /**
  * Whether the machine that makes multiplayer possible is answering, live.
  *
- * Le panneau arriere a longtemps ete le seul endroit ou cela avait sa place :
- * sur l'ecran principal, un temoin permanent etait tenu pour du chrome, le
- * joueur apprenant la panne au moment de creer une session. **Revenu dans la
- * barre de la bibliotheque le 2026-08-28** : la plupart des joueurs n'ont qu'un
- * ecran, et la reponse vaut d'etre connue *avant* d'inviter quelqu'un — ce qui
- * etait deja l'argument, il ne tenait simplement qu'au panneau.
+ * The rear panel was long the only place for this: on the main screen a
+ * permanent indicator read as chrome, and the player learned of an outage while
+ * creating a session. It is back in the library bar because most players have
+ * one screen, and the answer is worth knowing before inviting somebody, which
+ * was always the argument.
  *
  * Three states and not two. [UNKNOWN] is the truth before the first answer and
  * after a probe that never returned in time, and it is drawn as grey rather
@@ -54,10 +53,9 @@ object VpsStatus {
     private var job: Job? = null
 
     /**
-     * Sonde tant que l'appelant vit, et **une seule boucle** quels que soient
-     * les lecteurs : la barre de la bibliotheque et le panneau arriere affichent
-     * la meme lampe, souvent en meme temps, et deux boucles feraient deux fois
-     * la requete permanente de l'app. Le dernier a partir eteint la boucle.
+     * Polls while the caller lives, and one loop whatever the readers: the library bar
+     * and the rear panel show the same lamp, often at once, and two loops would make
+     * the standing request twice.
      */
     suspend fun keepPolling() {
         synchronized(this) {

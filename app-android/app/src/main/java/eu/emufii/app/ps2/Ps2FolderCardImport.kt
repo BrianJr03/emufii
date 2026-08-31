@@ -1,12 +1,10 @@
 package eu.emufii.app.ps2
 
 /**
- * Reads the saves out of a PCSX2 folder memory card, so they can be written
- * into a card image.
- *
- * `_pcsx2_index` se lit pour l'ordre des fichiers et ne se copie jamais.
- * pourquoi : docs/decisions/ps2-carte-memoire.md § Les sauvegardes du dossier viennent sur l'image, pas l'inverse
- * pourquoi : docs/decisions/ps2-carte-memoire.md § `_pcsx2_index` se lit, ne se copie jamais
+ * Reads the saves out of a PCSX2 folder memory card, to be written into a card
+ * image. `_pcsx2_index` is read for file order and never copied.
+ * pourquoi : docs/decisions/ps2-carte-memoire.md § The folder's saves come onto the image, not the other way round
+ * pourquoi : docs/decisions/ps2-carte-memoire.md § `_pcsx2_index` is read, never copied
  */
 object Ps2FolderCardImport {
 
@@ -17,23 +15,17 @@ object Ps2FolderCardImport {
     data class Save(val directory: String, val files: List<Pair<String, ByteArray>>)
 
     /**
-     * `name: {` … `order: N` … `}`, one entry of the flow mapping.
-     *
-     * **Both braces are escaped, and the closing one is not optional.** Android
-     * compiles regexes with ICU, which rejects a bare `}` outright; the JVM
-     * accepts it, so a unit test on the desktop passes while the device throws
-     * `PatternSyntaxException` from a static initialiser — surfacing as the save
-     * import quietly reading every folder card as empty. Measured 2026-08-23.
+     * One entry of the flow mapping. Escape both braces: Android compiles regexes
+     * with ICU, which rejects a bare `}` that the JVM accepts, so the desktop test
+     * passes while the device throws `PatternSyntaxException` from a static
+     * initialiser and every folder card reads as empty.
      */
     private val ENTRY = Regex("""([^,{}\s][^,{}:]*)\s*:\s*\{([^}]*)\}""")
     private val ORDER = Regex("""\border\s*:\s*(\d+)""")
 
     /**
-     * Puts [files] in the order [indexText] gives, dropping [INDEX] itself.
-     *
-     * Pure on purpose: the ordering is the part worth a unit test, and it does
-     * not need a device to be proven. A null or unreadable index is not an
-     * error, it just means falling back to a stable order by name.
+     * Puts [files] in the order [indexText] gives, dropping [INDEX] itself. A
+     * null or unreadable index falls back to a stable order by name.
      */
     fun order(indexText: String?, files: Map<String, ByteArray>): List<Pair<String, ByteArray>> {
         val payload = files.filterKeys { it != INDEX }
@@ -46,8 +38,8 @@ object Ps2FolderCardImport {
                     ?.let { ranks[name] = it }
             }
         }
-        // Ranked files first, in their rank; then whatever the index forgot,
-        // by name, so two runs on the same card always produce the same card.
+        // Ranked first, then whatever the index forgot, by name, so two runs on
+        // the same card produce the same card.
         val ranked = payload.keys.filter { it in ranks }.sortedBy { ranks.getValue(it) }
         val rest = payload.keys.filter { it !in ranks }.sorted()
         return (ranked + rest).map { it to payload.getValue(it) }

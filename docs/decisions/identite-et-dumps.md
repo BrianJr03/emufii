@@ -1,175 +1,165 @@
-# L'identité du joueur, et ce qu'un dump dit de lui-même
+# The player's identity, and what a dump says about itself
 
-Le récit qui vivait dans `profile/Profile.kt` et `library/RomTags.kt`, sorti du
-code le 2026-08-24 (cf. `docs/STYLE_COMMENTAIRES.md`). Titres = ancres citées
-depuis le code.
+The narrative that lived in `profile/Profile.kt` and `library/RomTags.kt`, taken
+out of the code on 2026-08-24 (see `docs/STYLE_COMMENTAIRES.md`). Headings are
+anchors cited from the code.
 
-## Le code d'ami *est* l'identité, et il est public par conception
+## The friend code is the identity, and it is public by design
 
-L'identifiant est un aléatoire stable, **non dérivé de quoi que ce soit de
-l'appareil** : c'est ce sur quoi le coordinator compte la présence, donc il doit
-survivre à un changement de pseudo sans identifier la personne au-delà de cette
-app.
+The id is a stable random value, derived from nothing about the device: it is
+what the coordinator counts presence on, so it must survive a nickname change
+without identifying the person beyond this app.
 
-Il sert **aussi** de code d'ami, ce qui est pourquoi il est assez court pour être
-lu à voix haute. C'est délibéré : **le code portant l'identité, ajouter un ami ne
-demande aucun annuaire côté serveur.** Cela veut dire que l'identifiant est public
-par construction — il l'a toujours été en pratique, puisqu'il voyage avec chaque
-session comme identifiant d'hôte ou de membre.
+It also serves as the friend code, which is why it is short enough to read aloud.
+That is deliberate: because the code carries the identity, adding a friend needs
+no server-side directory. It means the id is public by construction, and it
+always was in practice, since it travels with every session as a host or member
+id.
 
-**Il n'y a ni compte ni profil côté serveur** : le pseudo voyage avec chaque
-session comme une simple chaîne, et l'image ne quitte jamais l'appareil. Les autres
-joueurs sont donc dessinés en initiales sur une couleur dérivée de leur nom, plutôt
-qu'avec une image qu'il faudrait héberger, modérer et payer. **Téléverser de vrais
-avatars est une décision produit, pas une fonction manquante.**
+There is no account and no server-side profile: the nickname travels with each
+session as a plain string, and the picture never leaves the device. Other players
+are therefore drawn as initials on a colour derived from their name, rather than
+with an image that would have to be hosted, moderated and paid for. Uploading
+real avatars is a product decision, not a missing feature.
 
-L'identité est durable mais **liée à l'appareil** : elle vit ici et nulle part
-ailleurs, donc une réinstallation fait de vous une nouvelle personne pour vos amis.
-La restaurer d'un appareil à l'autre demanderait un secret de récupération et un
-endroit où le mettre — exactement le compte hébergé que ce dessin évite.
+The identity is durable but tied to the device: it lives here and nowhere else,
+so a reinstall makes you a new person to your friends. Restoring it from one
+device to another would need a recovery secret and somewhere to put it, which is
+exactly the hosted account this design avoids.
 
-Effacer l'identité en produit une sans rapport avec l'ancienne : **quiconque avait
-gardé la précédente ne vous voit plus**, ce qui est le but, et la seule issue si un
-code se retrouve quelque part qu'on n'avait pas prévu. Ça vous coupe aussi de votre
-propre liste d'amis, donc l'appelant doit la vider et demander d'abord.
+Clearing the identity produces one unrelated to the old: anybody who had kept the
+previous one no longer sees you, which is the point, and the only way out if a
+code ends up somewhere unplanned. It also cuts you off from your own friends
+list, so the caller must clear it and ask first.
 
-## Le pseudo est contraint là où il est saisi
+## The nickname is constrained where it is entered
 
-Le formulaire de netplay d'Azahar **refuse un pseudo trop court** — « Invalid
-address or name is too short! » — et Emufii y envoie le nom de profil tel quel.
+Azahar's netplay form refuses a nickname that is too short ("Invalid address or
+name is too short!") and Emufii sends the profile name there as it is.
 
-La contrainte est appliquée **là où le nom est entré**, pour que la valeur sur le
-disque soit toujours utilisable, plutôt que rustinée au point d'usage. Un garde-fou
-au stockage reste en place pour les appelants qui ne passent pas par un formulaire :
-**rien en aval ne doit avoir à se demander si le pseudo stocké est acceptable par
-l'émulateur.**
+The constraint is applied where the name is entered, so the value on disk is
+always usable, rather than patched at the point of use. A guard at storage stays
+in place for callers that do not go through a form: nothing downstream should
+have to wonder whether the stored nickname is acceptable to the emulator.
 
-La longueur minimale a été **observée sur l'appareil, pas lue dans une constante** :
-le validateur vit dans le DEX d'Azahar et son message ne porte pas le nombre.
+The minimum length was observed on the device, not read from a constant: the
+validator lives in Azahar's DEX and its message does not carry the number.
 
-Le pseudo par défaut est **une sentinelle fixe, stockée telle quelle et envoyée sur
-le réseau**, plutôt qu'une ressource : c'est ce à quoi « a-t-il un nom ? » se
-compare, et c'est déjà persisté sur des appareils. La traduction se fait **à
-l'affichage** — ce qui vous donne aussi le nom par défaut de l'autre joueur *dans
-votre* langue.
+The default nickname is a fixed sentinel, stored as it is and sent over the
+network, rather than a resource: it is what "does it have a name?" compares
+against, and it is already persisted on devices. Translation happens at display
+time, which also gives you the other player's default name in your language.
 
-## L'avatar est recopié, jamais référencé
+## The avatar is copied, never referenced
 
-Deux raisons de ne pas garder l'original. **L'autorisation SAF du sélecteur n'est
-pas persistée**, donc garder l'URI laisserait un avatar cassé après un redémarrage.
-Et **une photo de téléphone moderne fait 50 mégapixels** : en décoder une entière
-pour dessiner un cercle de 40 dp est la façon dont une app se fait tuer pour
-mémoire.
+Two reasons not to keep the original. The picker's SAF grant is not persisted, so
+keeping the URI would leave a broken avatar after a restart. And a modern phone
+photo is 50 megapixels: decoding a whole one to draw a 40 dp circle is how an app
+gets killed for memory.
 
-`inSampleSize` fait que l'image entière **n'est jamais décodée** : le décodeur
-sous-échantillonne à la lecture.
+`inSampleSize` means the full image is never decoded: the decoder subsamples as
+it reads.
 
 ---
 
-# Ce qu'un dump dit de lui-même
+# What a dump says about itself
 
-## Rien n'appelle le réseau
+## Nothing calls the network
 
-**Un appareil portable dans un train doit pouvoir répondre à cette question**, et
-un fait qui a besoin du réseau pour être lu est un fait qui disparaît exactement
-quand le joueur a le temps de le lire.
+A handheld on a train must be able to answer this question, and a fact that needs
+the network to be read is a fact that disappears exactly when the player has time
+to read it.
 
-Deux sources, dans cet ordre :
+Two sources, in this order:
 
-1. **Le serial ou l'identifiant de titre**, quand la console y estampe une région.
-   C'est la parole du dump lui-même, prise sur le disque ou la cartouche, et **elle
-   survit au renommage d'un fichier** — ce que les joueurs font constamment.
-2. **Les étiquettes du nom de fichier**, la convention No-Intro/Redump dont tous
-   les sets du monde portent le nom. Plus faible, parce que ce n'est qu'un nom,
-   mais c'est tout ce que donnent un dump PS2 ou PSP, leurs serials portant des
-   numéros sans rapport d'une région à l'autre.
+1. The serial or title id, when the console stamps a region into it. That is the
+   dump's own word, taken from the disc or cartridge, and it survives a file
+   being renamed, which players do constantly.
+2. The filename tags, the No-Intro/Redump convention every set in the world is
+   named after. Weaker, because it is only a name, but it is all a PS2 or PSP
+   dump gives, their serials carrying unrelated numbers from one region to the
+   next.
 
-**Inconnu s'imprime comme rien du tout.** Un panneau qui déduirait « USA » d'un
-silence se tromperait pour tout joueur européen d'un jeu dont le dumpeur a sauté
-l'étiquette.
+Unknown prints as nothing at all. A panel that inferred "USA" from silence would
+be wrong for every European player of a game whose dumper skipped the tag.
 
-Et seules **les orthographes que les deux grandes conventions emploient réellement**
-sont acceptées : un appariement plus lâche — n'importe quelle parenthèse contenant
-un nom de pays — transformerait `(Disney's Aladdin)` en région, et **un fait faux
-imprimé en gras sur un panneau est pire qu'un fait manquant**.
+And only the spellings the two big conventions actually use are accepted: a
+looser match, any bracket containing a country name, would turn
+`(Disney's Aladdin)` into a region, and a false fact printed in bold on a panel is
+worse than a missing one.
 
-## Le préfixe Sony se lit lettre par lettre
+## The Sony prefix is read letter by letter
 
-La première lettre dit le support (`S` un disque, `U` un UMD), la deuxième
-l'éditeur (`L` sous licence, `C` Sony), et **la troisième est la région** — `U`
-Amérique, `E` Europe, `P`/`J` Japon, `K` Corée, `A` Asie.
+The first letter says the medium (`S` a disc, `U` a UMD), the second the
+publisher (`L` licensed, `C` Sony), and the third is the region: `U` America, `E`
+Europe, `P`/`J` Japan, `K` Korea, `A` Asia.
 
-Lu ainsi plutôt que comme une liste de préfixes entiers : c'est comme ça que
-`ULUS-10041` — **tous les jeux PSP du monde** — n'obtenait aucune région pendant que
-la PS2 en avait une.
+Read that way rather than as a list of whole prefixes: that is how `ULUS-10041`,
+every PSP game in the world, got no region while the PS2 had one.
 
-## Les positions de région sont répétées, pas partagées
+## Region positions are repeated, not shared
 
-Elles sont les mêmes que celles dont dépendent les clés de compatibilité, et elles
-sont **délibérément répétées** parce que les deux fonctions répondent à des
-questions différentes : l'une *retire* la région pour fabriquer une clé qui lui
-survit, l'autre la *garde* pour l'afficher. Les lier voudrait dire que l'une change
-le sens de l'autre le jour où une console est ajoutée.
+They are the same ones the compatibility keys depend on, and they are
+deliberately repeated because the two functions answer different questions: one
+removes the region to build a key that outlives it, the other keeps it to display
+it. Linking them would mean one changes the meaning of the other the day a
+console is added.
 
-La lecture est aussi exposée **sans passer par une `Rom`**, pour que les règles
-puissent être figées par un test unitaire : une `Rom` porte une `Uri`, et
-`android.net.Uri` est un bouchon sur la JVM de bureau — un test qui devrait en
-construire une ne pourrait pas tourner là où le reste de ces règles est vérifié.
+The reading is also exposed without going through a `Rom`, so the rules can be
+frozen by a unit test: a `Rom` carries a `Uri`, and `android.net.Uri` is a stub on
+the desktop JVM, so a test that had to build one could not run where the rest of
+these rules are checked.
 
-## La révision a été retirée, et pourquoi
+## The revision was removed, and why
 
-Retirée le 2026-08-24 après lecture sur une vraie bibliothèque.
+Removed on 2026-08-24 after reading a real library.
 
-Ce qu'un nom de fichier peut livrer, c'est `Rev 1`, `Rev 2` et le `v0` de la
-Switch — **et aucun des trois ne dit au joueur quoi que ce soit sur quoi agir** :
-`v0` est ce qu'est toute cartouche, et un numéro de révision sans l'autre révision
-pour le comparer est un fait sur une usine de pressage.
+What a filename can yield is `Rev 1`, `Rev 2` and the Switch's `v0`, and none of
+the three tells the player anything they can act on: `v0` is what every cartridge
+is, and a revision number without the other revision to compare it against is a
+fact about a pressing plant.
 
-Une vraie version de titre — le `1.0.2` qu'installe une mise à jour — **n'est pas
-dans le nom de fichier du tout** ; elle est dans les métadonnées du NSP, que rien
-ici ne lit encore. Imprimer la version faible parce qu'elle était bon marché était
-l'erreur.
+A real title version, the `1.0.2` an update installs, is not in the filename at
+all; it is in the NSP metadata, which nothing here reads yet. Printing the weak
+version because it was cheap was the mistake.
 
-## Une ROM rend plusieurs clés, jamais une seule
+## A ROM yields several keys, never one
 
-Toute la difficulté de « est-ce que ce jeu marche » n'est pas le verdict, c'est
-de dire **quel jeu** sans demander à personne de le nommer. Un verdict se donne
-une fois et doit atteindre chaque copie de ce jeu dans le monde, quelle que soit
-la langue du dump du joueur : une clé doit donc survivre au changement de région.
+The whole difficulty of "does this game work" is not the verdict, it is saying
+which game without asking anybody to name it. A verdict is given once and must
+reach every copy of that game in the world, whatever the language of the player's
+dump: a key must therefore survive a change of region.
 
-Deux familles de console, et elles demandent des traitements opposés :
+Two console families, and they call for opposite treatment:
 
-- **La région est un caractère à position connue.** 3DS, DS, GameCube et Wii
-  estampent leur région dans une lettre d'un code par ailleurs identique
-  (`CTR-P-ARR`**`J`**, `ADA`**`E`**, `RMC`**`P`**`01`). Retirer cette lettre et
-  le reste *est* le jeu, gratuitement, sans table à maintenir et sans laisser un
-  jeu de côté.
-- **Les régions portent des numéros sans rapport.** Une sortie PSP ou PS2 n'a
-  rien en commun d'un territoire à l'autre — `UCUS-98653` contre `UCES-00842` —
-  et aucune règle ne les reliera jamais. Celles-là s'apparient sur le serial
-  exact, et il revient à la base de lister chaque serial sous lequel un jeu est
-  sorti. L'outil qui écrit la base les résout depuis les index publics ; ce
-  fichier ne le peut pas, et ne doit pas prétendre le faire.
+- The region is a character at a known position. 3DS, DS, GameCube and Wii stamp
+  their region into one letter of an otherwise identical code
+  (`CTR-P-ARRJ`, `ADAE`, `RMCP01`). Remove that letter and what is left is the
+  game, for free, with no table to maintain and no game left out.
+- The regions carry unrelated numbers. A PSP or PS2 release has nothing in common
+  from one territory to another, `UCUS-98653` against `UCES-00842`, and no rule
+  will ever relate them. Those match on the exact serial, and it falls to the
+  database to list every serial a game was released under. The tool that writes
+  the database resolves them from the public indexes; this file cannot, and must
+  not pretend to.
 
-Chaque ROM rend donc **plusieurs** clés — une clé de famille quand elle existe,
-et toujours les identifiants exacts — et une entrée correspond si l'une d'elles
-est listée. Ceinture et bretelles à dessein : si une règle de famille rencontre
-un jour un code qu'elle lit mal, l'identifiant exact tombe quand même, et l'échec
-coûte une région plutôt que le jeu entier.
+Every ROM therefore yields several keys, a family key where one exists and always
+the exact ids, and an entry matches if any one of them is listed. Belt and braces
+on purpose: if a family rule one day meets a code it misreads, the exact id still
+lands, and the failure costs a region rather than the whole game.
 
-## L'alphabet du code d'ami, et son douzième symbole
+## The friend code alphabet, and its twelfth symbol
 
-Alphabet base32 de Crockford, qui retire I, L, O et U. Les trois premières parce
-qu'elles se relisent en 1 et 0 au téléphone ou sur une photo d'écran ; le U parce
-que l'exclure tient les mots involontaires hors des codes engendrés.
+Crockford's base32 alphabet, which drops I, L, O and U. The first three because
+they are re-read as 1 and 0 over the phone or from a screenshot; the U because
+excluding it keeps unintended words out of generated codes.
 
-Onze symboles aléatoires font 2^55, très au-delà de tout risque que deux joueurs
-se télescopent ou que quelqu'un trouve un code vivant en devinant — chaque essai
-coûte une requête à un point d'entrée limité en débit.
+Eleven random symbols make 2^55, far beyond any risk of two players colliding or
+of somebody finding a live code by guessing, each attempt costing a request to a
+rate-limited endpoint.
 
-**Le douzième symbole est une somme de contrôle**, et il existe pour une raison
-précise. Sans lui, une faute de frappe est indiscernable d'un ami qui n'a
-simplement pas ouvert l'app : sans annuaire à interroger, l'app ne peut pas
-distinguer « ce code n'existe pas » de « il est hors ligne ». La somme de
-contrôle lui permet de rejeter un code mal tapé sur-le-champ, plutôt que
-d'enregistrer un ami qui ne se connectera jamais.
+The twelfth symbol is a checksum, and it exists for a precise reason. Without it,
+a typo is indistinguishable from a friend who simply has not opened the app: with
+no directory to query, the app cannot tell "this code does not exist" from "they
+are offline". The checksum lets it reject a mistyped code on the spot, rather
+than recording a friend who will never connect.

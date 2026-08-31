@@ -33,15 +33,10 @@ import eu.emufii.app.ui.components.PrimaryButton
 import eu.emufii.app.ui.components.padEntry
 
 /**
- * Ce qu'est cette app, et ou la rejoindre. Deux cartes, cote a cote, et rien
- * d'autre.
- *
- * Une troisieme carte montrait les sept consoles servies. Elle a ete ecrite
- * puis retiree : la page « A propos » se visite pour connaitre une version ou
- * trouver un lien, et la liste des consoles est deja partout ailleurs — dans la
- * grille, dans la page Consoles, dans les tuiles de la bibliotheque. Une image
- * n'a sa place que si elle repond a la question que sa page pose.
- * pourquoi : docs/decisions/reglages-ecran.md § Les deux liens sortants, et leur ordre
+ * What the app is, and where to join it. Two cards side by side and nothing else. A
+ * third listed the seven consoles served; it was written then removed, since this page
+ * is visited for a version or a link, and the console list is everywhere else already.
+ * pourquoi : docs/decisions/reglages-ecran.md § The two outbound links, and their order
  */
 @Composable
 internal fun AboutPage(onBack: () -> Unit, modifier: Modifier = Modifier) {
@@ -63,20 +58,11 @@ internal fun AboutPage(onBack: () -> Unit, modifier: Modifier = Modifier) {
     ) {
         BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
             if (maxWidth >= 700.dp) {
-                // Les deux cartes partent du meme bord haut et finissent au
-                // meme niveau : on mesure les deux, et on impose le plus grand
-                // des deux comme **minimum** aux deux.
-                //
-                // Deux pieges payes, dans cet ordre.
-                // `Modifier.height(IntrinsicSize.Min)` etait la reponse
-                // evidente et elle est fausse : la hauteur intrinseque minimale
-                // d'un paragraphe est celle qu'il ferait a la largeur de son mot
-                // le plus long, donc enorme — la rangee prenait deux ecrans et
-                // demi de haut. Puis imposer la hauteur mesuree a gauche comme
-                // **taille** a droite a ecrase le dernier bouton de la carte de
-                // droite en un trait de trois pixels : une hauteur imposee
-                // decoupe, un minimum laisse grandir.
-                // pourquoi : docs/decisions/reglages-ecran.md § Aligner deux colonnes demande de mesurer, pas d'intrinsèque
+                // Both cards start at the same top edge and end level: measure both,
+                // then impose the taller as a minimum on both.
+                // `Modifier.height(IntrinsicSize.Min)` was the obvious answer and is
+                // wrong, the minimum intrinsic height being the shorter of the two.
+                // pourquoi : docs/decisions/reglages-ecran.md § Aligning two columns means measuring, not intrinsics
                 var leftHeight by remember { mutableIntStateOf(0) }
                 var rightHeight by remember { mutableIntStateOf(0) }
                 val density = LocalDensity.current
@@ -106,7 +92,7 @@ internal fun AboutPage(onBack: () -> Unit, modifier: Modifier = Modifier) {
     }
 }
 
-/** Ce qu'est l'app, sa version, sa licence. */
+/** What the app is, its version, its licence. */
 @Composable
 private fun IdentityBlock(modifier: Modifier = Modifier) {
     SettingsBlock(
@@ -126,7 +112,7 @@ private fun IdentityBlock(modifier: Modifier = Modifier) {
     }
 }
 
-/** Les deux seuls liens sortants de l'app. */
+/** The app's only two outgoing links. */
 @Composable
 private fun JoinBlock(open: (String) -> Unit, modifier: Modifier = Modifier) {
     SettingsBlock(
@@ -135,11 +121,10 @@ private fun JoinBlock(open: (String) -> Unit, modifier: Modifier = Modifier) {
         spread = true,
         footer = {
             DetailActions {
-                // Le Discord d'abord, et rempli : c'est le seul des deux qui
-                // rende quelque chose au joueur. Le soutien est propose, jamais
-                // mis en avant — une app qui demande de l'argent plus fort
-                // qu'elle n'offre de l'aide se lit comme un guichet.
-                // pourquoi : docs/decisions/reglages-ecran.md § Les deux liens sortants, et leur ordre
+                // Discord first, and filled: it is the only one of the two that gives
+                // the player anything. Support is offered, never pushed: an app that
+                // asks for money louder than it offers help reads as a till.
+                // pourquoi : docs/decisions/reglages-ecran.md § The two outbound links, and their order
                 PrimaryButton(
                     label = stringResource(R.string.settings_about_discord),
                     onClick = { open(DISCORD_URL) },
@@ -155,27 +140,24 @@ private fun JoinBlock(open: (String) -> Unit, modifier: Modifier = Modifier) {
             }
         }
     ) {
-        // Aucun texte : deux boutons dont le libelle porte deja leur
-        // destination n'ont rien a faire expliquer. Le paragraphe qui vivait
-        // ici disait ce que le Discord sert et ou va l'argent — vrai, et
-        // personne ne le lisait avant de presser le bouton qu'il coiffait.
-        // pourquoi : docs/decisions/reglages-ecran.md § Les deux liens sortants, et leur ordre
+        // No text: two buttons whose labels already carry their destination explain
+        // nothing. The paragraph that lived here said what Discord is for and where the
+        // money goes, and nobody read it before pressing the button it capped.
+        // pourquoi : docs/decisions/reglages-ecran.md § The two outbound links, and their order
     }
 }
 
-/** Le salon des joueurs. */
+/** The players' room. */
 private const val DISCORD_URL = "https://discord.gg/tvWcb28vBZ"
 
-/** Le pot commun. Jamais dans un dialogue, jamais au lancement : ici et nulle part ailleurs. */
+/** The tip jar. Never in a dialog, never at launch: here and nowhere else. */
 private const val KOFI_URL = "https://ko-fi.com/emufii"
 
 /**
- * La marque d'un service exterieur, a sa propre couleur.
- *
- * Non teintee par l'accent, et c'est voulu : elle designe un ailleurs, donc
- * c'est du contenu, comme l'icone d'une console ou une jaquette. La regle du
- * seul accent porte sur le chrome, pas sur ce que le chrome montre.
- * pourquoi : docs/decisions/direction-visuelle.md § Trois sols, un accent, et rien d'autre n'a de teinte
+ * An outside service's mark, in its own colour. Untinted by the accent deliberately: it
+ * names an elsewhere, so it is content, like a console icon or cover art. The
+ * single-accent rule covers the chrome, not what the chrome shows.
+ * pourquoi : docs/decisions/direction-visuelle.md § Three floors, one accent, and nothing else has a hue
  */
 @Composable
 private fun BrandMark(res: Int) {

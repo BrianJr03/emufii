@@ -7,7 +7,7 @@ plugins {
 
 /**
  * Signing credentials live outside the repo, in a git-ignored properties file
- * at the project root. Absent — a fresh clone, or CI — the release build still
+ * at the project root. Without it (a fresh clone, or CI) the release build still
  * works, it just comes out unsigned rather than failing.
  */
 val keystoreProperties = Properties().apply {
@@ -170,7 +170,7 @@ android {
     }
 
     // One coordinator for every build: the hosted one. Debug used to point at
-    // 10.0.2.2:8787 — the host machine as seen from an emulator — which meant a
+    // 10.0.2.2:8787, the host machine as seen from an emulator, which meant a
     // debug build was unusable unless a local server happened to be running, and
     // reported "coordinator unreachable" when it wasn't. It also meant debug and
     // release were never talking to the same thing, so a coordinator that had
@@ -179,7 +179,7 @@ android {
     // Override with -Pemufii.coordinatorUrl=… to point a build somewhere else.
     //
     // A name of our own since 2026-08-30, in place of `85-215-52-3.sslip.io`.
-    // That address carried the machine's IP, so moving machines changed it — and
+    // That address carried the machine's IP, so moving machines changed it, and
     // every APK already installed kept calling the old one, with no way back:
     // the update they would need is served by the address they can no longer
     // reach. A domain makes the next move a DNS record.
@@ -262,9 +262,9 @@ android {
 
 dependencies {
     implementation(platform(libs.androidx.compose.bom))
-    // Installe le profil de compilation au premier lancement. Sans lui,
-    // `src/main/baseline-prof.txt` voyage dans l'APK et n'est jamais lu.
-    // pourquoi : le profil, et ce qu'il change — voir `baseline-prof.txt`
+    // Installs the compilation profile on first launch. Without it,
+    // `src/main/baseline-prof.txt` travels in the APK and is never read.
+    // pourquoi : the profile, and what it changes, see `baseline-prof.txt`
     implementation(libs.androidx.profileinstaller)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.material3)

@@ -94,19 +94,18 @@ private sealed interface Screen {
     data class InSession(val session: Session) : Screen
 
     /**
-     * The Kaeru route: a Rom rather than a Session, because there is no session.
-     * pourquoi : docs/decisions/lancement-et-navigation.md § Deux routes qui ne sont pas des sessions
+     * A Rom rather than a Session: there is no session.
+     * pourquoi : docs/decisions/lancement-et-navigation.md § Two routes that are not sessions
      */
     data class Wfc(val rom: Rom) : Screen
 
     /**
-     * Public PSP ad hoc. A screen rather than a card: you leave it to set PPSSPP
-     * up and must find your place again on the way back.
-     * pourquoi : docs/decisions/lancement-et-navigation.md § Deux routes qui ne sont pas des sessions
+     * A screen rather than a card: you leave it to set PPSSPP up and must find your
+     * place again.
+     * pourquoi : docs/decisions/lancement-et-navigation.md § Two routes that are not sessions
      */
     data class PspOnline(val rom: Rom) : Screen
 
-    /** Profile and app settings. A place you visit, hence a screen. */
     data object ProfileAndSettings : Screen
 
     data object Friends : Screen
@@ -124,9 +123,8 @@ private fun Rom.toRef() =
     )
 
 /**
- * The splash screen's token, at process scope — un `rememberSaveable` revient
- * avec l'activite. [rearm] est appele a chaque demarrage reel, sauf en session.
- * pourquoi : docs/decisions/lancement-et-navigation.md § Le préchargement tourne, et l'app se compose derrière lui
+ * At process scope: a `rememberSaveable` comes back with the activity.
+ * pourquoi : docs/decisions/lancement-et-navigation.md § The preload runs, and the app composes behind it
  */
 internal object SplashGate {
     var pending by mutableStateOf(true)
@@ -146,22 +144,20 @@ private const val TUNNEL_TIMEOUT_MS = 45_000L
 private const val CODE_ATTEMPTS = 5
 
 /**
- * How often we tell the coordinator we're around while *outside* a session;
- * inside one, the member heartbeat reports it and this stops.
- * pourquoi : docs/decisions/lancement-et-navigation.md § Ce qui est hissé au niveau de l'app, et pourquoi
+ * Outside a session only; inside one the member heartbeat reports for us.
+ * pourquoi : docs/decisions/lancement-et-navigation.md § What is hoisted to app level, and why
  */
 private const val PRESENCE_MS = 45_000L
 
 /**
- * Tearing a tunnel down is local work: it is quick, or it is stuck.
- * pourquoi : docs/decisions/lancement-et-navigation.md § Le créneau VPN unique d'Android
+ * Local work: it is quick, or it is stuck.
+ * pourquoi : docs/decisions/lancement-et-navigation.md § Android's single VPN slot
  */
 private const val TUNNEL_RELEASE_MS = 6_000L
 
 /**
- * Polls until the host publishes its address. Do not use `return@repeat` here:
- * it only ends the current iteration.
- * pourquoi : docs/decisions/lancement-et-navigation.md § Le créneau VPN unique d'Android
+ * Never `return@repeat` here: it ends the iteration, not the loop.
+ * pourquoi : docs/decisions/lancement-et-navigation.md § Android's single VPN slot
  */
 private suspend fun pollHostIp(client: CoordinatorClient, code: String): String? {
     repeat(20) {
@@ -179,43 +175,33 @@ fun EmufiiApp(settings: SettingsStore) {
     val client = remember { CoordinatorClient() }
     val profileStore = remember { ProfileStore(context) }
     val friendStore = remember { FriendStore.get(context) }
-    // Handed in rather than built here: the theme is applied above this
-    // composable, so it has to read the same store the settings page writes.
+    // Handed in: the theme is applied above this composable and must read the same
+    // store.
     val settingsStore = settings
     val romsRepo = remember { RomsRepository(context) }
     val profile by profileStore.profile.collectAsState()
     /**
-     * Survives the activity recreation a language change causes, so the player
-     * lands back where they were.
-     * pourquoi : docs/decisions/lancement-et-navigation.md § Le logo, une fois par processus et jamais au premier lancement
+     * Survives the activity recreation a language change causes.
+     * pourquoi : docs/decisions/lancement-et-navigation.md § The logo, once per process and never on first launch
      */
     var onProfilePage by rememberSaveable { mutableStateOf(false) }
     var screen by remember {
         mutableStateOf<Screen>(if (onProfilePage) Screen.ProfileAndSettings else Screen.Library)
     }
-    // The gate must not re-arm while a session lives: coming back from the
-    // emulator has to land back in the session's screen, not in front of the
-    // logo. Preparation counts too — the VPN prompt and the emulator's launch
-    // both pass through activity stops on their way there.
+    // The gate must not re-arm while a session lives, or returning lands on the logo.
     SideEffect {
         SplashGate.sessionAlive =
             screen is Screen.InSession || screen is Screen.Preparing
     }
-    // Derive de `screen`, jamais pousse depuis un site d'appel : le panneau ne
-    // peut pas etre en desaccord avec l'app, et il ne lui survit pas.
-    // pourquoi : docs/decisions/lancement-et-navigation.md § Ce que le second écran reçoit
+    // Derived from `screen`, never pushed from a call site, so the panel cannot
+    // disagree.
+    // pourquoi : docs/decisions/lancement-et-navigation.md § What the second screen receives
     DisposableEffect(Unit) { onDispose { SecondScreen.clear() } }
 
-    // Once, before anything else: the app is useless without a ROM folder, and
-    // the notification is what keeps the network alive inside the emulator.
+    // The app is useless without a ROM folder.
     var onboarding by remember { mutableStateOf(!settingsStore.onboardingDone) }
 
-    /**
-     * The splash screen, never on the first launch: the onboarding owns that
-     * moment. Read straight off the gate's snapshot state rather than copied
-     * into a `remember`, so a re-arm from the activity is picked up without
-     * waiting for a recomposition the gate cannot itself cause.
-     */
+    /** Never on the first launch: the onboarding owns that moment. */
     val splashing = SplashGate.pending && settingsStore.onboardingDone
 
 
@@ -223,12 +209,12 @@ fun EmufiiApp(settings: SettingsStore) {
 
 
     /**
-     * Owned here, the one place both screens hang off. The revision is what
-     * tells the grid the repository's shared cache moved.
-     * pourquoi : docs/decisions/lancement-et-navigation.md § Ce qui est hissé au niveau de l'app, et pourquoi
+     * The one place both screens hang off; the revision tells the grid the cache
+     * changed.
+     * pourquoi : docs/decisions/lancement-et-navigation.md § What is hoisted to app level, and why
      */
     var libraryFolder by remember { mutableStateOf(romsRepo.savedFolderLabel()) }
-    /** Le second dossier, optionnel : null tant que le joueur n'en a pas ajoute. */
+    /** Optional: null until the player adds one. */
     var librarySecondFolder by remember { mutableStateOf(romsRepo.secondFolderLabel()) }
     var libraryScanning by remember { mutableStateOf(false) }
     var libraryCount by remember { mutableStateOf<Int?>(null) }
@@ -238,8 +224,8 @@ fun EmufiiApp(settings: SettingsStore) {
         if (libraryScanning) return
         libraryScanning = true
         scope.launch {
-            // Off the main thread ALWAYS: walking a SAF tree over a multi-GB
-            // ROM has ANR'd there (9e1f9fd), and force skips the cache.
+            // Always off the main thread: walking a SAF tree over a multi-GB ROM has
+            // ANR'd (9e1f9fd).
             val roms = withContext(Dispatchers.IO) { romsRepo.scan(force = true) }
             libraryCount = roms.size
             libraryScanning = false
@@ -251,12 +237,12 @@ fun EmufiiApp(settings: SettingsStore) {
         romsRepo.setFolder(uri)
         libraryFolder = romsRepo.savedFolderLabel()
         libraryCount = null
-        // setFolder drops the cache and this scan refills it: the library would
-        // do it anyway, but then the settings page has no count to report.
+        // setFolder drops the cache and this refills it, so the settings page does not
+        // sit empty.
         rescanLibrary()
     }
 
-    /** Le second dossier s'ajoute au premier ; le refus dit qu'ils etaient le meme. */
+    /** The second folder adds to the first; a refusal means they were the same. */
     fun changeSecondLibraryFolder(uri: Uri) {
         if (!romsRepo.setSecondFolder(uri)) return
         librarySecondFolder = romsRepo.secondFolderLabel()
@@ -272,9 +258,8 @@ fun EmufiiApp(settings: SettingsStore) {
     }
 
     /**
-     * Le numero de la tentative en cours : renoncer l'incremente, ce qui rend
-     * orpheline toute tentative en vol sans savoir ou elle en est.
-     * pourquoi : docs/decisions/lancement-et-navigation.md § Une tentative en vol ne doit pas téléporter quelqu'un qui a renoncé
+     * Giving up increments it, orphaning any attempt still in flight.
+     * pourquoi : docs/decisions/lancement-et-navigation.md § An in-flight attempt must not teleport somebody who has given up
      */
     var prepEpoch by remember { mutableIntStateOf(0) }
 
@@ -286,13 +271,11 @@ fun EmufiiApp(settings: SettingsStore) {
     fun fail(message: Int, back: Screen = Screen.Library) =
         fail(context.getString(message), back)
 
-    /** The tunnel about to be displaced. Non-null while the prompt is up. */
     var conflict by remember { mutableStateOf<Pair<TunnelHolder, () -> Unit>?>(null) }
 
     /**
-     * Runs [proceed] once [want] can have Android's single VPN slot. Nothing
-     * here relies on the system's own revocation, which is silent.
-     * pourquoi : docs/decisions/lancement-et-navigation.md § Le créneau VPN unique d'Android
+     * Nothing here relies on the system's own revocation.
+     * pourquoi : docs/decisions/lancement-et-navigation.md § Android's single VPN slot
      */
     fun withTunnelSlot(want: TunnelHolder, proceed: () -> Unit) {
         val session = EmufiiWgManager.state.value
@@ -301,7 +284,6 @@ fun EmufiiApp(settings: SettingsStore) {
         else conflict = tunnelHolder(session, wfc) to proceed
     }
 
-    /** Frees the slot [held] holds, then runs [proceed]. */
     fun releaseTunnelThen(held: TunnelHolder, proceed: () -> Unit) {
         scope.launch {
             val freed = when (held) {
@@ -311,8 +293,8 @@ fun EmufiiApp(settings: SettingsStore) {
                         WfcManager.state.first { it !is WfcState.Active }
                     }
                 }
-                // No coordinator call to make: we are only here because the app
-                // came back without the code. The GC reaps the room on its TTL.
+                // No coordinator call: we are here because the app came back without
+                // the code.
                 TunnelHolder.SESSION -> {
                     EmufiiWgManager.stop(context)
                     withTimeoutOrNull(TUNNEL_RELEASE_MS) {
@@ -326,21 +308,19 @@ fun EmufiiApp(settings: SettingsStore) {
     }
 
     /**
-     * Waits for the tunnel, but not forever: null if it errored or took too
-     * long. There is no address to wait for; the coordinator assigns it first.
-     * pourquoi : docs/decisions/lancement-et-navigation.md § Le créneau VPN unique d'Android
+     * Null if it errored or took too long.
+     * pourquoi : docs/decisions/lancement-et-navigation.md § Android's single VPN slot
      */
     suspend fun awaitTunnel(): WgState.Online? = withTimeoutOrNull(TUNNEL_TIMEOUT_MS) {
         EmufiiWgManager.state.first { it is WgState.Error || it is WgState.Online } as? WgState.Online
     }
 
     fun startHostSession(rom: Rom, private: Boolean = false) = withTunnelSlot(TunnelHolder.SESSION) {
-        // No screen change on purpose: the launch card is still spinning and
-        // carries this leg itself.
-        // pourquoi : docs/decisions/lancement-et-navigation.md § Le créneau VPN unique d'Android
+        // No screen change: the launch card is still spinning and carries this leg.
+        // pourquoi : docs/decisions/lancement-et-navigation.md § Android's single VPN slot
         scope.launch {
-            // Codes are short and random, so collisions happen; the coordinator
-            // rejects duplicates and a fresh draw is all it takes.
+            // Codes are short and random: the coordinator rejects duplicates and a
+            // fresh draw fixes it.
             var created: CreatedSession? = null
             var code = ""
             var lastError: Throwable? = null
@@ -348,16 +328,16 @@ fun EmufiiApp(settings: SettingsStore) {
                 code = SessionCodes.generate()
                 val outcome = client.createSession(
                     code, rom.sessionId, rom.displayName, profile.name, profile.id,
-                    // Stated, never guessed: 3DS and Switch write titleId the
-                    // same way, and this decides whether a VPS room is raised.
+                    // Stated, never guessed: 3DS and Switch write titleId alike, and
+                    // this decides the VPS room.
                     console = rom.console.wireName,
                     private = private
                 )
                 created = outcome.getOrNull()
                 if (created != null) break
                 lastError = outcome.exceptionOrNull()
-                // Only a collision is worth another draw: retrying an
-                // unreachable coordinator just costs three timeouts.
+                // Only a collision is worth another draw; an unreachable coordinator
+                // costs three timeouts.
                 val collision = lastError.let { it is CoordinatorError.Http && it.status == 409 }
                 if (!collision) break
             }
@@ -371,8 +351,8 @@ fun EmufiiApp(settings: SettingsStore) {
                     val epoch = prepEpoch
                     screen = Screen.Preparing(context.getString(R.string.flow_connecting_tunnel))
                     scope.launch {
-                        // Claiming the address also publishes host_ip: the
-                        // profile id lets the coordinator recognise its host.
+                        // Claiming the address publishes host_ip: the profile id
+                        // identifies the host.
                         val hostToken = session.token
                         val info = client.claimAddress(
                             code, EmufiiWgManager.publicKey(context), profile.name, profile.id
@@ -380,8 +360,7 @@ fun EmufiiApp(settings: SettingsStore) {
                             client.deleteSession(code, hostToken)
                             return@launch fail(R.string.flow_tunnel_failed)
                         }
-                        // DNS for the PS2 only: its keyboard cannot type a dot,
-                        // so its emulator dials a name instead of an address.
+                        // PS2 only: its keyboard has no dot key, so it dials a name.
                         EmufiiWgManager.start(
                             context, code, info,
                             announceDns = rom.console.backend == Backend.ARMSX2
@@ -391,9 +370,9 @@ fun EmufiiApp(settings: SettingsStore) {
                             EmufiiWgManager.stop(context)
                             return@launch fail(R.string.flow_tunnel_failed)
                         }
-                        // The target emulator's port, never a shared default:
-                        // Dolphin listens on 2626, the others on 24872.
-                        // pourquoi : docs/decisions/lancement-et-navigation.md § Le créneau VPN unique d'Android
+                        // The target emulator's port: Dolphin listens on 2626, the
+                        // others on 24872.
+                        // pourquoi : docs/decisions/lancement-et-navigation.md § Android's single VPN slot
                         val netplayPort = rom.console.backend.defaultNetplayPort
                         client.patchSession(code, info.address, netplayPort, hostToken)
                         if (prepEpoch != epoch) return@launch
@@ -405,16 +384,14 @@ fun EmufiiApp(settings: SettingsStore) {
                                 role = Session.Role.HOST,
                                 rom = rom.toRef(),
                                 token = hostToken,
-                                // With a VPS room the host joins like everyone
-                                // else: their phone stops being a link.
+                                // With a VPS room the host joins like everyone else.
                                 room = session.room
                             )
                         )
                     }
                 },
                 onDenied = {
-                    // The session already exists, undo it rather than leave a room
-                    // nobody can enter.
+                    // Undo it rather than leave a room nobody can enter.
                     scope.launch { client.deleteSession(code, session.token) }
                     fail(R.string.flow_no_vpn_host)
                 }
@@ -423,9 +400,8 @@ fun EmufiiApp(settings: SettingsStore) {
     }
 
     fun startJoinFlow(rom: RomRef?, code: String) {
-        // The PS2 profile gates joining too, not just hosting, and is said
-        // before the VPN prompt and before the tunnel slot.
-        // pourquoi : docs/decisions/lancement-et-navigation.md § Les refus se disent avant l'invite VPN
+        // Gates joining as well as hosting, and is said before the VPN prompt.
+        // pourquoi : docs/decisions/lancement-et-navigation.md § Refusals are said before the VPN prompt
         if (rom?.console == Console.PS2 && !Ps2NetworkProfile.isReady(context)) {
             return fail(R.string.launch_ps2_profile_missing, screen)
         }
@@ -434,8 +410,8 @@ fun EmufiiApp(settings: SettingsStore) {
             scope.launch {
                 val back = if (rom != null) Screen.Join(rom) else Screen.Finder
                 val remote = client.getSession(code).getOrElse { err ->
-                    // A missing code is the player's to fix, a silent
-                    // coordinator is ours: one message for both misled.
+                    // A missing code is the player's to fix, a silent coordinator ours:
+                    // one message misled both.
                     return@launch fail(
                         if (err is CoordinatorError.NotFound) R.string.flow_session_not_found
                         else R.string.flow_coordinator_unreachable,
@@ -443,9 +419,9 @@ fun EmufiiApp(settings: SettingsStore) {
                     )
                 }
 
-                // Only different *titles* are caught: two regional dumps share a
-                // title id and are indistinguishable here.
-                // pourquoi : docs/decisions/lancement-et-navigation.md § Les refus se disent avant l'invite VPN
+                // Only different titles are caught: two regional dumps share a title
+                // id.
+                // pourquoi : docs/decisions/lancement-et-navigation.md § Refusals are said before the VPN prompt
                 if (rom?.titleIdHex != null && remote.romTitleId != null &&
                     !rom.titleIdHex.equals(remote.romTitleId, ignoreCase = true)
                 ) {
@@ -463,8 +439,7 @@ fun EmufiiApp(settings: SettingsStore) {
                         val epoch = prepEpoch
                         screen = Screen.Preparing(context.getString(R.string.flow_connecting_tunnel))
                         scope.launch {
-                            // Full is not broken: 503 means full, 429 means
-                            // asking too fast.
+                            // 503 is full, 429 is asking too fast.
                             val info = client.claimAddress(
                                 code, EmufiiWgManager.publicKey(context), profile.name, profile.id
                             ).getOrElse { err ->
@@ -485,16 +460,16 @@ fun EmufiiApp(settings: SettingsStore) {
                                 EmufiiWgManager.stop(context)
                                 return@launch fail(R.string.flow_tunnel_failed)
                             }
-                            // The host publishes its address once its own tunnel is
-                            // up, which may be after we got here.
+                            // The host publishes its address once its tunnel is up,
+                            // possibly after we got here.
                             val hostIp = remote.hostIp ?: pollHostIp(client, code)
                                 ?: run {
                                     EmufiiWgManager.stop(context)
                                     return@launch fail(R.string.flow_host_not_ready)
                                 }
-                            // A first heartbeat before going in: it brings back
-                            // the token that lets us withdraw ourselves later.
-                            // pourquoi : docs/decisions/lancement-et-navigation.md § Le créneau VPN unique d'Android
+                            // It brings back the token that lets us withdraw ourselves
+                            // later.
+                            // pourquoi : docs/decisions/lancement-et-navigation.md § Android's single VPN slot
                             val memberToken = client.heartbeat(code, profile.id, profile.name)
                                 .getOrNull()?.memberToken
                             if (prepEpoch != epoch) return@launch
@@ -502,8 +477,8 @@ fun EmufiiApp(settings: SettingsStore) {
                                 Session(
                                     code = code,
                                     hostIp = hostIp,
-                                    // The host's published port is
-                                    // authoritative; the fallback follows the emulator.
+                                    // The host's published port wins; the fallback
+                                    // follows the emulator.
                                     port = (
                                         remote.port
                                             ?: rom?.console?.backend?.defaultNetplayPort
@@ -526,7 +501,7 @@ fun EmufiiApp(settings: SettingsStore) {
         }
     }
 
-    /** Join a found session. Not owning the ROM is fine: it just cannot launch. */
+    /** Not owning the ROM is fine: it just cannot launch. */
     fun joinKnownSession(code: String, romTitleId: String?, romTitle: String? = null) {
         scope.launch {
             val rom = withContext(Dispatchers.IO) {
@@ -534,8 +509,7 @@ fun EmufiiApp(settings: SettingsStore) {
                 library.firstOrNull { r ->
                     romTitleId != null && r.sessionId.equals(romTitleId, ignoreCase = true)
                 }
-                // Title as a last resort: two regional PSP dumps carry two disc
-                // ids, and refusing on that would be wrong.
+                // Title as a last resort: two regional PSP dumps carry two disc ids.
                     ?: library.firstOrNull { r ->
                         romTitle != null && r.displayName.equals(romTitle, ignoreCase = true)
                     }
@@ -545,9 +519,8 @@ fun EmufiiApp(settings: SettingsStore) {
     }
 
     /**
-     * Presence, so friends holding our code can see we're around. Silent while
-     * in a session; its first call on leaving clears "in a game".
-     * pourquoi : docs/decisions/lancement-et-navigation.md § Ce qui est hissé au niveau de l'app, et pourquoi
+     * Silent while in a session; its first call on leaving one reports again.
+     * pourquoi : docs/decisions/lancement-et-navigation.md § What is hoisted to app level, and why
      */
     val inSession = screen is Screen.InSession
     LaunchedEffect(profile.id, profile.name, inSession) {
@@ -559,9 +532,8 @@ fun EmufiiApp(settings: SettingsStore) {
     }
 
     /**
-     * Who is around, asked once for the whole app: presence is not the friends
-     * screen's private business.
-     * pourquoi : docs/decisions/lancement-et-navigation.md § Ce qui est hissé au niveau de l'app, et pourquoi
+     * Asked once for the whole app: presence is not the friends screen's business.
+     * pourquoi : docs/decisions/lancement-et-navigation.md § What is hoisted to app level, and why
      */
     val friends by friendStore.friends.collectAsState()
     val watcher = remember { FriendWatcher(context, client) }
@@ -569,12 +541,11 @@ fun EmufiiApp(settings: SettingsStore) {
     val friendCodes = friends.map { it.code }
     LaunchedEffect(friendCodes) { watcher.run(friendCodes) }
 
-    // Les libelles d'etat des amis, resolus **ici**, du cote qui parle la langue
-    // de l'interface : la fenetre du panneau a son propre contexte d'affichage.
-    // pourquoi : docs/decisions/second-ecran.md § La liste d'amis descend au dos, les deux cartes restent devant
+    // Resolved here, on the side that speaks the interface language.
+    // pourquoi : docs/decisions/second-ecran.md § The friends list goes to the back, both cards stay in front
     val friendPlayingUnknown = stringResource(R.string.friends_playing_unknown)
-    // Le nom de repli, resolu ici aussi : `playerDisplayName` est composable, et
-    // un effet n'est pas une composition.
+    // Resolved here too: `playerDisplayName` is composable and an effect is not a
+    // composition.
     val friendUnnamed = stringResource(R.string.profile_default_name)
     val friendOnline = stringResource(R.string.friends_online)
     val friendOffline = stringResource(R.string.friends_offline)
@@ -584,9 +555,8 @@ fun EmufiiApp(settings: SettingsStore) {
             SecondScreen.publish(
                 SecondScreenModel.Friends(
                     entries = friends
-                        // Le meme ordre que l'ecran de face : en jeu, puis en
-                        // ligne, puis les autres par nom. Deux ordres pour une
-                        // meme liste, ce serait deux listes.
+                        // The front screen's order: in game, then online, then the rest
+                        // by name.
                         .sortedWith(
                             compareByDescending<Friend> {
                                 friendStatuses[it.code]?.inSession == true
@@ -622,11 +592,8 @@ fun EmufiiApp(settings: SettingsStore) {
                     role = active.role,
                     console = active.console,
                     gameTitle = active.rom?.displayName,
-                    // Les memes valeurs que l'ecran de face, par la meme
-                    // definition : le panneau recevait `hostIp` brut, donc une
-                    // session Eden avec salon publiait au dos une adresse que
-                    // l'emulateur n'attend pas.
-                    // pourquoi : docs/decisions/session.md § Ce que le panneau arrière porte, l'écran de face ne le redit pas
+                    // The same values as the front screen, by the same definition.
+                    // pourquoi : docs/decisions/session.md § What the rear panel carries, the front screen does not repeat
                     hostAddress = active.shownAddress,
                     port = active.shownPort,
                 )
@@ -638,14 +605,14 @@ fun EmufiiApp(settings: SettingsStore) {
     LaunchedEffect(watcher) {
         watcher.alerts.collect { event ->
             alert = event
-            // Mirrored onto the rear panel, the card above unchanged: a single
-            // screen must not lose an alert because a panel exists elsewhere.
+            // Mirrored, the card above unchanged: one screen must lose nothing to a
+            // panel.
             PanelFeed.post(friendNoteText(context, event), PanelFeed.Kind.FRIEND)
         }
     }
 
-    // A tapped notification asks for a screen, and it is honoured here rather
-    // than in the activity: this is the only place that knows what a screen is.
+    // Honoured here rather than in the activity: this is the only place that owns
+    // `screen`.
     val pendingOpen by Notifications.PendingOpen.target.collectAsState()
     LaunchedEffect(pendingOpen) {
         if (Notifications.PendingOpen.consume() == Notifications.OPEN_FRIENDS) {
@@ -655,14 +622,12 @@ fun EmufiiApp(settings: SettingsStore) {
     }
 
     /**
-     * The watch that keeps running once the app is closed. Scheduling is
-     * idempotent, and an app with nothing to watch schedules nothing.
-     * pourquoi : docs/decisions/lancement-et-navigation.md § Ce qui est hissé au niveau de l'app, et pourquoi
+     * Scheduling is idempotent, and an app with nothing to watch schedules nothing.
+     * pourquoi : docs/decisions/lancement-et-navigation.md § What is hoisted to app level, and why
      */
     val notifyFriends by settingsStore.notifyFriends.collectAsState()
     val notifyUpdates by settingsStore.notifyUpdates.collectAsState()
-    // `foreground` is a key, not a decoration: the notification permission is
-    // granted outside anything this app can observe. Found on the Thor.
+    // A key, not a decoration: the notification permission is granted outside the app.
     val foreground by AppForeground.visible.collectAsState()
     LaunchedEffect(notifyFriends, notifyUpdates, friends.size, foreground) {
         if (!foreground) return@LaunchedEffect
@@ -671,8 +636,8 @@ fun EmufiiApp(settings: SettingsStore) {
     }
 
     if (onboarding) {
-        // The first launch spends the token without showing the screen, or the
-        // logo lands right after onboarding, where the library is expected.
+        // The first launch spends the token unseen, or the logo lands right after
+        // onboarding.
         LaunchedEffect(Unit) { SplashGate.pending = false }
         OnboardingScreen(
             initialName = profile.name,
@@ -688,9 +653,8 @@ fun EmufiiApp(settings: SettingsStore) {
     }
 
     /**
-     * Le prechargement tourne, et l'app se compose **derriere** le logo : quand
-     * il s'en va, il decouvre une image deja finie.
-     * pourquoi : docs/decisions/lancement-et-navigation.md § Le préchargement tourne, et l'app se compose derrière lui
+     * The app composes behind the logo, so it uncovers a finished image.
+     * pourquoi : docs/decisions/lancement-et-navigation.md § The preload runs, and the app composes behind it
      */
     var libraryReady by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
@@ -698,16 +662,11 @@ fun EmufiiApp(settings: SettingsStore) {
             runCatching { romsRepo.cachedOrScan() }.getOrDefault(emptyList())
         }
         val warm = launch(Dispatchers.IO) {
-            // Les noms que les fichiers chiffrés ne donnent pas.
             runCatching { GameTitles.refresh(context, roms) }
-            // Les pastilles, pour qu'elles soient sur la première image.
             runCatching { CompatCheck.refresh(context) }
-            // Les paquets d'émulateurs et leurs icônes : sept requêtes au
-            // système et autant de tramages, payés une fois ici plutôt qu'à
-            // l'ouverture de la page des consoles.
+            // Seven system queries and as many rasterisations, paid once here.
             runCatching { allEmulators(context) }
-            // Et les jaquettes : les index de dossier, les adresses, puis le
-            // décodage des deux premiers écrans de grille.
+            // Folder indexes, addresses, then decoding the first two screens of grid.
             runCatching { ArtworkPreload.warm(context, roms) }
         }
         withTimeoutOrNull(PRELOAD_MS) { warm.join() }
@@ -715,11 +674,8 @@ fun EmufiiApp(settings: SettingsStore) {
     }
 
     /**
-     * What "back" means, screen by screen — the gap that used to close the app.
-     *
-     * Null on the library (the root), and null during preparation and in
-     * session, where back is nonetheless *consumed* rather than passed up.
-     * pourquoi : docs/decisions/lancement-et-navigation.md § Ce que « retour » veut dire, écran par écran
+     * Null on the library, which is the root.
+     * pourquoi : docs/decisions/lancement-et-navigation.md § What "back" means, screen by screen
      */
     val goBack: (() -> Unit)? = when (screen) {
         Screen.Library -> null
@@ -728,20 +684,17 @@ fun EmufiiApp(settings: SettingsStore) {
         Screen.ProfileAndSettings -> ({ onProfilePage = false; screen = Screen.Library })
         else -> ({ screen = Screen.Library })
     }
-    // Live everywhere except on the library, which is the root: there, and only
-    // there, the gesture belongs to the system.
+    // Everywhere but the library, where the gesture belongs to the system.
     BackHandler(enabled = screen != Screen.Library) { goBack?.invoke() }
 
     /**
-     * The compatibility ratings: cache lu *synchroniquement* pour que les
-     * pastilles soient sur la premiere image, reseau derriere, et jamais de
-     * remplacement par moins.
-     * pourquoi : docs/decisions/lancement-et-navigation.md § Ce qui est hissé au niveau de l'app, et pourquoi
+     * Cache read synchronously so the beads are on the first frame, refreshed after.
+     * pourquoi : docs/decisions/lancement-et-navigation.md § What is hoisted to app level, and why
      */
     var compat by remember { mutableStateOf(CompatCheck.cached(context)) }
     LaunchedEffect(Unit) { compat = CompatCheck.refresh(context) }
 
-    /** The editorial catalogue: same pattern, read by one page, so nothing waits. */
+    /** Same pattern, read by one page, so nothing waits. */
     var gameMeta by remember { mutableStateOf(MetaCheck.cached(context)) }
     LaunchedEffect(Unit) { gameMeta = MetaCheck.refresh(context) }
 
@@ -755,8 +708,8 @@ fun EmufiiApp(settings: SettingsStore) {
             onOpenProfile = { onProfilePage = true; screen = Screen.ProfileAndSettings },
             onOpenFriends = { screen = Screen.Friends },
             onOpenFinder = { screen = Screen.Finder },
-            // DS online play shares nothing with the session flow, no code to
-            // create, none to join, so both entry points lead to the same place.
+            // DS online play shares nothing with the session flow: no code to create,
+            // none to join.
             onCreate = { rom, private ->
                 if (rom.console.backend == Backend.MELONDS_WFC) screen = Screen.Wfc(rom)
                 else startHostSession(rom, private)
@@ -766,7 +719,7 @@ fun EmufiiApp(settings: SettingsStore) {
                 else screen = Screen.Join(rom.toRef())
             },
             // No session, no tunnel: the player picks a server inside PPSSPP.
-            // pourquoi : docs/decisions/lancement-et-navigation.md § Deux routes qui ne sont pas des sessions
+            // pourquoi : docs/decisions/lancement-et-navigation.md § Two routes that are not sessions
             onPlayPublic = { rom -> screen = Screen.PspOnline(rom) },
             onFolderPicked = { uri -> changeLibraryFolder(uri) },
             libraryRevision = libraryRevision
@@ -791,8 +744,8 @@ fun EmufiiApp(settings: SettingsStore) {
         is Screen.Preparing -> PreparingScreen(
             label = s.label,
             onGiveUp = {
-                // Le compteur d'abord, le tunnel ensuite : la tentative en vol
-                // devient orpheline avant qu'on lui retire le sol.
+                // The counter first, the tunnel after: the attempt in flight is
+                // orphaned before it loses the floor.
                 prepEpoch++
                 EmufiiWgManager.stop(context)
                 screen = Screen.Library
@@ -837,15 +790,15 @@ fun EmufiiApp(settings: SettingsStore) {
                 fail(R.string.flow_host_closed)
             },
             onLeave = {
-                // The plan outlives the process on purpose; it must not outlive
-                // the session that justified it.
+                // The plan outlives the process, but must not outlive the session that
+                // justified it.
                 NetplayAutomation.clear(PlanStore(context))
                 scope.launch {
                     if (s.session.role == Session.Role.HOST) {
                         client.deleteSession(s.session.code, s.session.token)
                     } else {
-                        // Drop out of the member list at once, so the host sees
-                        // the departure now rather than at the TTL.
+                        // Leave at once, so the host sees the departure now rather than
+                        // at the TTL.
                         client.leaveSession(s.session.code, profile.id, s.session.token)
                     }
                     EmufiiWgManager.stop(context)
@@ -856,10 +809,7 @@ fun EmufiiApp(settings: SettingsStore) {
     }
     }
 
-    // **Le logo, par-dessus tout le reste et en dernier.**
-    //
-    // Opaque et plein écran : rien de ce qui est composé dessous ne se voit, et
-    // tout y est déjà mesuré et peint quand il s'efface.
+    // Last and over everything, opaque and full screen.
     if (splashing) {
         SplashScreen(
             ready = libraryReady,
@@ -867,16 +817,14 @@ fun EmufiiApp(settings: SettingsStore) {
         )
     }
 
-    // Over every screen, and before the conflict dialog in source order: the
-    // dialog covers it, which is the right way round when both happen.
+    // Before the conflict dialog in source order, so the dialog covers it.
     FriendAlert(
         event = alert,
         onOpen = { alert = null; screen = Screen.Friends },
         onDismiss = { alert = null }
     )
 
-    // Over whatever screen asked: the answer decides whether that screen's
-    // action happens at all, so it belongs outside the when.
+    // The answer decides whether the asking screen's action happens at all.
     conflict?.let { (held, proceed) ->
         TunnelConflictDialog(
             held = held,
@@ -890,9 +838,8 @@ fun EmufiiApp(settings: SettingsStore) {
 }
 
 /**
- * A friend event as one sentence, for the rear panel. Deliberately the strings
- * the Android notification already uses.
- * pourquoi : docs/decisions/lancement-et-navigation.md § Ce que le second écran reçoit
+ * The strings the Android notification already uses.
+ * pourquoi : docs/decisions/lancement-et-navigation.md § What the second screen receives
  */
 private fun friendNoteText(context: android.content.Context, event: FriendEvent): String {
     val name = event.name ?: context.getString(R.string.notify_friend_unnamed)
@@ -905,9 +852,8 @@ private fun friendNoteText(context: android.content.Context, event: FriendEvent)
 }
 
 /**
- * Ce qu'on accorde aux prechauffages : quatre secondes gratuites, deux de plus
- * pour un demarrage a froid. Le plafond du splash reste au-dessus.
- * pourquoi : docs/decisions/lancement-et-navigation.md § Le préchargement tourne, et l'app se compose derrière lui
+ * Four seconds free, two more for a cold start.
+ * pourquoi : docs/decisions/lancement-et-navigation.md § The preload runs, and the app composes behind it
  */
 private const val PRELOAD_MS = 6_000L
 

@@ -1,21 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Le logo v3 est un dessin carré et détouré (deux tuiles arrondies décalées,
-  ~1:1). Contrairement au v2 il n'apporte pas son fond : il est donc la couche
-  d'*avant-plan*, et le fond est un aplat blanc.
+  The v3 logo is a square, cut-out drawing (two offset rounded tiles, ~1:1).
+  Unlike the v2 it brings no background of its own, so it is the foreground
+  layer and the background is flat white.
 
-  Il est mis à l'échelle à 54/108 du cadre, la moitié — en deçà du carré de
-  sécurité, qui est à 72/108. Aucune découpe de lanceur, ronde ou en écusson,
-  ne peut donc rogner les coins des tuiles, et la marge est volontairement plus
-  large que nécessaire : posé au carré de sécurité, le dessin remplissait la
-  pastille et l'icône n'avait plus de bord blanc. Descendu à 60/108 puis à 54,
-  sur pièce, le 2026-08-25.
+  It is scaled to 54/108 of the frame, half, well inside the 72/108 safety
+  square. No launcher mask, round or squircle, can clip the tile corners, and
+  the margin is deliberately wider than needed: placed at the safety square,
+  the drawing filled the badge and the icon lost its white edge. Taken down to
+  60/108 then to 54, on device, 2026-08-25.
 
-  `monochrome` est la silhouette du dessin pour les icônes thématiques
-  d'Android 13 — celles de la Thor. Le système n'en garde que le canal alpha,
-  donc les zones claires du logo (la plaque centrale, la croix, les boutons)
-  y sont des trous : c'est ce qui laisse le E lisible une fois teinté. Le mono
-  du v2 était un aplat opaque et se serait affiché en pavé plein.
+  `monochrome` is the silhouette of the drawing for the Android 13 themed
+  icons, the ones the Thor uses. The system keeps only its alpha channel, so
+  the light areas of the logo (the centre plate, the D-pad, the buttons) are
+  holes there, which is what keeps the E readable once tinted. The v2 mono was
+  an opaque fill and would have shown up as a solid block.
 -->
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
     <background android:drawable="@color/ic_launcher_background" />

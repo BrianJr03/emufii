@@ -61,7 +61,7 @@ class WgTunnelSpikeTest {
     @Before
     fun onlyOnDemand() {
         assumeTrue(
-            "spike manuel : relancer avec -e spike true",
+            "manual spike: rerun with -e spike true",
             args.getString("spike") == "true"
         )
     }
@@ -102,8 +102,8 @@ class WgTunnelSpikeTest {
         val online = withTimeoutOrNull(45_000) {
             EmufiiWgManager.state.first { it is WgState.Online || it is WgState.Error }
         }
-        assertNotNull("le tunnel n'a jamais atteint un état terminal", online)
-        assertTrue("état inattendu : $online", online is WgState.Online)
+        assertNotNull("the tunnel never reached a terminal state", online)
+        assertTrue("unexpected state: $online", online is WgState.Online)
         assertEquals(info.address, (online as WgState.Online).ip)
         info
     }
@@ -111,16 +111,17 @@ class WgTunnelSpikeTest {
     @Test
     fun hostBringsTunnelUp() {
         val code = args.getString("spikeCode") ?: "SPIKE-01"
-        runBlocking { client.deleteSession(code) }
+        // No token for a session left over from an earlier run: best effort.
+        runBlocking { client.deleteSession(code, null) }
         val created = runBlocking {
             // A host id is needed for the session to survive: the coordinator reaps
             // a session whose host has stopped checking in past its grace window,
             // and `hostIsPresent` can only ever be true when host_id is set. The
             // first spike run learned this the hard way, the session was correctly
             // reaped between the two halves, and the guest got a truthful 404.
-            client.createSession(code, null, "Spike", "Hôte", HOST_ID).getOrThrow()
+            client.createSession(code, null, "Spike", "Host", HOST_ID).getOrThrow()
         }
-        runBlocking { client.heartbeat(code, HOST_ID, "Hôte") }
+        runBlocking { client.heartbeat(code, HOST_ID, "Host") }
         println("SPIKE session=${created.code} subnet=${created.subnet}")
 
         val info = startTunnelFor(code, HOST_ID)
@@ -131,18 +132,18 @@ class WgTunnelSpikeTest {
         // out through carrier NAT and back.
         val (ok, out) = ping("10.67.0.1")
         println("SPIKE ping relais:\n$out")
-        assertTrue("le relais 10.67.0.1 est injoignable dans le tunnel\n$out", ok)
+        assertTrue("the relay 10.67.0.1 is unreachable inside the tunnel\n$out", ok)
 
         // Hold the tunnel while the guest runs, heartbeating so the coordinator
         // does not reap a session whose host looks absent.
         val hold = args.getString("spikeHoldSeconds")?.toIntOrNull() ?: 0
         repeat(hold / 5) {
             Thread.sleep(5_000)
-            runBlocking { client.heartbeat(code, HOST_ID, "Hôte") }
+            runBlocking { client.heartbeat(code, HOST_ID, "Host") }
         }
         if (hold > 0) {
             val (still, o) = ping("10.67.0.1")
-            assertTrue("le tunnel de l'hôte est tombé pendant l'attente\n$o", still)
+            assertTrue("the host tunnel went down while waiting\n$o", still)
         }
     }
 
@@ -150,20 +151,20 @@ class WgTunnelSpikeTest {
     fun guestReachesHost() {
         val code = args.getString("spikeCode") ?: "SPIKE-01"
         val hostIp = requireNotNull(args.getString("spikeHostIp")) {
-            "passer -e spikeHostIp <adresse annoncée par l'hôte>"
+            "pass -e spikeHostIp <address advertised by the host>"
         }
 
         val info = startTunnelFor(code, GUEST_ID)
         println("SPIKE guest_address=${info.address}")
 
         val (relayOk, relayOut) = ping("10.67.0.1")
-        assertTrue("le relais est injoignable\n$relayOut", relayOk)
+        assertTrue("the relay is unreachable\n$relayOut", relayOk)
 
         // The real question: two devices, two NATs, one session, and the relay
         // forwarding between them.
         val (ok, out) = ping(hostIp)
-        println("SPIKE ping hôte:\n$out")
-        assertTrue("l'hôte $hostIp est injoignable dans le tunnel\n$out", ok)
+        println("SPIKE ping host:\n$out")
+        assertTrue("host $hostIp is unreachable inside the tunnel\n$out", ok)
 
         // Hold past the peer TTL, heartbeating like the session screen does. This
         // is the half of the spike that failed the first time round: the tunnel
@@ -171,11 +172,11 @@ class WgTunnelSpikeTest {
         val hold = args.getString("spikeHoldSeconds")?.toIntOrNull() ?: 0
         repeat(hold / 5) {
             Thread.sleep(5_000)
-            runBlocking { client.heartbeat(code, GUEST_ID, "Invité") }
+            runBlocking { client.heartbeat(code, GUEST_ID, "Guest") }
         }
         if (hold > 0) {
             val (still, o) = ping(hostIp)
-            assertTrue("l'hôte est devenu injoignable pendant l'attente\n$o", still)
+            assertTrue("the host became unreachable while waiting\n$o", still)
         }
     }
 }

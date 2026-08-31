@@ -57,45 +57,22 @@ import eu.emufii.app.ui.theme.edgeColor
 import eu.emufii.app.ui.theme.plateColors
 
 /**
- * La saisie d'un code de session : **une etagere de touches, pas une dalle
- * gravee**.
+ * A console keyboard: flat keys, tight, all alike, laid straight on the ground.
+ * No shadow, no moulding, no tray under them; the only relief is the cursor ring.
  *
- * Reecrit le 2026-08-29. Le clavier etait le dernier morceau du monde « HOME
- * MENU » : une piece de plastique unique ou les cases etaient *creusees* au
- * burin, chacune allumee par un remplissage translucide dans son propre creux.
- * DUOTONE SHELVES a retire exactement ces trois choses de l'app — la gravure,
- * le relief inverse, le remplissage-comme-etat — et le clavier les gardait
- * toutes les trois. Il ne ressemblait donc a rien d'autre de l'ecran qui le
- * porte, ce qui est la definition du morceau qui detonne.
- *
- * Ce qu'il est maintenant : **un clavier de console**, sur la reference que
- * l'utilisateur a nommee — celui de la 3DS et de la Switch. Des touches plates,
- * serrees, toutes pareilles, posees a meme le fond. Pas d'ombre, pas de
- * moulage, pas de plateau dessous.
- *
- * La version intermediaire faisait de chaque touche une tuile de bibliotheque
- * en petit, avec ombre portee et lip eclaire. C'etait fidele au systeme et
- * mauvais a l'oeil : quarante objets qui flottent chacun sur leur ombre, ca
- * n'est pas un clavier, c'est une vitrine. **Un clavier est un fond et des
- * lettres**, et tout le relief qu'il a le droit d'avoir est celui du curseur —
- * qui, lui, reste l'anneau de l'app. C'est le seul element que l'utilisateur
- * ait valide des le premier essai.
- *
- * **C'est le seul clavier que l'app dessine encore.** Celui de la recherche est
- * reparti au systeme le meme jour : corriger un titre de jeu veut dire la
- * disposition, les langues et la correction du joueur, qu'on ne refera pas. Un
- * code, lui, se lit sur un ecran et se recopie caractere par caractere — le
- * clavier de l'app y gagne ce que l'IME ne sait pas faire : des cibles larges
- * atteignables a la manette, et aucune suggestion qui s'en mele.
- * pourquoi : docs/decisions/coquille-ecrans.md § Le clavier de code n'est pas le clavier de recherche
- * pourquoi : docs/decisions/theme-duotone-shelves.md § Les creux deviennent des encoches
+ * The only keyboard the app still draws. Search went back to the system IME,
+ * since correcting a game title means layouts, languages and autocorrect. A code
+ * is copied character by character, and gains wide pad-reachable targets with no
+ * suggestions in the way.
+ * pourquoi : docs/decisions/coquille-ecrans.md § The code keyboard is not the search keyboard
+ * pourquoi : docs/decisions/theme-duotone-shelves.md § Hollows become notches
  */
 @Composable
 fun EmufiiCodeKeyboard(
     onKey: (Char) -> Unit,
     maxHeight: Dp,
     modifier: Modifier = Modifier,
-    /** Ou le curseur entre dans le clavier : porte par la premiere touche. */
+    /** Where the cursor enters the keypad, carried by the first key. */
     firstKeyFocus: FocusRequester? = null
 ) {
     val cursor = remember { SlabCursor(CODE_ROWS) }
@@ -103,14 +80,11 @@ fun EmufiiCodeKeyboard(
 
     BoxWithConstraints(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
     /**
-     * **Une touche est un peu plus large que haute, jamais l'inverse.**
-     *
-     * La hauteur se deduisait de la place offerte, divisee en quatre : sur un
-     * panneau etroit, dix colonnes donnaient des touches deux fois plus hautes
-     * que larges — des barres verticales, ce qu'aucun clavier n'est. La largeur
-     * d'une colonne commande donc la hauteur, et la place disponible ne fait
-     * plus que la plafonner. Ce qui reste en hauteur devient du vide, et le
-     * clavier se centre dedans.
+     * A key is a little wider than it is tall, never the reverse. Height used to be
+     * derived from the room offered, divided by four: on a narrow panel, ten columns
+     * gave keys twice as tall as they were wide, which is what no keyboard is. Column
+     * width now sets the height and the available room only caps it; the leftover
+     * becomes empty space the keypad centres in.
      */
     val keyWidth = (maxWidth - KEY_GAP * (CODE_COLUMNS - 1)) / CODE_COLUMNS
     val roomPerRow = (maxHeight - KEY_GAP * (CODE_ROWS.size - 1)) / CODE_ROWS.size
@@ -119,12 +93,12 @@ fun EmufiiCodeKeyboard(
     Column(
         verticalArrangement = Arrangement.spacedBy(KEY_GAP),
         modifier = Modifier
-            // La largeur exacte de dix colonnes : le clavier ne s'etire pas
-            // pour remplir son plateau, il garde ses proportions et se centre.
+            // Exactly ten columns wide: the keypad keeps its proportions and centres
+            // rather than stretching to fill its tray.
             .width(keyWidth * CODE_COLUMNS + KEY_GAP * (CODE_COLUMNS - 1))
-            // Un seul noeud focalisable, un curseur tenu ici : les touches ne
-            // decident pas si elles sont visees, on le leur dit.
-            // pourquoi : CLAUDE.md § Navigation à la manette : la grille tient son propre curseur
+            // One focusable node and a cursor held here: a key is told whether it is
+            // aimed at, it does not decide.
+            // pourquoi : CLAUDE.md § Gamepad navigation: the grid holds its own cursor
             .slabKeys(CODE_ROWS, cursor) { label -> onKey(label.first()) }
             .then(if (firstKeyFocus != null) Modifier.focusRequester(firstKeyFocus) else Modifier)
             .onFocusChanged { holds = it.isFocused }
@@ -135,11 +109,10 @@ fun EmufiiCodeKeyboard(
                 horizontalArrangement = Arrangement.spacedBy(KEY_GAP),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                // Une rangee plus courte se centre par deux marges de largeur
-                // entiere : les touches gardent alors la largeur d'une colonne
-                // et restent en face de celles du dessus. Sans ca, six touches
-                // se partageraient toute la rangee et le clavier perdrait son
-                // alignement — c'est ce qui le faisait lire de travers.
+                // A shorter row centres with two full-column margins, so its keys keep
+                // one column's width and stay under those above. Sharing the whole row
+                // between six keys lost the alignment, and that is what made the keypad
+                // read crooked.
                 val margin = (CODE_COLUMNS - row.size) / 2f
                 if (margin > 0f) Spacer(Modifier.weight(margin).height(keyHeight))
                 row.forEachIndexed { keyIndex, label ->
@@ -158,24 +131,18 @@ fun EmufiiCodeKeyboard(
 }
 
 /**
- * La hauteur d'une touche, en parts de sa largeur. Les claviers physiques et
- * ceux d'Android sont tous un peu plus larges que hauts ; a 1 on obtient un
- * damier, au-dela une colonne de barres.
+ * Key height as a share of its width. Physical and Android keyboards are all slightly
+ * wider than tall; at 1 you get a chequerboard, beyond it a column of bars.
  */
 private const val KEY_ASPECT = 0.86f
 
 /**
- * L'alphabet puis les chiffres, dans l'ordre ou on les recite — pas en AZERTY :
- * on lit un code, on ne le tape pas de memoire musculaire.
- *
- * **Dix colonnes partout, et rien d'autre que des caracteres du code.** Le
- * clavier tenait trois rangees de neuf lettres puis une de dix chiffres, avec un
- * effacement plus large glisse en bout de rangee : aucune colonne ne tombait en
- * face d'une autre. L'effacement est parti avec — c'est **B** qui efface, une
- * lettre par appui, comme il defait partout ailleurs dans l'app. Une touche pour
- * ca ne faisait que reprendre a la manette ce qu'elle avait deja, et tordre la
- * grille pour l'y loger.
- * pourquoi : docs/decisions/coquille-ecrans.md § Le clavier de code n'est pas le clavier de recherche
+ * The alphabet then the digits, in the order they are recited rather than a keyboard
+ * layout: a code is read, not typed from muscle memory. Ten columns throughout, and
+ * nothing but the characters a code uses. Three rows of nine letters and one of ten
+ * digits, with a wider erase key at the end of a row, left no column under any other.
+ * Erase went with it: B erases, one letter per press, as it undoes everywhere else.
+ * pourquoi : docs/decisions/coquille-ecrans.md § The code keyboard is not the search keyboard
  */
 private val CODE_ROWS = listOf(
     listOf("A", "B", "C", "D", "E", "F", "G", "H", "I", "J"),
@@ -184,37 +151,32 @@ private val CODE_ROWS = listOf(
     listOf("0", "1", "2", "3", "4", "5", "6", "7", "8", "9"),
 )
 
-/** La largeur du clavier, en touches. Toutes les rangees s'y alignent. */
 private const val CODE_COLUMNS = 10
 
 /**
- * L'ecart entre deux touches. Serre : sur une console, un clavier est un pave
- * qu'on lit d'un coup, pas une collection d'objets. A 6 dp les touches se
- * detachaient une a une et le bloc perdait sa forme.
+ * Tight: on a console a keypad is a block read at a glance, not a collection of
+ * objects. At 6 dp the keys detached one by one and the block lost its shape.
  */
 private val KEY_GAP = 3.dp
 
 /**
- * Le coin d'une touche. Plus petit que l'inset de l'app (14 dp) : a l'echelle
- * d'une touche, ce rayon-la mange la moitie du bord et fait des galets.
+ * Smaller than the app's 14 dp: at a key's scale that radius eats half the edge and
+ * makes pebbles.
  */
 private val KEY_CORNER = 8.dp
 
 /**
- * Une touche : une tuile de bibliotheque en petit.
- *
- * Trois etats, dans le vocabulaire de partout ailleurs — le curseur l'agrandit
- * et pose l'anneau de l'axe en vigueur (corail ici, on est dans le domaine
- * social) ; l'appui l'enfonce et retourne son moulage. Rien n'est peint *dans*
- * la touche pour dire un etat : l'etat deplace la touche.
- * pourquoi : docs/decisions/theme-duotone-shelves.md § MATIÈRE
+ * A library tile in miniature. Three states in the vocabulary used everywhere else: the
+ * cursor enlarges it and lays the ring of the axis in force, coral here; a press sinks
+ * it and flips its moulding. Nothing is painted inside a key to say a state, the state
+ * moves the key.
+ * pourquoi : docs/decisions/theme-duotone-shelves.md § MATERIAL (replaces Plastic.kt)
  */
 @Composable
 private fun RowScope.Key(
     label: String,
     onClick: () -> Unit,
     height: Dp,
-    /** Vrai quand le clavier designe cette touche. Elle ne le decide pas. */
     selected: Boolean,
     modifier: Modifier = Modifier
 ) {
@@ -224,26 +186,26 @@ private fun RowScope.Key(
     val pressed by interaction.collectIsPressedAsState()
     val shape = remember { RoundedCornerShape(KEY_CORNER) }
 
-    // Sur l'horloge de l'anneau, et repartant sans fondu comme lui : deux
-    // touches allumees a la fois, c'est deux endroits ou l'on croit etre.
-    // pourquoi : docs/decisions/navigation-manette.md § Le curseur ne s'attarde jamais
+    // On the ring's clock, and leaving without a fade like it: two lit keys are two
+    // places to think you are.
+    // pourquoi : docs/decisions/navigation-manette.md § The cursor never lingers
     val mark by animateFloatAsState(
         targetValue = if (selected) 1f else 0f,
         animationSpec = tween(if (selected) RING_IN_MS else 0),
         label = "key-mark"
     )
-    // Le seul relief du clavier, et il appartient au curseur. Moins que les 7 %
-    // d'une tuile : les touches sont voisines de trois points de dp, et au-dela
-    // la touche visee mord sur celles d'a cote au lieu de passer devant elles.
+    // The keypad's only relief, and it belongs to the cursor. Less than a tile's 7 %:
+    // keys are three dp apart, and beyond that the aimed key bites into its neighbours
+    // instead of passing in front of them.
     val lift by animateFloatAsState(
         targetValue = if (selected) 1.06f else 1f,
         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
         label = "key-lift"
     )
 
-    // La face : la couleur haute de la plaque, a plat. Pas de degrade vertical
-    // ici — a 40 dp de haut ses trois points de luminance ne se voient pas, et
-    // les calculer quarante fois par recomposition ne rend rien.
+    // The plate's high colour, flat. No vertical gradient here: at 40 dp tall its three
+    // points of luminance do not show, and computing them forty times per recomposition
+    // returns nothing.
     val face = plateColors(dark, oled).first()
 
     Box(
@@ -251,7 +213,7 @@ private fun RowScope.Key(
         modifier = modifier
             .weight(1f)
             .height(height)
-            // La touche visee passe devant ses voisines, anneau compris.
+            // The aimed key passes in front of its neighbours, ring included.
             .zIndex(if (selected) 1f else 0f)
             .graphicsLayer {
                 scaleX = lift
@@ -260,63 +222,60 @@ private fun RowScope.Key(
             .focusRing(
                 focused = selected,
                 shape = shape,
-                // Un petit controle prend un anneau reduit : le poids des tuiles,
-                // sur une touche de la taille d'un pouce, remplirait l'ecart qui
-                // separe deux touches.
-                // pourquoi : docs/decisions/navigation-manette.md § L'anneau garde le même poids partout
+                // A small control takes a reduced ring: the tiles' weight on a
+                // thumb-sized key would fill the gap between two keys.
+                // pourquoi : docs/decisions/navigation-manette.md § The ring keeps the same weight everywhere
                 width = 3.dp,
                 glowRadius = 16.dp
             )
             .clip(shape)
             .background(face)
-            // L'appui assombrit la face, il ne l'enfonce pas : une touche de
-            // clavier n'a pas de course visible, et le scale de la tuile ferait
-            // sautiller la lettre a chaque caractere d'un code de six.
+            // A press darkens the face rather than sinking it: a key has no visible
+            // travel, and a tile's scale would make the letter hop at every character
+            // of a six-character code.
             .then(
                 if (pressed) Modifier.background(PressInk.copy(alpha = if (dark) 0.24f else 0.10f))
                 else Modifier
             )
             .border(1.dp, edgeColor(dark, oled), shape)
-            // **Cliquable au doigt, jamais focalisable** : `clickable` rend
-            // focalisable par defaut, ce qui doublerait le curseur du clavier.
+            // Clickable, never focusable: `clickable` makes a node focusable by
+            // default, which would double the keypad's cursor.
             .tap(interactionSource = interaction, indication = null, onClick = onClick)
             .focusProperties { canFocus = false }
     ) {
         Text(
             label,
             style = MaterialTheme.typography.titleMedium,
-            // La touche visee passe en Black : le monde tient sur deux graisses,
-            // et c'est la marque qui reste lisible sous le pouce, la ou l'anneau
-            // sort du champ de vision central.
+            // The aimed key goes Black: the world holds two weights, and this is the
+            // mark that stays legible under a thumb, where the ring leaves central
+            // vision.
             fontWeight = if (mark > 0f) FontWeight.Black else FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurface
         )
     }
 }
 
-/** L'encre de l'appui : le noir chaud des ombres, jamais un gris bleute. */
+/** The press ink: the shadows' warm black, never a blue-leaning grey. */
 private val PressInk = Color(0xFF241610)
 
 /**
- * Le clavier tient son propre curseur : un seul noeud focalisable, un index
- * (rangee, colonne) qu'il calcule, et des touches a qui on le dit. Les bords ne
- * consomment pas la touche, l'ecran hote en fait ce qu'il veut.
- * pourquoi : docs/decisions/coquille-ecrans.md § La dalle tient son propre curseur
- * pourquoi : CLAUDE.md § Navigation à la manette : la grille tient son propre curseur
+ * The keypad holds its own cursor: one focusable node, a (row, column) index it
+ * computes, and keys it tells. An edge is not consumed, so the host screen decides what
+ * happens there.
+ * pourquoi : docs/decisions/coquille-ecrans.md § The slab holds its own cursor
+ * pourquoi : CLAUDE.md § Gamepad navigation: the grid holds its own cursor
  */
 private class SlabCursor(rows: List<List<String>>) {
     var row by mutableIntStateOf(0)
     var col by mutableIntStateOf(0)
 
-    /** Rend vrai quand le mouvement a ete absorbe ; faux quand il sort. */
     fun move(rows: List<List<String>>, dx: Int, dy: Int): Boolean {
         if (dy != 0) {
             val next = row + dy
             if (next !in rows.indices) return false
-            // La colonne se conserve en proportion : les rangees n'ont pas
-            // toutes le meme nombre de touches, et garder l'index brut faisait
-            // sauter le curseur d'un bout a l'autre en passant sur la rangee
-            // courte.
+            // The column is kept in proportion: rows do not all hold the same number of
+            // keys, and a raw index made the cursor jump end to end across the short
+            // row.
             val ratio = (col + 0.5f) / rows[row].size
             row = next
             col = (ratio * rows[next].size).toInt().coerceIn(0, rows[next].lastIndex)
@@ -330,11 +289,9 @@ private class SlabCursor(rows: List<List<String>>) {
 }
 
 /**
- * Les touches du clavier : quatre directions et la confirmation.
- *
- * `onPreviewKeyEvent`, parce que le clavier est le seul noeud focalisable. Ce
- * qui sort par un bord n'est pas consomme : l'ecran hote en decide.
- * pourquoi : docs/decisions/coquille-ecrans.md § La dalle tient son propre curseur
+ * Four directions and confirm. `onPreviewKeyEvent`, since the keypad is the only
+ * focusable node. What leaves by an edge is not consumed: the host screen decides.
+ * pourquoi : docs/decisions/coquille-ecrans.md § The slab holds its own cursor
  */
 private fun Modifier.slabKeys(
     rows: List<List<String>>,
@@ -351,8 +308,8 @@ private fun Modifier.slabKeys(
         Key.DirectionRight -> cursor.move(rows, 1, 0)
         Key.DirectionUp -> cursor.move(rows, 0, -1)
         Key.DirectionDown -> cursor.move(rows, 0, 1)
-        // Avale l'appui dont on traitera le relachement, sinon la plateforme le
-        // relaie et une pression se lit deux fois.
+        // Swallows the press whose release will be handled, or the platform relays it
+        // and one press reads as two.
         in CONFIRM_KEYS -> true
         else -> false
     }

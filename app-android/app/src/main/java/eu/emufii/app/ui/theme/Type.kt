@@ -9,12 +9,12 @@ import androidx.compose.ui.unit.sp
 import eu.emufii.app.R
 
 /**
- * Rounded M+ (M PLUS Rounded 1c), under the OFL — `assets/ROUNDED-MPLUS-OFL.txt`.
+ * Rounded M+ (M PLUS Rounded 1c), under the OFL: `assets/ROUNDED-MPLUS-OFL.txt`.
  *
  * A rounded-terminal humanist sans, which is the voice of every console home
  * menu ever shipped: the strokes end in a moulded cap, the same radius the
  * plastic has. Poppins, which stood here before, is a geometric sans with cut
- * terminals — precise, cold, and the house style of a hundred startup decks. It
+ * terminals: precise, cold, and the house style of a hundred startup decks. It
  * argued with the world this app is now built in.
  *
  * Shipped Latin-subset (~105 KB a weight instead of 3.4 MB): the family carries
@@ -33,7 +33,7 @@ private val Rounded = FontFamily(
 
 /**
  * One family, a tight scale (about 1.2 between steps), and letter-spacing that
- * opens up on small labels and closes on the big ones — the two habits of a
+ * opens up on small labels and closes on the big ones: the two habits of a
  * console's own type: nothing is set loose, and nothing shouts except a title.
  */
 val Typography = Typography(

@@ -100,13 +100,12 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.ui.platform.LocalConfiguration
 import eu.emufii.app.ui.tap
 
-/** Un aller-retour complet du liseré d'un axe à l'autre. */
+/** A full round trip of the edge light from one axis to the other. */
 private const val TILE_HUE_MS = 7000
 
 /**
- * What you get when you pick a game: the game itself, what is about to happen,
- * and the one button that starts it.
- * pourquoi : docs/decisions/lancement-et-navigation.md § La carte a remplacé une feuille du bas, et deux fois pour cause
+ * The game, what is about to happen to it, and the one button that starts it.
+ * pourquoi : docs/decisions/lancement-et-navigation.md § The card replaced a bottom sheet, and for two reasons
  */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
@@ -117,9 +116,9 @@ fun GameLaunchDialog(
     onPrimary: (private: Boolean) -> Unit,
     onJoinWithCode: (() -> Unit)?,
     /**
-     * Open the game straight into its console's *public* multiplayer, with no
-     * session and no tunnel; null for a console that has no such thing.
-     * pourquoi : docs/decisions/lancement-et-navigation.md § Le choix du monde vient en premier, pas en dernier
+     * Straight into the console's public multiplayer, no session and no tunnel; null
+     * where there is none.
+     * pourquoi : docs/decisions/lancement-et-navigation.md § The choice of world comes first, not last
      */
     onPlayOnline: (() -> Unit)? = null,
 ) {
@@ -127,41 +126,36 @@ fun GameLaunchDialog(
     var starting by remember { mutableStateOf(false) }
 
     /**
-     * A PS2 session with no network profile on the memory card cannot be played
-     * whatever the tunnel does: the game's local menu never opens.
-     * pourquoi : docs/decisions/lancement-et-navigation.md § Ce qui remplace les boutons quand un prérequis manque
+     * A PS2 session without a network profile on the card cannot be played, whatever
+     * the tunnel does.
+     * pourquoi : docs/decisions/lancement-et-navigation.md § What replaces the buttons when a prerequisite is missing
      */
     val ps2Blocked = rom.console == Console.PS2 && !rememberPs2Ready()
 
     /**
      * Will the session be hidden from the finder? Public by default.
-     * pourquoi : docs/decisions/lancement-et-navigation.md § « Session privée » promet exactement ce que le coordinator livre
+     * pourquoi : docs/decisions/lancement-et-navigation.md § "Private session" promises exactly what the coordinator delivers
      */
     var isPrivate by remember { mutableStateOf(false) }
 
     val configuration = LocalConfiguration.current
-    // Laid on its side when the screen is: stacked, it runs floor to ceiling
-    // on a landscape handheld while leaving ~470 dp of width empty.
-    // pourquoi : docs/decisions/lancement-et-navigation.md § La carte a remplacé une feuille du bas, et deux fois pour cause
+    // Stacked, it runs floor to ceiling on a landscape handheld.
+    // pourquoi : docs/decisions/lancement-et-navigation.md § The card replaced a bottom sheet, and for two reasons
     val wide = configuration.screenWidthDp > configuration.screenHeightDp
-    // Still needed in the stacked arrangement, which portrait keeps.
     val compact = !wide && configuration.screenHeightDp < 520
 
-    // Starts on "with friends": the public side rewrites the card rather than
-    // opening a second screen.
+    // The public side rewrites the card rather than opening a second screen.
     var publicMode by remember { mutableStateOf(false) }
     val online = rom.console.backend == Backend.MELONDS_WFC || publicMode
 
     /**
-     * A PSP session leans on the per-game INI written to the memory stick; the
-     * public online mode is not blocked, needing no grant.
-     * pourquoi : docs/decisions/lancement-et-navigation.md § Ce qui remplace les boutons quand un prérequis manque
+     * A PSP session leans on the per-game INI; the public online mode is not blocked.
+     * pourquoi : docs/decisions/lancement-et-navigation.md § What replaces the buttons when a prerequisite is missing
      */
     val pspBlocked = rom.console == Console.PSP && !online && !rememberPpssppReady()
     val setupBlocked = ps2Blocked || pspBlocked
 
-    // A fixed beat, not a measurement: the work it precedes has its own
-    // progress screen, and this one is for the eye.
+    // A fixed beat, not a measurement: what follows has its own progress screen.
     LaunchedEffect(starting) {
         if (starting) {
             delay(START_PAUSE_MS)
@@ -169,35 +163,25 @@ fun GameLaunchDialog(
         }
     }
 
-    // Always live, including while starting up: disabled, a B during the launch
-    // closed the app. It swallows the gesture and does nothing.
-    // pourquoi : docs/decisions/lancement-et-navigation.md § Le curseur doit entrer dans la carte, et ne plus en sortir
+    // Live even while starting: disabled, a B during launch closed the app.
+    // pourquoi : docs/decisions/lancement-et-navigation.md § The cursor has to enter the card, and not leave it again
     BackHandler { if (!starting) onDismiss() }
 
-    // Flipped from a LaunchedEffect rather than started at 1f: an animation whose
-    // initial value already equals its target never runs. Same idiom as the
-    // tiles' arrival.
+    // Flipped from a LaunchedEffect: an animation starting at its target plays nothing.
     var shown by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { shown = true }
-    // The cursor enters the box by its primary button. Fails in touch mode, by
-    // design — note `adb input tap` opens in touch mode and mimics a focus bug.
-    // pourquoi : docs/decisions/lancement-et-navigation.md § Le curseur doit entrer dans la carte, et ne plus en sortir
+    // The cursor enters by the primary button; fails in touch mode by design.
+    // pourquoi : docs/decisions/lancement-et-navigation.md § The cursor has to enter the card, and not leave it again
     val firstAction = remember { FocusRequester() }
     /**
-     * The card's own root: a plain `focusable()` can take focus in touch mode
-     * where a `clickable` cannot, so the card claims the keys either way.
-     * pourquoi : docs/decisions/lancement-et-navigation.md § Le curseur doit entrer dans la carte, et ne plus en sortir
+     * A plain `focusable()` takes focus in touch mode where a `clickable` cannot.
+     * pourquoi : docs/decisions/lancement-et-navigation.md § The cursor has to enter the card, and not leave it again
      */
     val cardRoot = remember { FocusRequester() }
     var rootHasCursor by remember { mutableStateOf(false) }
-    // **Le panneau apprend que la carte est ouverte.**
-    //
-    // Il gardait la fiche du jeu et sa legende « B · Ouvrir / Maintenir · Menu
-    // du jeu » pendant qu'une carte modale attendait un choix devant — deux
-    // touches qui, a cet instant, ne font plus rien de ce qui est annonce.
-    // La carte de lancement n'est pas un `PadDialog`, elle a sa propre coque,
-    // donc elle pose sa face elle-meme.
-    // pourquoi : docs/decisions/second-ecran.md § Ce qui voyage jusqu'au panneau
+    // The panel learns the card is open; it kept the game's face and its legend
+    // otherwise.
+    // pourquoi : docs/decisions/second-ecran.md § What travels to the panel
     val askTitle = rom.displayName
     val askDetail = stringResource(R.string.panel_asking_launch)
     DisposableEffect(askTitle, askDetail) {
@@ -210,29 +194,20 @@ fun GameLaunchDialog(
     val inputMode = LocalInputModeManager.current
     LaunchedEffect(Unit) {
         // `getOrDefault`, not `isSuccess`: `requestFocus` returns false without
-        // throwing, so `runCatching` succeeds with false.
-        // pourquoi : docs/decisions/lancement-et-navigation.md § Le curseur doit entrer dans la carte, et ne plus en sortir
+        // throwing.
+        // pourquoi : docs/decisions/lancement-et-navigation.md § The cursor has to enter the card, and not leave it again
         repeat(10) {
-            // **Le mode clavier se demande avant, et c'est ce qui manquait.**
-            //
-            // Le repli sous cette boucle disait deja le symptome — « mode
-            // tactile : les boutons ont refuse » — sans nommer la cause. En
-            // `InputMode.Touch`, aucun element Compose ne retient le focus :
-            // les dix tentatives rendaient `false` l'une apres l'autre, et la
-            // carte s'ouvrait sans anneau. Or on ouvre cette carte en appuyant
-            // sur A depuis une tuile, c'est-a-dire depuis un ecran deja pilote
-            // a la manette — mais la grille tient son propre curseur sans
-            // passer par le focus, donc Compose, lui, etait reste en tactile.
-            // pourquoi : docs/decisions/coquille-ecrans.md § Le curseur arrive avec l'écran
+            // Ask for keyboard mode first: the fallback below only reported the
+            // symptom.
+            // pourquoi : docs/decisions/coquille-ecrans.md § The cursor arrives with the screen
             inputMode.requestInputMode(InputMode.Keyboard)
             if (runCatching { firstAction.requestFocus() }.getOrDefault(false)) {
                 return@LaunchedEffect
             }
             delay(40)
         }
-        // Le repli reste : une carte sans action primaire (PS2 sans profil, PSP
-        // non configure) n'a rien a offrir au curseur, et la carte elle-meme
-        // doit alors prendre les touches pour que B la referme.
+        // The fallback stays: a card with no primary action has nothing to offer the
+        // cursor.
         runCatching { cardRoot.requestFocus() }
     }
 
@@ -242,9 +217,9 @@ fun GameLaunchDialog(
         label = "launch-card-entrance"
     )
     val steps = if (publicMode) {
-        // Not the DS's steps: the DS dials its revival server on its own, the
-        // PSP player has two settings to pick in PPSSPP first.
-        // pourquoi : docs/decisions/lancement-et-navigation.md § Le choix du monde vient en premier, pas en dernier
+        // Not the DS's: it dials its revival server itself, and the PSP has two
+        // settings to pick.
+        // pourquoi : docs/decisions/lancement-et-navigation.md § The choice of world comes first, not last
         listOf(
             stringResource(R.string.launch_psp_public_1),
             stringResource(R.string.launch_psp_public_2),
@@ -267,15 +242,14 @@ fun GameLaunchDialog(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            // The tray dims, it does not frost. Warm ink, not blue-black: the
-            // world's shadows are warm, the scrim does not switch families.
-            // pourquoi : docs/decisions/lancement-et-navigation.md § Le plateau s'assombrit, il ne se dépolit pas
+            // The tray dims, it does not frost. Warm ink, never blue-black.
+            // pourquoi : docs/decisions/lancement-et-navigation.md § The board darkens, it does not frost
             .background(
                 InkText.copy(alpha = (if (dark) 0.74f else 0.62f) * entrance)
             )
-            // The backdrop swallows taps and is NOT a cursor stop: traversal
-            // used to halt on it, at a node with no ring and no visible effect.
-            // pourquoi : docs/decisions/lancement-et-navigation.md § Le curseur doit entrer dans la carte, et ne plus en sortir
+            // Swallows taps and is not a cursor stop: traversal used to halt on a node
+            // with no ring.
+            // pourquoi : docs/decisions/lancement-et-navigation.md § The cursor has to enter the card, and not leave it again
             .focusProperties { canFocus = false }
             .tap(
                 interactionSource = remember { MutableInteractionSource() },
@@ -285,23 +259,8 @@ fun GameLaunchDialog(
             ),
         contentAlignment = Alignment.Center
     ) {
-        // Le liseré des deux axes, sur le contour de la carte.
-        //
-        // Il remplace une **tuile posée derrière**, qui était la troisième tuile
-        // du logo prise au pied de la lettre : une plaque turquoise débordant de
-        // la carte. Trois formes ont été essayées — la tuile en biais, puis
-        // droite avec une marge égale — et toutes avaient le même défaut de
-        // fond : pour dire « il y a une couche en dessous », elles ajoutaient un
-        // objet de plus à un écran qui en a déjà deux (la carte, et la
-        // bibliothèque assombrie derrière). Le contour dit la même chose sans
-        // rien ajouter.
-        //
-        // La dérive entre les deux axes est conservée telle quelle, elle change
-        // seulement de support : c'est le seul écran où les deux sont vrais à la
-        // fois — la carte propose de créer une session (corail) et de lancer
-        // (turquoise) — et une teinte figée y prendrait un parti que l'écran ne
-        // prend pas.
-        // pourquoi : docs/decisions/theme-duotone-shelves.md § Fiche de jeu (dialogue)
+        // The two axes on the card's contour, replacing a tile laid behind it.
+        // pourquoi : docs/decisions/theme-duotone-shelves.md § Game card (dialog)
         val blend = if (rememberAnimationsEnabled()) {
             rememberInfiniteTransition(label = "tile-hue").animateFloat(
                 initialValue = 0f,
@@ -313,9 +272,8 @@ fun GameLaunchDialog(
                 label = "tile-hue"
             ).value
         } else {
-            // Figé à mi-course : un mélange des deux axes, qui est l'arrêt
-            // honnête d'une chose dont le propos est de n'être ni l'un ni
-            // l'autre.
+            // Frozen mid-travel: a blend of both axes, the honest stop for a thing that
+            // is neither.
             0.5f
         }
 
@@ -323,8 +281,8 @@ fun GameLaunchDialog(
             modifier = Modifier
                 .focusRequester(cardRoot)
                 .onFocusEvent { rootHasCursor = it.isFocused }
-                // The root holds the keys but never the cursor's look: the
-                // first direction is spent handing it over, and swallowed.
+                // The root holds the keys, never the cursor: the first direction hands
+                // it over.
                 .onPreviewKeyEvent { event ->
                     if (!rootHasCursor || event.type != KeyEventType.KeyDown) {
                         return@onPreviewKeyEvent false
@@ -332,14 +290,14 @@ fun GameLaunchDialog(
                     runCatching { firstAction.requestFocus() }.getOrDefault(false)
                 }
                 .focusable()
-                // `exit` refuses the crossing in EVERY direction. Not to be
-                // confused with `canFocus = false`, which kills the subtree.
-                // pourquoi : docs/decisions/lancement-et-navigation.md § Le curseur doit entrer dans la carte, et ne plus en sortir
+                // `exit` refuses the crossing in every direction, unlike `canFocus =
+                // false`.
+                // pourquoi : docs/decisions/lancement-et-navigation.md § The cursor has to enter the card, and not leave it again
                 .focusGroup()
                 .focusProperties { onExit = { cancelFocusChange() } }
-                // B closes here, in preview: measured, the first press only took
-                // the cursor off the button and a second was needed.
-                // pourquoi : docs/decisions/lancement-et-navigation.md § Le curseur doit entrer dans la carte, et ne plus en sortir
+                // In preview: otherwise the first press only took the cursor off the
+                // button.
+                // pourquoi : docs/decisions/lancement-et-navigation.md § The cursor has to enter the card, and not leave it again
                 .onPreviewKeyEvent { event ->
                     val back = event.key == Key.Back || event.key == Key.ButtonB
                     if (!back || starting) return@onPreviewKeyEvent false
@@ -349,22 +307,17 @@ fun GameLaunchDialog(
                 .padding(horizontal = 24.dp, vertical = 16.dp)
                 .widthIn(max = if (wide) 648.dp else 360.dp)
                 // Bounded by the screen, never by a number.
-                // pourquoi : docs/decisions/lancement-et-navigation.md § La carte a remplacé une feuille du bas, et deux fois pour cause
+                // pourquoi : docs/decisions/lancement-et-navigation.md § The card replaced a bottom sheet, and for two reasons
                 .heightIn(max = (configuration.screenHeightDp - 32).dp)
-                // Arrives from slightly under its final size, like the tiles.
+                // Arrives from under its final size, like the tiles.
                 .scale(0.92f + 0.08f * entrance)
                 .alpha(entrance)
-                // **Ici, et pas en tete de chaine.** Un `drawWithContent` prend
-                // la taille de ce qu'il enveloppe : place en premier, il
-                // enveloppait aussi le padding exterieur de 24/16 dp et tracait
-                // un contour 48 dp plus large et 32 dp plus haut que la carte,
-                // flottant autour d'elle. Sous les bornes de taille, il epouse
-                // la plaque ; et sous `scale`/`alpha`, il arrive avec elle au
-                // lieu de rester fixe pendant qu'elle grandit.
+                // Here, not at the head of the chain: `drawWithContent` takes the size
+                // of what it wraps.
                 .waitTrim(blend)
-                // Swallows taps only. NO `canFocus = false` here: on the card it
-                // disables the whole subtree, buttons included.
-                // pourquoi : docs/decisions/lancement-et-navigation.md § Le curseur doit entrer dans la carte, et ne plus en sortir
+                // Taps only. No `canFocus = false` here: on the card it disables the
+                // whole subtree.
+                // pourquoi : docs/decisions/lancement-et-navigation.md § The cursor has to enter the card, and not leave it again
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
@@ -380,15 +333,13 @@ fun GameLaunchDialog(
             )
 
             if (wide) {
-                // Two columns: the object on the left, what happens to it on
-                // the right — room taken from spare width, not from each other.
+                // The object on the left, what happens to it on the right.
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(24.dp),
                     horizontalArrangement = Arrangement.spacedBy(26.dp)
                 ) {
-                    // Centred: the geometry tells the two cases apart on its
-                    // own, so there is no rule to add.
-                    // pourquoi : docs/decisions/lancement-et-navigation.md § Ce qui cède, et dans quel ordre
+                    // The geometry tells the two cases apart on its own.
+                    // pourquoi : docs/decisions/lancement-et-navigation.md § What gives way, and in what order
                     Column(
                         modifier = Modifier
                             .width(186.dp)
@@ -403,19 +354,17 @@ fun GameLaunchDialog(
                     Column(
                         modifier = Modifier
                             .weight(1f)
-                            // Centred too, for the opposite reason to the left.
-                            // pourquoi : docs/decisions/lancement-et-navigation.md § Ce qui cède, et dans quel ordre
+                            // pourquoi : docs/decisions/lancement-et-navigation.md § What gives way, and in what order
                             .align(Alignment.CenterVertically),
                         verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-                        // First, not last, and a selector rather than a link:
-                        // it rewrites the card, it does not act.
-                        // pourquoi : docs/decisions/lancement-et-navigation.md § Le choix du monde vient en premier, pas en dernier
+                        // First, and a selector rather than a link: it rewrites the
+                        // card, it does not act.
+                        // pourquoi : docs/decisions/lancement-et-navigation.md § The choice of world comes first, not last
                         if (onPlayOnline != null) {
-                            // Friends or the open internet: the choice of *who
-                            // you play with* is the social axis, and its cursor
-                            // says so.
-                            // pourquoi : docs/decisions/theme-duotone-shelves.md § FOCUS MANETTE
+                            // Who you play with is the social axis, and its cursor says
+                            // so.
+                            // pourquoi : docs/decisions/theme-duotone-shelves.md § GAMEPAD FOCUS
                             CompositionLocalProvider(LocalRingTone provides RingTone.CORAL) {
                                 ModeSwitch(
                                     publicMode = publicMode,
@@ -424,9 +373,8 @@ fun GameLaunchDialog(
                                 )
                             }
                         }
-                        // Yields first and alone: the explanation scrolls, the
-                        // actions never do.
-                        // pourquoi : docs/decisions/lancement-et-navigation.md § Ce qui cède, et dans quel ordre
+                        // The explanation scrolls, the actions never do.
+                        // pourquoi : docs/decisions/lancement-et-navigation.md § What gives way, and in what order
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -437,12 +385,11 @@ fun GameLaunchDialog(
                             steps.forEachIndexed { index, text -> Step(index + 1, text) }
                         }
 
-                        // Stacked, never side by side: two pills sharing ~400 dp
-                        // clip their labels silently. The switch sits above them.
-                        // pourquoi : docs/decisions/lancement-et-navigation.md § Les boutons sont empilés, et c'est un piège évité
+                        // Stacked: two pills sharing 400 dp clip their labels silently.
+                        // pourquoi : docs/decisions/lancement-et-navigation.md § The buttons are stacked, and it is a trap avoided
                         if (!online) {
-                            // A session's visibility is a social question: the
-                            // toggle and its ring speak coral.
+                            // A session's visibility is a social question, ring
+                            // included.
                             CompositionLocalProvider(LocalRingTone provides RingTone.CORAL) {
                                 PrivacyToggle(
                                     checked = isPrivate,
@@ -451,9 +398,8 @@ fun GameLaunchDialog(
                                 )
                             }
                         }
-                        // Braced, and it is not a style point: an `else` whose branch sits
-                        // at the same indentation as the `if` reads to a human as two
-                        // statements, and Lint fails the build over it (SuspiciousIndentation).
+                        // Braced: an `else` at the `if`'s indentation reads as a
+                        // sibling of the block above.
                         if (ps2Blocked) {
                             Ps2ProfileMissing()
                         } else if (pspBlocked) {
@@ -467,8 +413,8 @@ fun GameLaunchDialog(
                             )
                         }
                         if (!setupBlocked && onJoinWithCode != null && !publicMode) {
-                            // Joining by code is entering someone's session: the
-                            // social axis, ring and all.
+                            // Joining by code is entering someone's session: the social
+                            // axis.
                             CompositionLocalProvider(LocalRingTone provides RingTone.CORAL) {
                                 OutlinedButton(
                                     onClick = sounded(onJoinWithCode),
@@ -489,15 +435,14 @@ fun GameLaunchDialog(
             }
 
             Column(
-                // Tighter when height is the scarce resource. Every dp taken off
-                // the padding is a dp the explanation gets to keep, and the
-                // explanation is the only part of this card that says anything.
+                // Tighter when height is scarce: every dp off the padding is one the
+                // explanation keeps.
                 modifier = Modifier.fillMaxWidth().padding(if (compact) 16.dp else 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(if (compact) 10.dp else 14.dp)
             ) {
-                // As in two columns: the choice of world opens the card, it does
-                // not conclude it. Coral: choosing who you play with.
+                // As in two columns: choosing the world opens the card, it does not
+                // conclude it.
                 if (onPlayOnline != null) {
                     CompositionLocalProvider(LocalRingTone provides RingTone.CORAL) {
                         ModeSwitch(
@@ -509,7 +454,7 @@ fun GameLaunchDialog(
                 }
 
                 // The explanation scrolls; the two buttons never do.
-                // pourquoi : docs/decisions/lancement-et-navigation.md § Ce qui cède, et dans quel ordre
+                // pourquoi : docs/decisions/lancement-et-navigation.md § What gives way, and in what order
                 Column(
                     modifier = Modifier
                         .weight(1f, fill = false)
@@ -517,8 +462,7 @@ fun GameLaunchDialog(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(if (compact) 10.dp else 14.dp)
                 ) {
-                    // The artwork is decoration and yields first.
-                    // pourquoi : docs/decisions/lancement-et-navigation.md § Ce qui cède, et dans quel ordre
+                    // pourquoi : docs/decisions/lancement-et-navigation.md § What gives way, and in what order
                     RomArtwork(rom, size = if (compact) 72.dp else 104.dp)
 
                     TitleBlock(rom, online)
@@ -531,7 +475,7 @@ fun GameLaunchDialog(
                     }
                 }
 
-                // Same reason as in two columns: no session, nothing to hide.
+                // No session, nothing to hide.
                 if (!online) {
                     CompositionLocalProvider(LocalRingTone provides RingTone.CORAL) {
                         PrivacyToggle(
@@ -542,9 +486,8 @@ fun GameLaunchDialog(
                     }
                 }
 
-                // Braced, and it is not a style point: an `else` whose branch sits
-                // at the same indentation as the `if` reads to a human as two
-                // statements, and Lint fails the build over it (SuspiciousIndentation).
+                // Braced: an `else` at the `if`'s indentation reads as a sibling of the
+                // block above.
                 if (ps2Blocked) {
                     Ps2ProfileMissing()
                 } else if (pspBlocked) {
@@ -558,8 +501,7 @@ fun GameLaunchDialog(
                     )
                 }
 
-                // Hidden in public mode: there is no session to join, exactly as
-                // for DS online play.
+                // No session to join in public mode, exactly as for DS online play.
                 if (!setupBlocked && onJoinWithCode != null && !publicMode) {
                     CompositionLocalProvider(LocalRingTone provides RingTone.CORAL) {
                         OutlinedButton(
@@ -581,13 +523,11 @@ fun GameLaunchDialog(
 }
 
 /**
- * How long the card holds before handing over: long enough for the press to
- * register, and no longer.
- * pourquoi : docs/decisions/lancement-et-navigation.md § Le bouton garde sa couleur pendant qu'il travaille
+ * Long enough for the press to register, and no longer.
+ * pourquoi : docs/decisions/lancement-et-navigation.md § The button keeps its colour while it works
  */
 private const val START_PAUSE_MS = 350L
 
-/** The title and the one line that says what pressing the button will do. */
 @Composable
 private fun TitleBlock(rom: Rom, online: Boolean) {
     Column(
@@ -605,9 +545,7 @@ private fun TitleBlock(rom: Rom, online: Boolean) {
         Text(
             stringResource(
                 if (online) R.string.launch_mode_online else R.string.launch_mode_session,
-                // The full label, not the tile badge's short one: "GC/Wii" is an
-                // abbreviation that only makes sense squeezed into a corner of a
-                // square.
+                // The full label: "GC/Wii" only makes sense squeezed into a badge.
                 rom.console.label
             ),
             style = MaterialTheme.typography.labelMedium,
@@ -615,9 +553,9 @@ private fun TitleBlock(rom: Rom, online: Boolean) {
             textAlign = TextAlign.Center
         )
 
-        // The tile is scanned, this card is read: here there is room to say
-        // what the mark means, and it is the last moment before it costs.
-        // pourquoi : docs/decisions/lancement-et-navigation.md § Le verdict de compatibilité, là où la décision se prend
+        // The tile is scanned, this card is read: here there is room to say what the
+        // mark means.
+        // pourquoi : docs/decisions/lancement-et-navigation.md § The compatibility verdict, where the decision is made
         LocalCompatDb.current.ratingFor(rom.compatKeys())?.let { known ->
             CompatNote(known)
         }
@@ -625,9 +563,8 @@ private fun TitleBlock(rom: Rom, online: Boolean) {
 }
 
 /**
- * The verdict under the title: the bead, and its meaning in words. The rater's
- * own note is deliberately not shown.
- * pourquoi : docs/decisions/lancement-et-navigation.md § Le verdict de compatibilité, là où la décision se prend
+ * The bead and its meaning in words; the rater's own note is not shown.
+ * pourquoi : docs/decisions/lancement-et-navigation.md § The compatibility verdict, where the decision is made
  */
 @Composable
 private fun CompatNote(entry: CompatEntry) {
@@ -647,15 +584,13 @@ private fun CompatNote(entry: CompatEntry) {
 }
 
 /**
- * The button the card exists to get pressed. It keeps its colour while it
- * works: a grey button under a spinner reads as a fault.
- * pourquoi : docs/decisions/lancement-et-navigation.md § Le bouton garde sa couleur pendant qu'il travaille
+ * Keeps its colour while it works: a grey button under a spinner reads as refused.
+ * pourquoi : docs/decisions/lancement-et-navigation.md § The button keeps its colour while it works
  */
 
 /**
- * "Private session": the label promises exactly what the coordinator delivers —
- * the session leaves the finder, and nothing more.
- * pourquoi : docs/decisions/lancement-et-navigation.md § « Session privée » promet exactement ce que le coordinator livre
+ * The label promises exactly what the coordinator delivers.
+ * pourquoi : docs/decisions/lancement-et-navigation.md § "Private session" promises exactly what the coordinator delivers
  */
 @Composable
 private fun PrivacyToggle(
@@ -675,20 +610,8 @@ private fun PrivacyToggle(
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            // **Le titre nomme l'etat, il ne nomme pas le reglage.**
-            //
-            // Il disait « Session privee » en permanence, et la ligne sous lui
-            // decrivait l'etat courant. Interrupteur ouvert, cela donnait
-            // « Session privee / Elle apparaitra dans la liste des sessions, ou
-            // n'importe qui peut la rejoindre » : le titre et son explication
-            // se contredisaient mot pour mot, et le joueur devait deviner
-            // lequel des deux parlait du present.
-            //
-            // Un interrupteur qui n'a que deux etats a le droit de les nommer
-            // tous les deux. « Ouverte » puis « Privee » se lisent comme la
-            // meme phrase que la ligne du dessous, et la position de la
-            // pastille cesse d'etre la seule chose a interpreter.
-            // pourquoi : docs/decisions/lancement-et-navigation.md § « Session privée » promet exactement ce que le coordinator livre
+            // The title names the state, not the setting.
+            // pourquoi : docs/decisions/lancement-et-navigation.md § "Private session" promises exactly what the coordinator delivers
             Text(
                 stringResource(
                     if (checked) R.string.lib_private_session
@@ -706,18 +629,15 @@ private fun PrivacyToggle(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        // Le meme interrupteur que les reglages, et c'est le dernier controle
-        // Material qui restait a l'ecran : sa piste plate et sa pastille sans
-        // relief se lisaient comme un autocollant pose sur une plaque moulee.
-        // pourquoi : docs/decisions/reglages-ecran.md § Un réglage qui n'a que deux états est un interrupteur
+        // The settings' switch: the last Material control left on screen.
+        // pourquoi : docs/decisions/reglages-ecran.md § A setting with only two states is a switch
         SwitchFace(checked = checked)
     }
 }
 
 /**
- * With friends, or online: a selector, not two buttons — nothing sets off when
- * it is touched. Each half carries the ring on its own side.
- * pourquoi : docs/decisions/lancement-et-navigation.md § Le choix du monde vient en premier, pas en dernier
+ * A selector, not two buttons: nothing fires when it is touched.
+ * pourquoi : docs/decisions/lancement-et-navigation.md § The choice of world comes first, not last
  */
 @Composable
 private fun ModeSwitch(
@@ -730,9 +650,9 @@ private fun ModeSwitch(
         modifier = modifier
             .fillMaxWidth()
             .clip(PillShape)
-            // A notch, not a tint: the low cut of the plate the card is made
-            // of, so the selector sits *in* the card rather than on it.
-            // pourquoi : docs/decisions/theme-duotone-shelves.md § Les creux deviennent des encoches
+            // A notch, not a tint: the plate's low cut, so the selector sits in the
+            // card.
+            // pourquoi : docs/decisions/theme-duotone-shelves.md § Hollows become notches
             .background(MaterialTheme.colorScheme.surfaceVariant)
             .padding(4.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -762,10 +682,8 @@ private fun ModeSegment(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // The selected half is the plate itself, the other transparent: two flat
-    // fills, the world's own separation. No lifted shadow — a choice taken is
-    // said by the tile, not by a relief.
-    // pourquoi : docs/decisions/theme-duotone-shelves.md § MATIÈRE
+    // The selected half is the plate, the other transparent: two flat fills.
+    // pourquoi : docs/decisions/theme-duotone-shelves.md § MATERIAL (replaces Plastic.kt)
     val fill =
         if (selected) softCardFill() else Color.Transparent
     Box(
@@ -792,9 +710,8 @@ private fun ModeSegment(
 }
 
 /**
- * What replaces the launch buttons when the PS2 profile is missing: the
- * prerequisite and where to settle it, and nothing else.
- * pourquoi : docs/decisions/lancement-et-navigation.md § Ce qui remplace les boutons quand un prérequis manque
+ * The prerequisite and where to settle it, nothing else.
+ * pourquoi : docs/decisions/lancement-et-navigation.md § What replaces the buttons when a prerequisite is missing
  */
 @Composable
 private fun Ps2ProfileMissing() {
@@ -823,9 +740,8 @@ private fun PrimaryAction(
     modifier: Modifier = Modifier
 ) {
     val dark = LocalEmufiiDarkTheme.current
-    // The launch pill is the teal axis, filled: deep cut under white ink on the
-    // light theme (bright teal never carries text), bright cut in the dark.
-    // pourquoi : docs/decisions/theme-duotone-shelves.md § Fiche de jeu (dialogue)
+    // The teal axis, filled: the deep cut under white ink on the light theme.
+    // pourquoi : docs/decisions/theme-duotone-shelves.md § Game card (dialog)
     val container = if (dark) Teal.darkBright else Teal.deep
     val ink = if (dark) Teal.ink else Color.White
     Button(
@@ -842,8 +758,7 @@ private fun PrimaryAction(
 
     ) {
         if (starting) {
-            // In the button rather than replacing it: the card keeps its size,
-            // so nothing jumps while the pause runs.
+            // In the button, not replacing it, so nothing jumps while the pause runs.
             CircularProgressIndicator(
                 modifier = Modifier.size(22.dp),
                 strokeWidth = 2.5.dp,
@@ -851,16 +766,15 @@ private fun PrimaryAction(
             )
         } else {
             // No maxLines: capping at one clipped "Créer une session" silently.
-            // pourquoi : docs/decisions/lancement-et-navigation.md § Les boutons sont empilés, et c'est un piège évité
+            // pourquoi : docs/decisions/lancement-et-navigation.md § The buttons are stacked, and it is a trap avoided
             Text(label, style = MaterialTheme.typography.titleMedium)
         }
     }
 }
 
 /**
- * One line of the walkthrough. Numbered dots, not bullets: the lines are a
- * sequence.
- * pourquoi : docs/decisions/lancement-et-navigation.md § Le bouton garde sa couleur pendant qu'il travaille
+ * Numbered dots, not bullets: the lines are a sequence.
+ * pourquoi : docs/decisions/lancement-et-navigation.md § The button keeps its colour while it works
  */
 @Composable
 private fun Step(number: Int, text: String, compact: Boolean = false) {
@@ -885,8 +799,8 @@ private fun Step(number: Int, text: String, compact: Boolean = false) {
         }
         Text(
             text,
-            // One notch down where the card is height-starved: three steps at
-            // bodyMedium do not fit above two pinned buttons in landscape.
+            // One notch down where height is starved: three steps do not fit above two
+            // buttons.
             style = if (compact) MaterialTheme.typography.bodySmall
                     else MaterialTheme.typography.bodyMedium,
             color = LocalContentColor.current.copy(alpha = 0.85f)

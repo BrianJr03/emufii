@@ -10,18 +10,10 @@ import eu.emufii.app.ui.components.ThemeSwatches
 import eu.emufii.app.ui.components.labelRes
 
 /**
- * L'apparence de l'app : le theme, et c'est tout.
- *
- * Le duo bicolore a remplace l'accent configurable — turquoise le jeu et le
- * systeme, corail le social — donc les perles d'accent sont parties. « Couleur
- * systeme » les a suivies le 2026-08-28 : Material You ne pouvait repeindre le
- * turquoise sans effacer ce que la couleur dit dans cette app, si bien qu'il ne
- * teintait plus que quelques elements secondaires — un interrupteur qu'on
- * actionne sans voir ce qu'il fait.
- *
- * Restent les quatre plateaux, seuls, et la page ne porte plus qu'un bloc :
- * son titre suffit donc a le nommer.
- * pourquoi : docs/decisions/theme-duotone-shelves.md § Réglages
+ * The app's look: the theme, and that is all. The two-axis pair replaced the
+ * configurable accent, teal for play and system, coral for the social, so the accent
+ * beads went. System colour followed them: Material You could not repaint both axes.
+ * pourquoi : docs/decisions/theme-duotone-shelves.md § Settings
  */
 @Composable
 internal fun AppearancePage(

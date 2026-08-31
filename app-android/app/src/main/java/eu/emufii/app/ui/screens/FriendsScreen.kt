@@ -152,16 +152,16 @@ fun FriendsScreen(
     val configuration = LocalConfiguration.current
     val landscape = configuration.screenWidthDp > configuration.screenHeightDp
 
-    // Le panneau arriere porte-t-il la liste ? Le reglage ne suffit pas :
-    // l'appareil peut n'avoir qu'un ecran.
-    // pourquoi : docs/decisions/second-ecran.md § La liste d'amis descend au dos, les deux cartes restent devant
+    // Does the rear panel carry the list? The setting is not enough: the device may
+    // have only one screen.
+    // pourquoi : docs/decisions/second-ecran.md § The friends list goes to the back, both cards stay in front
     val panelDisplay by rememberPresentationDisplay()
     val panelWanted by remember(context) { SettingsStore.get(context).secondScreen }
         .collectAsState()
     val panelLive = panelWanted && panelDisplay != null
 
-    // Le domaine social : le curseur manette y devient corail.
-    // pourquoi : docs/decisions/theme-duotone-shelves.md § FOCUS MANETTE
+    // The social domain: the pad cursor turns coral here.
+    // pourquoi : docs/decisions/theme-duotone-shelves.md § GAMEPAD FOCUS
     CompositionLocalProvider(LocalRingTone provides RingTone.CORAL) {
     EmufiiScaffold(title = stringResource(R.string.friends_title), onBack = onBack, modifier = modifier) { topPadding ->
         if (landscape) {
@@ -184,13 +184,11 @@ fun FriendsScreen(
                         // footnote used to come to rest struck through by it.
                         top = topPadding, bottom = bottomInset + 56.dp
                     ),
-                // **Centre quand le panneau porte la liste.**
-                //
-                // Il ne reste alors que les deux cartes : posees en haut, elles
-                // laissaient les deux tiers de l'ecran vides sous elles. Sans
-                // panneau, la page reprend son ordre de document — les cartes,
-                // puis la liste — et se lit du haut.
-                // pourquoi : docs/decisions/second-ecran.md § La liste d'amis descend au dos, les deux cartes restent devant
+                // Centred when the panel carries the list: only the two cards are left,
+                // and laid at the top they left two thirds of the screen empty below.
+                // Without a panel the page takes its document order back, cards then
+                // list, read from the top.
+                // pourquoi : docs/decisions/second-ecran.md § The friends list goes to the back, both cards stay in front
                 verticalArrangement =
                     if (panelLive) Arrangement.spacedBy(16.dp, Alignment.CenterVertically)
                     else Arrangement.spacedBy(12.dp)
@@ -219,10 +217,9 @@ fun FriendsScreen(
                 }
 
                 if (panelLive) {
-                    // Ce que la liste au dos ne peut pas dire d'elle-meme : son
-                    // compte, et ou la lire. Sans cette ligne, un joueur dont
-                    // tous les amis sont hors ligne voit un ecran de face qui ne
-                    // parle jamais d'eux.
+                    // What the list on the back cannot say of itself: its count, and
+                    // where to read it. Without this line a player whose friends are
+                    // all offline sees a front screen that never mentions them.
                     FriendsPanelNote(
                         total = ordered.size,
                         online = ordered.count { statuses[it.code]?.online == true }
@@ -448,7 +445,7 @@ private fun FriendRow(
                 Text(
                     statusLine(status),
                     style = MaterialTheme.typography.bodySmall,
-                    // La ligne « en session » porte l'axe social.
+                    // The in-session row carries the social axis.
                     color = if (status.inSession) coral()
                     else MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
@@ -489,8 +486,8 @@ private fun FriendRow(
 @Composable
 private fun PresenceDot(status: FriendStatus) {
     val dark = LocalEmufiiDarkTheme.current
-    // L'anneau du point reste une surface du theme : la coquille basse en
-    // sombre, la plaque claire en clair. Plus aucun hex ici.
+    // The dot's ring stays a theme surface: the low shell on dark, the light plate on
+    // light. No hex left here.
     val ring = if (dark) ShellDarkLow else PlateLight
     val fill = when {
         status.inSession -> if (dark) WarnDark else WarnLight
@@ -558,24 +555,22 @@ private fun EmptyFriends(compact: Boolean = false) {
     }
 }
 
-/** L'erreur tiree vers le corail, la coupe du fond courant. */
+/** Error leaning coral, the cut for the current ground. */
 @Composable
 private fun danger() =
     if (LocalEmufiiDarkTheme.current) ErrorDark else ErrorLight
 
-/** La coupe corail lisible sur le fond courant. */
+/** The coral cut legible on the current ground. */
 @Composable
 private fun coral(dark: Boolean = LocalEmufiiDarkTheme.current) =
     if (dark) Coral.darkBright else Coral.ink
 
 
 /**
- * Ou est passee la liste, et ce qu'elle contient.
- *
- * Le panneau la porte, mais il est **derriere** la machine : l'ecran de face
- * doit dire qu'elle existe, sans quoi un joueur dont personne n'est en ligne
- * ferme la page en croyant n'avoir aucun ami.
- * pourquoi : docs/decisions/second-ecran.md § La liste d'amis descend au dos, les deux cartes restent devant
+ * Where the list went, and what it holds. The panel carries it, but the panel is behind
+ * the machine: the front screen has to say it exists, or a player with nobody online
+ * closes the page believing they have no friends.
+ * pourquoi : docs/decisions/second-ecran.md § The friends list goes to the back, both cards stay in front
  */
 @Composable
 private fun FriendsPanelNote(total: Int, online: Int) {
