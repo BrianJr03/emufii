@@ -34,6 +34,12 @@ fixed, and there will be problems.
 [Privacy](#privacy) •
 [Discord](https://discord.gg/tvWcb28vBZ)
 
+<br>
+
+<img src="docs/images/library.jpg" alt="The Emufii library on an AYN Thor: game tiles with a console badge and a compatibility bead" width="820">
+
+<sub>The library on an AYN Thor. Every tile carries its console, and a bead saying whether that game is known to work.</sub>
+
 </div>
 
 ---
@@ -84,6 +90,22 @@ instead of sending them into an emulator with nothing to find.
 Emufii emulates nothing and implements no netplay of its own. It opens a
 session, shares a network, and lets the emulator do what it already knows how to
 do.
+
+### Around the session
+
+- **A library that sorts itself.** Your folder is scanned, covers are fetched,
+  and the games show up as a grid, a carousel or a list, sorted A to Z, by
+  console, or by what you added last. Type to filter.
+- **A bead per game.** Compatible, partially compatible, not compatible, or not
+  tested yet. Verdicts come from real games played on real devices, and they are
+  shared with everyone rather than kept in one person's head.
+- **The second screen, on handhelds that have one.** On an AYN Thor the rear
+  panel shows the session code, who is hosting and what is being played, so the
+  code is readable without leaving the game. Nothing moves off the main screen
+  to get there: a player with one screen loses nothing.
+- **A gamepad, not a touchscreen.** Everything is reachable with the sticks and
+  the d-pad, with a cursor that never disappears. Touch works too, it just isn't
+  the target.
 
 ## Consoles
 
@@ -155,8 +177,9 @@ broke, and the project still very much needs that.
 **3. Open Emufii and walk through setup:** your games folder, a nickname,
 notifications, and the autofill permission.
 
-The app speaks English and French, and comes in light, dark and OLED black. All
-three are in the profile page, along with the folder you scan for games.
+The app speaks English and French. Settings are a hub of seven pages: your
+games folder is under **Library**, and light, dark and OLED black are under
+**Appearance**.
 
 ### The autofill permission, and why it looks broken
 
@@ -232,8 +255,8 @@ The server side, which brokers sessions and runs the relay, is a separate
 program and is not published. Copyright stays with the project, so terms outside
 the AGPL can be arranged: ask on [Discord](https://discord.gg/tvWcb28vBZ).
 
-Poppins is used under the SIL OFL 1.1, whose text ships inside the APK at
-`assets/POPPINS-OFL.txt`.
+Rounded M+ (M PLUS Rounded 1c) is used under the SIL OFL 1.1, whose text ships
+inside the APK at `assets/ROUNDED-MPLUS-OFL.txt`.
 
 The app source is published here, under the AGPL-3.0, from 1.12.2 onwards. The
 server side is not, and that is the one deliberate gap: the session broker and
