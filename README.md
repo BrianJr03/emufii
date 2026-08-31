@@ -36,7 +36,7 @@ fixed, and there will be problems.
 
 <br>
 
-<img src="docs/images/library.jpg" alt="The Emufii library on an AYN Thor: game tiles carrying a console badge and a compatibility bead" width="820">
+<img src="docs/images/library-dark.jpg" alt="The Emufii library on an AYN Thor: game tiles carrying a console badge and a compatibility bead" width="820">
 
 <sub>The library on an AYN Thor. Every tile carries its console, and a bead saying whether that game is known to work.</sub>
 
@@ -110,7 +110,7 @@ do.
 
 <div align="center">
 
-<img src="docs/images/second-screen.jpg" alt="The Thor's rear panel showing a game card: console, compatibility and the server's state" width="420">
+<img src="docs/images/second-screen-panel.jpg" alt="The Thor's rear panel showing a game card: console, compatibility and the server's state" width="420">
 
 <sub>The rear panel of an AYN Thor, driven from the front screen.</sub>
 
