@@ -50,11 +50,17 @@ class SessionCodesTest {
         }
     }
 
-    /** The lock is the code: a generator repeating itself would hand out one session. */
+    /**
+     * The lock is the code: a generator repeating itself would hand out one session.
+     * Not a thousand distinct out of a thousand, which fails once in fifteen runs and
+     * did on CI: 24^3 * 8^3 is seven million, and a thousand draws in it collide by the
+     * birthday paradox alone. Five collisions never happen, a broken generator gives
+     * hundreds.
+     */
     @Test
-    fun `generate does not repeat over a thousand draws`() {
+    fun `generate does not repeat itself`() {
         val seen = List(1000) { SessionCodes.generate() }.toSet()
-        assertEquals(1000, seen.size)
+        assertTrue("only ${seen.size} distinct codes in 1000 draws", seen.size >= 995)
     }
 
     /** ARMSX2 takes the code as its room password, 4 to 12 alphanumerics. */
