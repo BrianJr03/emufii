@@ -307,7 +307,7 @@ devices, so a flaw here is worth taking seriously.
 ## How it was built
 
 **Emufii is co-produced with [Claude Code](https://claude.com/claude-code), and I
-would rather tell you than let you work it out.** A good deal of the code was
+would rather tell you than let you work it out.** 90% of the code was
 written alongside the model, and so was the digging through each emulator to
 find out how its multiplayer actually works.
 
