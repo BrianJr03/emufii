@@ -138,10 +138,11 @@ android {
         // first one that can survive a change of server: from here on, moving
         // machines is a DNS record and nobody reinstalls anything. Builds up to
         // 45 keep calling the old address, which is why that machine stays up.
-        // 47: session codes go to four letters and four digits. A build on 46 can
-        // still join one, but the code has to be typed with its hyphen: its
-        // `normalize` only knows the six-character shape and leaves the rest alone.
-        versionCode = 47
+        // 48: 47 shipped four-letter, four-digit session codes and could not join its
+        // own: the join keypad draws six boxes and refuses the seventh key. Back to
+        // three and three, and 47 is withdrawn. 48 rather than reusing 47, so two
+        // different binaries never answer to one number in the release archive.
+        versionCode = 48
         versionName = "1.12.9"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

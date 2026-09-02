@@ -29,16 +29,16 @@ class SessionCodesTest {
         // reshaped into a different session.
         assertEquals("HMM-29", SessionCodes.normalize("hmm-29"))
         assertEquals("HMM2955", SessionCodes.normalize("hmm2955"))
-        assertEquals("HMMK29556", SessionCodes.normalize("hmmk29556"))
+        assertEquals("HMMKL295567", SessionCodes.normalize("hmmkl295567"))
         assertEquals("2955HMM", SessionCodes.normalize("2955hmm"))
         assertEquals("", SessionCodes.normalize(""))
     }
 
-    /** A session opened by a build still on three and three has to stay joinable. */
+    /** One build generated four and four; such a session must stay joinable. */
     @Test
-    fun `the older three and three shape is still recognised`() {
-        assertEquals("HMM-295", SessionCodes.normalize("hmm295"))
-        assertEquals("HMM-295", SessionCodes.normalize("HMM-295"))
+    fun `the four and four shape is still recognised`() {
+        assertEquals("HMMK-2955", SessionCodes.normalize("hmmk2955"))
+        assertEquals("HMMK-2955", SessionCodes.normalize("HMMK-2955"))
     }
 
     @Test
@@ -46,7 +46,7 @@ class SessionCodesTest {
         repeat(50) {
             val code = SessionCodes.generate()
             assertEquals(code, SessionCodes.normalize(code))
-            assertTrue(code, Regex("^[A-Z]{4}-[2-9]{4}$").matches(code))
+            assertTrue(code, Regex("^[A-Z]{3}-[2-9]{3}$").matches(code))
         }
     }
 
@@ -62,5 +62,17 @@ class SessionCodesTest {
     fun `the code fits the ARMSX2 room field once the hyphen is dropped`() {
         val body = SessionCodes.generate().filter { it.isLetterOrDigit() }
         assertTrue(body, body.length in 4..12)
+    }
+
+    /**
+     * The join screen draws six boxes and its keypad refuses the seventh key, so a code
+     * longer than this cannot be typed at all. A build shipped four and four and could
+     * not join its own sessions; this is what would have caught it.
+     * pourquoi : docs/decisions/coquille-ecrans.md § Six slots rather than a field
+     */
+    @Test
+    fun `the code is exactly what the join keypad accepts`() {
+        val body = SessionCodes.generate().filter { it.isLetterOrDigit() }
+        assertEquals(6, body.length)
     }
 }
