@@ -3,7 +3,7 @@ package eu.emufii.app.session
 import android.net.Uri
 import eu.emufii.app.library.Backend
 import eu.emufii.app.library.Console
-import kotlin.random.Random
+import java.security.SecureRandom
 
 data class RomRef(
     val uri: Uri,
@@ -76,11 +76,24 @@ object SessionCodes {
     private const val ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ"
     private const val DIGITS = "23456789"
 
-    fun generate(): String {
-        val letters = (1..3).map { ALPHABET.random(Random.Default) }.joinToString("")
-        val digits = (1..3).map { DIGITS.random(Random.Default) }.joinToString("")
-        return "$letters-$digits"
-    }
+    /**
+     * The code is the whole lock: it admits to the session, and ARMSX2 takes it as the
+     * room password. Four and four is what that asks for while staying inside ARMSX2's
+     * 4..12 alphanumerics once the hyphen is filtered out.
+     */
+    private const val LETTERS = 4
+    private const val NUMBERS = 4
+
+    /**
+     * `SecureRandom`, like the friend code beside it: `Random.Default` is a XorWow seeded
+     * per process, and its next draw is not built to be hard to derive from its last.
+     */
+    private val secureRandom by lazy { SecureRandom() }
+
+    private fun pick(from: String, n: Int) =
+        buildString { repeat(n) { append(from[secureRandom.nextInt(from.length)]) } }
+
+    fun generate(): String = "${pick(ALPHABET, LETTERS)}-${pick(DIGITS, NUMBERS)}"
 
     /**
      * What the player typed, turned into the code the coordinator stores. The
@@ -90,7 +103,12 @@ object SessionCodes {
      */
     fun normalize(typed: String): String {
         val body = typed.uppercase().filter { it.isLetterOrDigit() }
-        if (body.length != 6) return typed.uppercase().trim()
-        return "${body.take(3)}-${body.drop(3)}"
+        // Both shapes, and no length of its own: a session opened by a build still on
+        // three and three has to stay joinable from one on four and four.
+        val letters = body.takeWhile { it.isLetter() }.length
+        val digits = body.length - letters
+        val known = (letters == 3 && digits == 3) || (letters == LETTERS && digits == NUMBERS)
+        if (!known) return typed.uppercase().trim()
+        return "${body.take(letters)}-${body.drop(letters)}"
     }
 }

@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -51,7 +52,7 @@ fun FriendAlert(
         }
     }
 
-    Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+    Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.TopEnd) {
         AnimatedVisibility(
             visible = event != null,
             enter = slideInVertically(animationSpec = tween(220)) { -it } + fadeIn(tween(220)),
@@ -66,7 +67,13 @@ fun FriendAlert(
                 onClick = onOpen,
                 modifier = Modifier
                     .padding(WindowInsets.statusBars.asPaddingValues())
-                    .padding(horizontal = 14.dp, vertical = 8.dp)
+                    .padding(vertical = 8.dp)
+                    // In the gap the top bar leaves, between the service lamp and the
+                    // social shelf. Measured on the Thor 2026-09-02: free from 717 to
+                    // 1487 px of 1920, so 334 dp starting 188 dp off the right edge.
+                    // pourquoi : docs/decisions/bibliotheque.md § The top bar: two shelves, never a bar
+                    .padding(end = ALERT_END_INSET)
+                    .widthIn(max = ALERT_WIDTH)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -112,5 +119,10 @@ private fun lastNonNull(event: FriendEvent?): FriendEvent? {
     if (event != null) holder.value = event
     return holder.value
 }
+
+private val ALERT_WIDTH = 320.dp
+
+/** Clears the social shelf, which starts 188 dp off the right edge. */
+private val ALERT_END_INSET = 196.dp
 
 private const val VISIBLE_MS = 4_000L

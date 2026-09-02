@@ -39,9 +39,12 @@ object Sfx {
         if (pool != null) return
         app = context.applicationContext
         val attrs = AudioAttributes.Builder()
-            // The interface-sound family: follows the system volume, goes quiet during a
-            // call, and does not cut someone's music.
-            .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
+            // Media, not USAGE_ASSISTANCE_SONIFICATION: that one sorts to STREAM_SYSTEM,
+            // aliased to the ringer, which the Thor's volume rocker does not move.
+            // Measured 2026-09-02: music 15/15 while system sat at 4/7, so the sounds
+            // stayed faint however far the rocker went.
+            // pourquoi : docs/decisions/sons.md § Android's own setting is authoritative
+            .setUsage(AudioAttributes.USAGE_MEDIA)
             .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
             .build()
         val p = SoundPool.Builder().setMaxStreams(MAX_STREAMS).setAudioAttributes(attrs).build()
@@ -72,8 +75,8 @@ object Sfx {
     private const val MAX_STREAMS = 4
 
     /** Below the press: hover fires on every cell crossed, and a move as loud as an action suggests something happened. */
-    private const val HOVER_VOLUME = 0.45f
-    private const val CLICK_VOLUME = 0.85f
+    private const val HOVER_VOLUME = 0.55f
+    private const val CLICK_VOLUME = 1.0f
 }
 
 /**

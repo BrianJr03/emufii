@@ -26,9 +26,15 @@ import kotlin.math.roundToInt
 internal object CursorFlow {
 
     /** One more step is not one more bitmap, it is one more repainted window. */
-    const val STEPS = 27
+    const val STEPS = 22
 
-    const val PERIOD_MS = 1800
+    /**
+     * Derived, never written twice: 27 steps over 1800 ms against an 83 ms beat advanced
+     * 1.245 steps a tick, so the gradient went 1, 1, 1, 2 and read as judder rather than
+     * as a low frame rate. One step per beat costs the same repaints and is even.
+     * pourquoi : docs/decisions/performance-rendu.md § One clock for everything that moves continuously
+     */
+    const val PERIOD_MS = (STEPS * FRAME_INTERVAL_MS).toInt()
 
     /** Stretched to the real size by the shader: a gradient has no fine detail to lose. */
     private const val MAX_SIDE = 192

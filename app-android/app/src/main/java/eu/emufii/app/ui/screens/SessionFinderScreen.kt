@@ -292,12 +292,15 @@ private fun SessionCard(session: OpenSession, rom: Rom?, onJoin: () -> Unit) {
     // No `padEntry` here: a `FocusRequester` shared between twelve nodes points at
     // nothing.
     // pourquoi : docs/decisions/lancement-et-navigation.md § One named destination per screen
-    SoftCard(
-        onClick = onJoin,
-        modifier = Modifier.animateContentSize()
-    ) {
+    SoftCard(onClick = onJoin) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                // On the content, never on the card: animateContentSize opens with a
+                // clipToBounds, and above the card that rectangle cut the cursor's ring
+                // off square on all four sides.
+                .animateContentSize()
+                .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp)
         ) {

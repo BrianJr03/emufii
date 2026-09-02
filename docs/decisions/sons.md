@@ -19,7 +19,7 @@ They are decoded when the activity starts rather than on first play, or the very
 first hover would be silent, the one that happens before the player has worked
 out that the app makes sound.
 
-Hover is quieter than press (0.45 against 0.85). It fires on every cell crossed;
+Hover is quieter than press (0.55 against 1.0). It fires on every cell crossed;
 a movement as loud as an action would suggest something had happened.
 
 ## Android's own setting is authoritative
@@ -29,9 +29,18 @@ The app does not create its own sound switch: it reads
 sounds off has turned them off for every application, and ours has no reason to
 be an exception.
 
-The `AudioAttributes` file them under interface sounds
-(`USAGE_ASSISTANCE_SONIFICATION`): they follow system volume, go quiet during a
-call, and do not duck somebody's music.
+The `AudioAttributes` filed them under interface sounds
+(`USAGE_ASSISTANCE_SONIFICATION`) until 2026-09-02. That family sorts to
+`STREAM_SYSTEM`, which Android aliases to the ringer, and the Thor's volume
+rocker moves `STREAM_MUSIC`. Measured on the bench that day: music at 15/15
+while system sat at 4/7. The sounds were therefore faint however far the rocker
+was pushed, and no amount of volume in the app could fix it, `CLICK_VOLUME`
+already being at 0.85 of a ceiling of 1.
+
+They are `USAGE_MEDIA` now, so the rocker reaches them. What that costs, and it
+is deliberate: they no longer go quiet during a call. They still do not duck
+anybody's music, `SoundPool` requesting no audio focus, and they still obey
+`SOUND_EFFECTS_ENABLED`, which is the setting that actually matters here.
 
 ## Hover fires where the cursor is drawn
 

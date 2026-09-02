@@ -56,9 +56,10 @@ fun Modifier.neonFocusRing(
     if (grow <= 0f) return this
 
     /**
-     * Twenty-five writes a second. An `InfiniteTransition` writes every frame: 120 a
-     * second on a 120 Hz screen for forty-five distinct positions in 1.8 s, permanently,
-     * and half the measured heat came from it.
+     * Read here on purpose, not in the draw lambda: in composition the cursor and the
+     * background land in one pass, so a beat costs one repaint. Deferred to draw they
+     * invalidate separately and the app drew twice a beat, measured 2026-09-02.
+     * pourquoi : docs/decisions/performance-rendu.md § One clock for everything that moves continuously
      */
     val step = rememberFlowStep()
 

@@ -4,6 +4,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -46,6 +47,29 @@ fun PadHintRow(hint: PadHint, modifier: Modifier = Modifier) {
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+    }
+}
+
+/**
+ * The same legend at the foot of the front screen, for a machine showing one. The panel
+ * carries it whenever there are two, and repeating it a foot apart is what the service
+ * lamp already refuses to do.
+ * pourquoi : docs/decisions/second-ecran.md § The legend, and why the symbols are drawn
+ */
+@Composable
+fun PadLegendBar(legend: PadLegend, modifier: Modifier = Modifier) {
+    if (legend.isEmpty) return
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(18.dp), verticalAlignment = Alignment.CenterVertically) {
+            legend.left.forEach { PadHintRow(it) }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(18.dp), verticalAlignment = Alignment.CenterVertically) {
+            legend.right.forEach { PadHintRow(it) }
+        }
     }
 }
 

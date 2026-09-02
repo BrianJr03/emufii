@@ -4,11 +4,16 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.CompositionLocalProvider
 import eu.emufii.app.compat.LocalCompatDb
 import eu.emufii.app.compat.CompatCheck
@@ -47,6 +52,7 @@ import eu.emufii.app.notify.Notifications
 import eu.emufii.app.profile.FriendStore
 import eu.emufii.app.meta.LocalGameMetaDb
 import eu.emufii.app.meta.MetaCheck
+import eu.emufii.app.secondscreen.PadLegendBar
 import eu.emufii.app.secondscreen.PanelFeed
 import eu.emufii.app.ui.components.FriendAlert
 import eu.emufii.app.profile.ProfileStore
@@ -58,6 +64,7 @@ import eu.emufii.app.profile.Profile
 import eu.emufii.app.secondscreen.PanelFriend
 import eu.emufii.app.secondscreen.SecondScreen
 import eu.emufii.app.secondscreen.SecondScreenModel
+import eu.emufii.app.secondscreen.rememberPresentationDisplay
 import eu.emufii.app.session.Session
 import eu.emufii.app.session.SessionCodes
 import eu.emufii.app.tunnel.TunnelHolder
@@ -806,9 +813,38 @@ fun EmufiiApp(settings: SettingsStore) {
         )
     }
 
+    // The setting is not enough: the device may have only one screen.
+    val panelDisplay by rememberPresentationDisplay()
+    val panelWanted by settings.secondScreen.collectAsState()
+    val panelLive = panelWanted && panelDisplay != null
+
+    // One screen: the legend the panel would carry goes at the foot of this one, drawn
+    // from the same motif so the two cannot drift.
+    // pourquoi : docs/decisions/second-ecran.md § The legend, and why the symbols are drawn
+    if (!panelLive) {
+        val legendModel by SecondScreen.model.collectAsState()
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.BottomCenter
+        ) {
+            PadLegendBar(
+                legend = legendModel.legend,
+                modifier = Modifier
+                    // No navigation-bar inset: the app hides the system bars, and the
+                    // inset it still reports parked the legend 40 dp off the edge.
+                    .padding(horizontal = 24.dp)
+                    .padding(top = 12.dp, bottom = 10.dp)
+            )
+        }
+    }
+
+    // Silent on the main screen while the panel is lit: the note is already down there,
+    // and one friend arriving twice reads as two friends.
+    LaunchedEffect(panelLive) { if (panelLive) alert = null }
+
     // Before the conflict dialog in source order, so the dialog covers it.
     FriendAlert(
-        event = alert,
+        event = if (panelLive) null else alert,
         onOpen = { alert = null; screen = Screen.Friends },
         onDismiss = { alert = null }
     )
