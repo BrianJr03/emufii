@@ -17,8 +17,8 @@ class IconAccentTest {
 
     @Test
     fun `a mostly grey icon with a red mark comes out red`() {
-        // The case that matters: artwork is mostly a neutral background, and the
-        // colour that identifies the game covers a fraction of it.
+        // Artwork is mostly a neutral background, and the colour identifying the game
+        // covers a fraction of it.
         val pixels = IntArray(1000) { argb(255, 200, 200, 200) }
         for (i in 0 until 40) pixels[i] = argb(255, 220, 20, 20)
 
@@ -30,8 +30,8 @@ class IconAccentTest {
 
     @Test
     fun `transparent pixels are ignored`() {
-        // DS icons leave their background transparent; counting it would drag
-        // every accent towards whatever the padding happens to be.
+        // DS icons leave their background transparent: counting it drags every accent
+        // towards whatever the padding happens to be.
         val pixels = IntArray(100) { argb(0, 0, 0, 255) }  // invisible blue
         for (i in 0 until 10) pixels[i] = argb(255, 20, 200, 20)
 
@@ -86,8 +86,8 @@ class IconAccentTest {
 
     @Test
     fun `a vivid minority beats a washed-out majority`() {
-        // Saturation is squared on purpose: 900 barely-tinted pixels must not
-        // outvote 100 vivid ones, or every icon ends up beige.
+        // Saturation is squared on purpose: 900 barely-tinted pixels must not outvote
+        // 100 vivid ones, or every icon ends up beige.
         val pixels = IntArray(900) { argb(255, 210, 200, 190) } +
             IntArray(100) { argb(255, 0, 90, 255) }
 

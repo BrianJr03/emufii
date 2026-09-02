@@ -86,16 +86,10 @@ import eu.emufii.app.ui.RingTone
 import eu.emufii.app.ui.copyToClipboard
 
 /**
- * Your friends, and what they're playing.
- *
- * The screen draws, it no longer asks: presence is polled once for the whole
- * app by [eu.emufii.app.notify.FriendWatcher], because a friend appearing is
- * worth knowing about from the library too, and because two pollers would have
- * announced the same arrival twice.
- *
- * There is no browsing here, only specific codes, because the coordinator holds
- * no list of who knows whom. Everything social about this feature lives on the
- * device.
+ * Your friends, and what they're playing. The screen draws, it no longer asks:
+ * presence is polled once for the whole app by [eu.emufii.app.notify.FriendWatcher],
+ * two pollers having announced the same arrival twice. No browsing, only codes: the
+ * coordinator holds no list of who knows whom.
  */
 @Composable
 fun FriendsScreen(
@@ -118,8 +112,7 @@ fun FriendsScreen(
 
     val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
-    // In a game first, then merely online, then everyone else by name: the rows
-    // you can act on are the ones worth putting under the thumb.
+    // In a game, then online, then the rest by name: the actionable rows go under the thumb.
     val ordered = friends.sortedWith(
         compareByDescending<Friend> { statuses[it.code]?.inSession == true }
             .thenByDescending { statuses[it.code]?.online == true }
@@ -152,8 +145,7 @@ fun FriendsScreen(
     val configuration = LocalConfiguration.current
     val landscape = configuration.screenWidthDp > configuration.screenHeightDp
 
-    // Does the rear panel carry the list? The setting is not enough: the device may
-    // have only one screen.
+    // The setting is not enough: the device may have only one screen.
     // pourquoi : docs/decisions/second-ecran.md § The friends list goes to the back, both cards stay in front
     val panelDisplay by rememberPresentationDisplay()
     val panelWanted by remember(context) { SettingsStore.get(context).secondScreen }
@@ -165,38 +157,27 @@ fun FriendsScreen(
     CompositionLocalProvider(LocalRingTone provides RingTone.CORAL) {
     EmufiiScaffold(title = stringResource(R.string.friends_title), onBack = onBack, modifier = modifier) { topPadding ->
         if (landscape) {
-            // The whole page scrolls, as one movement.
-            //
-            // Before, only the list scrolled inside its column: the code card
-            // stayed frozen while the other half moved, which gave two screens
-            // side by side rather than one. Here the page is a single document,
-            // the pair of cards, then the friends, and the list is rendered
-            // eagerly rather than as a `LazyColumn`, two nested vertical scrolls
-            // not being something Compose accepts. A friends list is counted in
-            // tens, not thousands.
+            // The whole page scrolls as one document; the list is rendered eagerly rather
+            // than as a `LazyColumn`, Compose refusing two nested vertical scrolls. A
+            // friends list is counted in tens.
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
                     .padding(
                         start = 20.dp, end = 20.dp,
-                        // Past the gesture handle, not level with it: the
-                        // footnote used to come to rest struck through by it.
+                        // Past the gesture handle: the footnote used to rest struck through by it.
                         top = topPadding, bottom = bottomInset + 56.dp
                     ),
-                // Centred when the panel carries the list: only the two cards are left,
-                // and laid at the top they left two thirds of the screen empty below.
-                // Without a panel the page takes its document order back, cards then
-                // list, read from the top.
+                // Centred when the panel carries the list: the two cards left at the top
+                // emptied two thirds of the screen below.
                 // pourquoi : docs/decisions/second-ecran.md § The friends list goes to the back, both cards stay in front
                 verticalArrangement =
                     if (panelLive) Arrangement.spacedBy(16.dp, Alignment.CenterVertically)
                     else Arrangement.spacedBy(12.dp)
             ) {
-                // Two cards of equal width and equal height. `IntrinsicSize.Min`
-                // gives the row the height of the taller of the two, and
-                // `fillMaxHeight` makes the other take it: they answer each other
-                // instead of sitting out of step.
+                // `IntrinsicSize.Min` gives the row the taller card's height, `fillMaxHeight`
+                // makes the other take it: the two answer each other.
                 Row(
                     modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
@@ -217,9 +198,8 @@ fun FriendsScreen(
                 }
 
                 if (panelLive) {
-                    // What the list on the back cannot say of itself: its count, and
-                    // where to read it. Without this line a player whose friends are
-                    // all offline sees a front screen that never mentions them.
+                    // Without this line a player whose friends are all offline sees a front
+                    // screen that never mentions them.
                     FriendsPanelNote(
                         total = ordered.size,
                         online = ordered.count { statuses[it.code]?.online == true }
@@ -320,9 +300,8 @@ fun FriendsScreen(
 }
 
 /**
- * The code, big enough to read off the screen at arm's length, which is how it
- * gets shared most of the time, one person holding their handheld out to
- * another.
+ * The code, big enough to read off the screen at arm's length: it gets shared by
+ * holding the handheld out to someone.
  */
 @Composable
 private fun MyCodeCard(
@@ -359,8 +338,7 @@ private fun MyCodeCard(
                     label = stringResource(R.string.friends_copy),
                     onClick = onCopy,
                     fillWidth = true,
-                    // The screen's first control: this is where you arrive coming
-                    // down from the header, and where you go back up from.
+                    // The screen's first control: where the cursor arrives from the header.
                     modifier = Modifier.weight(1f).padEntry()
                 )
                 GhostButton(
@@ -385,9 +363,8 @@ private fun AddFriendCard(
     SoftCard(modifier = modifier) {
         Column(
             modifier = Modifier.fillMaxWidth().fillMaxHeight().padding(16.dp),
-            // Centred: the card is stretched to its neighbour's height, and a
-            // field pinned to the top of a half-empty card reads as an
-            // oversight.
+            // The card is stretched to its neighbour's height; a field pinned to the top of
+            // a half-empty card reads as an oversight.
             verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically)
         ) {
             SectionHeader(stringResource(R.string.friends_add))
@@ -445,7 +422,6 @@ private fun FriendRow(
                 Text(
                     statusLine(status),
                     style = MaterialTheme.typography.bodySmall,
-                    // The in-session row carries the social axis.
                     color = if (status.inSession) coral()
                     else MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
@@ -462,8 +438,7 @@ private fun FriendRow(
                         label = stringResource(R.string.friends_join),
                         onClick = join
                     )
-                    // Their session exists but their tunnel isn't up: joining
-                    // now would only spin, same as in the finder.
+                    // Their session exists but their tunnel isn't up: joining would only spin.
                     status.inSession -> Text(
                         stringResource(R.string.friends_starting),
                         style = MaterialTheme.typography.labelMedium,
@@ -486,8 +461,7 @@ private fun FriendRow(
 @Composable
 private fun PresenceDot(status: FriendStatus) {
     val dark = LocalEmufiiDarkTheme.current
-    // The dot's ring stays a theme surface: the low shell on dark, the light plate on
-    // light. No hex left here.
+    // The dot's ring stays a theme surface: the low shell on dark, the plate on light.
     val ring = if (dark) ShellDarkLow else PlateLight
     val fill = when {
         status.inSession -> if (dark) WarnDark else WarnLight
@@ -516,17 +490,15 @@ private fun EmptyFriends(compact: Boolean = false) {
         modifier = Modifier.fillMaxWidth().padding(top = if (compact) 12.dp else 24.dp, bottom = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // The disc disappears when the empty state follows the add card: it is
-        // 72 dp plus its margins, and that is what pushed the text off the
-        // screen. What people come to read is the sentence.
+        // The disc goes when the empty state follows the add card: 72 dp plus margins is
+        // what pushed the sentence off the screen.
         if (!compact) {
         Box(
             modifier = Modifier
                 .size(72.dp)
                 .clip(CircleShape)
-                // Same idea as the finder's empty state, opposite direction: a
-                // white wash lifts the emoji off a pale backdrop, and would be
-                // the brightest thing on screen against the dark one.
+                // A white wash lifts the emoji off a pale backdrop, and would be the
+                // brightest thing on screen against the dark one.
                 .background(
                     if (LocalEmufiiDarkTheme.current) PlateLight.copy(alpha = 0.06f)
                     else PlateLight.copy(alpha = 0.55f)
@@ -538,9 +510,8 @@ private fun EmptyFriends(compact: Boolean = false) {
         Text(
             stringResource(R.string.friends_none_title),
             style = MaterialTheme.typography.titleMedium,
-            // Laid straight on the background, hence with no inherited colour:
-            // without this it falls back to black and disappears in the dark
-            // theme.
+            // Laid straight on the background: without this it falls back to black and
+            // disappears in the dark theme.
             color = MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Center
         )
@@ -555,21 +526,18 @@ private fun EmptyFriends(compact: Boolean = false) {
     }
 }
 
-/** Error leaning coral, the cut for the current ground. */
 @Composable
 private fun danger() =
     if (LocalEmufiiDarkTheme.current) ErrorDark else ErrorLight
 
-/** The coral cut legible on the current ground. */
 @Composable
 private fun coral(dark: Boolean = LocalEmufiiDarkTheme.current) =
     if (dark) Coral.darkBright else Coral.ink
 
 
 /**
- * Where the list went, and what it holds. The panel carries it, but the panel is behind
- * the machine: the front screen has to say it exists, or a player with nobody online
- * closes the page believing they have no friends.
+ * The panel is behind the machine: the front screen has to say the list exists, or a
+ * player with nobody online closes the page believing they have no friends.
  * pourquoi : docs/decisions/second-ecran.md § The friends list goes to the back, both cards stay in front
  */
 @Composable

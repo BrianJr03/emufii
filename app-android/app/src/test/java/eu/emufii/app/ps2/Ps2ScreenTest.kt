@@ -17,7 +17,6 @@ class Ps2ScreenTest {
     private fun text(t: String, b: Bounds, clickable: Boolean = false) =
         Node(text = t, className = Node.TEXT_VIEW, bounds = b, clickable = clickable)
 
-    /** The "Local Link port" row, as it is drawn in host mode. */
     private val portRow = listOf(
         text("Local Link port", Bounds(69, 809, 306, 867)),
         text("19072", Bounds(1761, 809, 1851, 867)),

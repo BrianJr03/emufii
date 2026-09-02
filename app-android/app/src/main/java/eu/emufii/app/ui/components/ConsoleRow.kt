@@ -37,7 +37,6 @@ import eu.emufii.app.ui.theme.LocalEmufiiDarkTheme
 import eu.emufii.app.ui.theme.socket
 import eu.emufii.app.ui.tap
 
-/** What plays it, and whether it is in the grid. A row rather than a tile. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ConsoleRow(
@@ -49,7 +48,6 @@ fun ConsoleRow(
     entry: Boolean = false
 ) {
     val dark = LocalEmufiiDarkTheme.current
-    // Off: the icon loses its colour, the row's loudest signal.
     val alpha = if (visible) 1f else 0.45f
     val iconFilter = remember(visible) {
         if (visible) null
@@ -62,8 +60,7 @@ fun ConsoleRow(
         modifier = modifier
             .fillMaxWidth()
             .socket(ROW_SHAPE, dark)
-            // Like [SwitchRow]: the row toggles under a finger but is not a cursor
-            // stop.
+            // Like [SwitchRow]: toggles under a finger, but is not a cursor stop.
             .focusProperties { canFocus = false }
             .tap(role = Role.Switch) { onSetVisible(!visible) }
             .padding(horizontal = 14.dp, vertical = 10.dp)
@@ -84,8 +81,8 @@ fun ConsoleRow(
                     modifier = Modifier.fillMaxWidth()
                 )
             } else {
-                // The abbreviation rather than a question mark: an absent emulator is
-                // the ordinary case.
+                // The abbreviation rather than a question mark: an absent emulator is the
+                // ordinary case.
                 Text(
                     info.console.shortLabel,
                     style = MaterialTheme.typography.labelSmall,
@@ -102,14 +99,13 @@ fun ConsoleRow(
             overflow = TextOverflow.Ellipsis
         )
 
-        // On the name's line, not under it: under, seven consoles gained seven lines.
+        // On the name's line: under it, seven consoles gained seven lines.
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
             modifier = Modifier.weight(1f)
         ) {
             if (info.variants.isEmpty()) {
-                // Nothing installed: the choice's place says what is missing.
                 Text(
                     absentLine(info),
                     style = MaterialTheme.typography.labelSmall,
@@ -131,8 +127,7 @@ fun ConsoleRow(
 
         Box(
             modifier = Modifier
-                // Thicker than elsewhere: the switch is a small pill at the end of a
-                // wide row.
+                // Thicker than elsewhere: the switch is a small pill ending a wide row.
                 .controlRing(
                     androidx.compose.foundation.shape.CircleShape,
                     bandFraction = 0.165f
@@ -145,10 +140,6 @@ fun ConsoleRow(
     }
 }
 
-/**
- * Chosen takes the system axis; the others stay legible, since choosing one is not a
- * verdict.
- */
 @Composable
 private fun VariantChip(
     variant: EmulatorVariant,
@@ -181,7 +172,7 @@ private fun VariantChip(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             // The name gives way, never the number: a wide pill clipped "Dolphin
-            // Emulator 26...".
+            // Emulator 26…".
             modifier = Modifier.weight(1f, fill = false)
         )
         variant.version?.let {
@@ -195,10 +186,6 @@ private fun VariantChip(
     }
 }
 
-/**
- * The name comes from the backend, not the system, which has nothing to say when
- * nothing is installed.
- */
 @Composable
 private fun absentLine(info: EmulatorInfo): String =
     "${info.name} · ${stringResource(R.string.emulators_absent_short)}"

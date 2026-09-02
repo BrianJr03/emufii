@@ -6,13 +6,9 @@ import java.util.zip.Inflater
 import org.tukaani.xz.LZMAInputStream
 
 /**
- * Reading just enough of a CHD to know which console pressed the disc.
- *
- * `.chd` is the one container where the extension settles nothing, and its
- * bytes are compressed. This decodes far enough to hand back one disc
- * sector and no further, which then goes through the same descriptor rule as
- * a plain `.iso`, so the console is settled in one place for every format.
- *
+ * `.chd` is the one container where the extension settles nothing, and its bytes
+ * are compressed: this decodes far enough to hand back one disc sector and no
+ * further, which then goes through the same descriptor rule as a plain `.iso`.
  * Everything here was measured on two real files, never taken from a wiki.
  * pourquoi : docs/decisions/identite-disques.md § We stop at the sector, and decide nothing
  */
@@ -22,7 +18,6 @@ object ChdImage {
     private const val VERSION_5 = 5
     private const val HEADER_V5_BYTES = 124
 
-    // Header fields, at the offsets the format fixes.
     private const val OFF_VERSION = 12
     private const val OFF_COMPRESSORS = 16
     private const val OFF_LOGICAL_BYTES = 32
@@ -46,7 +41,6 @@ object ChdImage {
     private const val TAG_GDROM_TRACK = "CHGD"
     private const val TAG_GDROM_OLD = "CHGT"
 
-    /** Hunk compression types, as the v5 map encodes them. */
     private const val TYPE_BASE_0 = 0
     private const val TYPE_NONE = 4
     private const val TYPE_SELF = 5
@@ -58,7 +52,6 @@ object ChdImage {
 
     /** Where the bytes come from, so tests need no Android and no provider. */
     interface Source {
-        /** Fills [into] from [offset]; returns how much was actually read. */
         fun read(offset: Long, into: ByteArray, count: Int): Int
     }
 
@@ -71,8 +64,8 @@ object ChdImage {
         open(source)?.readDiscSector(sectorIndex)
 
     /**
-     * Opens one v5 CHD as a reusable reader: the map is parsed once, or
-     * hundreds of seeks turn a few megabytes into gigabytes of repeated work.
+     * The map is parsed once, or hundreds of seeks turn a few megabytes into
+     * gigabytes of repeated work.
      * pourquoi : docs/decisions/identite-disques.md § A reusable reader, or the work explodes
      */
     fun open(source: Source): Reader? {
@@ -104,8 +97,7 @@ object ChdImage {
     private const val MAX_HUNKS = 4 * 1024 * 1024
 
     /**
-     * The Dreamcast, excluded before a single byte is decompressed: one short
-     * read of the metadata chain.
+     * One short read of the metadata chain, no decompression.
      * pourquoi : docs/decisions/identite-disques.md § The Dreamcast is ruled out before a byte is decompressed
      */
     private fun isGdRom(source: Source, metaOffset: Long): Boolean {
@@ -138,9 +130,8 @@ object ChdImage {
     }
 
     /**
-     * The map entry for one hunk. The first pass cannot be cut short: every
-     * hunk's type is decoded before the first length is written, so stopping
-     * early reads lengths out of the type stream. The loop runs to the end.
+     * The first pass cannot be cut short: every hunk's type is decoded before the
+     * first length is written, so stopping early reads lengths out of the type stream.
      * pourquoi : docs/decisions/identite-disques.md § Two decoding traps that cost dearly
      */
     private fun mapEntries(
@@ -222,9 +213,8 @@ object ChdImage {
                     lastSelf++
                     offset = lastSelf
                 }
-                // Parent references remain in the table. A standalone reader
-                // cannot resolve them, but another hunk may still be readable;
-                // refusing the entire CHD here would throw useful data away.
+                // A standalone reader cannot resolve parent references, but another
+                // hunk may still be readable; refusing the whole CHD loses that.
                 else -> Unit
             }
             offsets[i] = offset
@@ -237,7 +227,7 @@ object ChdImage {
     private const val MAX_MAP_BYTES = 64 * 1024 * 1024
 
     /**
-     * The bytes of one hunk, decompressed. For a raw CD, the sectors only.
+     * For a raw CD, the sectors only.
      * pourquoi : docs/decisions/identite-disques.md § What is decoded, and what is not
      */
     private fun hunkPayload(
@@ -276,9 +266,8 @@ object ChdImage {
         val decoded = if (entry.type == TYPE_NONE) raw else when (val codec = compressors.getOrNull(entry.type)) {
             "cdlz", "cdzl" -> {
                 if (!rawCd || frames <= 0) return null
-                // The CD codecs put a header first: one ECC bit per frame,
-                // rounded up to bytes, then the compressed length of the sector
-                // block. The subcode block follows it and is of no use here.
+                // The CD codecs put a header first: one ECC bit per frame rounded up
+                // to bytes, then the sector block's compressed length; subcode follows.
                 val eccBytes = (frames + 7) / 8
                 val lengthBytes = if (hunkBytes < 65536) 2 else 3
                 val headerBytes = eccBytes + lengthBytes
@@ -296,14 +285,11 @@ object ChdImage {
             "zlib" -> inflate(raw, 0, raw.size, hunkBytes)
             "lzma" -> lzma(raw, 0, raw.size, hunkBytes)
             "zstd" -> zstd(raw, hunkBytes)
-            // Only FLAC's constant-zero subframes, which is what sparse DVD
-            // CHDs self-reference. Anything else falls back, never guesses.
+            // Only FLAC's constant-zero subframes, what sparse DVD CHDs self-reference.
             // pourquoi : docs/decisions/identite-disques.md § What is decoded, and what is not
             "flac" -> flacSilence(raw, hunkBytes)
-            // `cdfl` is FLAC, which only ever holds CD audio, and `huff` is
-            // CHD's own Huffman codec. Neither has been seen on a data sector,
-            // so an image using one for its ELF falls back to the accessibility
-            // path instead of producing a guessed CRC.
+            // `cdfl` holds only CD audio and `huff` is CHD's own codec: neither has
+            // been seen on a data sector, so fall back rather than guess a CRC.
             else -> null
         }
         decoded ?: return null
@@ -327,7 +313,6 @@ object ChdImage {
         }
     }
 
-    /** Random-access ISO view backed by one parsed CHD map. */
     class Reader internal constructor(
         private val source: Source,
         private val compressors: List<String>,
@@ -341,7 +326,6 @@ object ChdImage {
         private var cachedHunk: ByteArray? = null
         private var isoUserOffset: Int? = null
 
-        /** The complete disc sector, useful for the cheap console sniff. */
         fun readDiscSector(sectorIndex: Int): ByteArray? {
             if (sectorIndex < 0) return null
             if (!rawCd) {
@@ -361,8 +345,7 @@ object ChdImage {
         }
 
         /**
-         * Reads the 2048-byte ISO user-data stream, hiding raw CD headers and
-         * subcode. MODE2 (24), MODE1 (16) and cooked sectors all detected.
+         * The 2048-byte user-data stream: MODE2 (24), MODE1 (16) and cooked sectors.
          * pourquoi : docs/decisions/identite-disques.md § What is decoded, and what is not
          */
         override fun read(offset: Long, into: ByteArray, count: Int): Int {
@@ -458,8 +441,8 @@ object ChdImage {
 
     /** Decodes a CHD FLAC frame only when every channel is the constant zero. */
     internal fun flacSilence(src: ByteArray, outSize: Int): ByteArray? {
-        // CHD prefixes the headerless frame with output endianness. Zero is the
-        // same in either order, but an unknown marker is not a frame we own.
+        // CHD prefixes the headerless frame with output endianness: zero reads the
+        // same either way, but an unknown marker is not a frame we own.
         if (src.size < 10 || (src[0].toInt() != 'L'.code && src[0].toInt() != 'B'.code)) return null
         if (src[1].toInt() and 0xFF != 0xFF || src[2].toInt() and 0xFE != 0xF8) return null
         val blockCode = (src[3].toInt() ushr 4) and 0x0F
@@ -501,8 +484,8 @@ object ChdImage {
     }
 
     /**
-     * Raw LZMA, with the properties CHD leaves implicit: `lc=3, lp=0, pb=2`,
-     * i.e. the properties byte 0x5D. Verified against the real PS2 file.
+     * The properties CHD leaves implicit: `lc=3, lp=0, pb=2`, the properties byte
+     * 0x5D. Verified against the real PS2 file.
      * pourquoi : docs/decisions/identite-disques.md § What is decoded, and what is not
      */
     private fun lzma(src: ByteArray, at: Int, count: Int, outSize: Int): ByteArray? =
@@ -553,9 +536,8 @@ object ChdImage {
     }
 
     /**
-     * MAME's canonical Huffman. Two details are not guessable and come from
-     * `huffman.cpp`: the repeat count is a *third* read, and what repeats is
-     * the length just read, not zero. The sum-to-1 check catches both.
+     * Two details come from `huffman.cpp` and are not guessable: the repeat count is
+     * a *third* read, and what repeats is the length just read, not zero.
      * pourquoi : docs/decisions/identite-disques.md § Two decoding traps that cost dearly
      */
     private class Huffman(private val numCodes: Int, private val maxBits: Int) {

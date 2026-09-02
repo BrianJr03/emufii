@@ -7,15 +7,9 @@ import eu.emufii.app.tunnel.TunnelHolder
 import androidx.compose.material3.MaterialTheme
 
 /**
- * Asked before one tunnel takes the VPN slot from the other.
- *
- * The one place in Emufii that stops to ask, because it is the one action the app
- * takes that silently ends something the player is in the middle of, see
- * [eu.emufii.app.tunnel.tunnelHolder]. Everywhere else the app just goes.
- *
- * And because it is the one dialog that has to be answered rather than waved
- * away, it does not close on a tap outside: dismissing it means "leave the
- * tunnel where it is", which is an answer, and an answer is given on a button.
+ * The one action that silently ends something the player is inside, see
+ * [eu.emufii.app.tunnel.tunnelHolder]; no tap-outside dismissal, since leaving the tunnel
+ * where it is an answer, and an answer is given on a button.
  */
 @Composable
 fun TunnelConflictDialog(
@@ -36,8 +30,6 @@ fun TunnelConflictDialog(
                 label = stringResource(R.string.common_cancel),
                 onClick = onDismiss
             )
-                // The error tone, because confirming ends a session someone is
-                // inside: the centralized coral-leaning error, never a raw red.
                 GhostButton(
                     label = stringResource(R.string.tunnel_conflict_confirm),
                     onClick = onConfirm,

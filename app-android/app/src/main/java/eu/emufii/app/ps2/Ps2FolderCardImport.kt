@@ -11,7 +11,6 @@ object Ps2FolderCardImport {
     const val SUPERBLOCK = "_pcsx2_superblock"
     const val INDEX = "_pcsx2_index"
 
-    /** One save directory, its files already in the order the card should carry. */
     data class Save(val directory: String, val files: List<Pair<String, ByteArray>>)
 
     /**
@@ -23,10 +22,7 @@ object Ps2FolderCardImport {
     private val ENTRY = Regex("""([^,{}\s][^,{}:]*)\s*:\s*\{([^}]*)\}""")
     private val ORDER = Regex("""\border\s*:\s*(\d+)""")
 
-    /**
-     * Puts [files] in the order [indexText] gives, dropping [INDEX] itself. A
-     * null or unreadable index falls back to a stable order by name.
-     */
+    /** A null or unreadable index falls back to a stable order by name. */
     fun order(indexText: String?, files: Map<String, ByteArray>): List<Pair<String, ByteArray>> {
         val payload = files.filterKeys { it != INDEX }
         val ranks = mutableMapOf<String, Int>()
@@ -38,8 +34,7 @@ object Ps2FolderCardImport {
                     ?.let { ranks[name] = it }
             }
         }
-        // Ranked first, then whatever the index forgot, by name, so two runs on
-        // the same card produce the same card.
+        // Then whatever the index forgot, by name: two runs give the same card.
         val ranked = payload.keys.filter { it in ranks }.sortedBy { ranks.getValue(it) }
         val rest = payload.keys.filter { it !in ranks }.sorted()
         return (ranked + rest).map { it to payload.getValue(it) }

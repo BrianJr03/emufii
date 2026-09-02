@@ -6,12 +6,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * The tunnel's DNS: present for the PS2, absent everywhere else.
- *
- * This test exists for the second half of that sentence. Announcing a DNS sends
- * the device's entire resolution through the relay; adding it inadvertently to
- * 3DS, Switch or PSP sessions would put a fresh point of failure on consoles
- * that work, and nothing on screen would say so.
+ * The tunnel's DNS: present for the PS2, absent everywhere else. Announcing a DNS sends
+ * the device's entire resolution through the relay, so adding it to a 3DS, Switch or PSP
+ * session puts a fresh point of failure on consoles that work, silently.
  */
 class WgConfigDnsTest {
 
@@ -32,8 +29,7 @@ class WgConfigDnsTest {
     fun `the DNS asked for is the relay's, and it is in the AllowedIPs`() {
         val text = WgConfig.render(info, "private key", dns = WgConfig.RELAY_ADDRESS)
         assertTrue(text.contains("DNS = 10.67.0.1"))
-        // A DNS outside the AllowedIPs would never be reached: the query would
-        // go out over Wi-Fi and be lost, without a word.
+        // A DNS outside the AllowedIPs is never reached: the query goes out over Wi-Fi and is lost.
         assertTrue(info.relayAllowedIps.contains("${WgConfig.RELAY_ADDRESS}/32"))
     }
 
@@ -48,8 +44,7 @@ class WgConfigDnsTest {
 
     @Test
     fun `the name typed by the PS2 guest can be entered on the ARMSX2 keyboard`() {
-        // Lowercase letters only, no punctuation: that is the whole constraint,
-        // and it is what dictated this detour.
+        // The ARMSX2 keyboard types lowercase letters only, no punctuation.
         assertTrue(WgConfig.PS2_HOST_NAME.all { it in 'a'..'z' })
         assertEquals("emufii", WgConfig.PS2_HOST_NAME)
     }

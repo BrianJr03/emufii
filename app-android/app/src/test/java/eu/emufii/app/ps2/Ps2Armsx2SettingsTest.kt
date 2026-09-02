@@ -7,14 +7,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * The settings mirror, parsed the way ARMSX2 writes it.
- *
- * The shape and the key names are ARMSX2's own
- * (`platforms/android/.../config/Settings.kt`, `toJson` at :1814: flat
- * camelCase under `global`; `ConfigStore.BACKUP_FILENAME`:
- * `armsx2-settings.json`), and every default here is ARMSX2's default, so an
- * absent key and a missing mirror parse to the same thing a fresh install
- * would act on.
+ * The shape and key names are ARMSX2's own (`platforms/android/.../config/Settings.kt`,
+ * `toJson` at :1814: flat camelCase under `global`; `ConfigStore.BACKUP_FILENAME`:
+ * `armsx2-settings.json`), and every default here is ARMSX2's: an absent key and a missing
+ * mirror parse to what a fresh install would act on.
  */
 class Ps2Armsx2SettingsTest {
 
@@ -74,8 +70,7 @@ class Ps2Armsx2SettingsTest {
 
     @Test
     fun `the native ini parses too, measured off a live install`() {
-        // Verbatim shape of PCSX2-Android.ini on a real data folder: slot 1
-        // holding a named card, slot 2 the default one.
+        // Verbatim shape of PCSX2-Android.ini on a real data folder.
         val ini = """
             [Filenames]
             BIOS = SCPH-77004_BIOS_V15_EUR_220.ROM0

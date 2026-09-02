@@ -18,10 +18,9 @@ fun rememberSlowMillis(): Double {
 
     val millis = remember { mutableLongStateOf(0L) }
     LaunchedEffect(Unit) {
-        // `delay`, not `withInfiniteAnimationFrameNanos`: the latter calls back on
-        // every display frame (120 Hz on the Thor) even when nothing is written, and
-        // keeps the frame loop awake, so lowering the beat from 30 to 12 changed
-        // nothing at all. Measured twice, 30 % both times.
+        // `delay`, not `withInfiniteAnimationFrameNanos`: the latter calls back on every
+        // display frame (120 Hz on the Thor) and keeps the frame loop awake, so lowering
+        // the beat from 30 to 12 changed nothing. Measured twice, 30 % both times.
         val origin = System.nanoTime()
         while (true) {
             millis.longValue = (System.nanoTime() - origin) / 1_000_000
@@ -32,9 +31,8 @@ fun rememberSlowMillis(): Double {
 }
 
 /**
- * Twelve beats a second. The background cycle runs nineteen seconds, a wave
- * thirty-five, the cursor gradient 1.8 s: at 120 Hz each advances a fraction of
- * a pixel between frames.
+ * The background cycle runs nineteen seconds, a wave thirty-five, the cursor gradient
+ * 1.8 s: at 120 Hz each advances a fraction of a pixel between frames.
  */
 private const val FRAME_INTERVAL_MS = 1_000L / 12
 

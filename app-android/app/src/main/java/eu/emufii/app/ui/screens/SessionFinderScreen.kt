@@ -95,8 +95,8 @@ import eu.emufii.app.ui.tap
 fun SessionFinderScreen(
     client: CoordinatorClient,
     /**
-     * The local library, to put a face on a session: the coordinator knows only
-     * a title, which we match against what we hold locally.
+     * Puts a face on a session: the coordinator knows only a title, matched here
+     * against what we hold locally.
      * pourquoi : docs/decisions/lancement-et-navigation.md § The session finder polls, it does not listen
      */
     romsRepo: RomsRepository,
@@ -107,8 +107,8 @@ fun SessionFinderScreen(
     var library by remember { mutableStateOf<List<Rom>>(emptyList()) }
     var query by remember { mutableStateOf("") }
 
-    // The cache, never a fresh scan: opening the session list must not trigger a
-    // read of a multi-GB SAF tree.
+    // The cache, never a fresh scan: this list must not trigger a read of a
+    // multi-GB SAF tree.
     LaunchedEffect(Unit) {
         library = withContext(Dispatchers.IO) { runCatching { romsRepo.scan() }.getOrDefault(emptyList()) }
     }
@@ -116,7 +116,7 @@ fun SessionFinderScreen(
     var error by remember { mutableStateOf<String?>(null) }
 
     // Read outside the effect: stringResource needs a composable scope, and the
-    // fallback used to be a French literal that showed up in an English app.
+    // fallback used to be a French literal showing up in an English app.
     val unreachable = stringResource(R.string.finder_unreachable)
 
     LaunchedEffect(Unit) {
@@ -124,17 +124,15 @@ fun SessionFinderScreen(
             client.listSessions()
                 .onSuccess { sessions = it; error = null }
                 // Never `it.message`: an unreachable coordinator carries the
-                // IOException's text, which names a host and a port and means
-                // nothing to a player.
+                // IOException's text, which names a host and a port.
                 .onFailure { error = unreachable }
             loading = false
             delay(REFRESH_MS)
         }
     }
 
-    // The filter covers what is read on the card: the game, the host, the code.
-    // Searching the code is as useful as searching a title, that being what a
-    // friend sends you in a message.
+    // The filter covers what is read on the card: the code is searched too, that
+    // being what a friend sends you in a message.
     val shown = remember(sessions, query) {
         val q = query.trim()
         if (q.isBlank()) sessions
@@ -167,9 +165,8 @@ fun SessionFinderScreen(
             )
 
             sessions.isEmpty() && query.isBlank() -> FinderMessage(
-                // A socket, as the grid's last row leaves an empty slot, but with its
-                // mark inside. "Nobody yet" speaks of absent players, and the
-                // silhouette is what the app already draws for one.
+                // A socket with its mark inside, as the grid's last row leaves an
+                // empty slot.
                 mark = { tint -> PersonMark(size = 40.dp, color = tint) },
                 hollow = true,
                 title = stringResource(R.string.finder_nobody_yet),
@@ -196,9 +193,8 @@ fun SessionFinderScreen(
                 item { SectionHeader(pluralSessions(shown.size)) }
                 if (shown.isEmpty()) {
                     item {
-                        // A search with no results is not an empty list: saying
-                        // "nobody" here would suggest the sessions had vanished
-                        // when we have simply filtered too hard.
+                        // Not the empty-list wording: "nobody" would suggest the
+                        // sessions had vanished rather than been filtered out.
                         Text(
                             stringResource(R.string.finder_no_match),
                             style = MaterialTheme.typography.bodyMedium,
@@ -260,8 +256,7 @@ private fun SearchField(
             onValueChange = onQueryChange,
             singleLine = true,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            // Search lowers the keyboard without emptying the field: the list is
-            // already filtered on every keystroke.
+            // Search only lowers the keyboard: the list is filtered on every keystroke.
             keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }),
             textStyle = MaterialTheme.typography.bodyLarge.copy(color = tint),
             cursorBrush = SolidColor(tint),
@@ -288,8 +283,8 @@ private fun SessionCard(session: OpenSession, rom: Rom?, onJoin: () -> Unit) {
         ?: stringResource(R.string.finder_host)
 
     // Only knowable for a game we own: the coordinator publishes a title, not a
-    // console. The PSP refusal mirrors the PS2's: a guest without the memory
-    // stick grant never receives the session address in PPSSPP.
+    // console. A guest without the memory stick grant never receives the session
+    // address in PPSSPP.
     val ps2Blocked = rom?.console == Console.PS2 && !rememberPs2Ready()
     val pspBlocked = rom?.console == Console.PSP && !rememberPpssppReady()
     val joinBlocked = ps2Blocked || pspBlocked
@@ -306,9 +301,8 @@ private fun SessionCard(session: OpenSession, rom: Rom?, onJoin: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            // The cover art when we have the game, the host otherwise. No empty
-            // square in the middle: a card with no visual is worse than a card
-            // showing something else that is true.
+            // The cover art when we have the game, the host otherwise: never an
+            // empty square.
             if (rom != null) RomArtwork(rom = rom, size = 64.dp)
             else Avatar(name = host, size = 56.dp)
 
@@ -325,13 +319,11 @@ private fun SessionCard(session: OpenSession, rom: Rom?, onJoin: () -> Unit) {
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     // The console comes from the local ROM: the coordinator does
-                    // not know it, and guessing it from a title would be a bet.
+                    // not know it.
                     rom?.let { MetaChip(it.console.label) }
-                    // The ROM's identifier, when it has one, is what tells two
-                    // editions of the same game apart, and therefore the only
-                    // honest answer to "is this really my version?".
+                    // The ROM's identifier is what tells two editions of the same
+                    // game apart.
                     (rom?.titleIdHex ?: rom?.productCode)?.let { MetaChip(it) }
-                    // The code is the link you hand out: a coral pill.
                     MetaChip(session.code, highlight = true)
                 }
                 Spacer(Modifier.height(4.dp))
@@ -354,12 +346,8 @@ private fun SessionCard(session: OpenSession, rom: Rom?, onJoin: () -> Unit) {
                         onClick = onJoin
                     )
                 } else if (joinBlocked) {
-                    // Joining would come back with the same refusal as the
-                    // launch card: a PS2 game whose memory card carries no
-                    // network profile never opens its local menu, a PSP game
-                    // without the memory stick grant never hears the session
-                    // address. Said on the card, so the session does not look
-                    // joinable when it is not.
+                    // Said here so the session does not look joinable: joining
+                    // would come back with the launch card's refusal.
                     Text(
                         stringResource(
                             if (ps2Blocked) R.string.finder_ps2_profile
@@ -369,8 +357,7 @@ private fun SessionCard(session: OpenSession, rom: Rom?, onJoin: () -> Unit) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 } else {
-                    // The host's tunnel isn't up yet; joining now would just
-                    // spin. Say so rather than offer a button that stalls.
+                    // The host's tunnel isn't up yet: a join button would stall.
                     Text(
                         stringResource(R.string.finder_starting),
                         style = MaterialTheme.typography.labelMedium,
@@ -404,25 +391,23 @@ private fun FinderMessage(
     subtitle: String,
     topPadding: androidx.compose.ui.unit.Dp,
     /**
-     * True when the block speaks of an absence: the mark then sits in a socket rather
-     * than on a plate. The tray already has a word for nothing here, and it is the
-     * hollow.
+     * The mark then sits in a socket rather than on a plate: the tray's word for
+     * nothing here is the hollow.
      */
     hollow: Boolean = false
 ) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            // The same margin top and bottom, which is what centres it: an empty screen
-            // has nothing else to look at, so the offset shows.
+            // The same margin top and bottom is what centres it: an empty screen has
+            // nothing else to look at, so the offset shows.
             // pourquoi : docs/decisions/lancement-et-navigation.md § An empty screen is centred on the screen, not under the header
             .padding(top = topPadding, bottom = topPadding, start = 32.dp, end = 32.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // The mark sits on a moulded object; a socket only when the screen speaks of an
-        // absence, and with its mark inside, since bare it reads as an icon that failed
-        // to load.
+        // A socket only when the screen speaks of an absence, and with its mark
+        // inside: bare, it reads as an icon that failed to load.
         // pourquoi : docs/decisions/lancement-et-navigation.md § An empty screen is centred on the screen, not under the header
         Box(
             modifier = Modifier
@@ -443,9 +428,8 @@ private fun FinderMessage(
         Text(
             title,
             style = MaterialTheme.typography.headlineSmall,
-            // This column sits straight on the wallpaper: nothing supplies a content
-            // colour, and a Text without one falls back to black, invisible on the dark
-            // theme.
+            // This column sits straight on the wallpaper: a Text with no content
+            // colour falls back to black, invisible on the dark theme.
             color = MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Center
         )
@@ -475,8 +459,8 @@ private fun MetaChip(text: String, highlight: Boolean = false) {
         color = if (highlight) (if (dark) Coral.darkBright else Coral.ink)
                 else MaterialTheme.colorScheme.onSurfaceVariant,
         maxLines = 1,
-        // An ellipsis rather than the default hard clip: a word sliced mid-glyph reads
-        // as a rendering fault, three dots say something is missing.
+        // An ellipsis rather than the default hard clip: a word sliced mid-glyph
+        // reads as a rendering fault.
         overflow = TextOverflow.Ellipsis,
         modifier = Modifier
             .clip(RoundedCornerShape(50))

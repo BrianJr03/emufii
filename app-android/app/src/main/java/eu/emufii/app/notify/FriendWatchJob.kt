@@ -18,9 +18,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
 /**
- * The watch that runs while Emufii is closed. No push: we ask, every fifteen minutes at
- * best, and the limit is written in the settings rather than hidden. `JobScheduler`
- * rather than WorkManager, which would cost a database for one periodic job.
+ * No push: we ask, every fifteen minutes at best. `JobScheduler` rather than
+ * WorkManager, which would cost a database for one periodic job.
  * pourquoi : docs/decisions/amis-et-notifications.md § What background watching can promise, and what it cannot
  */
 class FriendWatchJob : JobService() {
@@ -31,9 +30,8 @@ class FriendWatchJob : JobService() {
     override fun onStartJob(params: JobParameters?): Boolean {
         work = scope.launch {
             runCatching { sweep(applicationContext) }
-            // Never rescheduled on failure: the next tick is a quarter of an hour
-            // away and it will ask the same question. Retrying a poll that failed
-            // because the network was down only spends battery.
+            // Never rescheduled on failure: the next tick is a quarter of an hour away
+            // and asks the same question.
             jobFinished(params, false)
         }
         return true
@@ -48,14 +46,6 @@ class FriendWatchJob : JobService() {
         private const val JOB_ID = 7301
         private const val PERIOD_MS = 15 * 60 * 1000L
 
-        /**
-         * Starts or stops the watch to match what the player asked for.
-         *
-         * Idempotent, and deliberately not `setUpdateCurrent`-shy: scheduling the
-         * same job again simply replaces it, which is what we want when a setting
-         * changes. The job is dropped entirely when nothing is being watched, so
-         * an app nobody has friends in costs nothing at all.
-         */
         fun sync(context: Context, wantFriends: Boolean, wantUpdates: Boolean) {
             val scheduler = context.getSystemService(JobScheduler::class.java) ?: return
             val hasFriends = FriendStore.get(context).friends.value.isNotEmpty()
@@ -70,19 +60,14 @@ class FriendWatchJob : JobService() {
                 JobInfo.Builder(JOB_ID, ComponentName(context, FriendWatchJob::class.java))
                     .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
                     .setPeriodic(PERIOD_MS)
-                    // Survives a reboot: a watch that stops the first time the
-                    // handheld is turned off and on is not a watch.
                     .setPersisted(true)
                     .build()
             )
         }
 
         /**
-         * One pass: ask, compare, announce.
-         *
-         * Lives here rather than in the service so the app can run the very same
-         * pass while it is open, against the very same memory. Two implementations
-         * of "what is new" would drift, and the player would get told twice.
+         * Lives here rather than in the service so the open app runs the same pass
+         * against the same memory: two implementations of "what is new" would drift.
          */
         suspend fun sweep(context: Context) {
             val settings = SettingsStore.get(context)

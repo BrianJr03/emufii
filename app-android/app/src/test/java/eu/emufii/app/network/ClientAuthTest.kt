@@ -8,17 +8,12 @@ import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 
 /**
- * The vectors shared with `coordinator/client-auth.test.js`.
+ * The vectors shared with `coordinator/client-auth.test.js`. The day the server and the app
+ * stop computing the same thing, every client is refused at once and the symptom says
+ * nothing; hardcoding both sides makes a format change break here first.
  *
- * This mechanism's real danger is not that it is weak, it is that the two
- * implementations drift: the day the server and the app stop computing the same
- * thing, every client is refused at once, and the symptom does not say where it
- * came from. These values are therefore hardcoded on both sides, and a format
- * change has to break here before it reaches production.
- *
- * `ClientAuth.sign` reads `BuildConfig`, which is null in a JVM test: so we
- * reproduce the computation identically rather than calling the object. The
- * formula is the contract, and the formula is what is frozen.
+ * `ClientAuth.sign` reads `BuildConfig`, null in a JVM test, so the computation is
+ * reproduced rather than called.
  */
 class ClientAuthTest {
 
@@ -38,9 +33,6 @@ class ClientAuthTest {
 
     @Test
     fun `the signature of a known vector does not move`() {
-        // If this value changes, the server will refuse every app. It is computed
-        // by the same formula on the Node side; the two must move together or not
-        // at all.
         val signature = sign("POST", "/sessions", """{"code":"ABC-123"}""", 1_770_000_000L)
         assertEquals(
             "e232919421418371a85dfc2fc5d7b894b5eeaffe8825c069039786347558db95",
@@ -50,8 +42,8 @@ class ClientAuthTest {
 
     @Test
     fun `the body goes into the computation`() {
-        // Without it, a signature valid for one request would be valid for every
-        // request at the same path.
+        // Without it a signature valid for one request is valid for every request at the
+        // same path.
         val a = sign("POST", "/sessions", """{"code":"UN"}""", 1_770_000_000L)
         val b = sign("POST", "/sessions", """{"code":"DEUX"}""", 1_770_000_000L)
         assertNotEquals(a, b)

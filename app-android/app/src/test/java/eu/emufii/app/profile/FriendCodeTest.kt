@@ -39,11 +39,7 @@ class FriendCodeTest {
         assertEquals(code, FriendCode.normalize(messy))
     }
 
-    /**
-     * The reason the alphabet excludes these: someone reading a code off a
-     * screen types the letter for the digit, and being strict about it would be
-     * our bug rather than theirs.
-     */
+    /** Someone reading a code off a screen types the letter for the digit. */
     @Test
     fun `letters that look like digits are read as digits`() {
         // Build a code whose body contains 0 and 1, then type it the wrong way.

@@ -57,8 +57,6 @@ internal fun ConsolesPage(
         },
         modifier = modifier
     ) {
-        // Tight against the rows at 10 dp where the page breathes above: the sentence
-        // belongs to them, it is not a section.
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             // Bounded: the sentence ran the full width, nearly 1700 px on the Thor,
             // where the eye loses the line before finding its end.
@@ -103,5 +101,4 @@ internal fun ConsolesPage(
     }
 }
 
-/** Below this width the rows stay on one column. */
 private val TWO_COLUMN_ROWS = 640.dp

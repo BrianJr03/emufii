@@ -1,22 +1,17 @@
 package eu.emufii.app.ps2
 
 /**
- * The PS2's network-configuration payload (YNCF), inside a `BWNETCNF` save.
- *
- * Three files are plain text; `ifc000.dat` and `dev000.dat` are that same text
- * through a console-locked cipher keyed on the 8-byte i.Link ID. A YNCF save
- * only reads back on the console whose ID encrypted it, and there is no
- * checksum to fail loudly: a mismatch decodes to word soup.
- *
- * Encrypt for [ARMSX2_CONSOLE_ID] unless the install imported a real console's
- * `.nvm`; see [ilinkIdFromNvm].
+ * The PS2's network-configuration payload (YNCF), inside a `BWNETCNF` save. Three files
+ * are plain text; `ifc000.dat` and `dev000.dat` are that same text through a cipher keyed
+ * on the 8-byte i.Link ID, and there is no checksum to fail loudly: a save read back on
+ * another console decodes to word soup. Encrypt for [ARMSX2_CONSOLE_ID] unless the
+ * install imported a real console's `.nvm`; see [ilinkIdFromNvm].
  * pourquoi : docs/decisions/ps2-carte-memoire.md § YNCF: a save can only be read back on the console that encrypted it
  */
 object Ps2NetcnfConfig {
 
     /**
-     * The two NVRAM layouts. Callers must select one from the BIOS actually
-     * detected: inspecting both can silently pick stale bytes.
+     * Select one from the BIOS actually detected: inspecting both picks stale bytes.
      * pourquoi : docs/decisions/ps2-carte-memoire.md § Which id to encrypt for
      */
     enum class NvmLayout(
@@ -28,7 +23,7 @@ object Ps2NetcnfConfig {
         FROM_1_70(0x1E0, 0x2B0, 0x180),
     }
 
-    /** The numeric major/minor pair stored in the BIOS's `ROMVER` entry. */
+    /** The pair stored in the BIOS's `ROMVER` entry. */
     data class BiosVersion(val major: Int, val minor: Int) {
         init {
             require(major >= 0) { "BIOS major version must be non-negative" }
@@ -44,8 +39,8 @@ object Ps2NetcnfConfig {
     }
 
     /**
-     * The i.Link ID ARMSX2 reports for BIOSes without a real console NVRAM,
-     * what makes a generated card readable on a normal install.
+     * What ARMSX2 reports for BIOSes with no real console NVRAM, so a generated card
+     * reads back on a normal install.
      * pourquoi : docs/decisions/ps2-carte-memoire.md § Which id to encrypt for
      */
     val ARMSX2_CONSOLE_ID: ByteArray =
@@ -55,44 +50,36 @@ object Ps2NetcnfConfig {
     private const val HEADER = "# <Sony Computer Entertainment Inc.>\n\n"
 
     /**
-     * `ifc000.dat` plaintext, byte for byte what the PS2 wrote on the bench.
+     * Byte for byte what the PS2 wrote on the bench.
      * pourquoi : docs/decisions/ps2-carte-memoire.md § What the configuration says, and what it must not say
      */
     private const val IFC_PLAIN = HEADER + "type nic\ndhcp\n"
 
-    /** `dev000.dat` plaintext: the device half. Same provenance as [IFC_PLAIN]. */
+    /** Same provenance as [IFC_PLAIN]. */
     private const val DEV_PLAIN =
         HEADER + "type nic\nvendor \"SCE\"\nproduct \"Ethernet (Network Adaptor)\"\nphy_config auto\n"
 
-    /** `net000.cnf`, plain on the card: ties the interface pair together. */
+    /** Plain on the card, unlike the pair it ties together. */
     val NET_CNF: ByteArray =
         ("# <Sony Computer Entertainment Inc.>\n\n" +
             "interface \"ifc000.dat + dev000.dat\" \"ifc000.dat\" \"dev000.dat\"\n").toByteArray(Charsets.US_ASCII)
 
-    /** The save index: slot, type, file, and the label the console shows. */
     val INDEX: ByteArray =
         ("0,1,net000.cnf,Combination1\n" +
             "1,1,ifc000.dat,Parametre 1\n" +
             "2,1,dev000.dat,SCE/Ethernet (Network Adaptor)\n").toByteArray(Charsets.US_ASCII)
 
-    /** The encrypted link parameters, for the console identified by [consoleId]. */
     fun ifcDat(consoleId: ByteArray = ARMSX2_CONSOLE_ID): ByteArray =
         encode(IFC_PLAIN.toByteArray(Charsets.US_ASCII), consoleId)
 
-    /** The encrypted device parameters, for the console identified by [consoleId]. */
     fun devDat(consoleId: ByteArray = ARMSX2_CONSOLE_ID): ByteArray =
         encode(DEV_PLAIN.toByteArray(Charsets.US_ASCII), consoleId)
 
-    /**
-     * The console's i.Link ID out of a `.nvm`, or null when that area is
-     * absent or unprogrammed.
-     */
     fun ilinkIdFromNvm(nvm: ByteArray, version: BiosVersion): ByteArray? =
         ilinkIdFromNvm(nvm, version.nvmLayout)
 
     /**
-     * The ID ARMSX2 will effectively expose after its own sanity checks, which
-     * can discard an imported NVM entirely.
+     * After ARMSX2's own sanity checks, which can discard an imported NVM entirely.
      * pourquoi : docs/decisions/ps2-carte-memoire.md § Which id to encrypt for
      */
     fun effectiveIlinkIdFromNvm(nvm: ByteArray, version: BiosVersion): ByteArray {
@@ -107,8 +94,8 @@ object Ps2NetcnfConfig {
     }
 
     /**
-     * Layout-level form. An area whose bytes 2 and 3 are both zero counts as
-     * unprogrammed, and null preserves that distinction.
+     * An area whose bytes 2 and 3 are both zero counts as unprogrammed; null keeps that
+     * apart from a programmed one.
      * pourquoi : docs/decisions/ps2-carte-memoire.md § Which id to encrypt for
      */
     fun ilinkIdFromNvm(nvm: ByteArray, layout: NvmLayout): ByteArray? {
@@ -122,8 +109,8 @@ object Ps2NetcnfConfig {
         offset < 0 || offset + length > size || (offset until offset + length).all { this[it].toInt() == 0 }
 
     /**
-     * YNCF encode: `rotl16(word, shifts[k % 24]) xor 0xFFFF`, an odd trailing
-     * byte taking the 8-bit form. The table cycles every 24 words.
+     * `rotl16(word, shifts[k % 24]) xor 0xFFFF`, an odd trailing byte taking the 8-bit
+     * form; the table cycles every 24 words.
      * pourquoi : docs/decisions/ps2-carte-memoire.md § YNCF: a save can only be read back on the console that encrypted it
      */
     fun encode(plain: ByteArray, consoleId: ByteArray): ByteArray {
@@ -147,7 +134,6 @@ object Ps2NetcnfConfig {
         return out
     }
 
-    /** The inverse of [encode], kept beside it so the pair is testable as one. */
     fun decode(cipher: ByteArray, consoleId: ByteArray): ByteArray {
         require(consoleId.size == 8) { "i.Link ID is 8 bytes" }
         val shifts = shifts(consoleId)
@@ -170,9 +156,8 @@ object Ps2NetcnfConfig {
     }
 
     /**
-     * The 24 shift amounts, three per ID byte, each 1..8. Deliberately not
-     * ps2sdk's transcription, which only initialises seven ID bytes; the
-     * plain eight-byte table is what reproduces the bench card exactly.
+     * Deliberately not ps2sdk's transcription, which only initialises seven ID bytes;
+     * the plain eight-byte table reproduces the bench card exactly.
      * pourquoi : docs/decisions/ps2-carte-memoire.md § YNCF: a save can only be read back on the console that encrypted it
      */
     internal fun shifts(consoleId: ByteArray): IntArray {

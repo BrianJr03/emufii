@@ -3,14 +3,11 @@ package eu.emufii.app.ps2
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
-/** The tiny part of a PS2 BIOS header Emufii needs: its NVM layout generation. */
 object Ps2Bios {
 
     /**
-     * Reads `ROMVER` from the BIOS ROMDIR exactly like ARMSX2's BiosTools.cpp.
-     *
-     * The directory is a sequence of 16-byte records. File payloads start at ROM
-     * offset zero and are packed on 16-byte boundaries; the `ROMVER` payload is a
+     * Reads `ROMVER` from the BIOS ROMDIR exactly like ARMSX2's BiosTools.cpp: 16-byte
+     * records, payloads from ROM offset zero packed on 16-byte boundaries, `ROMVER` a
      * 14-byte ASCII string whose first four digits are major/minor (`0220E...`).
      */
     fun version(bytes: ByteArray): Int? {

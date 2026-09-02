@@ -7,13 +7,11 @@ import java.io.FileInputStream
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
 
-/** What a `.nds` file will tell us about itself. */
 data class NdsData(val icon: Bitmap?, val title: String?, val cacheKey: String?)
 
 /**
- * Reads a DS cartridge's banner off disk. Two small reads, the 0x200-byte
- * header, then the banner it points at, so a scan of a full library stays
- * quick; the decoding itself is in [NdsBanner].
+ * Two small reads, the 0x200-byte header then the banner it points at, so a scan of a full
+ * library stays quick; the decoding is in [NdsBanner].
  */
 class NdsBannerReader(private val context: Context) {
 

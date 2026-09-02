@@ -23,23 +23,13 @@ import eu.emufii.app.library.EmulatorPick
 class Ps2Launcher(private val context: Context) {
 
     /**
-     * The installed ARMSX2, if there is one.
-     *
-     * `xyz.aethersx2.android` does not count, even when present: that is the
-     * original AetherSX2, with no network layer. Both live side by side on the
-     * Thor, and that is exactly the kind of neighbourhood that would have us
-     * driving the wrong one.
+     * `xyz.aethersx2.android` does not count: that is the original AetherSX2, with no
+     * network layer. Both live side by side on the Thor.
      */
     fun installedPackage(): String? = EmulatorPick.packageFor(context, Console.PS2)
 
     fun isInstalled(): Boolean = installedPackage() != null
 
-    /**
-     * Opens ARMSX2 with [plan] armed, and the ROM if we have one.
-     *
-     * Arming precedes launching, as everywhere else: the driver sets off from the
-     * library and has to be ready before the first screen.
-     */
     fun openForLocalLink(
         plan: NetplayPlan,
         rom: Uri? = null,
@@ -49,11 +39,9 @@ class Ps2Launcher(private val context: Context) {
         val intent = if (rom != null) {
             viewIntent(pkg, rom)
         } else {
-            // `CLEAR_TOP`, and the named component. Without it, an already open
-            // ARMSX2 comes back to the foreground *where the player left it*, mid
-            // game, in another settings tab, and the driver finds itself facing a
-            // screen it cannot read. It then gives up silently, which reads as
-            // "the automatic setup does not work". Measured on 2026-08-17.
+            // Without `CLEAR_TOP` and the named component, an already open ARMSX2 comes
+            // back where the player left it, mid game or in another settings tab, and the
+            // driver gives up silently on a screen it cannot read. Measured 2026-08-17.
             Intent(Intent.ACTION_MAIN).apply {
                 component = ComponentName(pkg, VIEW_ACTIVITY)
                 addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
@@ -69,7 +57,6 @@ class Ps2Launcher(private val context: Context) {
         }.getOrElse { LaunchResult.Error(it.message ?: "Unknown launch error") }
     }
 
-    /** Opens the ARMSX2 library while the separate global-card setup is armed. */
     fun openForProvisioning(plan: Ps2ProvisioningPlan): LaunchResult {
         val pkg = installedPackage() ?: return LaunchResult.NotInstalled
         val intent = Intent(Intent.ACTION_MAIN).apply {
@@ -88,12 +75,9 @@ class Ps2Launcher(private val context: Context) {
     }
 
     /**
-     * Starts the ROM, arming nothing.
-     *
-     * This is the session's second step: the network was set at the first, and
-     * re-arming the driver would send it to fill the form in again over a running
-     * game. Dolphin has no such screen, it cannot be handed a game from outside,
-     * but ARMSX2 can.
+     * The session's second step: the network was set at the first, and re-arming would
+     * send the driver to fill the form in again over a running game. Unlike Dolphin,
+     * ARMSX2 can be handed a game from outside.
      */
     fun launchGame(rom: Uri): LaunchResult {
         val pkg = installedPackage() ?: return LaunchResult.NotInstalled
@@ -135,12 +119,9 @@ class Ps2Launcher(private val context: Context) {
     }
 
     /**
-     * The intent that opens a ROM, with a named component.
-     *
-     * `com.armsx2.Main` is the activity behind the manifest's `MainActivity`
-     * alias, it is what `am start` resolves to when resolution works (with a
-     * `file://`), and it is therefore what we target for a `content://`, which
-     * filtering cannot reach.
+     * `com.armsx2.Main` is the activity behind the manifest's `MainActivity` alias, what
+     * `am start` resolves to with a `file://`, so it is what we target for a `content://`,
+     * which filtering cannot reach.
      */
     private fun viewIntent(pkg: String, rom: Uri): Intent =
         Intent(Intent.ACTION_VIEW).apply {
@@ -149,7 +130,6 @@ class Ps2Launcher(private val context: Context) {
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
 
-    /** Opens ARMSX2 arming nothing, for whoever wants to set it up themselves. */
     fun launch(): LaunchResult {
         val pkg = installedPackage() ?: return LaunchResult.NotInstalled
         val intent = context.packageManager.getLaunchIntentForPackage(pkg)

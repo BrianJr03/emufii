@@ -15,8 +15,6 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 
 /**
- * The three schemes of DUOTONE SHELVES: warm neutrals, the teal axis in
- * Material's primary slot, good/error from the centralised semantic set.
  * pourquoi : docs/decisions/theme-duotone-shelves.md § PALETTE (numbered contract)
  */
 private fun lightScheme(accent: AccentCuts) = lightColorScheme(
@@ -79,26 +77,16 @@ private fun oledScheme(accent: AccentCuts) = darkScheme(accent).copy(
 )
 
 /**
- * Whether the app is drawing dark right now.
- *
- * Components have to read this rather than [isSystemInDarkTheme], because the
- * in-app theme setting can disagree with the phone. Half the app's surfaces pick
- * their own colours, the wallpaper, the cards, the floating pills, so a single
- * component still asking the system would light up wrongly the moment someone
- * chooses Light on a dark phone.
+ * Read this rather than [isSystemInDarkTheme]: the in-app theme setting can disagree with
+ * the phone, and a surface still asking the system lights up wrongly on Light over a dark
+ * phone.
  */
 val LocalEmufiiDarkTheme = staticCompositionLocalOf { false }
 
 /**
- * Whether that dark is the OLED one: pure black background, cards switched off.
- *
- * Deliberately kept separate from [LocalEmufiiDarkTheme] rather than replacing it
- * with a three-valued enum: OLED is a dark, and the forty-four places asking "am
- * I dark?" always want "yes". Only the background and the cards' fill need the
- * distinction, and there are three of them.
- *
- * Invariant: `LocalEmufiiOledTheme.current` is only true when
- * `LocalEmufiiDarkTheme.current` is.
+ * Separate from [LocalEmufiiDarkTheme] rather than a three-valued enum: the forty-four
+ * places asking "am I dark?" want "yes" for OLED too, and only three read the difference.
+ * Only true when [LocalEmufiiDarkTheme] is.
  */
 val LocalEmufiiOledTheme = staticCompositionLocalOf { false }
 
@@ -108,9 +96,6 @@ fun EmufiiTheme(
     oled: Boolean = false,
     content: @Composable () -> Unit
 ) {
-    // The play and system axis, hardcoded: there is no accent left to resolve. Coral
-    // zones read their cuts from `Coral` and `colorScheme.tertiary`, not from this
-    // local.
     val cuts = TealCuts
     val oledTheme = oled && darkTheme
     CompositionLocalProvider(
@@ -118,10 +103,8 @@ fun EmufiiTheme(
         LocalEmufiiOledTheme provides oledTheme,
         LocalAccent provides cuts
     ) {
-        // Focus tints nothing. Material lays a grey veil over any focused or
-        // hovered control; on a handheld, where the cursor is permanently
-        // somewhere, that paints the selected element grey over the teal ring
-        // that already says where you are.
+        // Material lays a grey veil over any focused control; on a handheld the cursor is
+        // always somewhere, so that greys the selection under its own teal ring.
         CompositionLocalProvider(LocalRippleConfiguration provides NoFocusRipple) {
             MaterialTheme(
                 colorScheme = when {
@@ -136,12 +119,7 @@ fun EmufiiTheme(
     }
 }
 
-/**
- * Material's ripple, stripped of its focus and hover veils.
- *
- * `null` would have disabled the ripple entirely, press included, and that is
- * the only one of the four that answers a gesture from the user.
- */
+/** `null` would disable the press ripple too, the only one of the four answering a gesture. */
 @OptIn(ExperimentalMaterial3Api::class)
 private val NoFocusRipple = RippleConfiguration(
     rippleAlpha = RippleAlpha(

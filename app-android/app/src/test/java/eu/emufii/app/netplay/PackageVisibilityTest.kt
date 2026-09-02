@@ -9,16 +9,9 @@ import org.junit.Test
 import java.io.File
 
 /**
- * Every emulator Emufii talks to has to be declared in `<queries>`.
- *
- * Since Android 11, a package left out of that block is simply invisible:
- * `getPackageInfo` throws, and a launcher written against it concludes the
- * emulator isn't installed. That is exactly how Eden support failed its first
- * run on a device, the button did nothing at all, and the only trace was one
- * `AppsFilter … BLOCKED` line buried in logcat.
- *
- * The mistake is silent, cheap to make, and the manifest is the one place a
- * compiler will never look. So the test looks instead.
+ * Since Android 11 a package left out of `<queries>` is invisible: `getPackageInfo`
+ * throws and the launcher concludes the emulator isn't installed. Eden failed its first
+ * device run that way, the only trace being one `AppsFilter … BLOCKED` line in logcat.
  */
 class PackageVisibilityTest {
 

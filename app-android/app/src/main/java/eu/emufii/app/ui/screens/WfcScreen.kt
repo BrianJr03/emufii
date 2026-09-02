@@ -67,28 +67,18 @@ import eu.emufii.app.ui.theme.Teal
  * flows, a slanted stroke on the neutral card's corner.
  * pourquoi : docs/decisions/theme-duotone-shelves.md § Onboarding / Preparing
  */
-/** The good token, leaning teal. */
 @Composable
 private fun good() = if (LocalEmufiiDarkTheme.current) GoodDark else GoodLight
 
 
 /**
- * DS online play. No session, no code, no other player to wait for, the console
- * dials a revival server, so the only thing Emufii has to do is make sure it dials
- * the right one.
- *
- * That is the whole point of the tunnel behind this screen: melonDS keeps the
- * console on "auto-obtain DNS", and in that mode Android's resolver decides where
- * `nintendowifi.net` goes. Emufii answers, so the player configures nothing.
+ * DS online play: no session and no code. melonDS stays on "auto-obtain DNS", so Android's
+ * resolver decides where `nintendowifi.net` goes; Emufii answers it.
  */
 @Composable
 fun WfcScreen(
     rom: Rom,
-    /**
-     * Android runs one VpnService at a time, so this asks the app for the slot
-     * and only then runs what we passed. It can put a confirmation in the way,
-     * see [eu.emufii.app.tunnel.tunnelHolder].
-     */
+    /** Android runs one VpnService at a time; see [eu.emufii.app.tunnel.tunnelHolder]. */
     onRequestTunnelSlot: (proceed: () -> Unit) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
@@ -102,16 +92,13 @@ fun WfcScreen(
         when (val result = melon.launchGame(rom.uri)) {
             LaunchResult.Success -> status = context.getString(R.string.wfc_launched)
             LaunchResult.NotInstalled -> status = context.getString(R.string.wfc_not_installed)
-            // Unreachable here: WFC goes through Kaeru, not a netplay dialog, so
-            // MelonDs never probes for one. Named rather than folded into `else`
-            // so a future melonDS netplay path has to make a decision here.
+            // Unreachable: WFC goes through Kaeru, not a netplay dialog. Named rather than
+            // folded into `else` so a future melonDS netplay path decides here.
             is LaunchResult.NoNetplayUi -> status = context.getString(R.string.wfc_not_installed)
             is LaunchResult.Error -> status = result.message
         }
     }
 
-    // Consent is Android's, not ours: the first run pops the system VPN dialog,
-    // and refusing it has to leave the app usable rather than stuck.
     val consent = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             WfcManager.start(context)
@@ -121,8 +108,6 @@ fun WfcScreen(
         }
     }
 
-    // Leaving by the header is what stops the redirection; this screen used to
-    // carry its own back button at the bottom for that.
     val leave = {
         WfcManager.stop(context)
         onBack()
@@ -135,28 +120,19 @@ fun WfcScreen(
         title = stringResource(R.string.wfc_title),
         modifier = modifier,
         onBack = leave,
-        // A game, an explanation, a button: it fits. Nothing rises under the
-        // header, so the fade margin would be one more empty band.
+        // Nothing rises under the header: the fade margin would be one more empty band.
         contentScrolls = false
     ) { _ ->
-        // Centred on the screen, not under the header. Reserving `topPadding`
-        // centred the card within what was left *below* the title, hence 37 dp
-        // too low, visibly off on a screen where it is the only object. The header
-        // floats above the background and has no room to reserve until the content
-        // reaches it; this card is about 250 dp of the device's 468, and never
-        // does.
+        // Centred on the screen, not under the header: `topPadding` put the card 37 dp too
+        // low, this card being about 250 dp of the device's 468.
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 24.dp, vertical = 12.dp),
             contentAlignment = Alignment.Center
         ) {
-        // A card set in the middle, not a column stretched across the full
-        // width. The screen was built in portrait: on the Thor its card and its
-        // button were 784 dp wide, the line of text spanned the whole screen, well
-        // past what can be read in one go, and two large gaps were left above and
-        // below. The same layout as the launch card, of which it is the sibling: a
-        // game, what is about to happen to it, a button.
+        // A card, not a full-width column: on the Thor that came out 784 dp wide, one line
+        // of text spanning the screen.
         SoftCard(modifier = Modifier.widthIn(max = 648.dp).waitTrim()) {
             Row(
                 modifier = Modifier.fillMaxWidth().padding(24.dp),
@@ -206,18 +182,9 @@ fun WfcScreen(
 
                     WfcStateChip(state)
 
-            // One button, two jobs, because there are only ever two things to do
-            // here. Once the redirection is up the useful action is no longer
-            // "start", it is "stop", and stopping is what the player has to do
-            // before the phone can carry a session again. Leaving a blue Start
-            // button on screen at that point invited a second launch and hid the
-            // only control that matters.
-            //
-            // Red is the app's one destructive colour, and this is the app's one
-            // destructive button: it ends the redirection, so a console still in
-            // a game loses its way to Kaeru.
-            // Unreachable counts as running: the redirection is still up and
-            // still the thing to switch off, even while Kaeru is silent.
+            // One button, two jobs: a blue Start left on screen invited a second launch.
+            // Red, because stopping loses a console still in a game its way to Kaeru;
+            // Unreachable counts as running.
             val active = state is WfcState.Active || state is WfcState.Unreachable
             Button(
                 onClick = sounded {
@@ -269,15 +236,8 @@ fun WfcScreen(
 }
 
 /**
- * The name the emulator gives itself, from its package.
- *
- * The pill used to display `me.magnum.melondualds`, a technical identifier
- * inside an interface. Asked of the system rather than hardcoded: the Thor
- * carries a rebrand ("melonDS DualS"), another device will have the original
- * melonDS, and each has to read the name of the one it holds. If the package has
- * disappeared in the meantime the identifier remains, which is ugly but true,
- * and only happens when the emulator was uninstalled while the redirection was
- * running.
+ * Asked of the system rather than hardcoded: the Thor carries a rebrand ("melonDS DualS").
+ * A vanished package leaves the raw identifier, and only an uninstall mid-redirection does that.
  */
 @Composable
 private fun appLabel(packageName: String): String {
@@ -289,13 +249,6 @@ private fun appLabel(packageName: String): String {
     }
 }
 
-/**
- * The redirection's state, as a pill rather than a line of text.
- *
- * It is the only thing on this screen that changes by itself, and a grey
- * sentence among other grey sentences did not say so. The pill reuses the
- * session header's: a coloured dot and two words.
- */
 @Composable
 private fun WfcStateChip(state: WfcState) {
     val error = state is WfcState.Unreachable || state is WfcState.Error
@@ -323,8 +276,6 @@ private fun WfcStateChip(state: WfcState) {
                 is WfcState.Error -> stringResource(R.string.wfc_state_error, s.message)
             },
             style = MaterialTheme.typography.labelMedium,
-            // On a tinted background: the text colour comes from the tint, never
-            // from grey, which is what keeps the contrast in both themes.
             color = if (error) MaterialTheme.colorScheme.error
             else MaterialTheme.colorScheme.onSurface
         )

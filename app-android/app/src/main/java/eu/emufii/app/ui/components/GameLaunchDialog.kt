@@ -100,7 +100,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.ui.platform.LocalConfiguration
 import eu.emufii.app.ui.tap
 
-/** A full round trip of the edge light from one axis to the other. */
 private const val TILE_HUE_MS = 7000
 
 /**
@@ -116,8 +115,7 @@ fun GameLaunchDialog(
     onPrimary: (private: Boolean) -> Unit,
     onJoinWithCode: (() -> Unit)?,
     /**
-     * Straight into the console's public multiplayer, no session and no tunnel; null
-     * where there is none.
+     * Straight into the console's public multiplayer, no session and no tunnel.
      * pourquoi : docs/decisions/lancement-et-navigation.md § The choice of world comes first, not last
      */
     onPlayOnline: (() -> Unit)? = null,
@@ -126,14 +124,13 @@ fun GameLaunchDialog(
     var starting by remember { mutableStateOf(false) }
 
     /**
-     * A PS2 session without a network profile on the card cannot be played, whatever
-     * the tunnel does.
+     * A PS2 session without a network profile on the card cannot be played.
      * pourquoi : docs/decisions/lancement-et-navigation.md § What replaces the buttons when a prerequisite is missing
      */
     val ps2Blocked = rom.console == Console.PS2 && !rememberPs2Ready()
 
     /**
-     * Will the session be hidden from the finder? Public by default.
+     * Hidden from the finder? Public by default.
      * pourquoi : docs/decisions/lancement-et-navigation.md § "Private session" promises exactly what the coordinator delivers
      */
     var isPrivate by remember { mutableStateOf(false) }
@@ -144,7 +141,7 @@ fun GameLaunchDialog(
     val wide = configuration.screenWidthDp > configuration.screenHeightDp
     val compact = !wide && configuration.screenHeightDp < 520
 
-    // The public side rewrites the card rather than opening a second screen.
+    // The public side rewrites the card, it does not open a second screen.
     var publicMode by remember { mutableStateOf(false) }
     val online = rom.console.backend == Backend.MELONDS_WFC || publicMode
 
@@ -179,8 +176,7 @@ fun GameLaunchDialog(
      */
     val cardRoot = remember { FocusRequester() }
     var rootHasCursor by remember { mutableStateOf(false) }
-    // The panel learns the card is open; it kept the game's face and its legend
-    // otherwise.
+    // The panel learns the card is open; it kept the game's face otherwise.
     // pourquoi : docs/decisions/second-ecran.md § What travels to the panel
     val askTitle = rom.displayName
     val askDetail = stringResource(R.string.panel_asking_launch)
@@ -193,12 +189,10 @@ fun GameLaunchDialog(
 
     val inputMode = LocalInputModeManager.current
     LaunchedEffect(Unit) {
-        // `getOrDefault`, not `isSuccess`: `requestFocus` returns false without
-        // throwing.
+        // `getOrDefault`, not `isSuccess`: `requestFocus` returns false without throwing.
         // pourquoi : docs/decisions/lancement-et-navigation.md § The cursor has to enter the card, and not leave it again
         repeat(10) {
-            // Ask for keyboard mode first: the fallback below only reported the
-            // symptom.
+            // Ask for keyboard mode first: the fallback below only reported the symptom.
             // pourquoi : docs/decisions/coquille-ecrans.md § The cursor arrives with the screen
             inputMode.requestInputMode(InputMode.Keyboard)
             if (runCatching { firstAction.requestFocus() }.getOrDefault(false)) {
@@ -206,8 +200,7 @@ fun GameLaunchDialog(
             }
             delay(40)
         }
-        // The fallback stays: a card with no primary action has nothing to offer the
-        // cursor.
+        // The fallback stays: a card with no primary action offers the cursor nothing.
         runCatching { cardRoot.requestFocus() }
     }
 
@@ -217,8 +210,7 @@ fun GameLaunchDialog(
         label = "launch-card-entrance"
     )
     val steps = if (publicMode) {
-        // Not the DS's: it dials its revival server itself, and the PSP has two
-        // settings to pick.
+        // Not the DS's: it dials its revival server itself, and the PSP has two settings.
         // pourquoi : docs/decisions/lancement-et-navigation.md § The choice of world comes first, not last
         listOf(
             stringResource(R.string.launch_psp_public_1),
@@ -242,13 +234,12 @@ fun GameLaunchDialog(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            // The tray dims, it does not frost. Warm ink, never blue-black.
+            // The tray dims, it does not frost: warm ink, never blue-black.
             // pourquoi : docs/decisions/lancement-et-navigation.md § The board darkens, it does not frost
             .background(
                 InkText.copy(alpha = (if (dark) 0.74f else 0.62f) * entrance)
             )
-            // Swallows taps and is not a cursor stop: traversal used to halt on a node
-            // with no ring.
+            // Swallows taps and is not a cursor stop: traversal halted on a ringless node.
             // pourquoi : docs/decisions/lancement-et-navigation.md § The cursor has to enter the card, and not leave it again
             .focusProperties { canFocus = false }
             .tap(
@@ -272,8 +263,7 @@ fun GameLaunchDialog(
                 label = "tile-hue"
             ).value
         } else {
-            // Frozen mid-travel: a blend of both axes, the honest stop for a thing that
-            // is neither.
+            // Animations off: a blend of both axes, neither being the right one.
             0.5f
         }
 
@@ -281,8 +271,7 @@ fun GameLaunchDialog(
             modifier = Modifier
                 .focusRequester(cardRoot)
                 .onFocusEvent { rootHasCursor = it.isFocused }
-                // The root holds the keys, never the cursor: the first direction hands
-                // it over.
+                // The root holds the keys, never the cursor: the first direction hands it over.
                 .onPreviewKeyEvent { event ->
                     if (!rootHasCursor || event.type != KeyEventType.KeyDown) {
                         return@onPreviewKeyEvent false
@@ -290,13 +279,11 @@ fun GameLaunchDialog(
                     runCatching { firstAction.requestFocus() }.getOrDefault(false)
                 }
                 .focusable()
-                // `exit` refuses the crossing in every direction, unlike `canFocus =
-                // false`.
+                // `exit` refuses the crossing in every direction, unlike `canFocus = false`.
                 // pourquoi : docs/decisions/lancement-et-navigation.md § The cursor has to enter the card, and not leave it again
                 .focusGroup()
                 .focusProperties { onExit = { cancelFocusChange() } }
-                // In preview: otherwise the first press only took the cursor off the
-                // button.
+                // In preview: otherwise the first press only took the cursor off the button.
                 // pourquoi : docs/decisions/lancement-et-navigation.md § The cursor has to enter the card, and not leave it again
                 .onPreviewKeyEvent { event ->
                     val back = event.key == Key.Back || event.key == Key.ButtonB
@@ -309,14 +296,11 @@ fun GameLaunchDialog(
                 // Bounded by the screen, never by a number.
                 // pourquoi : docs/decisions/lancement-et-navigation.md § The card replaced a bottom sheet, and for two reasons
                 .heightIn(max = (configuration.screenHeightDp - 32).dp)
-                // Arrives from under its final size, like the tiles.
                 .scale(0.92f + 0.08f * entrance)
                 .alpha(entrance)
-                // Here, not at the head of the chain: `drawWithContent` takes the size
-                // of what it wraps.
+                // Here, not at the head of the chain: `drawWithContent` takes the wrapped size.
                 .waitTrim(blend)
-                // Taps only. No `canFocus = false` here: on the card it disables the
-                // whole subtree.
+                // Taps only; `canFocus = false` here would disable the whole subtree.
                 // pourquoi : docs/decisions/lancement-et-navigation.md § The cursor has to enter the card, and not leave it again
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
@@ -333,7 +317,6 @@ fun GameLaunchDialog(
             )
 
             if (wide) {
-                // The object on the left, what happens to it on the right.
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(24.dp),
                     horizontalArrangement = Arrangement.spacedBy(26.dp)
@@ -358,12 +341,10 @@ fun GameLaunchDialog(
                             .align(Alignment.CenterVertically),
                         verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-                        // First, and a selector rather than a link: it rewrites the
-                        // card, it does not act.
+                        // A selector rather than a link: it rewrites the card, it does not act.
                         // pourquoi : docs/decisions/lancement-et-navigation.md § The choice of world comes first, not last
                         if (onPlayOnline != null) {
-                            // Who you play with is the social axis, and its cursor says
-                            // so.
+                            // Who you play with is the social axis, cursor included.
                             // pourquoi : docs/decisions/theme-duotone-shelves.md § GAMEPAD FOCUS
                             CompositionLocalProvider(LocalRingTone provides RingTone.CORAL) {
                                 ModeSwitch(
@@ -388,8 +369,6 @@ fun GameLaunchDialog(
                         // Stacked: two pills sharing 400 dp clip their labels silently.
                         // pourquoi : docs/decisions/lancement-et-navigation.md § The buttons are stacked, and it is a trap avoided
                         if (!online) {
-                            // A session's visibility is a social question, ring
-                            // included.
                             CompositionLocalProvider(LocalRingTone provides RingTone.CORAL) {
                                 PrivacyToggle(
                                     checked = isPrivate,
@@ -398,8 +377,6 @@ fun GameLaunchDialog(
                                 )
                             }
                         }
-                        // Braced: an `else` at the `if`'s indentation reads as a
-                        // sibling of the block above.
                         if (ps2Blocked) {
                             Ps2ProfileMissing()
                         } else if (pspBlocked) {
@@ -413,8 +390,6 @@ fun GameLaunchDialog(
                             )
                         }
                         if (!setupBlocked && onJoinWithCode != null && !publicMode) {
-                            // Joining by code is entering someone's session: the social
-                            // axis.
                             CompositionLocalProvider(LocalRingTone provides RingTone.CORAL) {
                                 OutlinedButton(
                                     onClick = sounded(onJoinWithCode),
@@ -435,14 +410,11 @@ fun GameLaunchDialog(
             }
 
             Column(
-                // Tighter when height is scarce: every dp off the padding is one the
-                // explanation keeps.
+                // Tighter when height is scarce: a dp off the padding is one the text keeps.
                 modifier = Modifier.fillMaxWidth().padding(if (compact) 16.dp else 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(if (compact) 10.dp else 14.dp)
             ) {
-                // As in two columns: choosing the world opens the card, it does not
-                // conclude it.
                 if (onPlayOnline != null) {
                     CompositionLocalProvider(LocalRingTone provides RingTone.CORAL) {
                         ModeSwitch(
@@ -475,7 +447,6 @@ fun GameLaunchDialog(
                     }
                 }
 
-                // No session, nothing to hide.
                 if (!online) {
                     CompositionLocalProvider(LocalRingTone provides RingTone.CORAL) {
                         PrivacyToggle(
@@ -486,8 +457,6 @@ fun GameLaunchDialog(
                     }
                 }
 
-                // Braced: an `else` at the `if`'s indentation reads as a sibling of the
-                // block above.
                 if (ps2Blocked) {
                     Ps2ProfileMissing()
                 } else if (pspBlocked) {
@@ -553,8 +522,7 @@ private fun TitleBlock(rom: Rom, online: Boolean) {
             textAlign = TextAlign.Center
         )
 
-        // The tile is scanned, this card is read: here there is room to say what the
-        // mark means.
+        // The tile is scanned, this card is read: here there is room for what the mark means.
         // pourquoi : docs/decisions/lancement-et-navigation.md § The compatibility verdict, where the decision is made
         LocalCompatDb.current.ratingFor(rom.compatKeys())?.let { known ->
             CompatNote(known)
@@ -799,8 +767,7 @@ private fun Step(number: Int, text: String, compact: Boolean = false) {
         }
         Text(
             text,
-            // One notch down where height is starved: three steps do not fit above two
-            // buttons.
+            // One notch down where height is starved: three steps do not fit above two buttons.
             style = if (compact) MaterialTheme.typography.bodySmall
                     else MaterialTheme.typography.bodyMedium,
             color = LocalContentColor.current.copy(alpha = 0.85f)

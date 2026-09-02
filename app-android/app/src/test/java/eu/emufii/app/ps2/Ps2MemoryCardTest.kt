@@ -8,14 +8,9 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 /**
- * A generated card, judged the way the console judges one.
- *
- * The emulator proper inspects almost nothing: the checks that matter run on
- * the emulated side, against the bytes themselves, so the tests here read the
- * image back with an independent parser (not the writer's own bookkeeping) and
- * hold it to the shape of the card the BIOS formatted on the bench: the same
- * superblock bytes, the same ECC on page 0, the same directory modes, and file
- * contents that round-trip through the FAT chains.
+ * The emulator inspects almost nothing; the checks that matter run on the emulated side,
+ * so these tests read the image back with an independent parser, not the writer's own
+ * bookkeeping, and hold it to the card the BIOS formatted on the bench.
  */
 class Ps2MemoryCardTest {
 
@@ -28,8 +23,6 @@ class Ps2MemoryCardTest {
         epochSecond = epoch,
     )
 
-    // ------------------------------------------------------------- geometry
-
     @Test
     fun `the image is the standard 8 MB raw card`() {
         assertEquals(16384 * 528, card().size)
@@ -37,8 +30,8 @@ class Ps2MemoryCardTest {
 
     @Test
     fun `page 0 is the superblock the BIOS writes, byte for byte`() {
-        // Measured off the card the PS2 formatted through ARMSX2 on 2026-08-20;
-        // a generator's superblock has no variable field, so equality is exact.
+        // Measured off the card the PS2 formatted through ARMSX2 on 2026-08-20; a
+        // superblock has no variable field, so equality is exact.
         val image = card()
         val expected = ByteArray(528)
         val sb = ByteBuffer.wrap(expected).order(ByteOrder.LITTLE_ENDIAN)
@@ -75,7 +68,6 @@ class Ps2MemoryCardTest {
                 image.copyOfRange(page * 528 + 512, page * 528 + 528),
             )
         }
-        // A page nothing ever wrote: all 528 bytes still erased.
         val far = 16000 * 528
         assertArrayEquals(ByteArray(528) { 0xFF.toByte() }, image.copyOfRange(far, far + 528))
     }
@@ -94,12 +86,10 @@ class Ps2MemoryCardTest {
                 spare,
             )
         }
-        // Reserved block + IFD + FAT + directories + a few files: dozens, not
-        // thousands, and never zero: zero would mean nothing was ECC'd.
+        // Reserved block + IFD + FAT + directories + a few files: dozens, not thousands;
+        // zero would mean nothing was ECC'd.
         assertTrue(written in 50..500)
     }
-
-    // ------------------------------------------------------- reading it back
 
     @Test
     fun `the indirect FAT lists the thirty-two FAT clusters and nothing else`() {
@@ -200,7 +190,6 @@ class Ps2MemoryCardTest {
         val other = card("Bob")
         var differs = 0
         for (i in a.indices) if (a[i] != other[i]) differs++
-        // icon.sys's title field, and nothing else, distinguishes the two.
         assertTrue(differs > 0)
         assertTrue("only the title row may differ, saw $differs bytes", differs <= 68)
     }
@@ -222,8 +211,6 @@ class Ps2MemoryCardTest {
         }
         assertTrue(titleField.all { it in ' '..'~' })
     }
-
-    // --------------------------------------------------------------- helpers
 
     /** The 1024 data bytes of a cluster, spare bytes skipped. */
     private fun cluster(image: ByteArray, c: Int): ByteArray {

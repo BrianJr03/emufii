@@ -5,11 +5,8 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 /**
- * What the rear panel prints under a game's title, and what it must never print.
- *
- * The rule being pinned is not "find a region": it is never invent one. A
- * wrong region shown in the open, on a panel the player cannot argue with, is
- * worse than a missing one: they would go looking for a dump they already have.
+ * The rule pinned is not "find a region", it is never invent one: a wrong region on a
+ * panel the player cannot argue with sends them looking for a dump they already have.
  */
 class RomTagsTest {
 

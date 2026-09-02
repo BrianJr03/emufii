@@ -12,15 +12,9 @@ import eu.emufii.app.library.Rom
 import eu.emufii.app.library.RomNames
 
 /**
- * Renaming a game, inside Emufii only.
- *
- * The file on disk is not touched: the ROM keeps its name, its saves stay paired
- * with it, and a third-party emulator that knows it by path sees nothing change.
- *
- * This is the last resort when automatic reading fails. Titles come from the
- * SMDH or the banner, that is, from whatever the publisher saw fit to write
- * there: sometimes truncated, sometimes in Japanese, sometimes a tagline rather
- * than a title. No rule catches every case; a text box does.
+ * The file on disk is not touched: the ROM keeps its name, its saves stay paired with it,
+ * and a third-party emulator knowing it by path sees nothing change. Last resort when the
+ * SMDH or banner title is truncated, Japanese, or a tagline; no rule catches every case.
  */
 @Composable
 fun RenameRomDialog(
@@ -36,8 +30,6 @@ fun RenameRomDialog(
         title = stringResource(R.string.rename_title),
         onDismiss = onDismiss,
         actions = {
-            // Clearing the field gives the game its original title back: no need
-            // for a third button to say "undo my rename".
             GhostButton(
                 label = stringResource(R.string.rename_cancel),
                 onClick = onDismiss
@@ -52,11 +44,9 @@ fun RenameRomDialog(
         }
     ) {
         PadDialogText(stringResource(R.string.rename_body))
-        // A `PadTextField`, and not the bare `OutlinedTextField` that was here:
-        // a field that merely takes focus opens the soft keyboard, so on a pad
-        // the cursor passing over it made the keyboard cover the dialog and
-        // swallow the directions. The frame is the step in the traversal; A
-        // goes in, B comes back out.
+        // Not a bare `OutlinedTextField`: a field that merely takes focus opens the soft
+        // keyboard, so on a pad the cursor passing over it covered the dialog and swallowed
+        // the directions. The frame is the traversal step; A goes in, B comes back out.
         PadTextField(
             value = name,
             onValueChange = { name = it },

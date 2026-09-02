@@ -13,10 +13,6 @@ object EmulatorPick {
 
     private const val PREFS = "emufii_emulator_pick"
 
-    /**
-     * The build chosen for [console], or null when nothing was chosen or the choice is
-     * no longer installed.
-     */
     fun chosen(context: Context, console: Console): String? {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val pkg = prefs.getString(console.name, null) ?: return null
@@ -25,7 +21,6 @@ object EmulatorPick {
         return null
     }
 
-    /** Sets the build, or returns to the default with a null [pkg]. */
     fun choose(context: Context, console: Console, pkg: String?) {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         if (pkg == null) prefs.edit().remove(console.name).apply()
@@ -33,19 +28,16 @@ object EmulatorPick {
     }
 
     /**
-     * The package to open for [console]: the player's choice if it holds, else the
-     * default. The single point of passage: the six launchers call this and the
-     * consoles page reads the same function, so none can open a build the page does not
-     * announce.
+     * The single point of passage: the six launchers and the consoles page read this
+     * same function, so none can open a build the page does not announce.
      */
     fun packageFor(context: Context, console: Console): String? =
         chosen(context, console) ?: defaultPackage(context, console)
 
     /**
-     * What opens when the player has chosen nothing. On the Switch the last installed
-     * wins: Eden ships a matrix of packages, and the one just laid down is precisely
-     * the one meant to open. On equal dates the list's order decides, which keeps our
-     * fork first.
+     * On the Switch the last installed wins: Eden ships a matrix of packages, and the
+     * one just laid down is the one meant to open. On equal dates the list's order
+     * decides, which keeps our fork first.
      */
     private fun defaultPackage(context: Context, console: Console): String? {
         val variants = variants(context, console)
@@ -57,9 +49,8 @@ object EmulatorPick {
     }
 
     /**
-     * Every build actually installed for [console], in the backend's candidate order.
-     * The label comes from the system (`getApplicationLabel`) rather than a table here:
-     * it is what the player reads on their own launcher.
+     * In the backend's candidate order. The label comes from `getApplicationLabel`
+     * rather than a table here: it is what the player reads on their own launcher.
      */
     fun variants(context: Context, console: Console): List<EmulatorVariant> {
         val pm = context.packageManager
@@ -81,7 +72,6 @@ object EmulatorPick {
         runCatching { context.packageManager.getPackageInfo(pkg, 0) }.isSuccess
 }
 
-/** An installed build: its package, its name as the system shows it, its version. */
 data class EmulatorVariant(
     val packageName: String,
     val label: String,

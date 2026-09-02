@@ -15,10 +15,7 @@ sealed class LaunchResult {
     data object Success : LaunchResult()
     data object NotInstalled : LaunchResult()
 
-    /**
-     * Installed, but this build has no multiplayer UI to drive. Distinct from
-     * [Error] because the fix is the user's, not ours: update the emulator.
-     */
+    /** Distinct from [Error]: the fix is the user's, updating the emulator. */
     data class NoNetplayUi(val versionName: String?) : LaunchResult()
 
     data class Error(val message: String) : LaunchResult()
@@ -28,12 +25,10 @@ class AzaharLauncher(private val context: Context) {
 
     fun installedPackage(): String? = EmulatorPick.packageFor(context, Console.THREE_DS)
 
-    /** Shown in the "update Azahar" message, so the user can tell what they have. */
     fun installedVersionName(pkg: String): String? = runCatching {
         context.packageManager.getPackageInfo(pkg, 0).versionName
     }.getOrNull()
 
-    /** True if the installed Azahar exposes a netplay dialog Emufii can drive. */
     fun hasNetplayUi(): Boolean {
         val pkg = installedPackage() ?: return false
         return NetplayUiSupport.isPresent(context, pkg)
@@ -51,15 +46,8 @@ class AzaharLauncher(private val context: Context) {
     }
 
     /**
-     * Launches the ROM. If [plan] is non-null and the netplay automation is
-     * enabled, arms it so the connection address gets filled in once the user
-     * opens Azahar's multiplayer menu.
-     *
-     * The plan is only armed when the service is actually running, arming it
-     * otherwise would leave a stale plan that fires on some later launch.
-     *
-     * A build without a multiplayer UI is refused outright rather than launched
-     * with a plan that can never fire; see [NetplayUiSupport].
+     * The plan is armed only when the service is running: otherwise it lingers and fires on
+     * some later launch. A build with no multiplayer UI is refused rather than launched.
      */
     fun launchGame(romUri: Uri, plan: NetplayPlan? = null): LaunchResult {
         val pkg = installedPackage() ?: return LaunchResult.NotInstalled
@@ -85,15 +73,9 @@ class AzaharLauncher(private val context: Context) {
     }
 
     /**
-     * Opens the emulator with the netplay plan armed, without a ROM.
-     *
-     * The room is joined *before* the game starts: Azahar's own flow is to
-     * connect from the main menu, then boot. Bundling both into one button meant
-     * the ROM launched into an emulator that had not joined anything, and the
-     * player found out from the game rather than from Emufii.
-     *
-     * The plan is armed here and left armed, the automation fires as soon as
-     * the dialog appears, whether the user opened it or the service did.
+     * The room is joined before the game starts: Azahar connects from the main menu, then
+     * boots. Bundling both into one button launched the ROM into an emulator that had
+     * joined nothing.
      */
     fun openForNetplay(plan: NetplayPlan): LaunchResult {
         val pkg = installedPackage() ?: return LaunchResult.NotInstalled
@@ -105,21 +87,10 @@ class AzaharLauncher(private val context: Context) {
     }
 
     /**
-     * True if the user has switched on Emufii's accessibility service.
-     *
-     * Compared as [ComponentName]s, not as strings, and that is the whole point.
-     * Android stores this setting in either of two forms: the long
-     * `eu.emufii.app/eu.emufii.app.azahar.AzaharNetplayService`, or the short
-     * `eu.emufii.app/.azahar.AzaharNetplayService` that mirrors how the manifest
-     * declares the class. `flattenToString` only ever produces the long one, so a
-     * string comparison answered "off" for every device holding the short form,
-     * whatever the player had actually enabled.
-     *
-     * The symptom was not a silent one: the session screen concluded the
-     * automation was off and offered to switch it on, permanently, next to a
-     * service that had been running the whole time. `unflattenFromString` resolves
-     * the leading dot against the package, so both forms land on the same
-     * component and the question gets answered on identity rather than spelling.
+     * Compared as [ComponentName]s, not strings: Android stores this setting either long or
+     * short (`eu.emufii.app/.azahar.AzaharNetplayService`), and `flattenToString` only
+     * produces the long form, so a string comparison answered "off" on every device holding
+     * the short one.
      */
     fun isNetplayAutomationEnabled(): Boolean {
         val enabled = Settings.Secure.getString(
@@ -132,16 +103,9 @@ class AzaharLauncher(private val context: Context) {
         return splitter.any { ComponentName.unflattenFromString(it) == us }
     }
 
-    /** Opens Android's accessibility settings so the user can enable it. */
     /**
-     * Android's accessibility settings, opened *inside* Emufii's task when we can.
-     *
-     * `FLAG_ACTIVITY_NEW_TASK` was set unconditionally, which put the settings
-     * screen in a task of its own: pressing Back from it landed wherever the
-     * system felt like, during a release check, in a completely different
-     * emulator app, instead of returning to the onboarding step that had asked
-     * for it. The flag is only needed when the caller isn't an Activity, so it
-     * is only added then.
+     * `FLAG_ACTIVITY_NEW_TASK` set unconditionally put the settings screen in its own task,
+     * and Back landed in a different app instead of the onboarding step that asked for it.
      */
     fun openAccessibilitySettings(): LaunchResult = runCatching {
         val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)

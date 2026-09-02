@@ -5,10 +5,6 @@ import android.graphics.Bitmap
 import java.io.File
 import java.io.FileOutputStream
 
-/**
- * Version of the cached title *format*. See `titleFileFor`.
- * v3: the SMDH's line break separates a title from its subtitle.
- */
 private const val TITLE_FORMAT = "v3"
 
 class IconCache(context: Context) {
@@ -16,19 +12,10 @@ class IconCache(context: Context) {
 
     fun fileFor(titleIdHex: String): File = File(dir, "$titleIdHex.png")
     /**
-     * Titles are cached per language: the same cartridge has a different name in
-     * each, so one file per game would have kept showing whichever language
-     * happened to be current at the last scan.
-     *
-     * [TITLE_FORMAT] has to go up at every change in the way a title is read,
-     * failing which libraries already scanned go on serving the old one and the
-     * fix is only visible to a newcomer.
-     *
-     * v2 had already shipped with an incomplete rule: it did not recognise the
-     * SMDH's line break as a subtitle separator. So it *wrote into the cache* the
-     * truncated title "The Legend of Zelda", and the corrected version that
-     * followed read it back without ever reopening the ROM. Hence v3, and the
-     * lesson: raise the version at the same time as the rule, not before.
+     * Titles are cached per language: the same cartridge has a different name in each.
+     * [TITLE_FORMAT] goes up at every change in the way a title is read, failing which
+     * libraries already scanned go on serving the old one; v2 shipped without the SMDH
+     * line-break rule and wrote the truncated "The Legend of Zelda" into the cache.
      */
     private fun titleFileFor(titleIdHex: String, lang: String): File =
         File(dir, "$titleIdHex.title.$TITLE_FORMAT.$lang")
@@ -44,7 +31,6 @@ class IconCache(context: Context) {
         titleFileFor(titleIdHex, lang).writeText(title, Charsets.UTF_8)
     }
 
-    /** The tile glow, kept next to the icon so a rescan doesn't recompute it. */
     fun writeAccent(titleIdHex: String, argb: Int) {
         accentFileFor(titleIdHex).writeText(argb.toString(), Charsets.UTF_8)
     }

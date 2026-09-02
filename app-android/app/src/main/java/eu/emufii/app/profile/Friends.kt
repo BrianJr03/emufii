@@ -10,12 +10,9 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * Someone you added by their code.
- *
- * [name] is the last pseudo the coordinator reported for them, kept so the list
- * still reads as names once everyone is offline. It starts null, you can add a
- * friend who has not opened the app in days, and there is nowhere to look their
- * name up until they do.
+ * [name] is the last pseudo the coordinator reported, kept so the list still reads as
+ * names once everyone is offline. It starts null: a friend who has not opened the app
+ * has no name to look up.
  */
 data class Friend(
     val code: String,
@@ -26,7 +23,6 @@ data class Friend(
     val displayCode: String get() = FriendCode.format(code)
 }
 
-/** What a friend is up to right now, as far as the coordinator knows. */
 data class FriendStatus(
     val online: Boolean,
     val sessionCode: String? = null,
@@ -45,26 +41,20 @@ data class FriendStatus(
 sealed interface AddFriendResult {
     data class Added(val friend: Friend) : AddFriendResult
 
-    /** Not a well-formed code, wrong length, stray characters, or a typo the checksum caught. */
+    /** Wrong length, stray characters, or a typo the checksum caught. */
     data object Invalid : AddFriendResult
 
     data object AlreadyAdded : AddFriendResult
 
-    /** Their own code. Harmless, but it would sit in the list forever showing them their own game. */
+    /** Their own code: harmless, but it would sit in the list showing them their own game. */
     data object Self : AddFriendResult
 }
 
 /**
- * The friends list, on this device and nowhere else.
- *
- * There is no server-side social graph: the coordinator is only ever asked
- * "which of these codes is online", and it answers from a table it forgets
- * every couple of minutes. Nobody can enumerate who is friends with whom,
- * because nobody stores it, and a feature with nothing to store is a feature
- * with nothing to pay for.
- *
- * The consequence to be honest about: this list does not follow the user to a
- * new phone.
+ * On this device and nowhere else. There is no server-side social graph: the coordinator
+ * is only ever asked "which of these codes is online", and answers from a table it forgets
+ * every couple of minutes. The consequence: this list does not follow the user to a new
+ * phone.
  */
 class FriendStore private constructor(context: Context) {
 
@@ -115,10 +105,6 @@ class FriendStore private constructor(context: Context) {
         persist(_friends.value.filterNot { it.code == code })
     }
 
-    /**
-     * Record the pseudo the coordinator just reported. Names change, and the
-     * stored one is only ever a cache of the last time we saw them.
-     */
     fun noteNames(names: Map<String, String>) {
         if (names.isEmpty()) return
         val updated = _friends.value.map { f ->
@@ -132,15 +118,11 @@ class FriendStore private constructor(context: Context) {
 
     companion object {
         /**
-         * One instance for the process, and it was a bug that made it so.
-         *
-         * The list lives in shared preferences, which every instance sees; the
-         * `StateFlow` in front of it does not. A second store built by the
-         * presence watcher wrote a friend's freshly learnt name to disk, and the
-         * screen went on showing the code until the app was restarted, because
-         * its own flow had never heard about it. Measured on the Thor, 24 August:
-         * the notification said "Testeur" while the list still said
-         * `EMVF-11TE-ST0S`.
+         * One instance for the process: shared preferences are seen by every instance,
+         * the `StateFlow` in front of them is not. A second store built by the presence
+         * watcher wrote a freshly learnt name to disk and the screen went on showing the
+         * code until restart. On the Thor, 24 August: the notification said "Testeur"
+         * while the list still said `EMVF-11TE-ST0S`.
          */
         @Volatile
         private var instance: FriendStore? = null
@@ -150,7 +132,6 @@ class FriendStore private constructor(context: Context) {
                 instance ?: FriendStore(context.applicationContext).also { instance = it }
             }
 
-        /** A store that reads storage again, for tests that stand in for a relaunch. */
         @VisibleForTesting
         fun reload(context: Context): FriendStore = FriendStore(context.applicationContext)
 

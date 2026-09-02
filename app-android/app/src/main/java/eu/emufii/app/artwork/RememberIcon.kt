@@ -16,13 +16,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * What a tile has to paint itself with.
- *
- * [remote] is the high-resolution icon when we have one, [embedded] the one the
- * ROM carries. The distinction is not cosmetic: the two are not drawn the same
- * way. A ROM icon is 48 px of pixel art that has to be scaled up without
- * smoothing, on pain of mush; a remote icon is a real image that has to be
- * smoothed instead.
+ * The two are not drawn the same way: [embedded] is 48 px of pixel art, scaled up
+ * without smoothing on pain of mush, [remote] a real image that is smoothed instead.
  */
 data class TileArt(val remote: String?, val embedded: java.io.File?) {
     val isPixelArt: Boolean get() = remote == null
@@ -30,11 +25,9 @@ data class TileArt(val remote: String?, val embedded: java.io.File?) {
 }
 
 /**
- * The icon to display for this game, better as soon as we know it.
- *
- * Always starts with what the ROM carries, so the grid is painted immediately:
- * waiting on the network to show a library already on disk would display holes
- * at startup. The search then sets off, and the tile repaints if it succeeds.
+ * Starts with what the ROM carries, so the grid is painted immediately: waiting on the
+ * network for a library already on disk would show holes at startup. The search then sets
+ * off, and the tile repaints if it succeeds.
  */
 @Composable
 fun rememberTileArt(rom: Rom): State<TileArt> {
@@ -46,17 +39,10 @@ fun rememberTileArt(rom: Rom): State<TileArt> {
     val revision by ArtworkStore.revision.collectAsState()
     val state = remember(rom.uri) { mutableStateOf(TileArt(null, rom.iconFile)) }
 
-    // Restarted if the player enters their key, or points us at Cocoon, while
-    // the grid is already on screen: the tiles then fill in without their
-    // having to go back.
     LaunchedEffect(rom.uri, apiKey, cocoon, revision) {
-        // Cocoon comes before the catalogue, and only the player's own explicit
-        // choice comes before Cocoon, which `iconUrl` already honours.
-        //
-        // The order is the whole feature: this artwork sits on the device, was
+        // Cocoon comes before the catalogue, and the player's own choice before Cocoon,
+        // which `iconUrl` already honours: Cocoon artwork sits on the device, was
         // downloaded for this exact file, and in places was re-cropped by hand.
-        // Preferring a fresh guess from a catalogue over a picture someone
-        // already chose would be getting it backwards.
         if (store.chosenFor(rom) == null) {
             val local = withContext(Dispatchers.IO) {
                 runCatching {

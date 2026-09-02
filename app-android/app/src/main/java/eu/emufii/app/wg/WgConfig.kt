@@ -1,15 +1,14 @@
 package eu.emufii.app.wg
 
 /**
- * What the coordinator hands back when you claim an address. No other player's
- * key: the topology is hub-and-spoke.
+ * No other player's key: the topology is hub-and-spoke.
  * pourquoi : docs/decisions/tunnel-wireguard.md § Three numbers measured into the configuration
  */
 data class WgTunnelInfo(
     val address: String,
     /**
-     * The host's second address, null on a guest. Without it, packets sent to
-     * the host arrive through the tunnel and are dropped.
+     * Null on a guest. Without it, packets sent to the host arrive through the tunnel
+     * and are dropped.
      * pourquoi : docs/decisions/tunnel-wireguard.md § The host's second address, without which its packets are lost
      */
     val hairpinAddress: String? = null,
@@ -21,8 +20,8 @@ data class WgTunnelInfo(
 )
 
 /**
- * Renders a wg-quick configuration. Text rather than the builders: one shape to
- * get right, and loggable when a tunnel refuses to come up.
+ * Text rather than the builders: one shape to get right, and loggable when a tunnel
+ * refuses to come up.
  * pourquoi : docs/decisions/tunnel-wireguard.md § Three numbers measured into the configuration
  */
 object WgConfig {
@@ -31,16 +30,15 @@ object WgConfig {
     const val KEEPALIVE_SECONDS = 10
 
     /**
-     * Without this the backend defaults to 1280, the IPv6 floor. Measured on
-     * the Thor: 1252 bytes get through, 1300 is lost, nothing fragments.
+     * Without this the backend defaults to 1280, the IPv6 floor. Measured on the Thor:
+     * 1252 bytes get through, 1300 is lost, nothing fragments.
      */
     const val MTU = 1420
 
     const val RELAY_ADDRESS = "10.67.0.1"
 
     /**
-     * The name a PS2 guest types instead of an address: ARMSX2's keyboard has
-     * no dot key, so no IPv4 address can be entered at all.
+     * ARMSX2's keyboard has no dot key, so a PS2 guest cannot type an IPv4 address.
      * pourquoi : docs/decisions/tunnel-wireguard.md § DNS is advertised for the PS2 only
      */
     const val PS2_HOST_NAME = "emufii"
@@ -49,8 +47,8 @@ object WgConfig {
         info: WgTunnelInfo,
         privateKeyBase64: String,
         /**
-         * Null everywhere but PS2: a VPN advertising a DNS takes over the whole
-         * device's resolution.
+         * Null everywhere but PS2: a VPN advertising a DNS takes over the device's
+         * whole resolution.
          * pourquoi : docs/decisions/tunnel-wireguard.md § DNS is advertised for the PS2 only
          */
         dns: String? = null

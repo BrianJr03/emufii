@@ -31,8 +31,7 @@ import java.io.ByteArrayInputStream
  * `GoBackend` ships its own `VpnService` but starts it with `startService` and
  * never calls `startForeground`, so the tunnel would die exactly when the player
  * switches to the emulator. Hence subclassing `GoBackend.VpnService` and
- * starting it ourselves. The service owns the tunnel's lifecycle so the ordering
- * is a property of the code rather than a hope about timing.
+ * starting it ourselves.
  * pourquoi : docs/decisions/tunnel-wireguard.md § Why Emufii has its own `VpnService`
  */
 class EmufiiWgService : GoBackend.VpnService() {
@@ -141,7 +140,6 @@ class EmufiiWgService : GoBackend.VpnService() {
         return START_NOT_STICKY
     }
 
-    /** Taken when the tunnel comes up, released when it falls. Never twice. */
     private fun holdWifiAwake() {
         if (wifiLock?.isHeld == true) return
         val wifi = applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager

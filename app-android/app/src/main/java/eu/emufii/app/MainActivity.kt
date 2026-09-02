@@ -29,12 +29,8 @@ import eu.emufii.app.wg.EmufiiWgManager
 import eu.emufii.app.ui.Sfx
 
 /**
- * Requests VPN permission before a session starts.
- *
- * [onDenied] is not optional in practice: the user can refuse, and something
- * has to undo the session that was already created on the coordinator. Without
- * it the app sat on its loading screen forever and left an orphan
- * network behind.
+ * [onDenied] is not optional: a refusal has to undo the session already created on the
+ * coordinator, or the app sits on its loading screen with an orphan network behind it.
  */
 fun interface EnsureVpnPermission {
     operator fun invoke(onGranted: () -> Unit, onDenied: () -> Unit)
@@ -45,14 +41,7 @@ val LocalEnsureVpnPermission =
 
 class MainActivity : ComponentActivity() {
 
-    /**
-     * Whether anyone is looking, which is what decides where an alert lands: a
-     * card inside the app, or a notification in the shade.
-     *
-     * Read on resume and pause rather than on start and stop: an activity that
-     * is started but not resumed is behind the emulator the player just
-     * launched, and an alert drawn there would be seen by nobody.
-     */
+    /** On resume, not on start: a started but unresumed activity is behind the emulator. */
     override fun onResume() {
         super.onResume()
         AppForeground.set(true)
@@ -70,14 +59,7 @@ class MainActivity : ComponentActivity() {
         AppForeground.set(false)
     }
 
-    /**
-     * Re-arms the splash on every real start of the activity. Without this,
-     * a process Android kept alive skipped the logo entirely on reopening and
-     * dropped the player straight onto the grid. Configuration changes
-     * (rotation, locale) are excluded, they are not openings, and the gate
-     * itself refuses while a session lives, so returning from the emulator
-     * still lands in the session's screen.
-     */
+    /** A process Android kept alive skipped the logo on reopening. */
     override fun onStart() {
         super.onStart()
         if (!isChangingConfigurations) SplashGate.rearm()
@@ -85,8 +67,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Decodes both sounds before the first screen: loaded lazily, the very first
-        // hover would be silent.
+        // Decoded before the first screen: loaded lazily, the first hover is silent.
         // pourquoi : docs/decisions/sons.md § Two sounds, one family
         Sfx.prepare(this)
         enableEdgeToEdge()
@@ -108,32 +89,14 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            // Notifications are asked for on the onboarding step that explains
-            // them, and nowhere else. This used to fire a system dialog from a
-            // LaunchedEffect on first composition, so the very first thing a
-            // new install did was interrupt its own welcome screen with a
-            // permission prompt for a service that was not running and had not
-            // been explained. Asking is the onboarding's job; the button there
-            // is what the player pressed to be asked.
-            //
-            // Foreground services still need it: the tunnel and the Ethernet hub
-            // each show a notification, and on Android 13+ that notification is
-            // silently dropped without the permission, leaving no sign the
-            // tunnel is up and no handle back to Emufii. Refusing stays survivable
-            // - everything works, just quietly.
-
-            // Owned here rather than inside EmufiiApp, because the theme wraps the
-            // app: two stores would each hold their own StateFlow, and changing
-            // the theme from the settings page would update the one the theme
-            // isn't reading.
+            // Not inside EmufiiApp: two stores, two StateFlows, and the settings page
+            // updates the one the theme is not reading.
             val settings = remember { SettingsStore.get(this@MainActivity) }
             val theme by settings.theme.collectAsState()
             val dark = theme.isDark(isSystemInDarkTheme())
 
-            // enableEdgeToEdge picks the status bar icon colour once, from the
-            // system theme. Choosing Light on a dark phone therefore left white
-            // icons on a pale wallpaper, the clock unreadable. The bars have to
-            // follow the app's theme, not the phone's.
+            // enableEdgeToEdge picks the bar icon colour once, from the system theme:
+            // Light on a dark phone left white icons on a pale wallpaper.
             val view = LocalView.current
             SideEffect {
                 WindowCompat.getInsetsController(window, view).run {
@@ -142,11 +105,6 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            // The second display, when the device has one, is mounted here and
-            // not inside `EmufiiApp`: it is a window of its own, a sibling of
-            // this one rather than a part of the screen being drawn, and it
-            // carries its own theme for the day a service holds it instead of
-            // an activity. See `secondscreen/SecondScreenHost.kt`.
             val secondScreen by settings.secondScreen.collectAsState()
             SecondScreenHost(enabled = secondScreen)
 

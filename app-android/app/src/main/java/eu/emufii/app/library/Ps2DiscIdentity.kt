@@ -10,16 +10,13 @@ data class Ps2DiscIdentity(
 }
 
 /**
- * Reads the PS2 boot executable directly from an ISO9660 view of a disc.
- *
- * [Reader] is intentionally smaller than a file API. A plain ISO implements it
- * with one seekable channel and a CHD implements it over decoded hunks. Nothing
- * is extracted and only SYSTEM.CNF, its directories and the boot ELF are read.
+ * [Reader] is smaller than a file API on purpose: a plain ISO implements it with one
+ * seekable channel, a CHD over decoded hunks. Nothing is extracted, only SYSTEM.CNF, its
+ * directories and the boot ELF are read.
  */
 object Ps2DiscIdentityReader {
 
     fun interface Reader {
-        /** Reads up to [count] bytes at [offset] into [into], starting at zero. */
         fun read(offset: Long, into: ByteArray, count: Int): Int
     }
 
@@ -45,7 +42,6 @@ object Ps2DiscIdentityReader {
         BootFile(serial, executable.offset, executable.size)
     }.getOrNull()
 
-    /** Components as ISO9660 stores them, with device prefix and version removed. */
     internal fun bootPath(cnf: String): List<String>? {
         val line = cnf.lineSequence().firstOrNull {
             it.trimStart().startsWith("BOOT2", ignoreCase = true)

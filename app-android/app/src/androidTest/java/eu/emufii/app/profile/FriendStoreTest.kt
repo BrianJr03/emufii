@@ -10,11 +10,9 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * The friends list, against real SharedPreferences.
- *
- * Instrumented rather than JVM: the store's whole job is surviving a restart,
- * and a mocked preferences object would test the mock. Reloading it from a
- * second instance is the closest thing to relaunching the app.
+ * Instrumented rather than JVM: the store's job is surviving a restart, and a mocked
+ * preferences object would test the mock. A second instance is the closest thing to
+ * relaunching the app.
  */
 @RunWith(AndroidJUnit4::class)
 class FriendStoreTest {
@@ -39,7 +37,6 @@ class FriendStoreTest {
         assertTrue(result is AddFriendResult.Added)
         assertEquals(listOf(code), store.friends.value.map { it.code })
 
-        // A second instance reads what the first wrote, the restart case.
         assertEquals(listOf(code), newStore().friends.value.map { it.code })
     }
 
@@ -67,7 +64,6 @@ class FriendStoreTest {
         assertEquals("Lea", store.friends.value.single().name)
         assertEquals("Lea", newStore().friends.value.single().name)
 
-        // A name we were told nothing about this round stays as it was.
         store.noteNames(emptyMap())
         assertEquals("Lea", store.friends.value.single().name)
     }
@@ -89,10 +85,7 @@ class FriendStoreTest {
         assertTrue(newStore().friends.value.isEmpty())
     }
 
-    /**
-     * Anything unreadable is dropped rather than taking the list down with it:
-     * a store that throws on load is an app that won't open.
-     */
+    /** A store that throws on load is an app that will not open. */
     @Test
     fun survivesCorruptedStorage() {
         context.getSharedPreferences("emufii_friends", android.content.Context.MODE_PRIVATE)

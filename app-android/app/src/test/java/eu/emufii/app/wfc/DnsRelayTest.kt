@@ -67,9 +67,7 @@ class DnsRelayTest {
         val upstream = RecordingUpstream(answer)
         val relay = DnsRelay(sentinel, upstream)
 
-        // Right port, wrong host: someone else's DNS server.
         assertNull(relay.handle(Ipv4Udp.build(client, elsewhere, 45678, 53, query)))
-        // Right host, wrong port.
         assertNull(relay.handle(Ipv4Udp.build(client, sentinel, 45678, 5353, query)))
 
         assertTrue(upstream.seen.isEmpty())
@@ -92,9 +90,7 @@ class DnsRelayTest {
         val upstream = RecordingUpstream(answer)
         val relay = DnsRelay(sentinel, upstream)
 
-        // Shorter than a DNS header.
         assertNull(relay.handle(Ipv4Udp.build(client, sentinel, 45678, 53, ByteArray(11))))
-        // Past the EDNS ceiling.
         val oversized = ByteArray(KaeruWfc.MAX_DNS_MESSAGE + 1)
         assertNull(relay.handle(Ipv4Udp.build(client, sentinel, 45678, 53, oversized)))
 
@@ -126,8 +122,8 @@ class DnsRelayTest {
         val upstream = RecordingUpstream(answer)
         val relay = DnsRelay(sentinel, upstream)
 
-        // A reused read buffer keeps stale bytes past the packet; if the relay
-        // trusted the array length it would forward garbage.
+        // A reused read buffer keeps stale bytes past the packet: trusting the array
+        // length would forward garbage.
         val request = Ipv4Udp.build(client, sentinel, 45678, 53, query)
         val buffer = request.copyOf(request.size + 64).also { buf ->
             for (i in request.size until buf.size) buf[i] = 0x7F
@@ -156,8 +152,7 @@ class DnsRelayTest {
         upstream.reply = answer
         relay.handle(request)
 
-        // The run is what says "Kaeru is gone"; one answer back means it isn't,
-        // even though the lifetime total still remembers the outage.
+        // The run is what says "Kaeru is gone"; the lifetime total still remembers the outage.
         assertEquals(0, relay.consecutiveUpstreamFailures)
         assertEquals(3, relay.upstreamFailures)
     }
@@ -168,8 +163,8 @@ class DnsRelayTest {
         val request = Ipv4Udp.build(client, sentinel, 45678, 53, query)
 
         relay.handle(request)
-        // Addressed elsewhere, so it is dropped before upstream is ever asked.
-        // If a drop reset the run, background chatter would mask a dead server.
+        // Dropped before upstream is asked: if a drop reset the run, background chatter
+        // would mask a dead server.
         relay.handle(Ipv4Udp.build(client, elsewhere, 45678, 53, query))
         relay.handle(request)
 

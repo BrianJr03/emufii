@@ -92,7 +92,6 @@ internal fun AboutPage(onBack: () -> Unit, modifier: Modifier = Modifier) {
     }
 }
 
-/** What the app is, its version, its licence. */
 @Composable
 private fun IdentityBlock(modifier: Modifier = Modifier) {
     SettingsBlock(
@@ -112,7 +111,6 @@ private fun IdentityBlock(modifier: Modifier = Modifier) {
     }
 }
 
-/** The app's only two outgoing links. */
 @Composable
 private fun JoinBlock(open: (String) -> Unit, modifier: Modifier = Modifier) {
     SettingsBlock(
@@ -147,10 +145,9 @@ private fun JoinBlock(open: (String) -> Unit, modifier: Modifier = Modifier) {
     }
 }
 
-/** The players' room. */
 private const val DISCORD_URL = "https://discord.gg/tvWcb28vBZ"
 
-/** The tip jar. Never in a dialog, never at launch: here and nowhere else. */
+/** Never in a dialog, never at launch: here and nowhere else. */
 private const val KOFI_URL = "https://ko-fi.com/emufii"
 
 /**

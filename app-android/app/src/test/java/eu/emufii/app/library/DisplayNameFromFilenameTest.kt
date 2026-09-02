@@ -4,12 +4,9 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
- * What a filename contributes to a display name, and what it must never
- * contribute.
- *
- * This is the fallback of a fallback: it only speaks when an encrypted file
- * kept its title and the index has not answered yet, so its failures are the
- * ones every tile wears: scene shorthand read as a game's name.
+ * What a filename contributes to a display name. It only speaks when an encrypted file
+ * kept its title and the index has not answered, so its failures reach the tile as
+ * scene shorthand read for a game's name.
  */
 class DisplayNameFromFilenameTest {
 
@@ -24,8 +21,8 @@ class DisplayNameFromFilenameTest {
     }
 
     @Test fun `a number that is part of the title stays`() {
-        // The whole point of the four-digit threshold: these are titles, not
-        // release numbers, and trimming them would rename the game.
+        // The four-digit threshold: these are titles, not release numbers, and trimming
+        // them would rename the game.
         assertEquals("Portal 2", displayNameFromFilename("Portal 2.nsp"))
         assertEquals("Final Fantasy VII", displayNameFromFilename("Final Fantasy VII.nsp"))
         assertEquals("Gran Turismo 4", displayNameFromFilename("Gran Turismo 4 (USA).iso"))

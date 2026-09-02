@@ -4,40 +4,28 @@ import eu.emufii.app.dolphin.Bounds
 import eu.emufii.app.dolphin.Node
 
 /**
- * Reading ARMSX2's Settings, Network screen. Label and value are two sibling
- * `TextView`s, paired by their horizontal band and never by node order. [Node] and
- * [Bounds] come from the Dolphin side: inert data, two copies deliberately.
+ * ARMSX2's Settings, Network screen: label and value are two sibling `TextView`s,
+ * paired by their horizontal band and never by node order.
  * pourquoi : docs/decisions/pilotes-emulateurs.md § ARMSX2: two sibling `TextView`s, paired by their horizontal band
  */
 object Ps2Screen {
 
-    /** True when the two nodes sit on the same line, allowing for overlap. */
     fun sameRow(a: Bounds, b: Bounds): Boolean {
         val overlap = minOf(a.bottom, b.bottom) - maxOf(a.top, b.top)
         val shortest = minOf(a.bottom - a.top, b.bottom - b.top)
-        // Half the height of the shorter one: two neighbouring lines graze each
-        // other by a few pixels, whereas one line overlaps almost entirely.
+        // Two neighbouring lines graze each other by a few pixels, one line overlaps
+        // almost entirely.
         return shortest > 0 && overlap * 2 >= shortest
     }
 
-    /** The node carrying exactly this label, up to case and whitespace. */
     fun label(nodes: List<Node>, label: String): Node? =
         nodes.firstOrNull { it.text.trim().equals(label, ignoreCase = true) }
 
     /**
-     * The value displayed opposite a label.
-     *
-     * The first text to the right of the label, not the last, and that nuance
-     * cost an infinite loop: the "Room code" row carries the code *then* a
-     * "Generate" button, neither of them clickable in the tree.
-     *
-     * ```
-     * "Room code" [69,183]   "DNW757" [1532,183]   "Generate" [1686,188]
-     * ```
-     *
-     * Taking the rightmost, the driver read "Generate", concluded the code did
-     * not match, rewrote it, read "Generate" again, and so on. Seen for real on
-     * the Thor on 2026-08-17, seven times in five seconds.
+     * The first text to the right of the label, not the last: the "Room code" row
+     * carries the code then a "Generate" button, neither clickable in the tree.
+     * Taking the rightmost, the driver read "Generate", rewrote the code and read it
+     * again, seven times in five seconds on the Thor on 2026-08-17.
      */
     fun valueFor(nodes: List<Node>, label: String): Node? {
         val anchor = label(nodes, label) ?: return null
@@ -48,11 +36,8 @@ object Ps2Screen {
     }
 
     /**
-     * The row to tap in order to open a setting.
-     *
-     * Neither the label nor the value is clickable: their shared container is.
-     * So we take the smallest clickable node containing the label, the smallest
-     * because the whole page contains it too.
+     * Neither the label nor the value is clickable, their shared container is; hence
+     * the smallest clickable node containing the label, the whole page containing it too.
      */
     fun row(nodes: List<Node>, label: String): Node? {
         val anchor = label(nodes, label) ?: return null
@@ -62,11 +47,8 @@ object Ps2Screen {
     }
 
     /**
-     * One mode choice, among the three "Network mode" buttons.
-     *
-     * These are labels to tap directly, not a drop-down list: all three are
-     * visible at once, which avoids the open-and-return trip Dolphin imposes for
-     * its connection type.
+     * The three "Network mode" choices are labels to tap directly, not a drop-down: all
+     * three are visible at once, no open-and-return trip as on Dolphin.
      */
     fun modeButton(nodes: List<Node>, label: String): Node? {
         val anchor = label(nodes, label) ?: return null
@@ -76,7 +58,6 @@ object Ps2Screen {
             .minByOrNull { it.bounds.area }
     }
 
-    /** A toggle row's switch, looked for on its line. */
     fun toggleFor(nodes: List<Node>, label: String): Node? {
         val anchor = label(nodes, label) ?: return null
         return nodes
@@ -96,17 +77,13 @@ object Ps2Screen {
     const val KEY_BACKSPACE = "⌫"
     const val KEY_SHIFT = "⇧"
 
-    /** The characters this keyboard can produce. The dot is not one of them. */
     fun canType(text: String): Boolean = text.all { it.isLetterOrDigit() && it.code < 128 }
 
-    /** The key carrying this character, whatever case it displays. */
     fun key(nodes: List<Node>, char: Char): Node? =
         nodes.firstOrNull { it.text.length == 1 && it.text[0].equals(char, ignoreCase = true) }
 
-    /** One of the keyboard's command keys, named by its label. */
     fun commandKey(nodes: List<Node>, label: String): Node? = label(nodes, label)
 
-    /** True when ARMSX2's keyboard is on screen. */
     fun keyboardIsOpen(nodes: List<Node>): Boolean =
         commandKey(nodes, KEY_DONE) != null && commandKey(nodes, KEY_CLEAR) != null
 }

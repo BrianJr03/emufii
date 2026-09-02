@@ -85,8 +85,7 @@ fun JoinScreen(
     val dark = LocalEmufiiDarkTheme.current
     val landing = remember { FocusRequester() }
 
-    // B erases a box and only leaves the screen once the code is empty: the keypad has
-    // no delete key.
+    // B erases a box and leaves the screen only once the code is empty: the keypad has no delete key.
     // pourquoi : docs/decisions/coquille-ecrans.md § The code keyboard is not the search keyboard
     BackHandler(enabled = code.isNotEmpty()) { code = code.dropLast(1) }
 
@@ -98,8 +97,7 @@ fun JoinScreen(
         modifier = modifier,
         onBack = onBack,
         contentScrolls = false,
-        // The scaffold would put the cursor on the first control, which is the Join
-        // button.
+        // The scaffold would put the cursor on the first control, the Join button.
         autoFocus = false
     ) { _ ->
         LandOn(landing)
@@ -120,14 +118,12 @@ fun JoinScreen(
                     rom.displayName,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
-                    // Outside any Surface: with no explicit colour it falls back to
-                    // black.
+                    // Outside any Surface: with no explicit colour it falls back to black.
                     color = MaterialTheme.colorScheme.onSurface,
                     textAlign = TextAlign.Center
                 )
 
-                // The template goes above the boxes: under them it read as a seventh,
-                // fainter line.
+                // Above the boxes: under them the template read as a seventh, fainter line.
                 Text(
                     stringResource(R.string.join_code_example),
                     style = MaterialTheme.typography.bodySmall,
@@ -141,16 +137,13 @@ fun JoinScreen(
                     repeat(CODE_LENGTH) { i ->
                         CodeSlot(
                             char = code.getOrNull(i),
-                            // The current box, and the last once the code is complete:
-                            // the accent has to land somewhere.
+                            // The current box, the last once the code is complete: the accent has to land somewhere.
                             active = i == code.length.coerceAtMost(CODE_LENGTH - 1)
                         )
                         if (i == 2) Separator()
                     }
                 }
 
-                // What back does, said where it is used, in the language the panel
-                // already speaks.
                 Box(modifier = Modifier.height(LEGEND_CAP)) {
                     if (code.isNotEmpty()) PadHintRow(PadHint.ERASE)
                 }
@@ -159,8 +152,7 @@ fun JoinScreen(
                     onClick = sounded { onSubmitCode(SessionCodes.normalize(code)) },
                     enabled = complete,
                     shape = PillShape,
-                    // Joining is a link: a coral pill, the deep cut on light and the
-                    // bright one on dark.
+                    // Joining is a link: a coral pill, the deep cut on light, the bright one on dark.
                     // pourquoi : docs/decisions/theme-duotone-shelves.md § Two semantic axes
                     colors = ButtonDefaults.buttonColors(
                         containerColor = if (dark) Coral.bright else Coral.deep,
@@ -170,8 +162,7 @@ fun JoinScreen(
                     ),
                     modifier = Modifier.width(240.dp).height(50.dp).controlRing(PillShape).padEntry()
                 ) {
-                    // The disabled button says what is missing: a grey "Join" did not
-                    // say why.
+                    // The disabled button says what is missing; a grey "Join" did not say why.
                     Text(
                         if (complete) stringResource(R.string.join_action)
                         else pluralStringResource(
@@ -183,8 +174,7 @@ fun JoinScreen(
                 }
             }
 
-            // The keypad carries the cursor on arrival: it is the only thing here to
-            // press.
+            // The keypad carries the cursor on arrival: the only thing here to press.
             Box(modifier = Modifier.weight(1.05f)) {
                 EmufiiCodeKeyboard(
                     firstKeyFocus = landing,
@@ -207,11 +197,9 @@ private fun CodeSlot(char: Char?, active: Boolean) {
     val shape = RoundedCornerShape(16.dp)
     Box(
         modifier = Modifier
-            // Sized for the left column: at 56 dp, six sockets and their dash
-            // overflowed it.
+            // Sized for the left column: at 56 dp, six sockets and their dash overflowed it.
             .size(width = 48.dp, height = 66.dp)
             .focusRing(active, shape, width = 3.dp, glowRadius = 16.dp)
-            // The plate's low tint is enough to say a character goes here.
             .socket(shape, dark)
             .then(
                 if (active) Modifier.background(Coral.soft, shape) else Modifier
@@ -232,7 +220,6 @@ private fun CodeSlot(char: Char?, active: Boolean) {
     }
 }
 
-/** A bar, on and off, nothing else moving. */
 @Composable
 private fun Caret() {
     val blink = rememberInfiniteTransition(label = "caret")

@@ -10,13 +10,9 @@ import eu.emufii.app.library.Rom
 import androidx.compose.material3.MaterialTheme
 
 /**
- * Taking a game out of the library, with the one sentence that has to be read.
- *
- * A confirmation, for an action whose effect is invisible: the tile disappears,
- * and nothing on the grid afterwards says where it went. So the dialog spends
- * its two lines on exactly that: the file is untouched, and the settings bring
- * it back: rather than on asking "are you sure?", which tells a player nothing
- * they did not already know when they opened the menu.
+ * The effect is invisible: the tile disappears and nothing on the grid says where it
+ * went, so the two lines say the file is untouched and the settings bring it back,
+ * rather than asking "are you sure?".
  */
 @Composable
 fun HideRomDialog(

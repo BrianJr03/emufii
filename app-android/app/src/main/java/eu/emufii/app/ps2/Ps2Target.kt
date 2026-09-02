@@ -1,37 +1,32 @@
 package eu.emufii.app.ps2
 
 /**
- * ARMSX2's network screen. It has real Android views, but keeps part of its
- * translations in JSON assets rather than resources; see [I18n].
- * Read on ARMSX2 2.6.6.7 (`com.armsx2`, versionCode 1512).
+ * ARMSX2's network screen: real Android views, but part of its translations sits in JSON
+ * assets rather than resources; see [I18n]. Read on ARMSX2 2.6.6.7 (`com.armsx2`, 1512).
  * pourquoi : docs/PHASE1_SCOUT_PS2_ARMSX2.md
  */
 object Ps2Target {
 
     /**
-     * `xyz.aethersx2.android` is deliberately absent: that is the original
-     * AetherSX2, abandoned in 2023, with no network layer. Both coexist on the Thor.
+     * `xyz.aethersx2.android` is deliberately absent: the original AetherSX2, abandoned
+     * in 2023, has no network layer. Both coexist on the Thor.
      */
     val packages = listOf("com.armsx2")
 
     fun owns(pkg: String): Boolean = pkg in packages
 
     /**
-     * The old network settings live in `assets/i18n` (19 languages, 838 keys) and
-     * are translated. The Local Link labels are hardcoded in the dex, so English in
-     * every language. [Ps2Labels] reads the JSON when the key is there and falls
-     * back to the English constant otherwise.
+     * The old network settings live in `assets/i18n` (19 languages, 838 keys); the Local
+     * Link labels are hardcoded in the dex, so English in every language. [Ps2Labels]
+     * falls back to the English constant when the key is missing.
      */
     object I18n {
         const val DIRECTORY = "i18n"
 
-        // Keys of the translated labels. English stays the fallback.
         const val KEY_ENABLE_DEV9 = "network.enableDev9Ethernet"
         const val KEY_PRIMARY_DNS = "network.primaryDns"
         const val KEY_NETWORK_TAB = "tab.network"
     }
-
-    // -- The labels, as they are displayed --
 
     const val LABEL_ENABLE_DEV9 = "Enable DEV9 Ethernet"
     const val LABEL_NETWORK_MODE = "Network mode"
@@ -45,8 +40,7 @@ object Ps2Target {
     const val LABEL_ROOM_CODE = "Room code"
 
     /**
-     * ARMSX2's own online mode, which Emufii does not drive. Mapped anyway so the
-     * next reader does not go hunting for it in the emulator.
+     * ARMSX2's own online mode, which Emufii does not drive; mapped anyway.
      * pourquoi : docs/PS2_ONLINE_MIS_DE_COTE.md
      */
     const val LABEL_PRIMARY_DNS = "Primary DNS"
@@ -60,10 +54,7 @@ object Ps2Target {
 
     val PORT_RANGE = 1024..65535
 
-    /**
-     * ARMSX2 keeps two nearby sessions apart with this; it is not security, and
-     * must never be shown to the player as protection. The relay does the isolating.
-     */
+    /** ARMSX2 keeps two nearby sessions apart with this; the relay does the isolating. */
     val ROOM_CODE_LENGTH = 4..12
 
     fun isValidRoomCode(code: String): Boolean =

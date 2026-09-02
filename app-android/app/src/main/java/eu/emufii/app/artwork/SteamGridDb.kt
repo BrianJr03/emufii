@@ -14,10 +14,8 @@ import java.net.URLEncoder
  * pourquoi : docs/decisions/jaquettes.md § The icon, never the box art
  * pourquoi : docs/decisions/jaquettes.md § Every player brings their own key
  */
-/** A game from the catalogue, as offered to the player fixing the match. */
 data class SgdbGame(val id: Int, val name: String)
 
-/** A candidate icon. [thumb] serves the picker grid, [url] the tile. */
 data class SgdbIcon(val url: String, val thumb: String, val px: Int)
 
 object SteamGridDb {
@@ -25,20 +23,13 @@ object SteamGridDb {
     private const val BASE = "https://www.steamgriddb.com/api/v2"
     private const val TIMEOUT_MS = 6000
 
-    /**
-     * Below this, the remote icon is not worth downloading: the tiles are
-     * ~150 dp, so a 64 px icon would be as blurry as the ROM's, with a network
-     * round trip on top.
-     */
+    /** The tiles are ~150 dp: a 64 px icon would be as blurry as the ROM's, with a
+     * network round trip on top. */
     private const val MIN_PX = 128
 
     /**
-     * The URL of the best icon for this title, or null.
-     *
      * Null means "no icon", never "error": network down, quota exceeded, unknown
-     * title, everything answers the same way because the caller has nothing
-     * different to do with it. A grid of games is not the place to report that a
-     * third-party API hiccupped.
+     * title all answer the same way, the caller having nothing different to do.
      */
     suspend fun iconUrl(title: String, apiKey: String): String? = withContext(Dispatchers.IO) {
         if (apiKey.isBlank()) return@withContext null
@@ -48,14 +39,6 @@ object SteamGridDb {
         }.getOrNull()
     }
 
-    /**
-     * Every game the catalogue offers for these words, in its own order.
-     *
-     * Serves the manual picker: automatic matching takes the first result, and
-     * that is precisely where it goes wrong. A game with an ambiguous title, a
-     * sequel, a port, a regional subtitle, can only be fixed by someone who
-     * recognises the right one.
-     */
     suspend fun searchGames(query: String, apiKey: String): List<SgdbGame> =
         withContext(Dispatchers.IO) {
             if (apiKey.isBlank() || query.isBlank()) return@withContext emptyList()
@@ -73,12 +56,8 @@ object SteamGridDb {
         }
 
     /**
-     * Every icon for a game, largest first.
-     *
-     * Without [bestIconUrl]'s size filter, deliberately: here it is the player's
-     * eye that decides, and hiding an icon from them because it is small would be
-     * deciding on their behalf. The automatic choice has nobody to judge and has
-     * to stay cautious.
+     * Largest first, and deliberately without [bestIconUrl]'s size filter: here the
+     * player's eye decides, where the automatic choice has nobody to judge.
      */
     suspend fun icons(gameId: Int, apiKey: String): List<SgdbIcon> =
         withContext(Dispatchers.IO) {
@@ -100,7 +79,6 @@ object SteamGridDb {
             }.getOrDefault(emptyList())
         }
 
-    /** The first autocomplete result, which is also the best ranked. */
     private fun searchGameId(title: String, apiKey: String): Int? {
         val query = URLEncoder.encode(searchTerm(title), "UTF-8")
         val json = get("$BASE/search/autocomplete/$query", apiKey) ?: return null
@@ -110,15 +88,9 @@ object SteamGridDb {
     }
 
     /**
-     * The largest static icon, ties broken by the community's rating.
-     *
-     * We sort on size first and only then on rating, because the one flaw we are
-     * trying to fix is resolution: a much-loved icon rendered at 64 px would fix
-     * nothing.
-     *
-     * `types=static` rules out animated ones, twenty tiles moving together being
-     * unreadable, and on a handheld that is battery for nothing. `nsfw` and
-     * `humor` are ruled out: a player's library is not the place for a surprise.
+     * Size first, rating only to break ties: the flaw being fixed is resolution, and
+     * a much-loved icon at 64 px fixes nothing. `types=static` rules out animated
+     * ones, twenty tiles moving together being unreadable and battery for nothing.
      */
     private fun bestIconUrl(gameId: Int, apiKey: String): String? {
         val url = "$BASE/icons/game/$gameId?types=static&nsfw=false&humor=false"
@@ -143,13 +115,9 @@ object SteamGridDb {
     }
 
     /**
-     * What we send off to search for, built from the displayed name.
-     *
-     * Dumps drag their origin along in their name, `(USA)`, `(Europe)`, `[!]`,
-     * `(Rev 1)`, and those marks are in no game catalogue. Leaving them in means
-     * searching for a title that does not exist and finding nothing. The console
-     * suffix (`3D`, `3DS`) is kept: it is often part of the real title ("Ocarina
-     * of Time 3D").
+     * Dumps drag their origin along, `(USA)`, `[!]`, `(Rev 1)`, and no game catalogue
+     * carries those marks. The console suffix (`3D`, `3DS`) is kept: it is often part
+     * of the real title ("Ocarina of Time 3D").
      */
     internal fun searchTerm(title: String): String =
         title

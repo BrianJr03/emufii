@@ -2,13 +2,7 @@ package eu.emufii.app.notify
 
 import eu.emufii.app.profile.FriendStatus
 
-/**
- * What changed about a friend since the last time we looked.
- *
- * Only two things are worth interrupting someone for, and both are the start of
- * something they can join: a friend appearing, and a friend starting a game.
- * Going offline and closing a game are not events, they are the absence of one.
- */
+/** Only the start of something joinable interrupts: going offline is not an event. */
 sealed interface FriendEvent {
     val code: String
     val name: String?
@@ -23,19 +17,14 @@ sealed interface FriendEvent {
 }
 
 /**
- * A friend as the last poll left them, reduced to what the next comparison
- * needs.
- *
- * The game is kept by title and not by session code: a player who quits and
- * relaunches the same game gets a new session, and announcing it twice would
- * teach people to ignore the notification.
+ * The game is kept by title, not by session code: relaunching the same game opens a new
+ * session, and announcing it twice teaches people to ignore the notification.
  */
 data class SeenFriend(val online: Boolean, val game: String?)
 
 /**
- * Compares two polls and says what deserves announcing. Pure by design: the same
- * function serves the in-app alert and the background job, so the two cannot diverge.
- * It is also the only part testable without a device.
+ * Pure by design: the same function serves the in-app alert and the background job, so
+ * the two cannot diverge, and it is the only part testable without a device.
  * pourquoi : docs/decisions/amis-et-notifications.md § The announcement rules, each earned by picturing the notification it avoids
  */
 fun friendEvents(
@@ -63,6 +52,5 @@ fun friendEvents(
     return events
 }
 
-/** The state to carry to the next comparison. */
 fun seenFrom(current: Map<String, FriendStatus>): Map<String, SeenFriend> =
     current.mapValues { (_, s) -> SeenFriend(online = s.online, game = s.romTitle) }

@@ -8,12 +8,9 @@ import java.io.File
 import java.security.MessageDigest
 
 /**
- * Provisions a PS2 network profile inside the public ARMSX2 data folder.
- *
- * The active card is never edited. It is read, cloned in memory, patched, and
- * published under a new filename only after the complete result has been read
- * back and verified. The original is also copied into `emufii-backups`; this is
- * deliberately outside `memcards`, so ARMSX2 cannot mount the backup by mistake.
+ * The active card is never edited: read, cloned in memory, patched, and published under
+ * a new filename only once the result has been read back and verified. The original is
+ * copied into `emufii-backups`, outside `memcards` so ARMSX2 cannot mount it by mistake.
  */
 object Ps2Armsx2Folder {
 
@@ -30,7 +27,6 @@ object Ps2Armsx2Folder {
         val gameOverrideCount: Int,
         /** Set when the player's card is a folder one, so nothing was cloned. */
         val folderCardName: String?,
-        /** Saves copied off that folder card onto the published one. */
         val importedSaveCount: Int,
         /** Saves that did not fit; the card is published anyway. */
         val savesLeftBehind: Int,
@@ -53,9 +49,8 @@ object Ps2Armsx2Folder {
     }
 
     /**
-     * Is the prepared card still the one in slot 1, and does it still carry our
-     * profile? Never compare the card byte for byte: a memory card is a living disk,
-     * and one game save would be enough to declare it changed.
+     * Never compare the card byte for byte: a memory card is a living disk, and one game
+     * save would be enough to declare it changed.
      * pourquoi : docs/decisions/ps2-carte-memoire.md § A prepared card is not verified byte by byte
      */
     fun isStillValid(
@@ -74,9 +69,8 @@ object Ps2Armsx2Folder {
     }.getOrDefault(false)
 
     /**
-     * The generated card still exists and still carries the profile for this
-     * BIOS. It no longer has to be the global Slot 1: EmuFii names it in the
-     * per-game settings file immediately before ARMSX2 boots the selected game.
+     * It no longer has to be the global Slot 1: EmuFii names the card in the per-game
+     * settings file immediately before ARMSX2 boots the selected game.
      */
     fun isPreparedCardValid(
         context: Context,
@@ -110,27 +104,20 @@ object Ps2Armsx2Folder {
 
         val slot1 = memcards.child(settings.slot1Filename)
         val slot2 = memcards.child(settings.slot2Filename)
-        // Enabled slots first, then whatever the two name at all, so a card the
-        // player has configured wins over one merely present. A folder memory
-        // card cannot be cloned, but finding one does not end the search: the
-        // other slot may hold a plain image, and stopping at the first slot
-        // refused players a card that was sitting right there.
+        // Enabled slots first, so a configured card wins over one merely present. A
+        // folder card cannot be cloned, but finding one does not end the search: the other
+        // slot may hold a plain image, and stopping at the first refused it to players.
         val candidates = listOfNotNull(
             slot1?.takeIf { settings.slot1Enabled },
             slot2?.takeIf { settings.slot2Enabled },
             slot1,
             slot2,
         )
-        // A card we published is not the player's card, and preferring theirs is
-        // the whole reason the second run behaves like the first. Without this
-        // order, the run after a successful setup finds our own generated card
-        // sitting in slot 1, takes it as the source, clones it, and never looks
-        // at the folder card in slot 2, so the save import silently did
-        // nothing at all. Measured on the Thor, 2026-08-23.
-        //
-        // Ours still comes last rather than never: when a player's own image was
-        // cloned and then unassigned, that clone is the only place their saves
-        // live, and dropping it would regenerate an empty card over them.
+        // Without preferring the player's card, the run after a successful setup takes our
+        // own generated card in slot 1 as the source and never looks at the folder card in
+        // slot 2: the save import silently does nothing. Measured on the Thor, 2026-08-23.
+        // Ours comes last rather than never: a player image cloned and then unassigned
+        // leaves that clone the only place their saves live.
         val ours = { f: DocumentFile -> f.name?.startsWith(TARGET_STEM, ignoreCase = true) == true }
         val theirImage = candidates.firstOrNull { it.isFile && !ours(it) }
         val folderCard = if (theirImage == null) candidates.firstOrNull { it.isDirectory } else null
@@ -155,11 +142,9 @@ object Ps2Armsx2Folder {
             return Outcome.InvalidMemoryCard(settings.slot1Filename, e.message.orEmpty())
         }
 
-        // A folder card's saves are copied onto the card we publish, because a
-        // folder card left in slot 2 is indexed with an empty filter and the
-        // game sees nothing in it. See [Ps2FolderCardImport] for the measurement.
-        // The player's folder is only ever read; it is not moved, emptied or
-        // rewritten, so this stays a copy in one direction.
+        // A folder card left in slot 2 is indexed with an empty filter and the game sees
+        // nothing in it, so its saves are copied onto the card we publish; see
+        // [Ps2FolderCardImport] for the measurement. The player's folder is only read.
         var importedSaves = 0
         var savesLeftBehind = 0
         Log.d(TAG, "source=${source?.name} carteDossier=${folderCard?.name} " +
@@ -170,10 +155,8 @@ object Ps2Armsx2Folder {
                 patched = try {
                     Ps2CardPatch.addSave(patched, save.directory, save.files, PROFILE_EPOCH_SECOND)
                 } catch (e: Ps2CardPatch.CardFormatException) {
-                    // A full card is not a failure of the whole preparation: the
-                    // network profile is already on it and the player can still
-                    // play. Count what did not fit and say so, rather than
-                    // throwing away a card that works.
+                    // A full card is not a failure: the network profile is already on it,
+                    // so count what did not fit rather than discard a card that works.
                     savesLeftBehind = 1
                     break
                 }
@@ -185,9 +168,8 @@ object Ps2Armsx2Folder {
             }
         }
 
-        // A paused/running VM may still have the file open. Never publish a
-        // snapshot if its source changed while we were reading and rebuilding
-        // it: that could be a torn save even though the filesystem still parses.
+        // A paused or running VM may still hold the file open: a source that changed
+        // while we rebuilt it could be a torn save the filesystem still parses.
         if (source != null && sourceBytes != null &&
             sha256(sourceBytes) != runCatching { sha256(readBytes(context, source)) }.getOrNull()
         ) {
@@ -352,20 +334,15 @@ object Ps2Armsx2Folder {
     private fun DocumentFile.stem(): String = name?.substringBeforeLast('.', name.orEmpty()).orEmpty()
 
     /**
-     * Every save on a folder memory card, its files in card order.
-     *
-     * Anything unreadable is skipped rather than aborting: a folder card is the
-     * player's own directory, and one odd entry in it must not cost them the
-     * whole preparation.
+     * Anything unreadable is skipped rather than aborting: a folder card is the player's
+     * own directory, and one odd entry must not cost them the whole preparation.
      */
     private fun readFolderCardSaves(
         context: Context,
         card: DocumentFile,
     ): List<Ps2FolderCardImport.Save> {
-        // Traced, and deliberately kept: this walk reads somebody else's
-        // directory through SAF, every failure in it is recoverable by design,
-        // and a silent empty result is indistinguishable from an empty card.
-        // It cost a full afternoon of guessing on 2026-08-23.
+        // Tracing kept: this walk reads somebody else's directory through SAF, every
+        // failure is recoverable, and a silent empty result looks like an empty card.
         val entries = card.listFiles()
         Log.d(TAG, "folder card ${card.name}: ${entries.size} entry(ies) " +
             entries.joinToString { "${it.name}${if (it.isDirectory) "/" else ""}" })

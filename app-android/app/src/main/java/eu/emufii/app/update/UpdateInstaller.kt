@@ -19,51 +19,40 @@ import java.net.URL
 private const val TAG = "UpdateInstaller"
 
 /**
- * The largest APK we agree to pull: room above the current 32 MB, and a stop on
- * a chatty server filling the cache while we look away.
+ * The largest APK we agree to pull: room above the current 32 MB, and a stop on a chatty
+ * server filling the cache while we look away.
  * pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § Three outcomes, not two
  */
 private const val MAX_APK_BYTES = 200L * 1024 * 1024
 
-/** What the download and then the install can come to. */
 sealed interface UpdateOutcome {
-    /** The APK is validated and handed to Android: the system dialog takes over. */
     data object HandedToAndroid : UpdateOutcome
 
     /**
-     * Android does not let Emufii install applications yet. Not an error: a
-     * permission to grant once, and [settings] opens the exact screen.
+     * Not an error: a permission to grant once, and [settings] opens the exact screen.
      * pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § Two refusals that are not errors
      */
     data class NeedsPermission(val settings: Intent) : UpdateOutcome
 
-    /** Nothing to install: the server has no binary to offer. */
     data object Unavailable : UpdateOutcome
 
-    /** Download impossible or interrupted. */
     data object DownloadFailed : UpdateOutcome
 
-    /**
-     * The downloaded file is not an Emufii update. The one case worth saying
-     * loudly: it is exactly what the check exists to catch.
-     */
+    /** The downloaded file is not an Emufii update: what the check exists to catch. */
     data object Rejected : UpdateOutcome
 }
 
 /**
- * Downloads the new version and hands it to Android.
- *
- * This reopens a path `docs/SECURITY_REVIEW.md` (S5) had ruled out, and closes
- * it with three locks: the URL is not followed as given (coordinator host over
- * HTTPS only), the signature decides rather than the provenance, and
- * nothing starts without a tap. Lock 2 is what carries the security.
+ * Reopens a path `docs/SECURITY_REVIEW.md` (S5) had ruled out, closed with three locks:
+ * the URL is not followed as given (coordinator host over HTTPS only), the signature
+ * decides rather than the provenance, and nothing starts without a tap. Lock 2 carries
+ * the security.
  * pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § Why this is acceptable when the S5 review excluded it
  */
 object UpdateInstaller {
 
     /**
-     * The link to follow, or null if none is acceptable. With no `url`
-     * published we fall back on the coordinator's `/download`.
+     * Null if no link is acceptable; with no `url` published, the coordinator's `/download`.
      * pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § Two refusals that are not errors
      */
     fun downloadUrl(
@@ -74,14 +63,13 @@ object UpdateInstaller {
         val candidate = published?.takeIf { it.isNotBlank() } ?: return fallback
         val base = runCatching { URL(baseUrl) }.getOrNull() ?: return null
         val target = runCatching { URL(candidate) }.getOrNull() ?: return fallback
-        // Same host and HTTPS. A link elsewhere is not followed, and not
-        // treated as an attack either: "View" opens it in the browser.
+        // A link elsewhere is not followed, and not treated as an attack either:
+        // "View" opens it in the browser.
         // pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § Two refusals that are not errors
         val sameOrigin = target.protocol == "https" && target.host.equals(base.host, ignoreCase = true)
         return if (sameOrigin) candidate else fallback
     }
 
-    /** Pulls the APK, checks it, hands it to Android. Long-running. */
     suspend fun downloadAndInstall(
         context: Context,
         latest: LatestVersion
@@ -98,8 +86,8 @@ object UpdateInstaller {
         }
 
         val url = downloadUrl(latest.url) ?: return@withContext UpdateOutcome.Unavailable
-        // In the cache: an APK forgotten in the player's documents would be
-        // this feature's only lasting trace.
+        // In the cache: an APK forgotten in the player's documents would be this
+        // feature's only lasting trace.
         // pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § Three outcomes, not two
         val target = File(app.cacheDir, "update.apk")
         when (download(url, target)) {
@@ -130,29 +118,25 @@ object UpdateInstaller {
     }
 
     /**
-     * What a download can come to. Three outcomes, not two: a boolean made
-     * a stalled transfer report "not downloadable here yet".
+     * Three outcomes, not two: a boolean made a stalled transfer report "not
+     * downloadable here yet".
      * pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § Three outcomes, not two
      */
     private enum class Fetched { Ok, Missing, Broken }
 
-    /** Whether the file arrived whole, and if not why. */
     private fun download(url: String, target: File): Fetched = runCatching {
         val conn = (URL(url).openConnection() as HttpURLConnection).apply {
             requestMethod = "GET"
             connectTimeout = 10_000
-            // 60 s: a 32 MB APK is not an API call. At 30 s a briefly stalled
-            // transfer was abandoned, measured on the Thor.
+            // 60 s: at 30 s a briefly stalled transfer was abandoned, measured on the Thor.
             // pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § Three outcomes, not two
             readTimeout = 60_000
-            // A redirect can leave the host checked above; following it would
-            // silently undo the first lock.
+            // A redirect can leave the host checked above: following it undoes lock 1.
             instanceFollowRedirects = false
         }
         try {
             // 404 is the only answer meaning "there is nothing to take here";
-            // everything else is a transport incident, and saying otherwise
-            // would send people looking in the wrong place.
+            // everything else is a transport incident.
             if (conn.responseCode == 404) return Fetched.Missing
             if (conn.responseCode != 200) return Fetched.Broken
             val announced = conn.contentLengthLong
@@ -165,16 +149,15 @@ object UpdateInstaller {
                         val read = input.read(buffer)
                         if (read < 0) break
                         written += read
-                        // The ceiling holds without `Content-Length` too: a
-                        // server is not obliged to announce one.
+                        // The ceiling holds without `Content-Length`: a server is not
+                        // obliged to announce one.
                         if (written > MAX_APK_BYTES) return Fetched.Broken
                         output.write(buffer, 0, read)
                     }
                 }
             }
-            // A download cut halfway gives a truncated ZIP, which the check
-            // would reject, but it may as well be reported as the network
-            // problem it actually is.
+            // A cut download gives a truncated ZIP the check would reject anyway; report
+            // it as the network problem it is.
             if (announced <= 0 || written == announced) Fetched.Ok else Fetched.Broken
         } finally {
             conn.disconnect()
@@ -182,8 +165,7 @@ object UpdateInstaller {
     }.onFailure { Log.w(TAG, "download failed", it) }.getOrDefault(Fetched.Broken)
 
     /**
-     * Is the APK really an Emufii version signed with the same key? The central
-     * lock: certificate and version, the second closing the rollback.
+     * The central lock: certificate and version, the second closing the rollback.
      * pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § The central lock: two questions, and both must hold
      */
     private fun isGenuine(context: Context, apk: File, announcedVersion: Int): Boolean {
@@ -209,8 +191,8 @@ object UpdateInstaller {
     }
 
     /**
-     * Compares certificates rather than key pairs. Reading the wrong array
-     * returns an empty list, which would compare "equal" to another empty one.
+     * Certificates rather than key pairs: reading the wrong array returns an empty list,
+     * which would compare "equal" to another empty one.
      * pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § The central lock: two questions, and both must hold
      */
     private fun sameCertificates(mine: SigningInfo?, theirs: SigningInfo?): Boolean {
@@ -224,15 +206,14 @@ object UpdateInstaller {
         val ours = certs(mine)
         val other = certs(theirs)
         if (ours.isEmpty() || other.isEmpty()) return false
-        // Intersection, never equality: after a key rotation, demanding
-        // equality would fail the one update that must succeed that day.
+        // Intersection, never equality: a key rotation would fail the one update that
+        // must succeed that day.
         // pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § The central lock: two questions, and both must hold
         return ours.any { it in other }
     }
 
     /**
-     * Hands the file to Android. [PackageInstaller] rather than
-     * `ACTION_INSTALL_PACKAGE`, deprecated since Oreo.
+     * [PackageInstaller] rather than `ACTION_INSTALL_PACKAGE`, deprecated since Oreo.
      * pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § Two refusals that are not errors
      */
     private fun hand(context: Context, apk: File): Boolean {
@@ -260,8 +241,8 @@ object UpdateInstaller {
 }
 
 /**
- * The install's outcome. Only `STATUS_PENDING_USER_ACTION` demands anything,
- * and without this relay the button would pass for dead where it applies.
+ * Only `STATUS_PENDING_USER_ACTION` demands anything; without this relay the button
+ * passes for dead where it applies.
  * pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § Why this is acceptable when the S5 review excluded it
  */
 class UpdateInstallReceiver : android.content.BroadcastReceiver() {
@@ -273,8 +254,7 @@ class UpdateInstallReceiver : android.content.BroadcastReceiver() {
             Log.i(TAG, "installation : statut $status ${message.orEmpty()}")
             return
         }
-        // minSdk 33: the typed overload is present, so the deprecated one does
-        // not have to be carried.
+        // minSdk 33: the typed overload is present, the deprecated one is not carried.
         val confirm = intent.getParcelableExtra(Intent.EXTRA_INTENT, Intent::class.java)
         confirm?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         runCatching { confirm?.let(context::startActivity) }

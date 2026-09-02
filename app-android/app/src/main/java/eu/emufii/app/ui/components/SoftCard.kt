@@ -23,12 +23,9 @@ import eu.emufii.app.ui.theme.tilePlateBrush
 import eu.emufii.app.ui.tap
 
 /**
- * A panel's fill, exposed because content scrolling inside one has to be able to
- * dissolve into it: a gradient towards that exact colour, and not towards an
- * approximation, which would give the fade away with a visible seam.
- *
- * The panel's face is a gradient, so this is its *top* colour: the end a fade
- * from the header meets.
+ * Exposed because content scrolling inside a panel fades towards it: an approximation
+ * gives the fade away with a visible seam. The face is a gradient, so this is its top
+ * colour, the end a fade from the header meets.
  */
 @Composable
 fun softCardFill(): Color = when {
@@ -38,13 +35,9 @@ fun softCardFill(): Color = when {
 }
 
 /**
- * The plate a game icon sits on, in the library and on the cards.
- *
- * White on the light theme, and that one is left alone: artwork of every
- * possible colour reads against white, which is why it was chosen. On the dark
- * themes it is moulded plastic like everything else, lit from the top, so a
- * tile reads as an object over the tray rather than as a bright square cut out
- * of it.
+ * White on the light theme and left alone, artwork of every colour reads against white;
+ * moulded plastic lit from the top on the dark ones, so a tile reads as an object over
+ * the tray rather than a bright square cut out of it.
  */
 @Composable
 fun tilePlate(): Brush = tilePlateBrush(
@@ -52,25 +45,15 @@ fun tilePlate(): Brush = tilePlateBrush(
     oled = LocalEmufiiOledTheme.current
 )
 
-/**
- * The hairline between the artwork and its plate.
- *
- * It exists to keep pale box art from bleeding into the plate, so it has to
- * change sides with it: a dark rim reads on white and disappears on the dark
- * plates, where a faint white one does the same job.
- */
+/** Keeps pale box art from bleeding into the plate, so it changes sides with it. */
 @Composable
 fun artworkRim(): Color =
     if (LocalEmufiiDarkTheme.current) eu.emufii.app.ui.theme.EdgeDark else eu.emufii.app.ui.theme.EdgeLight
 
 /**
- * The panel every screen is built out of: one moulded plate.
- *
- * Deliberately *not* `Surface(shadowElevation = …)`. At small elevations on a
- * pale ground that draws a hard grey band hugging the outline instead of a
- * diffuse shadow: a dirty rim at every corner. The material is assembled by
- * hand in `theme/Plastic.kt`, where the shadow's offset, the lit bevel and the
- * moulding's edge are one thing rather than three guesses.
+ * Deliberately not `Surface(shadowElevation = …)`: at small elevations on a pale ground
+ * that draws a hard grey band hugging the outline, a dirty rim at every corner. The
+ * material is assembled by hand in `theme/Plastic.kt`.
  */
 @Composable
 fun SoftCard(
@@ -85,20 +68,15 @@ fun SoftCard(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            // Before everything that clips. A clickable panel is an element you
-            // select: it carries the cursor, in its own shape. But the ring's
-            // glow overflows the node's bounds by construction, and placed after
-            // the plate's clip it was sliced there, the glow stopping dead
-            // inside the card. Here it precedes the clip, and stays above the
-            // `clickable` in the chain, so it still reads its focus.
+            // Before everything that clips: the ring's glow overflows the node's bounds,
+            // and after the plate's clip it stopped dead inside the card. It stays above
+            // the `clickable` in the chain, so it still reads its focus.
             .then(if (onClick != null) Modifier.controlRing(shape) else Modifier)
             .plate(shape = shape, dark = dark, oled = oled, lift = 6.dp)
             .then(if (onClick != null) Modifier.tap(onClick = onClick) else Modifier)
     ) {
-        // A Box provides no content colour, so any Text inside that doesn't name
-        // one falls back to black: fine on the pale plate, invisible on the dark
-        // one. Surface would do this for us, but Surface is what draws the rim
-        // artifact this component exists to avoid, so it does it here instead.
+        // A Box provides no content colour: a Text that names none falls back to black,
+        // invisible on the dark plate. Surface would do it, and draws the rim artifact.
         CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
             content()
         }

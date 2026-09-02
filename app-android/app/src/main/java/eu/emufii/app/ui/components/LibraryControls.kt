@@ -82,8 +82,7 @@ import eu.emufii.app.ui.theme.socket
 import eu.emufii.app.ui.tap
 
 /**
- * The library's two settings, in the same family of pills as the profile and the
- * friends. The glyph shows the state, not the function.
+ * The glyph shows the state, not the function.
  * pourquoi : docs/decisions/bibliotheque.md § The two library settings took the logo's corner
  */
 @Composable
@@ -111,13 +110,10 @@ fun LayoutChip(
                     label = stringResource(layout.labelRes),
                     onClick = { open = false; onPick(layout) },
                     glyph = { tint -> drawLayoutGlyph(layout, tint) },
-                    // The ticked row carries the cursor's landing point; the others
-                    // have nothing to ask for.
                     landing = LocalMenuLanding.current.takeIf { selected },
                     trailing = {
-                        // A tick, not a coloured ground: the highlight moves with the
-                        // cursor, and two highlights on top of each other read as one,
-                        // misplaced.
+                        // A tick, not a coloured ground: two highlights on top of each
+                        // other read as one, misplaced.
                         if (selected) CheckIcon(size = 14.dp, color = MaterialTheme.colorScheme.primary)
                         else Spacer(Modifier.size(14.dp))
                     }
@@ -152,13 +148,10 @@ fun SortChip(
                     label = stringResource(sort.labelRes),
                     onClick = { open = false; onPick(sort) },
                     glyph = { tint -> drawSortGlyph(sort, tint) },
-                    // The ticked row carries the cursor's landing point; the others
-                    // have nothing to ask for.
                     landing = LocalMenuLanding.current.takeIf { selected },
                     trailing = {
-                        // A tick, not a coloured ground: the highlight moves with the
-                        // cursor, and two highlights on top of each other read as one,
-                        // misplaced.
+                        // A tick, not a coloured ground: two highlights on top of each
+                        // other read as one, misplaced.
                         if (selected) CheckIcon(size = 14.dp, color = MaterialTheme.colorScheme.primary)
                         else Spacer(Modifier.size(14.dp))
                     }
@@ -183,15 +176,13 @@ private val LibrarySort.labelRes: Int
     }
 
 /**
- * The open menu's cursor holder, claimed by the active row. Local: the row already
- * knows whether it is ticked, which is all there is to know.
+ * The open menu's cursor holder, claimed by the active row.
  * pourquoi : docs/decisions/bibliotheque.md § A menu's cursor lands on the current option
  */
 private val LocalMenuLanding = compositionLocalOf<FocusRequester?> { null }
 
 /**
- * The card that unrolls under a pill: the same material and movement as [TileMenu]. The
- * window outlives the close while the unroll reverses.
+ * The window outlives the close while the unroll reverses.
  * pourquoi : docs/decisions/bibliotheque.md § A menu's cursor lands on the current option
  */
 @Composable
@@ -226,8 +217,7 @@ private fun ChipMenu(
             label = "chip-menu-reveal"
         )
 
-        // The cursor lands on the current option rather than the first; without this
-        // there was no ring at all on opening.
+        // Without this there was no ring at all on opening.
         // pourquoi : docs/decisions/bibliotheque.md § A menu's cursor lands on the current option
         // pourquoi : docs/decisions/coquille-ecrans.md § The cursor arrives with the screen
         val landing = remember { FocusRequester() }
@@ -240,9 +230,8 @@ private fun ChipMenu(
                     alpha = (reveal * 1.8f).coerceAtMost(1f)
                     translationY = (1f - reveal) * (-10.dp.toPx())
                 }
-                // The drawing is clipped, not the layout: the window is placed
-                // according to its size, so animating it would make it slide at
-                // every frame.
+                // The drawing is clipped, not the layout: the window is placed on its
+                // size, and animating it would make it slide at every frame.
                 .drawWithContent {
                     clipRect(bottom = size.height * reveal) {
                         this@drawWithContent.drawContent()
@@ -253,7 +242,6 @@ private fun ChipMenu(
                     elevation = if (dark) 0.dp else 26.dp,
                     shape = shape,
                     clip = false,
-                    // Warm black, the duotone world's shadow ink.
                     ambientColor = InkText.copy(alpha = 0.10f),
                     spotColor = InkText.copy(alpha = 0.14f)
                 )
@@ -273,7 +261,6 @@ private fun ChipMenu(
     }
 }
 
-/** Under the pill, aligned on its left edge, and pulled back into the screen. */
 private object BelowChip : PopupPositionProvider {
     override fun calculatePosition(
         anchorBounds: IntRect,
@@ -292,16 +279,14 @@ private object BelowChip : PopupPositionProvider {
 }
 
 /**
- * The glyphs, drawn by hand like the tile menu's: each draws its own layout. An
- * abstract icon would force opening the menu to get your bearings.
+ * An abstract icon would force opening the menu to get your bearings.
  * pourquoi : docs/decisions/bibliotheque.md § The two library settings took the logo's corner
  */
 private fun DrawScope.drawLayoutGlyph(layout: LibraryLayout, color: Color) {
     val s = size.minDimension
     when (layout) {
         LibraryLayout.GRID -> {
-            // Four solid squares: at this size, a 1 px outline on a 7 px cell
-            // closes up into a blob. Solid stays crisp.
+            // At this size a 1 px outline on a 7 px cell closes up into a blob.
             val cell = s * 0.40f
             val gapv = s * 0.20f
             listOf(0f to 0f, (cell + gapv) to 0f, 0f to (cell + gapv), (cell + gapv) to (cell + gapv))
@@ -316,8 +301,7 @@ private fun DrawScope.drawLayoutGlyph(layout: LibraryLayout, color: Color) {
         }
 
         LibraryLayout.CAROUSEL -> {
-            // The side slices are dimmed: that is what the carousel itself does,
-            // and the glyph says so without words.
+            // The side slices are dimmed: that is what the carousel itself does.
             val cardW = s * 0.46f
             val sideW = s * 0.16f
             drawRoundRect(
@@ -362,8 +346,7 @@ private fun DrawScope.drawLayoutGlyph(layout: LibraryLayout, color: Color) {
 }
 
 /**
- * Sorting, in three symbols. By console is a folder: not an order but a filing, and the
- * glyph has to say so before it is tried.
+ * By console is a folder: not an order but a filing.
  * pourquoi : docs/decisions/bibliotheque.md § The two library settings took the logo's corner
  */
 private fun DrawScope.drawSortGlyph(sort: LibrarySort, color: Color) {
@@ -387,8 +370,7 @@ private fun DrawScope.drawSortGlyph(sort: LibrarySort, color: Color) {
         LibrarySort.NAME -> bars(listOf(1f, 0.68f, 0.36f), s * 0.94f)
 
         LibrarySort.RECENT -> {
-            // The bars tighten up to give the clock room to live: without that
-            // the two drawings touch and the whole thing becomes a blob.
+            // The bars tighten to give the clock room: otherwise the two drawings touch.
             bars(listOf(1f, 0.66f, 0.32f), s * 0.56f)
             val c = Offset(s * 0.76f, s * 0.74f)
             val r = s * 0.21f
@@ -410,8 +392,7 @@ private fun DrawScope.drawSortGlyph(sort: LibrarySort, color: Color) {
         }
 
         LibrarySort.CONSOLE -> {
-            // A folder: the tab first, then the body, so the step at the top
-            // reads at 18 px.
+            // The tab first, then the body, so the step at the top reads at 18 px.
             val path = Path().apply {
                 moveTo(s * 0.08f, s * 0.80f)
                 lineTo(s * 0.08f, s * 0.26f)
@@ -427,8 +408,7 @@ private fun DrawScope.drawSortGlyph(sort: LibrarySort, color: Color) {
 }
 
 /**
- * Opens the search, leftmost of the what-am-I-looking-at pills. The glyph is the
- * field's magnifier: the button and what it opens are one control in two states.
+ * The glyph is the field's magnifier: button and field are one control in two states.
  * pourquoi : docs/decisions/bibliotheque.md § Search, and the cross that closes it
  */
 @Composable
@@ -444,10 +424,8 @@ fun SearchChip(
 }
 
 /**
- * The search itself, in the shelf the layout and sort pills live in. Touching the field
- * raises the keyboard; the cross stays the only control that ends the search. The
- * system keyboard writes here: the app's own keypad only avoided landscape's extract
- * mode.
+ * The cross is the only control that ends the search. The system keyboard writes here:
+ * the app's own keypad only avoided landscape's extract mode.
  * pourquoi : docs/decisions/bibliotheque.md § Search, and the cross that closes it
  */
 @Composable
@@ -461,8 +439,6 @@ fun SearchField(
     val dark = LocalEmufiiDarkTheme.current
     val field = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
-    // The field exists only during a search: it arrives, takes the cursor, the IME
-    // rises. Nothing to keep from one state to the next.
     LaunchedEffect(Unit) {
         runCatching { field.requestFocus() }
         keyboard?.show()
@@ -476,8 +452,6 @@ fun SearchField(
             .padding(horizontal = 12.dp)
     ) {
         val tint = MaterialTheme.colorScheme.onSurface
-        // The lens and the text share one tap target: anywhere on the field
-        // that is not the cross brings the keyboard back.
         val raise = Modifier.tap(
             interactionSource = remember { MutableInteractionSource() },
             indication = null,
@@ -493,8 +467,7 @@ fun SearchField(
             onValueChange = onValueChange,
             singleLine = true,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            // Search closes the keyboard without closing the search: the list is
-            // already filtered on every keystroke.
+            // Search closes the keyboard, not the search: the list filters on every keystroke.
             keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }),
             textStyle = MaterialTheme.typography.bodyMedium.copy(color = tint),
             cursorBrush = SolidColor(tint),
@@ -509,8 +482,7 @@ fun SearchField(
             }
             it()
         }
-        // The cross, drawn like the magnifier. The area grows, the glyph does not: 32
-        // dp is what a 36 dp bar allows, three times the surface it had.
+        // The area grows, the glyph does not: 32 dp is what a 36 dp bar allows.
         // pourquoi : docs/decisions/bibliotheque.md § Search, and the cross that closes it
         Box(
             modifier = Modifier

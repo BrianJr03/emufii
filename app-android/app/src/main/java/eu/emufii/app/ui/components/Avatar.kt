@@ -31,11 +31,8 @@ import eu.emufii.app.ui.theme.VioletDark
 import java.io.File
 
 /**
- * A player, as a circle.
- *
- * With a picture, it's the picture. Without, initials on a colour derived from
- * the name, stable, so someone keeps the same colour from one session to the
- * next and becomes recognisable without ever uploading anything.
+ * A player, as a circle. Without a picture, initials on a colour derived from the
+ * name: stable across sessions, so a player is recognisable without uploading anything.
  */
 @Composable
 fun Avatar(
@@ -61,9 +58,8 @@ fun Avatar(
     ) {
         if (imageFile != null) {
             AsyncImage(
-                // The file path never changes, so without a cache key tied to
-                // its mtime Coil would keep serving the previous picture after
-                // the user picks a new one.
+                // The file path never changes: without a cache key tied to its mtime,
+                // Coil keeps serving the previous picture after the user picks a new one.
                 model = ImageRequest.Builder(context)
                     .data(imageFile)
                     .memoryCacheKey("avatar-${imageFile.lastModified()}")
@@ -74,9 +70,8 @@ fun Avatar(
                 modifier = Modifier.fillMaxSize().clip(CircleShape)
             )
         } else {
-            // The bright cuts are light: white initials on them would vanish.
-            // The axis's own ink reads on its bright face, white on everything
-            // else.
+            // The bright cuts are light, so white initials vanish on them: each axis's own
+            // ink reads on its bright face, white on everything else.
             val onFace =
                 if (c1 == Coral.bright || c1 == Teal.bright) GlyphInk
                 else Color.White

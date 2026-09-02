@@ -4,11 +4,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
- * The first of the three locks: where the app agrees to download from.
- *
- * The rest, signature, version, system dialog, needs a real device and a real
- * APK. This one does not, and it is precisely the one that decides whether a
- * compromised `latest.json` can send the app to fetch a binary elsewhere.
+ * The first of three locks, and the only one testable without a device and a real APK:
+ * whether a compromised `latest.json` can send the app to fetch a binary elsewhere.
  */
 class UpdateInstallerTest {
 
@@ -29,9 +26,6 @@ class UpdateInstallerTest {
 
     @Test
     fun `a url from elsewhere is not followed`() {
-        // The case that matters: someone controls the published JSON but not the
-        // server. The app falls back on its own coordinator rather than going to
-        // fetch whatever it is being pointed at.
         assertEquals(
             "$base/download",
             UpdateInstaller.downloadUrl("https://ailleurs.example/emufii.apk", base)

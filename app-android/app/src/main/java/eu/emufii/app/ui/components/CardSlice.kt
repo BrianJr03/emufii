@@ -18,25 +18,17 @@ import eu.emufii.app.ui.theme.LocalEmufiiDarkTheme
 import eu.emufii.app.ui.theme.LocalEmufiiOledTheme
 import eu.emufii.app.ui.theme.plateColors
 
-/**
- * The cursor's opaque fill. Taken out of `screens/settings/SettingsPieces.kt`, where it
- * was `internal` to the settings package while the problem it solves is everywhere: a
- * glow is a shadow, and a shadow crosses anything that is not opaque.
- */
-
-/** Where a settings card sits and how tall it is, in window coordinates. */
 data class CardBounds(val top: Float, val height: Float)
 
 /**
- * The card the caller draws into. Root coordinates, not a parent's: what needs it is
- * not at the same depth.
+ * Root coordinates, not a parent's: what needs it is not at the same depth.
  * pourquoi : docs/decisions/reglages-ecran.md § The opaque fill exists for the cursor, not for the look
  */
 val LocalCardBounds = compositionLocalOf { CardBounds(0f, 0f) }
 
 /**
- * An opaque fill that is, to the pixel, what the card already painted here. It exists
- * for the cursor, not for the look.
+ * An opaque fill that is, to the pixel, what the card already painted here; a glow is a
+ * shadow, and a shadow crosses anything that is not opaque.
  * pourquoi : docs/decisions/reglages-ecran.md § The opaque fill exists for the cursor, not for the look
  */
 @Composable

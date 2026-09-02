@@ -10,21 +10,15 @@ import org.junit.Assert.fail
 import org.junit.Test
 
 /**
- * Card surgery, proven the way the console would read the result.
- *
- * Fixtures are built with the product code itself: [Ps2MemoryCard.generate]
- * for a fresh card, [Ps2CardPatch.addSave] for game saves standing next to the
- * network configuration, and every case ends by walking the patched card
- * with this file's own reader, which shares nothing with the writer beyond
- * the format: chains followed through the FAT, files read back through their
- * directory entries, ECC recomputed page by page.
+ * Fixtures are built with the product code itself ([Ps2MemoryCard.generate],
+ * [Ps2CardPatch.addSave]) and every case ends by walking the patched card with this file's
+ * own reader, which shares nothing with the writer beyond the format.
  */
 class Ps2CardPatchTest {
 
     private val epoch = 1755729273L
     private val benchId = hex("3027d42057 0694 80".replace(" ", ""))
 
-    // ---------------------------------------------------------- blank cards
 
     @Test
     fun `a blank card is formatted and carries the save`() {
@@ -67,7 +61,6 @@ class Ps2CardPatchTest {
         }
     }
 
-    // ------------------------------------------------------ saves survive it
 
     @Test
     fun `every save on a used card survives injection`() {
@@ -162,8 +155,8 @@ class Ps2CardPatchTest {
     @Test
     fun `fragmented free space is allocated around, not through`() {
         var card = Ps2MemoryCard.generate("Emufii", epochSecond = epoch)
-        // Remove the save by hand: the FAT entry and the root entry go, the
-        // clusters stay: the hole a delete leaves behind on a real card.
+        // The FAT entry and the root entry go, the clusters stay: the hole a delete leaves
+        // behind on a real card.
         var patched = Ps2CardPatch.inject(card, epochSecond = epoch)
         patched = Ps2CardPatch.addSave(
             patched, "BIG-SAVE",
@@ -177,7 +170,6 @@ class Ps2CardPatchTest {
         verifyStructure(patched)
     }
 
-    // ---------------------------------------------------- identity recovery
 
     @Test
     fun `the console a card was encrypted for is recovered from the card`() {
@@ -192,20 +184,15 @@ class Ps2CardPatchTest {
     }
 
     /**
-     * The regression that cost a player their PS2 games between two launches.
-     *
-     * Emufii used to hold on to the card's checksum and call the setup gone the
-     * moment it changed. A memory card changes constantly: that is what it is
-     * for. Here the card gains a save the size of a real one after preparation,
-     * exactly as an evening of play would leave it, and the profile must still
-     * be found, and still name the same console.
+     * Emufii used to hold on to the card's checksum and call the setup gone the moment it
+     * changed; a card changes on every save. It cost a player their PS2 games between two
+     * launches.
      */
     @Test
     fun `a game save added after preparation does not lose the profile`() {
         val prepared = Ps2MemoryCard.generate("Emufii", consoleId = benchId, epochSecond = epoch)
-        // Copied first: `addSave` writes into the array it is given, where
-        // `inject` hands back a clone. Comparing the two without this compares
-        // an array against itself and proves nothing.
+        // `addSave` writes into the array it is given, where `inject` hands back a clone:
+        // without the copy the comparison is an array against itself.
         val played = Ps2CardPatch.addSave(
             prepared.copyOf(),
             "BASLUS-21355MC3",
@@ -238,7 +225,6 @@ class Ps2CardPatchTest {
         )
     }
 
-    // -------------------------------------------------------- the test side
 
     private val PAGE_DATA = 512
 
@@ -314,9 +300,8 @@ class Ps2CardPatchTest {
     }
 
     private fun removeNetworkSave(card: ByteArray): ByteArray {
-        // A hand-rolled removal for fixture purposes: the root entry dropped,
-        // data pages erased with their spares, chains left dangling in the FAT,
-        // a card that looks deleted but was never reclaimed.
+        // A hand-rolled removal: root entry dropped, data pages erased with their spares,
+        // chains left dangling in the FAT, a card that looks deleted but was never reclaimed.
         val out = card.copyOf()
         val root = chainOf(card, 0)
         for (slot in 2 until root.size / PAGE_DATA) {

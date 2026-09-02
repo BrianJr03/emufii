@@ -4,17 +4,13 @@ import androidx.annotation.StringRes
 import eu.emufii.app.R
 
 /**
- * One line of the legend: a face button and what it does.
- *
- * The Thor is silk-printed the Nintendo way, so its buttons are swapped against
- * the keycodes: what we handle as `Key.ButtonA` (confirm) is the button marked
- * B, and `Key.ButtonB` (back) is the one marked A. The glyphs below are what is
- * written on the plastic.
+ * The Thor is silk-printed the Nintendo way, so its buttons are swapped against the
+ * keycodes: `Key.ButtonA` (confirm) is the button marked B, `Key.ButtonB` (back) the one
+ * marked A. The glyphs below are what is written on the plastic.
  */
 enum class PadHint(
     /**
-     * The letter on the plastic, or null when the cap is drawn instead. Keep to
-     * characters Rounded M+ carries: the d-pad used U+271B, which fell back to a
+     * Keep to characters Rounded M+ carries: the d-pad used U+271B, which fell back to a
      * system font and showed a different weight, size and metrics in a 26.dp cap.
      */
     val glyph: String?,
@@ -42,7 +38,6 @@ enum class PadHint(
     ;
 }
 
-/** Split by corner: left is where you leave from, right is where you act. */
 data class PadLegend(
     val left: List<PadHint> = emptyList(),
     val right: List<PadHint> = emptyList(),

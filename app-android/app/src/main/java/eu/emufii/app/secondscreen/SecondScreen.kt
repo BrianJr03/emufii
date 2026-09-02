@@ -11,19 +11,16 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * What the second screen is showing, and the one place that decides it. At
- * process scope, never inside the Compose tree: the panel exists for the moment
- * the emulator owns the front display, and a model held in a composition dies
- * with it.
+ * What the second screen is showing, at process scope: a model held in a
+ * composition dies with the composition.
  * pourquoi : docs/decisions/second-ecran.md § The panel's state lives process-wide, not in the composition
  */
 object SecondScreen {
     private val _base = MutableStateFlow<SecondScreenModel>(SecondScreenModel.Idle)
 
     /**
-     * The faces laid over the background, stacked so the layers need not know
-     * each other: each puts and removes its own, the last put is the one seen,
-     * and the one below comes back by itself.
+     * Stacked so the layers need not know each other: each puts and removes its
+     * own, and the one below comes back by itself.
      * pourquoi : docs/decisions/second-ecran.md § A stack rather than one more publication
      */
     private val asides = mutableListOf<Pair<Any, SecondScreenModel>>()
@@ -32,10 +29,7 @@ object SecondScreen {
 
     val aside: StateFlow<SecondScreenModel?> = _aside.asStateFlow()
 
-    /**
-     * The background, or what hides it. Recomputed on every write rather than
-     * derived with `combine`, which would want a scope on `Dispatchers.Main`.
-     */
+    /** Recomputed on every write: `combine` would want a scope on `Dispatchers.Main`. */
     private val _model = MutableStateFlow<SecondScreenModel>(SecondScreenModel.Idle)
     val model: StateFlow<SecondScreenModel> = _model.asStateFlow()
 
@@ -44,7 +38,6 @@ object SecondScreen {
         _model.value = _aside.value ?: _base.value
     }
 
-    /** The token removes only its own face. */
     @Synchronized
     fun putAside(model: SecondScreenModel): Any {
         val token = Any()
@@ -68,10 +61,7 @@ object SecondScreen {
         }
     }
 
-    /**
-     * Which page of the browsing face is showing. Held here because the button
-     * that turns it is on the front screen, and it resets on a new game.
-     */
+    /** Held here because the button that turns it is on the front screen. */
     private val _page = MutableStateFlow(0)
     val page: StateFlow<Int> = _page.asStateFlow()
 
@@ -86,33 +76,24 @@ object SecondScreen {
     }
 
     /**
-     * The session steps as the panel presses them. They travel already resolved:
-     * the panel's window has its own display context.
+     * They travel already resolved: the panel's window has its own display context.
      * pourquoi : docs/decisions/second-ecran.md § What travels to the panel travels already resolved
      */
     private val _steps = MutableStateFlow<List<PanelStep>>(emptyList())
     val steps: StateFlow<List<PanelStep>> = _steps.asStateFlow()
 
-    /**
-     * The lambdas belong to a composition, so the screen that publishes them must
-     * clear them on the way out or the panel keeps a dead session under the finger.
-     */
+    /** The publisher must clear these on the way out, or the panel keeps a dead session under the finger. */
     fun publishSteps(steps: List<PanelStep>) {
         _steps.value = steps
         _stepCursor.value = _stepCursor.value?.coerceIn(0, (steps.lastIndex).coerceAtLeast(0))
     }
 
-    /**
-     * Which step the pad points at, or null when the cursor is on the front
-     * screen. Focus does not cross windows, so this is a virtual cursor each
-     * screen reads for itself, like [flipPage].
-     */
+    /** Focus does not cross windows: a virtual cursor each screen reads for itself. */
     private val _stepCursor = MutableStateFlow<Int?>(null)
     val stepCursor: StateFlow<Int?> = _stepCursor.asStateFlow()
 
     /**
-     * The cursor only stops on a pressable step: a locked one stays displayed and
-     * stops being a stop.
+     * A locked step stays displayed and stops being a stop.
      * pourquoi : docs/decisions/second-ecran.md § The cursor only stops on a pressable step
      */
     fun selectStep(index: Int) {
@@ -124,8 +105,6 @@ object SecondScreen {
             _stepCursor.value = wanted
             return
         }
-        // Search in the direction of the movement asked for; on arrival, with no
-        // starting position, search forwards.
         val step = if (from != null && wanted < from) -1 else 1
         var i = wanted + step
         while (i in steps.indices) {
@@ -135,7 +114,6 @@ object SecondScreen {
             }
             i += step
         }
-        // Nothing open that way: stay put, unless nowhere, then take the first.
         if (from == null) {
             steps.indexOfFirst { it.enabled }.takeIf { it >= 0 }?.let { _stepCursor.value = it }
         }
@@ -151,8 +129,7 @@ object SecondScreen {
     }
 
     /**
-     * Back to the resting face, when the app leaves a session or stops. Does not
-     * empty the aside stack: the call comes from a background publisher going
+     * Does not empty the aside stack: the caller is a background publisher going
      * away, and the layers over it are not its to remove.
      * pourquoi : docs/decisions/second-ecran.md § A stack rather than one more publication
      */
@@ -165,17 +142,14 @@ object SecondScreen {
         _stepCursor.value = null
     }
 
-    /**
-     * Whether two models are about the same game, which is not the same as being
-     * equal: late facts must not snap an open second page shut.
-     */
+    /** Same game, not equal: late facts must not snap an open second page shut. */
     private fun sameGame(before: SecondScreenModel, after: SecondScreenModel): Boolean =
         before is SecondScreenModel.Browsing && after is SecondScreenModel.Browsing &&
             before.rom.uri == after.rom.uri
 }
 
 /**
- * A friend as the panel reports them, already resolved.
+ * Already resolved.
  * pourquoi : docs/decisions/second-ecran.md § What travels to the panel travels already resolved
  */
 data class PanelFriend(
@@ -188,21 +162,18 @@ data class PanelFriend(
 )
 
 /**
- * Which mark the panel draws for a settings entry: a name, not a composable,
- * which would retain the tree that created it.
+ * A name, not a composable, which would retain the tree that created it.
  * pourquoi : docs/decisions/second-ecran.md § What travels to the panel travels already resolved
  */
 enum class PanelMark {
     PROFILE, LIBRARY, CONSOLES, EMULATORS, APPEARANCE, GENERAL, ABOUT,
 
-    // The top bar's pills borrow the marks already drawn rather than adding more;
-    // the title and summary separate them, and on the panel both are large.
+    // The top bar's pills borrow marks already drawn rather than adding more.
     SEARCH, LAYOUT, SORT, SESSIONS, FRIENDS,
 }
 
 /**
- * A session step as the panel presses it. They go to the back because it is
- * touch, and the front screen keeps their height.
+ * They go to the back because it is touch, and the front screen keeps their height.
  * pourquoi : docs/decisions/second-ecran.md § The panel takes the steps, because it is touch
  */
 data class PanelStep(
@@ -214,8 +185,8 @@ data class PanelStep(
 )
 
 /**
- * The faces the panel can wear. Deliberately few: a second screen that tries to
- * be a second app is a second app to maintain.
+ * Deliberately few: a second screen that tries to be a second app is a second app
+ * to maintain.
  * pourquoi : docs/decisions/second-ecran.md § What travels to the panel
  */
 sealed interface SecondScreenModel {
@@ -234,8 +205,7 @@ sealed interface SecondScreenModel {
     data class ConsoleFolder(val console: Console) : SecondScreenModel
 
     /**
-     * The cursor is on a settings entry: the panel shows large what the tile says
-     * small, and delegates nothing.
+     * The panel shows large what the tile says small, and delegates nothing.
      * pourquoi : docs/decisions/reglages-ecran.md § The hub is a grid, and the panel shows the selected cell
      */
     data class SettingsEntry(
@@ -247,9 +217,8 @@ sealed interface SecondScreenModel {
     ) : SecondScreenModel
 
     /**
-     * The front screen is asking something. This face exists to stop showing
-     * something false, not to show something more, so it carries the question
-     * asked rather than a summary.
+     * Carries the question asked rather than a summary: this face exists to stop
+     * showing something false, not to show something more.
      * pourquoi : docs/decisions/second-ecran.md § A panel that asserts something false is a fault
      */
     data class Asking(
@@ -261,8 +230,7 @@ sealed interface SecondScreenModel {
     /** So the panel never claims a key that is inert. */
     val legend: PadLegend
         get() = when (this) {
-            // Nothing under the cursor, so nothing to open: the grid's legend used
-            // to offer Open and Game menu over an empty screen.
+            // Nothing under the cursor: the legend used to offer Open over an empty screen.
             is Idle -> PadLegend()
             is Browsing -> PadLegend.BROWSING
             is ConsoleFolder, is SettingsEntry, is Asking -> PadLegend.FOLDER
@@ -271,9 +239,8 @@ sealed interface SecondScreenModel {
         }
 
     /**
-     * The friends list while it is on screen. The panel carries all of it; the
-     * front screen keeps the two cards that ask for something, your code and the
-     * field to add someone.
+     * The panel carries the whole list; the front screen keeps the two cards that
+     * ask for something.
      * pourquoi : docs/decisions/second-ecran.md § The friends list goes to the back, both cards stay in front
      */
     data class Friends(
@@ -281,8 +248,7 @@ sealed interface SecondScreenModel {
     ) : SecondScreenModel
 
     /**
-     * A session is up, and the code is the payload. It stays up while they play,
-     * where the front screen is covered by the emulator.
+     * Stays up while they play, where the front screen is covered by the emulator.
      * pourquoi : docs/decisions/second-ecran.md § The session code carries no label
      */
     data class InSession(
@@ -290,10 +256,7 @@ sealed interface SecondScreenModel {
         val role: Session.Role,
         val console: Console?,
         val gameTitle: String?,
-        /**
-         * What the emulator's own dialog asks for. The clipboard carries one at a
-         * time and the dialog wants both. Null where neither is needed.
-         */
+        /** The clipboard carries one at a time and the emulator's dialog wants both. */
         val hostAddress: String? = null,
         val port: String? = null,
     ) : SecondScreenModel

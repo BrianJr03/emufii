@@ -10,8 +10,8 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 /**
- * The note cannot come from the app's resources, since it describes a version
- * the installed app knows nothing about; it travels in both languages instead.
+ * The note cannot come from the app's resources, describing a version the installed app
+ * knows nothing about; it travels in both languages instead.
  */
 data class LatestVersion(
     val versionCode: Int,
@@ -27,16 +27,13 @@ data class LatestVersion(
 }
 
 /**
- * Tells the player a version exists and where to get it; downloads and installs
- * nothing, since updating from a URL read off the network is a code execution
- * path. Silence is the default answer: unreachable server, missing file or
- * broken JSON all display nothing, because "we do not know" must never reach the
- * screen as "you are behind".
+ * Downloads and installs nothing: updating from a URL read off the network is a code
+ * execution path. Unreachable server, missing file or broken JSON all display nothing,
+ * "we do not know" never reaching the screen as "you are behind".
  * pourquoi : docs/SECURITY_REVIEW.md § S5
  */
 object UpdateCheck {
 
-    /** Null when the server announces none or does not answer; never throws. */
     suspend fun fetch(baseUrl: String = BuildConfig.COORDINATOR_BASE_URL): LatestVersion? =
         withContext(Dispatchers.IO) {
             runCatching {
@@ -46,8 +43,7 @@ object UpdateCheck {
                     readTimeout = 4000
                 }
                 try {
-                    // 204 = nothing published. Everything else outside 2xx is a
-                    // failure, and a failure is silence.
+                    // 204 = nothing published; anything else outside 200 is silence too.
                     if (conn.responseCode != 200) return@runCatching null
                     val json = JSONObject(conn.inputStream.bufferedReader().use { it.readText() })
                     LatestVersion(
@@ -67,11 +63,8 @@ object UpdateCheck {
 }
 
 /**
- * What the player has already dismissed.
- *
- * Remembered by version number and not by a boolean: dismissing the announcement
- * for 12 must say nothing about 13. A "seen it" flag would have silenced every
- * later version, which amounts to removing the feature at the first refusal.
+ * By version number and not by a boolean: a "seen it" flag would silence every later
+ * version, removing the feature at the first refusal.
  */
 class UpdateDismissals(context: Context) {
 

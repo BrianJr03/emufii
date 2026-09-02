@@ -18,7 +18,6 @@ object WgKeys {
     @Volatile
     private var cached: KeyPair? = null
 
-    /** The device's key pair, creating and storing one on first use. */
     fun keyPair(ctx: Context): KeyPair {
         cached?.let { return it }
         synchronized(this) {
@@ -26,9 +25,8 @@ object WgKeys {
             val prefs = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             val stored = prefs.getString(KEY_PRIVATE, null)
             val pair = stored?.let { existing ->
-                // A corrupt or truncated value must not brick the tunnel for good:
-                // fall through and mint a new identity. The cost is one new address
-                // from the coordinator, which is cheap and self-correcting.
+                // A corrupt value must not brick the tunnel: mint a new identity, at the
+                // cost of one new address from the coordinator.
                 runCatching { KeyPair(Key.fromBase64(existing)) }.getOrNull()
             } ?: KeyPair().also {
                 prefs.edit().putString(KEY_PRIVATE, it.privateKey.toBase64()).apply()
@@ -38,7 +36,6 @@ object WgKeys {
         }
     }
 
-    /** What the coordinator is asked to assign an address to. */
     fun publicKeyBase64(ctx: Context): String = keyPair(ctx).publicKey.toBase64()
 
     fun privateKeyBase64(ctx: Context): String = keyPair(ctx).privateKey.toBase64()

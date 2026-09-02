@@ -18,45 +18,26 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * Everything Emufii posts to the system shade.
+ * Two channels so a player can silence one without losing the other; Android tunes each
+ * from the system settings, so the app offers on and off and nothing finer.
  *
- * Two channels, because they interrupt for different reasons and a player must
- * be able to silence one without losing the other: a friend appearing is social
- * and frequent, a new version is rare and worth a sound. Android lets people
- * tune each channel from the system settings, and that is the right place for
- * it, so the app offers on and off and nothing finer.
- *
- * Everything here is best effort and silent about its failures. A notification
- * that cannot be posted, because the permission was refused or the channel was
- * muted, must never turn into an error the player has to deal with: they said
- * no, and the app has nothing to add.
+ * Posting is best effort: a refused permission or a muted channel must never surface as
+ * an error the player has to deal with.
  */
 object Notifications {
 
     const val CHANNEL_FRIENDS = "emufii_friends"
     const val CHANNEL_UPDATES = "emufii_updates"
 
-    /** Fixed, so a second alert about the same friend replaces the first. */
     private const val ID_UPDATE = 4001
     private const val ID_FRIEND_BASE = 5000
 
-    /**
-     * Tells [MainActivity] which screen to open when the player taps.
-     *
-     * Read once and cleared: a notification is a request to go somewhere now,
-     * not a preference that outlives the tap.
-     */
     const val EXTRA_OPEN = "eu.emufii.app.notify.OPEN"
     const val OPEN_FRIENDS = "friends"
 
     /**
-     * The screen a tapped notification asked for, waiting to be consumed.
-     *
-     * A holder and not a navigation argument: the activity is already running
-     * most of the time, so the request arrives through `onNewIntent` rather than
-     * through the composition, and the app reads it from wherever it is. Cleared
-     * on read, because a request to go somewhere is spent the moment it is
-     * honoured.
+     * A holder and not a navigation argument: the activity is usually already running, so
+     * the request arrives through `onNewIntent` rather than through the composition.
      */
     object PendingOpen {
         private val _target = MutableStateFlow<String?>(null)
@@ -64,9 +45,8 @@ object Notifications {
 
         fun offer(intent: Intent?) {
             intent?.getStringExtra(EXTRA_OPEN)?.let { _target.value = it }
-            // Cleared on the intent too: a resumed activity keeps the intent that
-            // started it, and without this the app would jump to the friends list
-            // on every later rotation.
+            // A resumed activity keeps the intent that started it: without this the app
+            // jumps to the friends list on every later rotation.
             intent?.removeExtra(EXTRA_OPEN)
         }
 
@@ -79,8 +59,7 @@ object Notifications {
             NotificationChannel(
                 CHANNEL_FRIENDS,
                 context.getString(R.string.notify_channel_friends),
-                // Default and not high: a friend coming online is worth a glance,
-                // not a banner over whatever the player is doing.
+                // Default and not high: no banner over whatever the player is doing.
                 NotificationManager.IMPORTANCE_DEFAULT
             ).apply { description = context.getString(R.string.notify_channel_friends_desc) }
         )
@@ -93,7 +72,6 @@ object Notifications {
         )
     }
 
-    /** Whether the system would actually show anything we post. */
     fun allowed(context: Context): Boolean {
         val granted = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
@@ -111,9 +89,8 @@ object Notifications {
         }
         post(
             context = context,
-            // One slot per friend, derived from their code: two alerts about the
-            // same person replace each other instead of stacking, and two
-            // different friends never collide.
+            // One slot per friend: two alerts about the same person replace each other
+            // instead of stacking, and two friends never collide.
             id = ID_FRIEND_BASE + (event.code.hashCode() and 0x3ff),
             channel = CHANNEL_FRIENDS,
             icon = R.drawable.ic_notify_friend,
@@ -153,8 +130,8 @@ object Notifications {
 
         val pending = PendingIntent.getActivity(
             context,
-            // Distinct per notification, or Android would hand the second one the
-            // first one's extras and every tap would land on the same screen.
+            // Distinct per notification, or Android hands the second one the first one's
+            // extras and every tap lands on the same screen.
             id,
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE

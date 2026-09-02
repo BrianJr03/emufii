@@ -12,9 +12,7 @@ import java.io.File
 import kotlin.math.abs
 
 /**
- * Who you are to the other players. [id] is a stable random identifier that
- * doubles as the friend code, and is therefore public by design, which is
- * what lets adding a friend need no server-side directory.
+ * [id] doubles as the friend code, so adding a friend needs no server-side directory.
  * pourquoi : docs/decisions/identite-et-dumps.md § The friend code is the identity, and it is public by design
  */
 data class Profile(
@@ -22,24 +20,21 @@ data class Profile(
     val name: String,
     val avatarFile: File? = null
 ) {
-    /** True once the user has actually chosen a name rather than kept the default. */
     val isNamed: Boolean get() = name.isNotBlank() && name != DEFAULT_NAME
 
-    /** The id as you'd show it to someone: `E7K2-9QM4-XR8T`. */
+    /** Shown as `E7K2-9QM4-XR8T`. */
     val friendCode: String get() = FriendCode.format(id)
 
     companion object {
         /**
-         * The pseudo of someone who never picked one: a fixed sentinel,
-         * never a resource, translated only at the point of display.
+         * A fixed sentinel, never a resource: translated at the point of display.
          * pourquoi : docs/decisions/identite-et-dumps.md § The nickname is constrained where it is entered
          */
         const val DEFAULT_NAME = "Joueur"
         const val MAX_NAME_LENGTH = 20
 
         /**
-         * Azahar's netplay form rejects a pseudo shorter than this. Enforced
-         * where the name is *entered*, and observed on the device: the
+         * Azahar's netplay form rejects a shorter pseudo; observed on the device, the
          * validator lives in Azahar's DEX and its message omits the number.
          * pourquoi : docs/decisions/identite-et-dumps.md § The nickname is constrained where it is entered
          */
@@ -48,8 +43,7 @@ data class Profile(
 }
 
 /**
- * Local store: no account, no server-side profile, and the picture never leaves
- * the device. Durable but device-bound: a reinstall is a new person.
+ * Device-bound: a reinstall is a new person, and the picture never leaves the device.
  * pourquoi : docs/decisions/identite-et-dumps.md § The friend code is the identity, and it is public by design
  */
 class ProfileStore(context: Context) {
@@ -62,9 +56,8 @@ class ProfileStore(context: Context) {
     val profile: StateFlow<Profile> = _profile.asStateFlow()
 
     private fun load(): Profile {
-        // Early builds stored a UUID here. It was never shown to anyone and
-        // nothing durable hangs off it, friends did not exist yet, so a
-        // profile carrying one is simply reissued a shareable code.
+        // Early builds stored a UUID here; nothing durable hangs off it, so such a
+        // profile is reissued a shareable code.
         val stored = prefs.getString(KEY_ID, null)
         val id = stored?.takeIf { FriendCode.isValid(it) }
             ?: FriendCode.generate().also { prefs.edit { putString(KEY_ID, it) } }
@@ -76,8 +69,7 @@ class ProfileStore(context: Context) {
     }
 
     /**
-     * The backstop for callers that do not go through a form: nothing
-     * downstream should wonder whether the stored pseudo is acceptable.
+     * The backstop for callers that do not go through a form.
      * pourquoi : docs/decisions/identite-et-dumps.md § The nickname is constrained where it is entered
      */
     fun setName(name: String) {
@@ -89,8 +81,8 @@ class ProfileStore(context: Context) {
     }
 
     /**
-     * Copies the picked image into our own storage, downscaled: the picker's
-     * SAF grant is not persisted, and a phone photo is 50 megapixels.
+     * Copied and downscaled: the picker's SAF grant is not persisted, and a phone
+     * photo is 50 megapixels.
      * pourquoi : docs/decisions/identite-et-dumps.md § The avatar is copied, never referenced
      */
     fun setAvatar(source: Uri): Result<Unit> = runCatching {
@@ -119,8 +111,8 @@ class ProfileStore(context: Context) {
         }
         decoded.recycle()
 
-        // New File instance so Compose sees a changed value even though the
-        // path is identical, otherwise the picture updates only on restart.
+        // New File instance so Compose sees a changed value at an identical path,
+        // otherwise the picture updates only on restart.
         _profile.value = _profile.value.copy(avatarFile = File(avatarTarget.path))
     }
 
@@ -130,8 +122,7 @@ class ProfileStore(context: Context) {
     }
 
     /**
-     * Erase this identity and start over. The new code is unrelated, which is
-     * the point, and it also cuts you off from your own friends list.
+     * The new code is unrelated, which also cuts you off from your own friends list.
      * pourquoi : docs/decisions/identite-et-dumps.md § The friend code is the identity, and it is public by design
      */
     fun reset() {
@@ -149,7 +140,6 @@ class ProfileStore(context: Context) {
     }
 }
 
-/** Up to two letters standing in for a player with no picture. */
 fun initialsFor(name: String): String {
     val words = name.trim().split(Regex("\\s+")).filter { it.isNotBlank() }
     return when {
@@ -159,9 +149,6 @@ fun initialsFor(name: String): String {
     }
 }
 
-/**
- * Index into a caller-supplied palette, stable for a given name so a player
- * keeps the same colour between sessions.
- */
+/** Stable for a given name, so a player keeps the same colour between sessions. */
 fun avatarPaletteFor(name: String, paletteSize: Int): Int =
     if (paletteSize <= 0) 0 else abs(name.hashCode()) % paletteSize

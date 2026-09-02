@@ -16,30 +16,17 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * Writes the tree the driver has just read into a file the player can send.
- *
- * It exists for a precise reason: the project's only test bench is the Thor, and
- * when the Dolphin automation fails for a remote player with no PC, their logcat
- * is out of reach. Two hypotheses have already been spent guessing on their
- * behalf, the build (wrong), then the node ceiling (wrong), and each cost a round
- * trip. A dump settles it in one send.
- *
- * The file goes into the public Downloads, not into the app's private storage:
- * the target is someone who has to find it in their file browser and drag it into
- * Discord. `getExternalFilesDir` has been invisible to them since Android 11.
- *
- * Off unless [BuildConfig.TREE_DUMP]: the dump names the games in the grid, which
- * has no business in a production build.
+ * The only test bench is the Thor, and a remote player with no PC has no logcat to
+ * send: two hypotheses were already spent guessing on their behalf, the build and the
+ * node ceiling, both wrong. The file goes into the public Downloads rather than the
+ * app's private storage, `getExternalFilesDir` having been invisible since Android 11.
+ * Off unless [BuildConfig.TREE_DUMP]: the dump names the games in the grid.
  */
 object DolphinTreeDump {
 
     /**
-     * One dump per plan.
-     *
-     * The driver passes over a stuck screen several times a second, that being
-     * the whole point of the spaced re-reads, and without this safeguard the
-     * failure we want to photograph would fill Downloads with copies of the same
-     * tree. Reset by [reset] when a new plan is armed.
+     * One dump per plan: the driver passes over a stuck screen several times a second,
+     * and would otherwise fill Downloads with copies of the same tree.
      */
     private var written = false
 
@@ -47,12 +34,7 @@ object DolphinTreeDump {
         written = false
     }
 
-    /**
-     * Photographs [nodes] and tells the player, once.
-     *
-     * [reason] says at which fork the driver gave up: it is the first thing to
-     * read in the file, before the nodes themselves.
-     */
+    /** [reason] says at which fork the driver gave up, and leads the file. */
     fun capture(context: Context, pkg: String, nodes: List<Node>, reason: String) {
         if (!BuildConfig.TREE_DUMP || written) return
         written = true
@@ -79,9 +61,8 @@ object DolphinTreeDump {
             false
         }
 
-        // The player does not read logs, that being this file's premise. If they
-        // are not told on screen they will never know they have something to
-        // send, and the dump will have been for nothing.
+        // The player does not read logs, that being this file's premise: unless told
+        // on screen they never know they have something to send.
         val message =
             if (ok) "Emufii: diagnostic written to Downloads/$name"
             else "Emufii: the diagnostic could not be written"
@@ -107,10 +88,9 @@ object DolphinTreeDump {
         appendLine("nodes        : ${nodes.size}")
         appendLine()
 
-        // The labels first: one unresolved label explains a silent driver all by
-        // itself, and that is half the cases. Zero translations for a name means
-        // the string does not exist in this Dolphin build; a full list means the
-        // word is known and it is the tree that does not contain it.
+        // One unresolved label explains a silent driver by itself, half the cases.
+        // Zero translations for a name means the string does not exist in this Dolphin
+        // build; a full list means the tree is what does not contain it.
         appendLine("--- labels resolved in the resources of $pkg ---")
         for (name in LABELS) {
             val values = NetplayLabels.of(context, pkg, name)
@@ -138,7 +118,6 @@ object DolphinTreeDump {
         "${info.versionName} (${info.longVersionCode})"
     }.getOrDefault("version inconnue")
 
-    /** Everything the driver tries to read, in the order it uses them. */
     private val LABELS = listOf(
         DolphinTarget.LABEL_MENU_NETPLAY,
         DolphinTarget.LABEL_NICKNAME,

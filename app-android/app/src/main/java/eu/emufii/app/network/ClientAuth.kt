@@ -13,35 +13,24 @@ import javax.crypto.spec.SecretKeySpec
  */
 object ClientAuth {
 
-    /** The header carrying the signature. */
     const val HEADER_AUTH = "X-Emufii-Auth"
 
-    /** The timestamp the signature was computed over, in seconds. */
+    /** In seconds. */
     const val HEADER_TIMESTAMP = "X-Emufii-Ts"
 
-    /** The calling version, so the server can see what is calling it. */
     const val HEADER_CLIENT = "X-Emufii-Client"
 
     /**
-     * Empty on a build that received no key, typically a dev build.
-     *
-     * Such a build sends no signature at all, and it is the local coordinator
-     * that decides to accept it: development must not depend on a production
-     * secret.
+     * Empty on a build that received no key: it signs nothing, and the local coordinator
+     * decides to accept it, so development never needs the production secret.
      */
     private val secret: String get() = BuildConfig.CLIENT_SECRET
 
     val isConfigured: Boolean get() = secret.isNotEmpty()
 
-    /** The app's version, as it announces itself to the coordinator. */
     val clientVersion: String get() = BuildConfig.VERSION_CODE.toString()
 
-    /**
-     * Signs a request, or returns null when this build has no key.
-     *
-     * [timestampSeconds] is a parameter so the test can freeze the clock; the app
-     * never passes it.
-     */
+    /** [timestampSeconds] is a parameter so the test can freeze the clock; the app never passes it. */
     fun sign(
         method: String,
         path: String,

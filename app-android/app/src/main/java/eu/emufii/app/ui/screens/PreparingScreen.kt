@@ -52,36 +52,21 @@ import eu.emufii.app.ui.theme.Teal
 @Composable
 fun PreparingScreen(
     label: String,
-    /**
-     * What Give up does. Null when the caller has no safe exit to offer, and nothing is
-     * then shown: a button that does not answer is worse than no button.
-     */
+    /** Null when the caller has no safe exit to offer; nothing is then shown. */
     onGiveUp: (() -> Unit)? = null
 ) {
-    // Sits on the same backdrop as everywhere else. On a plain surface this
-    // screen read as a different app for the ten seconds it's up.
+    // On a plain surface this screen read as a different app for the ten seconds it is up.
     TrayBackdrop(modifier = Modifier.fillMaxSize(), dark = LocalEmufiiDarkTheme.current)
 
-    // Faded in rather than snapped on.
-    //
-    // The launch card now carries the first leg of the flow with a spinner of
-    // its own, so this screen is only ever reached for the tunnel, and when the
-    // tunnel happens to be up already, it comes and goes in a few frames. Cut
-    // hard, that read as a glitch between the card and the session.
-    //
-    // An earlier attempt held the content back for 400 ms instead, which just
-    // traded a flashing spinner for a blank backdrop, worse, because a bare
-    // wallpaper says nothing at all. Fading from the first frame keeps the
-    // screen honest when the wait is real and makes it a soft pulse when it is
-    // not.
+    // On an already-up tunnel this screen comes and goes in a few frames: cut hard, that
+    // read as a glitch. Holding the content back for 400 ms instead only traded the
+    // flashing spinner for a blank backdrop.
     var shown by remember(label) { mutableStateOf(false) }
     LaunchedEffect(label) { shown = true }
 
     /**
-     * Past the threshold the wait stops being "the first time is slow" and becomes
-     * suspect. Twenty seconds, well beyond what a cold tunnel needs and well under the
-     * forty-five of the guard delay, so the player takes back control before the code
-     * gives up for them.
+     * Twenty seconds: beyond what a cold tunnel needs, under the forty-five of the guard
+     * delay, so the player takes back control before the code gives up for them.
      */
     var overdue by remember(label) { mutableStateOf(false) }
     LaunchedEffect(label) {
@@ -98,23 +83,14 @@ fun PreparingScreen(
         modifier = Modifier.fillMaxSize().padding(24.dp).alpha(appearance),
         contentAlignment = Alignment.Center
     ) {
-        // On a plate, not floating on the tray.
-        //
-        // The two lines and the spinner sat straight on the wallpaper, which
-        // made this the one screen in the app whose content was not an object:
-        // the engraving of the tray ran right behind the text, and the whole
-        // thing read as a system overlay rather than as a room of Emufii. A
-        // panel gives the wait somewhere to happen.
         SoftCard(modifier = Modifier.widthIn(max = 360.dp).waitTrim()) {
             Column(
                 modifier = Modifier.fillMaxWidth().padding(28.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(18.dp)
             ) {
-                // Larger and thicker, because it is stared at. Material's default is 40
-                // dp on a 4 dp stroke, sized for a spinner passing through a list
-                // corner for half a second. Here it is the only moving object on a
-                // screen watched for ten seconds.
+                // Material's default 40 dp on a 4 dp stroke is sized for a spinner passing
+                // through a list corner; here it is stared at for ten seconds.
                 CircularProgressIndicator(
                     color = MaterialTheme.colorScheme.primary,
                     strokeWidth = 5.dp,
@@ -125,10 +101,7 @@ fun PreparingScreen(
                     style = MaterialTheme.typography.titleMedium,
                     textAlign = TextAlign.Center
                 )
-                // The subtitle changes once the wait becomes abnormal. "It is a little
-                // slow the first time" is true at ten seconds and a lie at thirty: a
-                // player stuck behind a tunnel that will never come up was reading text
-                // assuring them all was well.
+                // "A little slow the first time" is true at ten seconds and a lie at thirty.
                 Text(
                     stringResource(
                         if (overdue) R.string.prep_taking_long else R.string.prep_first_time
@@ -137,9 +110,8 @@ fun PreparingScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
                 )
-                // The exit appears only with the doubt. Offered from the first second
-                // it would invite giving up on a perfectly normal wait; offered never,
-                // it leaves Home as the only way out, which is what happened.
+                // Offered from the first second it would invite giving up on a normal
+                // wait; offered never, Home is the only way out.
                 if (onGiveUp != null && overdue) {
                     Button(
                         onClick = sounded(onGiveUp),
@@ -156,5 +128,4 @@ fun PreparingScreen(
     }
 }
 
-/** Beyond this the screen stops reassuring and offers to give up. */
 private const val OVERDUE_MS = 20_000L

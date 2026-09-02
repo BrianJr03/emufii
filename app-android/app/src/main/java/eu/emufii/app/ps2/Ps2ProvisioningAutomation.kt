@@ -26,7 +26,6 @@ sealed class Ps2ProvisioningProgress {
     data class Failed(val reason: String) : Ps2ProvisioningProgress()
 }
 
-/** Process bridge between the Settings UI and the accessibility service. */
 object Ps2ProvisioningAutomation {
     private val _plan = MutableStateFlow<Ps2ProvisioningPlan?>(null)
     val plan: StateFlow<Ps2ProvisioningPlan?> = _plan.asStateFlow()
@@ -74,18 +73,11 @@ object Ps2ProvisioningAutomation {
     }
 
     /**
-     * Was ARMSX2 opened for provisioning and the driver never heard from?
-     *
-     * The mirror of `NetplayAutomation.neverStarted`, and it exists for the
-     * same measured reason: after an `install -r` the accessibility service
-     * stays listed and bound but stops receiving events, so the route opens
-     * ARMSX2 and nothing follows. Here that is worse than useless, because the
-     * section is left showing a busy state that can never end.
-     *
-     * The driver reports [Ps2ProvisioningProgress.OpeningMemoryCards] on its
-     * very first navigation action, about a second in, so still sitting on
-     * [Ps2ProvisioningProgress.OpeningArmsx2] well past that means no pass ever
-     * ran.
+     * After an `install -r` the accessibility service stays listed and bound but
+     * receives no events: ARMSX2 opens and nothing follows, leaving a busy state that
+     * never ends. The driver reports [Ps2ProvisioningProgress.OpeningMemoryCards] on
+     * its first navigation action, about a second in, so sitting well past that on
+     * [Ps2ProvisioningProgress.OpeningArmsx2] means no pass ever ran.
      */
     fun neverStarted(now: Long = System.currentTimeMillis()): Boolean {
         val current = _plan.value ?: return false

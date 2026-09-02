@@ -22,15 +22,14 @@ import eu.emufii.app.ui.theme.Teal
 fun Modifier.waitTrim(phase: Float = 0f): Modifier = drawWithContent {
     drawContent()
     val stroke = TRIM_STROKE.toPx()
-    // Inset by half a stroke: a contour straddles its path, and the outer half would
-    // fall off the plate.
+    // Inset by half a stroke: a contour straddles its path, and the outer half falls
+    // off the plate.
     inset(stroke / 2f) {
         val outline = Path().apply {
             addOutline(CardShape.createOutline(size, layoutDirection, this@drawWithContent))
         }
-        // The transition sweeps the diagonal rather than sitting in the middle: at
-        // phase 0 the contour is nearly all teal, at 1 nearly all coral, and in between
-        // it turns without either side changing role.
+        // Sweeps the diagonal rather than sitting in the middle: nearly all teal at
+        // phase 0, nearly all coral at 1.
         val travel = 2f * phase - 0.5f
         val start = Offset(size.width * travel, size.height * travel)
         drawPath(
@@ -45,8 +44,5 @@ fun Modifier.waitTrim(phase: Float = 0f): Modifier = drawWithContent {
     }
 }
 
-/**
- * Three, not six: laid on the edge it visually doubles the card's contour, where the
- * same weight across the face was a scar.
- */
+/** Three, not six: laid on the edge, the stroke visually doubles the card's contour. */
 private val TRIM_STROKE = 3.dp

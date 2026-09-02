@@ -2,22 +2,15 @@ package eu.emufii.app.compat
 
 import org.json.JSONObject
 
-/**
- * How well a game runs through Emufii. Four levels: a finer scale would demand a
- * judgement nobody can make consistently across seven consoles.
- */
+/** Four levels: a finer scale demands a judgement nobody makes consistently across seven consoles. */
 enum class CompatRating {
     PERFECT,
 
-    /** Runs, with something to know first: slowdowns, a mode that fails. */
     PARTIAL,
 
     BROKEN,
 
-    /**
-     * Has multiplayer Emufii could carry, untried. Distinct from being absent
-     * from the database, which says nothing at all.
-     */
+    /** Distinct from being absent from the database, which says nothing at all. */
     UNTESTED;
 
     companion object {
@@ -31,11 +24,7 @@ enum class CompatRating {
     }
 }
 
-/**
- * What is known about one game, in every region. [name] is for the tool and for
- * a human reading the file; matching is on [keys] alone (`compatKeys`), since a
- * title changes with the language.
- */
+/** [name] is for the tool and for a reader; matching is on [keys] alone, a title changing with the language. */
 data class CompatEntry(
     val name: String,
     val rating: CompatRating,
@@ -43,28 +32,21 @@ data class CompatEntry(
     val keys: List<String>
 )
 
-/**
- * A flat map from key to verdict, flattened on parse: the library draws hundreds
- * of tiles per scroll and each one asks this question.
- */
+/** Flattened on parse: the library draws hundreds of tiles per scroll, each asking this. */
 class CompatDb private constructor(
     private val byKey: Map<String, CompatEntry>
 ) {
     val size: Int get() = byKey.size
 
-    /**
-     * Null when nothing is known. Keys arrive most specific first and the first
-     * hit wins, so a region's rating beats its family's.
-     */
+    /** Keys arrive most specific first and the first hit wins: a region beats its family. */
     fun ratingFor(keys: List<String>): CompatEntry? = keys.firstNotNullOfOrNull { byKey[it] }
 
     companion object {
         val EMPTY = CompatDb(emptyMap())
 
         /**
-         * Entry by entry, never all-or-nothing: the file is hand-edited too, and
-         * one malformed line must cost one game. An unknown rating is skipped
-         * rather than defaulted; defaulting would invent a verdict.
+         * Entry by entry: the file is hand-edited, and one malformed line must cost one
+         * game. An unknown rating is skipped, not defaulted, defaulting inventing a verdict.
          */
         fun parse(json: String): CompatDb = runCatching {
             val games = JSONObject(json).optJSONArray("games") ?: return@runCatching EMPTY
@@ -82,8 +64,8 @@ class CompatDb private constructor(
                     note = obj.optString("note").takeIf { it.isNotBlank() && it != "null" },
                     keys = keys
                 )
-                // First writer wins, so a duplicated key is a no-op rather than a
-                // silent change of verdict depending on file order.
+                // First writer wins: a duplicated key is a no-op, not a verdict that
+                // depends on file order.
                 for (key in keys) map.putIfAbsent(key, entry)
             }
             CompatDb(map)
@@ -91,9 +73,5 @@ class CompatDb private constructor(
     }
 }
 
-/**
- * A `CompositionLocal` because the grid, the list and the carousel draw the same
- * tile at three different depths. Empty by default: no badge means nothing is
- * known, never that it works.
- */
+/** Empty by default: no badge means nothing is known, never that it works. */
 val LocalCompatDb = androidx.compose.runtime.staticCompositionLocalOf { CompatDb.EMPTY }

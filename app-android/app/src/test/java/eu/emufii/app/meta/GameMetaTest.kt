@@ -6,12 +6,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.Locale
 
-/**
- * The catalogue is editorial, served, and hand-edited: it will be malformed one
- * day. What is pinned here is that a bad entry costs one game and never the
- * page, and that a missing language falls back rather than showing an empty
- * panel.
- */
 class GameMetaTest {
 
     @Test fun `an entry is found by any of its keys`() {
@@ -22,8 +16,8 @@ class GameMetaTest {
               "summary_fr":"Des voitures.","summary_en":"Cars."}]}
             """
         )
-        // One entry, filed under each of its keys: the map is what gets read
-        // inside a cursor move, so it is flattened on parse.
+        // One entry, filed under each of its keys: the map is read inside a cursor
+        // move, so it is flattened on parse.
         assertEquals(2, db.size)
         assertEquals("Course", db.metaFor(listOf("ps2:SLUS-21355"))?.genreFr)
         assertEquals("Racing", db.metaFor(listOf("ps2:SLES-53717"))?.genreEn)
@@ -37,8 +31,6 @@ class GameMetaTest {
     }
 
     @Test fun `only the first genre is printed`() {
-        // Two genres and a region on one line, read at arm's length, is a line
-        // nobody reads. The second stays in the file for a screen with room.
         val meta = GameMeta(keys = listOf("k"), genreFr = "jeu d'action · jeu de tir")
         assertEquals("jeu d'action", meta.genreFor(Locale.FRENCH))
     }
@@ -47,7 +39,6 @@ class GameMetaTest {
         val meta = GameMeta(keys = listOf("k"), genreFr = "Course", genreEn = "Racing")
         assertEquals("Course", meta.genreFor(Locale.FRENCH))
         assertEquals("Racing", meta.genreFor(Locale.ENGLISH))
-        // And one language alone still answers both, rather than going blank.
         assertEquals("Racing", GameMeta(keys = listOf("k"), genreEn = "Racing").genreFor(Locale.FRENCH))
     }
 

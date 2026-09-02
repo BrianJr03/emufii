@@ -4,12 +4,9 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
- * What we send the catalogue to search for.
- *
- * A dump's name is not a game title: it drags its region and its revision along.
- * Searching for "Mario Kart 7 (USA) (Rev 1)" brings nothing back, and a game
- * that cannot be found is the cache's most expensive case, the one that produces
- * no image to remember.
+ * A dump's name is not a game title: it drags its region and revision along, and
+ * "Mario Kart 7 (USA) (Rev 1)" brings nothing back. A game that cannot be found is the
+ * cache's most expensive case, producing no image to remember.
  */
 class SearchTermTest {
 

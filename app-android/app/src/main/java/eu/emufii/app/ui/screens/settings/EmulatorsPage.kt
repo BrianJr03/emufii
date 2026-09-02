@@ -33,9 +33,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * What has to be prepared inside the emulators before playing. These three blocks lived
- * under Application, between the language and the theme, for want of anywhere else.
- * They have nothing to do with the app's look: they are rituals outside Emufii.
  * pourquoi : docs/decisions/onboarding.md § The emulator rituals are the settings blocks, not copies
  * pourquoi : docs/decisions/reglages-ecran.md § Emulators are not an application setting
  */
@@ -116,9 +113,6 @@ internal fun PpssppBlock(
             )
         )
     ) {
-        // The method shows only while it teaches something. Once the folder is chosen,
-        // what the player comes to check is the state, and three steps above it are in
-        // the way.
         // pourquoi : docs/decisions/reglages-ecran.md § On a page, the state comes before the explanation
         if (!ready) {
             SettingsSteps(
@@ -138,7 +132,6 @@ internal fun PpssppBlock(
         }
         error?.let { BlockCaveat(stringResource(it)) }
 
-        // The page's first control: the pad comes down to it from the header.
         DetailActions {
             if (ready) {
                 GhostButton(
@@ -245,8 +238,6 @@ internal fun Ps2Block(
             )
         )
     ) {
-        // The explanation is worth having only while it teaches. Once the card is
-        // prepared and assigned, what the player comes to check is the state.
         if (!ready) {
             SettingsSteps(
                 stringResource(R.string.settings_ps2_step1),
@@ -274,8 +265,6 @@ internal fun Ps2Block(
             )
         }
 
-        // A folder card is neither an error nor an override: it is the one thing the
-        // player has to know, being the reason none of their saves was cloned.
         val folderCardNote = current?.folderCardName?.let { name ->
             when {
                 current.savesLeftBehind > 0 -> stringResource(
@@ -292,8 +281,6 @@ internal fun Ps2Block(
                 else -> stringResource(R.string.settings_ps2_profile_folder_empty, name)
             }
         }
-        // Failure carries red; a folder card and per-game overrides are things to know
-        // while all is well, and take the warning hollow.
         // pourquoi : docs/decisions/reglages-ecran.md § A warning is not an error, and does not carry the red
         error?.let { BlockCaveat(it) }
         val notice = when {
@@ -309,8 +296,6 @@ internal fun Ps2Block(
         notice?.let { BlockNotice(it) }
 
         DetailActions {
-            // The only filled button: the one that does the work. Once done, the accent
-            // leaves rather than the label turning into a boast.
             // pourquoi : docs/decisions/reglages-ecran.md § A button is named for what it does
             if (ready) {
                 GhostButton(
@@ -344,9 +329,6 @@ internal fun Ps2Block(
 }
 
 /**
- * Automatic filling, and this block's only reason: Android can switch it off on its
- * own. The block shows the state either way, which makes it findable before something
- * goes wrong.
  * pourquoi : docs/decisions/reglages-ecran.md § Autofill has its own row because Android can switch it off
  */
 @Composable
@@ -366,8 +348,8 @@ internal fun AutofillBlock(enabled: Boolean, onOpen: () -> Unit) {
         if (!enabled) BlockNotice(stringResource(R.string.settings_autofill_off))
 
         DetailActions {
-            // Filled while it is off: an update can withdraw the permission, and this
-            // is then the only thing between the player and automatic setup.
+            // Filled while it is off: an update can withdraw the permission, leaving this
+            // the only way back to automatic setup.
             if (enabled) {
                 GhostButton(
                     label = stringResource(R.string.settings_autofill_open),

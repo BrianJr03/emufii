@@ -11,25 +11,18 @@ import java.net.URL
 import java.net.URLEncoder
 
 /**
- * The name of a game the file would not give up itself, for every console, in the app's
- * own language. Served and cached like `/compat` and `/meta`. The overlay only replaces
- * a name derived from the filename, never one read out of the file.
+ * Served and cached like `/compat` and `/meta`. The overlay replaces a name derived from
+ * the filename, never one read out of the file.
  * pourquoi : docs/decisions/scan-bibliotheque.md § A name the file does not give is asked of the index
  */
 object GameTitles {
 
-    /** One cache file per language: two languages of one game are two strings. */
     private fun fileFor(lang: String) = "game_titles-$lang.json"
 
-    /**
-     * Process-wide, like the scanned list: the cache belongs to the process,
-     * and both languages stay loaded because the app can be switched between
-     * them without one.
-     */
     @Volatile
     private var caches: Map<String, Map<String, String>> = emptyMap()
 
-    /** The cached copy for a language, or nothing. Never touches the network. */
+    /** Never touches the network. */
     fun cached(context: Context, lang: String = TitleLanguage.tag): Map<String, String> {
         caches[lang]?.let { return it }
         val read = runCatching {
@@ -40,7 +33,6 @@ object GameTitles {
         return read
     }
 
-    /** The overlay itself: only a filename-derived display name is replaced. */
     fun apply(titles: Map<String, String>, rom: Rom): Rom {
         if (titles.isEmpty()) return rom
         val name = resolve(titles, rom.displayName, rom.filename, rom.compatKeys())
@@ -48,11 +40,7 @@ object GameTitles {
         return rom.copy(displayName = name)
     }
 
-    /**
-     * The decision, split out from [Rom] for the same reason `compatKeys`
-     * is: pure string work, no Android in it, and no `Uri` dragged into a test
-     * of an overlay rule that has nothing to do with files.
-     */
+    /** Split out of [Rom] like `compatKeys`: pure string work, no `Uri` to drag into a test. */
     fun resolve(
         titles: Map<String, String>,
         displayName: String,
@@ -64,16 +52,8 @@ object GameTitles {
     }
 
     /**
-     * Asks the coordinator for the titles this library is missing, in the
-     * app's language, merges the answer into the cache, and returns whether
-     * any tile changes: the caller re-reads the (process-cached) list rather
-     * than us pushing state at it.
-     *
-     * A game the index does not know is asked for again next launch: the
-     * request is one GET of a handful of keys, and remembering the *absence*
-     * would mean a second cache that a newly published title must invalidate.
-     * Failure to reach the server keeps the cache untouched, like everywhere
-     * else.
+     * A title the index does not know is asked for again next launch: remembering the
+     * absence would mean a second cache to invalidate when a title is published.
      */
     suspend fun refresh(
         context: Context,
@@ -106,8 +86,6 @@ object GameTitles {
         val answer = runCatching { parse(fetched) }.getOrDefault(emptyMap())
         if (answer.isEmpty()) return@withContext false
 
-        // Written as one JSON object so the file is its own whole document,
-        // readable by nothing fancier than a JSONObject on the way back.
         val merged = known + answer
         runCatching {
             val out = JSONObject()

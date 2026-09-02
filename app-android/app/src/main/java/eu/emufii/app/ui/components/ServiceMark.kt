@@ -18,18 +18,12 @@ import androidx.compose.ui.unit.dp
 import eu.emufii.app.R
 
 /**
- * The mark of the service Emufii draws its game icons from.
+ * SteamGridDB's mark, shown at the two places that ask for its key: the onboarding step
+ * and the settings card.
  *
- * It appears at the only two places where anything is asked of SteamGridDB: the
- * onboarding step and the settings card. A screen that demands a key for a
- * third-party service without showing which one is asking for an act of faith;
- * the logo is what makes the request recognisable, and what lets someone find
- * the right site.
- *
- * Nominative use: the logo serves to name the service, it is neither modified
- * nor recoloured, and nothing here suggests SteamGridDB endorses or supports
- * Emufii. That is also why it keeps its original dark background inside its own
- * pill rather than being cut out to match the theme.
+ * Nominative use: the logo names the service, neither modified nor recoloured, and nothing
+ * here suggests SteamGridDB endorses Emufii. Hence the original dark background kept inside
+ * its own pill rather than being cut out to match the theme.
  */
 @Composable
 fun SteamGridDbMark(modifier: Modifier = Modifier) {
@@ -47,8 +41,6 @@ fun SteamGridDbMark(modifier: Modifier = Modifier) {
             Text(
                 stringResource(R.string.artwork_service_name),
                 style = MaterialTheme.typography.titleSmall,
-                // Muted, not full ink: the mark names a third-party service, it
-                // is not one of this app's own actions and takes neither axis.
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(

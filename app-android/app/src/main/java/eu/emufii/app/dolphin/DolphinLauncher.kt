@@ -17,27 +17,16 @@ import eu.emufii.app.library.EmulatorPick
  */
 class DolphinLauncher(private val context: Context) {
 
-    /**
-     * The installed Dolphin, if any.
-     *
-     * Nothing like Eden's matrix to arbitrate: release, beta and dev builds all
-     * share one package name and one signing key, so there is at most one to
-     * find, and the dev build simply updates the release in place.
-     */
-    // The GameCube carries the choice for both: Dolphin is one package playing two
-    // consoles, and two preferences for one binary would be two answers to a question
-    // that has one.
+    // Release, beta and dev builds share one package name and one signing key, so the
+    // GameCube preference carries the Wii too.
     fun installedPackage(): String? = EmulatorPick.packageFor(context, Console.GAMECUBE)
 
     fun isInstalled(): Boolean = installedPackage() != null
 
     /**
-     * Opens Dolphin on its Netplay Setup screen, with [plan] armed.
-     *
-     * Arming before the launch, not after: the driver walks from the game grid
-     * through the overflow menu, so it has to be ready before the first screen
-     * appears. When the automation is off the plan is cleared instead, a stale
-     * plan is what once made the service fight the player for a menu.
+     * Armed before the launch, not after: the driver walks from the game grid through the
+     * overflow menu, so it must be ready before the first screen. Automation off clears the
+     * plan instead; a stale plan once made the service fight the player for a menu.
      */
     fun openForNetplay(plan: NetplayPlan, automationOn: Boolean = true): LaunchResult {
         val pkg = installedPackage() ?: return LaunchResult.NotInstalled
@@ -52,7 +41,6 @@ class DolphinLauncher(private val context: Context) {
         }.getOrElse { LaunchResult.Error(it.message ?: "Unknown launch error") }
     }
 
-    /** Opens Dolphin with nothing armed, for a player who wants to drive it themselves. */
     fun launch(): LaunchResult {
         val pkg = installedPackage() ?: return LaunchResult.NotInstalled
         val intent = context.packageManager.getLaunchIntentForPackage(pkg)

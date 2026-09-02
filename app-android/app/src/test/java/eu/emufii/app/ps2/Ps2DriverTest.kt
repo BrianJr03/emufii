@@ -6,11 +6,9 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 /**
- * The room code, the PS2 driver's only rule that can be tested without a screen.
- *
- * The rest of the driver talks to `AccessibilityNodeInfo`, which a JVM test
- * cannot construct, which is why screen reading lives in [Ps2Screen], pinned
- * against real trees in `Ps2ScreenTest`.
+ * The rest of the driver talks to `AccessibilityNodeInfo`, which a JVM test cannot
+ * construct: screen reading lives in [Ps2Screen], pinned against real trees in
+ * `Ps2ScreenTest`.
  */
 class Ps2DriverTest {
 
@@ -30,7 +28,6 @@ class Ps2DriverTest {
 
     @Test
     fun `the session code doubles as the room code`() {
-        // Both players already know it: nothing extra to transmit.
         assertEquals("K7M2QP", codeOf("K7M2QP"))
     }
 
@@ -41,8 +38,8 @@ class Ps2DriverTest {
 
     @Test
     fun `a code that is too short is not invented`() {
-        // Better to leave ARMSX2's own than to set one the other player will not
-        // have: the emulator negotiates nothing.
+        // Better ARMSX2's own than one the other player will not have: the emulator
+        // negotiates nothing.
         assertNull(codeOf("AB"))
         assertNull(codeOf(null))
     }

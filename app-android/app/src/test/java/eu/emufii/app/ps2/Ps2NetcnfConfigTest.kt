@@ -7,15 +7,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * The YNCF cipher against the one card that is known to work.
- *
- * Every vector here is measured, not derived: on 2026-08-20 a PS2 formatted a
- * card through ARMSX2 and Midnight Club 3's network utility wrote its
- * configuration to it. The console that did the writing reported i.Link ID
- * `30 27 D4 20 57 06 94 80`, and under that ID the two encrypted files decode
- * to the text below and re-encode to the same bytes: the round trip is the
- * proof that the shift table, the word order, and the odd-byte tail are all
- * right, since a single wrong shift garbles its word visibly.
+ * Every vector is measured, not derived: on 2026-08-20 a PS2 formatted a card through
+ * ARMSX2 and Midnight Club 3's network utility wrote its configuration to it, under
+ * i.Link ID `30 27 D4 20 57 06 94 80`. The round trip proves the shift table, the word
+ * order and the odd-byte tail: one wrong shift garbles its word visibly.
  */
 class Ps2NetcnfConfigTest {
 
@@ -80,9 +75,8 @@ class Ps2NetcnfConfigTest {
 
     @Test
     fun `two files encrypted for one console share their prefix when their text does`() {
-        // The 38-byte header is common to both plaintexts, and the shift table
-        // repeats every 24 words (48 bytes), so the first 47 bytes of the two
-        // shipped files are identical: the fingerprint of the cipher's design.
+        // A 38-byte header common to both plaintexts, a shift table repeating every 24
+        // words (48 bytes): the first 47 bytes of the two shipped files match.
         val ifc = Ps2NetcnfConfig.ifcDat(benchId)
         val dev = Ps2NetcnfConfig.devDat(benchId)
         var shared = 0
@@ -99,7 +93,6 @@ class Ps2NetcnfConfigTest {
         var differing = 0
         for (i in a.indices) if (a[i] != b[i]) differing++
         assertTrue("changing one ID byte must change the stream, saw $differing", differing > 0)
-        // And the wrong console decodes something other than the plaintext.
         assertTrue(!Ps2NetcnfConfig.decode(a, other).contentEquals(plain))
     }
 

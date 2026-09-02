@@ -62,29 +62,20 @@ import eu.emufii.app.ui.theme.GoodLight
 import eu.emufii.app.ui.theme.LocalEmufiiDarkTheme
 import eu.emufii.app.ui.theme.Teal
 
-/** The good token, leaning teal. */
 @Composable
 private fun good() = if (LocalEmufiiDarkTheme.current) GoodDark else GoodLight
 
 
 /**
- * Playing a PSP game online, with strangers.
+ * A screen and not a card: the player goes off into PPSSPP, sets their network up, comes
+ * back, and the next button has to still be where they left it.
  *
- * A screen and not a card, for the same reason a session has one: there is a
- * sequence of steps to carry out in another program, you come back from it, and
- * you have to find your place again. A launch card disappears at the first
- * press; here the player goes off into PPSSPP, sets their network up, comes
- * back, and the next button is where they left it.
+ * Emufii creates no session and brings up no tunnel here; before opening PPSSPP it
+ * restores the four network values saved before private-session play, and the player
+ * chooses the third-party public server in PPSSPP's own interface.
  *
- * Emufii creates no session and brings up no tunnel, this mode does not go
- * through it. Before opening PPSSPP it restores the four network values saved
- * before private-session play; the player remains in charge of choosing the
- * third-party public server in PPSSPP's own interface.
- *
- * The two buttons are two moments, not two ways of doing the same thing:
- * PPSSPP's network settings cannot be reached from a running game, so opening
- * the emulator on its own has to come first, and launching the game has to stay
- * second. It is the pair that already exists for Azahar, on identical grounds.
+ * PPSSPP's network settings cannot be reached from a running game, so opening the
+ * emulator on its own comes first and launching the game stays second.
  */
 @Composable
 fun PspOnlineScreen(
@@ -96,8 +87,7 @@ fun PspOnlineScreen(
     val ppsspp = remember { PpssppLauncher(context) }
     var status by remember { mutableStateOf<String?>(null) }
 
-    // "The emulator has been opened", not "the public server is right": Emufii
-    // restores its own borrowed values but does not choose a third-party server.
+    // "The emulator has been opened", not "the public server is right".
     var opened by remember(rom.uri) { mutableStateOf(false) }
 
     fun report(result: LaunchResult, onSuccess: () -> Unit = {}) {
@@ -105,7 +95,7 @@ fun PspOnlineScreen(
             LaunchResult.Success -> { onSuccess(); null }
             LaunchResult.NotInstalled -> context.getString(R.string.err_not_installed, "PPSSPP")
             is LaunchResult.Error -> context.getString(R.string.err_generic, result.message)
-            // No netplay to drive in PPSSPP: this case does not exist here.
+            // No netplay to drive in PPSSPP: the case does not exist here.
             is LaunchResult.NoNetplayUi -> null
         }
     }
@@ -119,14 +109,12 @@ fun PspOnlineScreen(
         onBack = onBack,
         contentScrolls = false
     ) { topPadding ->
-        // Two panes, centred on the screen rather than under the header: a height
-        // ceiling was tried and clipped the content instead of compressing it.
+        // Centred on the screen, not under the header: a height ceiling clipped the
+        // content instead of compressing it.
         // pourquoi : docs/decisions/lancement-et-navigation.md § PSP online: two panes, and centred on the screen
         Box(
-            // A little more margin at the top than at the bottom: geometrically
-            // the card was centred to within 4 px, but the header carries weight
-            // in the upper corner and the eye read it as sitting high. Ten dp of
-            // difference put it where it is expected.
+            // Centred to within 4 px geometrically, but the header's weight in the upper
+            // corner made it read as high; ten dp of difference corrects that.
             modifier = Modifier
                 .fillMaxSize()
                 .padding(start = 20.dp, end = 20.dp, top = 32.dp, bottom = 12.dp),
@@ -178,11 +166,9 @@ fun PspOnlineScreen(
                         modifier = Modifier.weight(1f),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        // The steps give way first when room runs short; the
-                        // buttons never do. The same rule as everywhere else, and
-                        // on this screen it counts double: the second button is
-                        // greyed out until the first has been used, so hiding it
-                        // would make the screen incomprehensible.
+                        // The steps give way first when room runs short, never the buttons:
+                        // the second is greyed out until the first has been used, so hiding
+                        // it would make the screen incomprehensible.
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -216,11 +202,8 @@ fun PspOnlineScreen(
 
                         Button(
                             onClick = sounded { report(ppsspp.launchPublicGame(rom)) },
-                            // Greyed out until the emulator has been opened
-                            // once: launching the game first means arriving in an
-                            // ad hoc lobby still pointing at the previous game's
-                            // server, the exact mistake this pair exists to
-                            // prevent.
+                            // Launching the game first lands in an ad hoc lobby still
+                            // pointing at the previous game's server.
                             enabled = opened,
                             shape = ActionShape,
                             modifier = Modifier.fillMaxWidth().height(52.dp)
@@ -272,9 +255,8 @@ private fun NumberedStep(number: Int, text: String) {
         }
         Text(
             text,
-            // One notch below bodyMedium. Four two-line steps did not fit, and
-            // the fourth, the one telling you to come back here, fell off screen:
-            // the only one that cannot be guessed from inside PPSSPP.
+            // Four two-line steps did not fit at bodyMedium, and the fourth, the one
+            // telling you to come back here, fell off screen.
             style = MaterialTheme.typography.bodySmall,
             color = LocalContentColor.current.copy(alpha = 0.88f)
         )

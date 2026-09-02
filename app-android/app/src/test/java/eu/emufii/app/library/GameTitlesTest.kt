@@ -5,12 +5,9 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 /**
- * The index-title overlay, and the one rule it may never break: it replaces a
- * filename, never a title read out of the file or a name the player chose.
- *
- * Pure strings, for the same reason `CompatKeysTest` takes its inputs field by
- * field: the rule being pinned is overlay logic, and the readers have their own
- * tests.
+ * The index-title overlay, and the rule it may never break: it replaces a filename,
+ * never a title read out of the file or a name the player chose. Pure strings, the
+ * readers having their own tests.
  */
 class GameTitlesTest {
 

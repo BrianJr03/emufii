@@ -55,11 +55,9 @@ class Ps2MemoryCardProvisioningDriver(
             .firstNotNullOfOrNull { text(nodes, it) }
         val drawerManagerMarker = (setupAgainLabels + biosLocationLabels)
             .firstNotNullOfOrNull { text(nodes, it) }
-        // NavigationDrawer.kt puts one vertically-scrollable overlay over Home.
-        // "Memory Cards" is below the logo and four primary rows, so it is not
-        // necessarily exposed in the Thor's landscape viewport. Requiring that
-        // target to recognise the drawer made the still-exposed Home menu button
-        // win, which alternately opened and closed the top-left drawer forever.
+        // "Memory Cards" sits below the logo and four rows, off the Thor's landscape
+        // viewport: recognising the drawer by that target let the Home menu button win
+        // instead, opening and closing the top-left drawer forever.
         val hasDrawerMarker = drawerTopMarker != null || drawerManagerMarker != null
         if (hasDrawerMarker) drawerSeen = true
         val inDrawer = hasDrawerMarker || (drawerSeen && !onManager)
@@ -81,8 +79,7 @@ class Ps2MemoryCardProvisioningDriver(
                     ok.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SHOW_ON_SCREEN.id)
                     return ok.click()
                 }
-                // The overlay has gone. Only the active chip below can finish
-                // the flow; a successful click alone is never evidence.
+                // Only the active chip below finishes the flow: a click is not evidence.
                 awaitingConfirmation = false
             }
             val scrollable = nodes.firstOrNull { it.isScrollable }
@@ -130,9 +127,8 @@ class Ps2MemoryCardProvisioningDriver(
             return fail("Card $desiredName does not appear in ARMSX2.")
         }
 
-        // Never trust a Memory Cards screen that was already open: it may be a
-        // per-game manager. Back out exactly once, then wait for Home. Re-clicking
-        // Back while Compose animates was the top-left loop seen on the Thor.
+        // A Memory Cards screen already open may be a per-game manager: back out exactly
+        // once. Re-clicking Back while Compose animates was the Thor's top-left loop.
         if (navigation == Ps2ProvisioningRoute.Action.BACK_TO_HOME) {
             if (navClicks++ >= MAX_NAV_CLICKS) return fail("Could not get back to the global ARMSX2 manager.")
             val changed = goBack()
@@ -166,9 +162,8 @@ class Ps2MemoryCardProvisioningDriver(
                 return fail("The ARMSX2 menu shows Memory Cards, but refuses to open it.")
             }
 
-            // Column.verticalScroll() is the exact container used by ARMSX2's
-            // drawer. Walk from a drawer-only visible row to that ancestor so an
-            // unrelated Home grid underneath cannot receive the scroll.
+            // ARMSX2's drawer is a `Column.verticalScroll()`: walk up from a drawer-only
+            // row, or the Home grid underneath takes the scroll.
             val drawerScrollable = (drawerTopMarker ?: drawerManagerMarker)
                 ?.ancestorScrollable()
             if (drawerScrollable != null && drawerScrolls++ < MAX_DRAWER_SCROLLS &&

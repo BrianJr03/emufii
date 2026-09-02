@@ -1,26 +1,21 @@
 package eu.emufii.app.library
 
 /**
- * What a dump says about itself: which region it is. Nothing here calls
- * anything: a handheld in a train has to be able to answer.
- *
- * The serial first, then the filename tags. Null means unknown, and unknown is
- * printed as nothing at all.
+ * The region a dump claims: the serial first, then the filename tags. Nothing here
+ * calls the network, a handheld in a train has to answer. Null prints as nothing.
  * pourquoi : docs/decisions/identite-et-dumps.md § Nothing calls the network
  */
 data class RomTags(
-    /** `USA`, `Europe`, `Japan`… as it will be shown, already tidy. */
     val region: String? = null,
 ) {
     val isEmpty: Boolean get() = region == null
 
-    /** What the panel prints, or nothing at all. */
     fun line(): String? = region
 }
 
 /*
- * The revision was here and was taken out: a filename can only
- * yield facts about a pressing plant, never the version an update installs.
+ * The revision was taken out: a filename yields facts about a pressing plant, never
+ * the version an update installs.
  * pourquoi : docs/decisions/identite-et-dumps.md § The revision was removed, and why
  */
 
@@ -30,8 +25,8 @@ object RomTagReader {
         read(rom.console, rom.productCode, rom.titleIdHex, rom.filename)
 
     /**
-     * The same reading without a [Rom], so the rules can be pinned by a unit
-     * test: `android.net.Uri` is a stub on the desktop JVM.
+     * The same reading without a [Rom], so a unit test can pin the rules:
+     * `android.net.Uri` is a stub on the desktop JVM.
      * pourquoi : docs/decisions/identite-et-dumps.md § Region positions are repeated, not shared
      */
     fun read(
@@ -44,8 +39,8 @@ object RomTagReader {
     )
 
     /**
-     * The region letter, at the positions `compatKeys` also uses: repeated
-     * rather than shared, because that one strips what this one keeps.
+     * The region letter, at the positions `compatKeys` also uses: repeated rather than
+     * shared, because that one strips what this one keeps.
      * pourquoi : docs/decisions/identite-et-dumps.md § Region positions are repeated, not shared
      */
     private fun regionFromId(console: Console, productCode: String?, titleIdHex: String?): String? {
@@ -62,12 +57,10 @@ object RomTagReader {
             Console.GAMECUBE, Console.WII ->
                 code.takeIf { it.length == 6 }?.get(3)?.let(::nintendoRegion)
 
-            // A PSP or PS2 serial encodes the region in its prefix, not in a
-            // position: `SLUS` is American, `SLES` European, `SLPS` Japanese.
+            // A Sony serial encodes the region in its prefix, not at a fixed position.
             Console.PSP, Console.PS2 -> sonyRegion(code)
 
-            // One title id worldwide. There is nothing to read, and saying so is
-            // the correct answer rather than a gap.
+            // One title id worldwide: nothing to read.
             Console.SWITCH -> null
         }
     }
@@ -86,13 +79,12 @@ object RomTagReader {
         else -> null
     }
 
-    /** The 3DS uses the same letters, plus `A` for the region-free releases. */
     private fun threeDsRegion(letter: Char): String? =
         if (letter == 'A') "World" else nintendoRegion(letter)
 
     /**
-     * The four-letter Sony prefix, read letter by letter: medium, publisher,
-     * region. A list of whole prefixes missed every PSP game in the world.
+     * The four-letter Sony prefix read letter by letter: medium, publisher, region. A
+     * list of whole prefixes missed every PSP game in the world.
      * pourquoi : docs/decisions/identite-et-dumps.md § The Sony prefix is read letter by letter
      */
     private fun sonyRegion(code: String): String? {
@@ -102,8 +94,7 @@ object RomTagReader {
         return when (prefix[2]) {
             'U' -> "USA"
             'E' -> "Europe"
-            // `SLPS`, `SLPM`, `ULJM`, `ULJS`: Japan spells itself two ways
-            // depending on the medium, and both are the third letter.
+            // `SLPS`, `ULJM`: Japan spells itself two ways depending on the medium.
             'P', 'J' -> "Japan"
             'K' -> "Korea"
             'A' -> "Asia"
@@ -112,7 +103,7 @@ object RomTagReader {
     }
 
     /**
-     * The region as the dumper wrote it. Only the two conventions' actual
+     * The region as the dumper wrote it, matched only on the two conventions' actual
      * spellings: a looser match turns `(Disney's Aladdin)` into a region.
      * pourquoi : docs/decisions/identite-et-dumps.md § Nothing calls the network
      */
@@ -120,8 +111,7 @@ object RomTagReader {
         val tags = tagsIn(filename)
         for (tag in tags) {
             NAME_REGIONS[tag.uppercase()]?.let { return it }
-            // `(USA, Europe)` and `(Japan, Asia)` are common; the first named
-            // region is the one shown, and the rest would not fit on one line.
+            // `(USA, Europe)` is common: only the first fits on the one line shown.
             val first = tag.split(',').firstOrNull()?.trim()?.uppercase()
             first?.let { NAME_REGIONS[it]?.let { region -> return region } }
         }
@@ -129,13 +119,11 @@ object RomTagReader {
     }
 
 
-    /** Everything between round or square brackets, in order. */
     private fun tagsIn(filename: String): List<String> =
         TAG.findAll(filename.substringBeforeLast('.')).map { it.groupValues[1].ifEmpty { it.groupValues[2] } }.toList()
 
-    // Escaped completely, braces included: Android compiles its regexes with
-    // ICU, which is stricter than the JVM and throws on a brace the desktop
-    // tests happily accept. See CLAUDE.md.
+    // Escaped completely, braces included: Android compiles regexes with ICU, stricter
+    // than the JVM, which throws on a brace the desktop tests accept. See CLAUDE.md.
     private val TAG = Regex("""\(([^()]*)\)|\[([^\[\]]*)\]""")
 
     private val NAME_REGIONS = mapOf(

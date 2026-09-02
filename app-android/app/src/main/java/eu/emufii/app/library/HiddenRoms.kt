@@ -3,10 +3,7 @@ package eu.emufii.app.library
 import android.content.Context
 import androidx.core.content.edit
 
-/**
- * Nothing is deleted: the file stays with its saves, so another emulator that
- * knows it by path sees no change. Reversible from the settings.
- */
+/** Nothing is deleted: the file stays with its saves, so another emulator that knows it by path sees no change. */
 class HiddenRoms(context: Context) {
 
     private val prefs =

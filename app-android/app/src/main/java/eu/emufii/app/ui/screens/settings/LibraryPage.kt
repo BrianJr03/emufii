@@ -57,11 +57,7 @@ import eu.emufii.app.ui.components.SteamGridDbMark
 import eu.emufii.app.ui.components.padEntry
 import eu.emufii.app.ui.tap
 
-/**
- * Where the games come from, what illustrates them, what identifies them, and what was
- * hidden.
- * pourquoi : docs/decisions/reglages-ecran.md § On a page, the state comes before the explanation
- */
+/** pourquoi : docs/decisions/reglages-ecran.md § On a page, the state comes before the explanation */
 @Composable
 internal fun LibraryPage(
     folder: String?,
@@ -118,10 +114,8 @@ internal fun LibraryPage(
     }
 }
 
-// ----------------------------------------------------------------- folders
-
 /**
- * One or two slots and the rescan button. The slot is the button.
+ * The slot is the button.
  * pourquoi : CLAUDE.md § Working rules, the "HOME MENU" world
  */
 @Composable
@@ -169,8 +163,7 @@ private fun FoldersBlock(
                             fillWidth = true,
                             modifier = Modifier.weight(1f)
                         )
-                        // Removal cannot live inside the slot: two nested clickables
-                        // give two cursor stops.
+                        // Inside the slot, two nested clickables give two cursor stops.
                         // pourquoi : CLAUDE.md § Gamepad navigation
                         if (secondFolder != null) {
                             GhostButton(
@@ -193,8 +186,6 @@ private fun FoldersBlock(
             entry = true
         )
 
-        // Offering a second folder to someone with none names a place that does not
-        // exist.
         if (folder != null) {
             if (secondFolder != null) {
                 FolderSlot(
@@ -212,7 +203,6 @@ private fun FoldersBlock(
     }
 }
 
-/** Mark, name, what it does, and the chevron that says the whole row is the target. */
 @Composable
 private fun FolderSlot(
     name: String,
@@ -255,7 +245,6 @@ private fun FolderSlot(
     }
 }
 
-/** It does not fill itself, so it is drawn as a place rather than a thing. */
 @Composable
 private fun EmptyFolderSlot(label: String, onClick: () -> Unit) {
     val outline = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
@@ -307,12 +296,7 @@ private fun EmptyFolderSlot(label: String, onClick: () -> Unit) {
     }
 }
 
-// ------------------------------------------------------------------ images
-
-/**
- * From images already on the device. The block only speaks of Cocoon now.
- * pourquoi : docs/decisions/reglages-ecran.md § The pages' images come from the device, not from a stock library
- */
+/** pourquoi : docs/decisions/reglages-ecran.md § The pages' images come from the device, not from a stock library */
 @Composable
 private fun ArtworkBlock(
     modifier: Modifier = Modifier,
@@ -327,7 +311,7 @@ private fun ArtworkBlock(
         ActivityResultContracts.OpenDocumentTree()
     ) { uri ->
         if (uri != null) {
-            // Read only: asking for write would ask for what we do not need.
+            // Read only: we never write there.
             val granted = runCatching {
                 context.contentResolver.takePersistableUriPermission(
                     uri,
@@ -345,8 +329,7 @@ private fun ArtworkBlock(
 
     SettingsBlock(
         modifier = modifier,
-        // Two cards of one height whose buttons float at different levels read as
-        // misaligned.
+        // Equal heights: buttons floating at different levels read as misaligned.
         spread = true,
         title = stringResource(R.string.settings_row_artwork),
         state = BlockState(
@@ -361,8 +344,7 @@ private fun ArtworkBlock(
                 if (cocoon.isBlank()) {
                     PrimaryButton(
                         label = stringResource(R.string.settings_cocoon_choose),
-                        // Straight to Cocoon's folder rather than wherever the picker
-                        // was left.
+                        // Straight to Cocoon's folder, not wherever the picker was left.
                         onClick = { cocoonPicker.launch(COCOON_DEFAULT_FOLDER) },
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -378,8 +360,7 @@ private fun ArtworkBlock(
                             label = stringResource(R.string.settings_cocoon_forget),
                             onClick = {
                                 settingsStore.setCocoonFolder("")
-                                // `forget` clears only Cocoon's index: thumbnails
-                                // written during the scan stay on disk.
+                                // Clears the index only: the scan's thumbnails stay on disk.
                                 // pourquoi : docs/decisions/reglages-ecran.md § Giving up Cocoon needs a fresh walk
                                 CocoonMedia.forget()
                                 onSourceChanged()
@@ -392,13 +373,11 @@ private fun ArtworkBlock(
             }
         }
     ) {
-        // The block spoke of images without showing one.
         ArtworkStrip(sample)
         DetailNote(stringResource(R.string.settings_cocoon_body))
     }
 }
 
-/** The fallback service: what dresses games no image on the device covers. */
 @Composable
 private fun FallbackBlock(key: String, onKeyChange: (String) -> Unit) {
     var expanded by rememberSaveable { mutableStateOf(false) }
@@ -414,12 +393,11 @@ private fun FallbackBlock(key: String, onKeyChange: (String) -> Unit) {
         onToggleExpanded = { expanded = !expanded },
         expanded = expanded
     ) {
-        // The note stays visible folded: it is what says what the block is for.
+        // Outside the fold: it is what says what the block is for.
         DetailNote(stringResource(R.string.settings_artwork_body))
         if (expanded) {
             SteamGridDbMark()
-            // In the clear: this is not a password, and masking would hide only the
-            // typo.
+            // In the clear: not a password, and masking would hide only the typo.
             PadTextField(
                 value = key,
                 onValueChange = onKeyChange,
@@ -432,7 +410,7 @@ private fun FallbackBlock(key: String, onKeyChange: (String) -> Unit) {
 }
 
 /**
- * All or nothing by design: a per-game list could not be crossed with a stick.
+ * All or nothing: a per-game list could not be crossed with a stick.
  * pourquoi : docs/decisions/reglages-ecran.md § Restoring hidden games is all or nothing
  */
 @Composable

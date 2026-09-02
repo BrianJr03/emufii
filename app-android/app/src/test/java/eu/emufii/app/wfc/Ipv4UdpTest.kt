@@ -7,9 +7,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * The tunnel hands us raw packets and trusts whatever we write back, so these
- * tests are the only thing standing between a checksum slip and "DNS silently
- * doesn't work on device".
+ * The tunnel trusts whatever we write back: nothing else stands between a checksum slip
+ * and DNS silently not working on device.
  */
 class Ipv4UdpTest {
 
@@ -61,10 +60,8 @@ class Ipv4UdpTest {
         return (sum and 0xFFFF) == 0xFFFF
     }
 
-    // The three expected values below come from a separate implementation of the
-    // one's-complement sum written in Python against the same inputs, not from
-    // this code, a checksum that agrees with itself proves nothing. The first
-    // value I worked out by hand was wrong, which is the point of doing this.
+    // The three expected values come from a separate one's-complement sum written in
+    // Python against the same inputs: a checksum that agrees with itself proves nothing.
     @Test
     fun `header checksum matches an independently computed value`() {
         // 45 00 00 21 00 00 40 00 40 11 .. .. 0a 42 35 02 0a 42 35 35
@@ -82,9 +79,8 @@ class Ipv4UdpTest {
 
     @Test
     fun `udp checksum handles an odd-length payload`() {
-        // The odd trailing byte is padded for the sum but must not change the
-        // declared length, and the length is itself part of the sum, so the two
-        // packets must NOT come out with the same checksum.
+        // The odd trailing byte is padded for the sum but must not change the declared
+        // length, which is itself summed: the two packets must NOT match.
         val odd = Ipv4Udp.build(client, sentinel, 1234, 53, byteArrayOf(1, 2, 3))
         val even = Ipv4Udp.build(client, sentinel, 1234, 53, byteArrayOf(1, 2, 3, 0))
 
@@ -127,11 +123,9 @@ class Ipv4UdpTest {
         // Truncated below an IP header.
         assertNull(Ipv4Udp.parse(good, 12))
 
-        // Not IPv4.
         val v6 = good.copyOf().also { it[0] = 0x60 }
         assertNull(Ipv4Udp.parse(v6))
 
-        // TCP, not UDP.
         val tcp = good.copyOf().also { it[9] = 6 }
         assertNull(Ipv4Udp.parse(tcp))
 
@@ -146,7 +140,6 @@ class Ipv4UdpTest {
         val lying = good.copyOf().also { it[25] = (it[25] + 40).toByte() }
         assertNull(Ipv4Udp.parse(lying))
 
-        // Sanity: the untouched packet is still accepted.
         assertTrue(Ipv4Udp.parse(good) != null)
     }
 

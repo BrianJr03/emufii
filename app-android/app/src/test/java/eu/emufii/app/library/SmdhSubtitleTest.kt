@@ -4,21 +4,16 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
- * The title we display, built from an SMDH's two descriptions.
- *
- * The short description truncates: A Link Between Worlds is called "The Legend
- * of Zelda" there, so two Zeldas in the library carried the same name and the
- * icon search could only bring back whichever Zelda came first.
- *
- * Taking the long one systematically would be worse, it is sometimes cover-art
- * copy. Hence the rule tested here.
+ * The short SMDH description truncates: A Link Between Worlds is called "The Legend of
+ * Zelda" there, so two Zeldas carried the same name and the icon search brought back
+ * whichever came first. Taking the long one systematically is worse: it is sometimes
+ * cover-art copy.
  */
 class SmdhSubtitleTest {
 
     /**
-     * The real case, taken from the European dump: the separator is a line break,
-     * not punctuation. The rule's first version missed it because it normalised
-     * whitespace before looking for the separator.
+     * The European dump: the separator is a line break, not punctuation. The rule's first
+     * version normalised whitespace before looking for the separator, and missed it.
      */
     @Test
     fun `the SMDH's line break separates the title from its subtitle`() {
@@ -44,7 +39,6 @@ class SmdhSubtitleTest {
         )
     }
 
-    /** The case that forbids taking the long one systematically. */
     @Test
     fun `a tagline on the second line is set aside`() {
         assertEquals(

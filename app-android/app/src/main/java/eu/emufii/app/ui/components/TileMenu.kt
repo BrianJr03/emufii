@@ -56,11 +56,7 @@ import eu.emufii.app.ui.theme.LocalEmufiiDarkTheme
 import eu.emufii.app.ui.theme.PlateDark
 import eu.emufii.app.ui.theme.PlateLight
 
-/**
- * Opens beside the tile, at its height, unrolling from the edge facing it, with a
- * tail in the game's own glow colour. The side is chosen at runtime: a tile in
- * the right-hand half opens left, or its menu would fold against the border.
- */
+/** The side is chosen at runtime: a tile in the right-hand half opens left, or its menu folds against the border. */
 @Composable
 fun TileMenu(
     expanded: Boolean,
@@ -75,19 +71,16 @@ fun TileMenu(
     onDismiss: () -> Unit
 ) {
     val dark = LocalEmufiiDarkTheme.current
-    // The arrow is the only coloured part: enough to hook the card to its tile,
-    // too little to compete with the cover art.
     val tail = accent ?: MaterialTheme.colorScheme.primary
     val surface = if (dark) PlateDark else PlateLight
 
-    // Filled in at the first measure, before the card is visible: this is what
-    // decides the side, and therefore the animation's origin.
+    // Filled in at the first measure, before the card is visible: it decides the side, and
+    // therefore the animation's origin.
     val placement = remember { SidePlacement() }
 
-    // The window outlives the request to close, long enough for the unroll to
-    // reverse. That is the whole difficulty of an exit animation: if the parent
-    // removes the component the instant of the click, there is nothing left to
-    // animate, which is why the menu decides its own disappearance.
+    // The window outlives the request to close, long enough for the unroll to reverse: a
+    // parent removing the component on the click leaves nothing to animate, so the menu
+    // decides its own disappearance.
     var present by remember { mutableStateOf(false) }
     LaunchedEffect(expanded) { if (expanded) present = true }
     if (!present) return
@@ -97,58 +90,45 @@ fun TileMenu(
         onDismissRequest = onDismiss,
         properties = PopupProperties(focusable = true)
     ) {
-        // The first state is always "closed", even when the menu is born open:
-        // an animated value that starts at its target does not animate, and the
-        // card would appear all at once.
+        // Always "closed" first, even when the menu is born open: an animated value
+        // starting at its target does not animate, and the card appears all at once.
         var appeared by remember { mutableStateOf(false) }
         LaunchedEffect(Unit) { appeared = true }
         val opening = expanded && appeared
 
-        // An unroll, rather than a scale.
-        //
-        // The card used to open with a scaleIn: it grew *already whole* from
-        // 82 %, so it existed before it had arrived, hence the impression that it
-        // sprang out of nowhere. Here it is revealed by a band sweeping from the
-        // edge touching the tile: halfway through, only half of it exists, and
-        // the eye follows where it comes from.
+        // An unroll, not a scale: the former `scaleIn` grew the card already whole from
+        // 82 %, so it existed before it had arrived.
         val reveal by animateFloatAsState(
             targetValue = if (opening) 1f else 0f,
-            // The exit is not the entrance played backwards, and that is
-            // deliberate: opening presents something to read, hence a barely
-            // bouncy spring that takes its time; closing, the decision is already
-            // made and all that is left to do is free the screen, quickly and
-            // without bounce, otherwise you are waiting on your own menu.
+            // The exit is not the entrance reversed: opening presents something to read,
+            // closing only frees the screen, so it goes quickly and without bounce.
             animationSpec =
                 if (opening) spring(
                     dampingRatio = 0.85f,
                     stiffness = Spring.StiffnessMediumLow
                 )
                 else tween(130, easing = FastOutLinearInEasing),
-            // The window is only withdrawn once the unroll has closed back up.
+            // The window is withdrawn only once the unroll has closed back up.
             finishedListener = { if (!opening) present = false },
             label = "menu-reveal"
         )
 
-        // Re-read at every frame of the animation: the window is only measured
-        // after the first composition, so the side is not known until then.
+        // Re-read every frame: the window is measured only after the first composition,
+        // so the side is not known before then.
         val openLeft = placement.openLeft
 
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .graphicsLayer {
-                    // The opacity runs ahead of the sweep: without it, the first
-                    // pixel revealed arrives at full strength and snaps.
+                    // Opacity runs ahead of the sweep: without it the first pixel revealed
+                    // arrives at full strength and snaps.
                     alpha = (reveal * 1.8f).coerceAtMost(1f)
-                    // And the card travels the last few millimetres from the
-                    // tile, which finishes saying where it comes out of.
                     translationX =
                         (1f - reveal) * SLIDE.toPx() * (if (openLeft) 1f else -1f)
                 }
-                // The size does not move during the animation: the window is
-                // placed according to its size, so animating it would make it
-                // slide at every frame. It is the drawing that gets clipped, not
-                // the layout.
+                // The size must not move: the window is placed from its size, so animating
+                // it would slide the card every frame. The drawing is clipped, not the layout.
                 .drawWithContent {
                     val shown = size.width * reveal
                     val left = if (openLeft) size.width - shown else 0f
@@ -227,12 +207,8 @@ private fun Tail(color: Color, pointsLeft: Boolean) {
 }
 
 /**
- * Three glyphs drawn by hand.
- *
- * The project ships no icon library, and pulling one in for two symbols would
- * grow the package more than these twenty lines do. Drawing them also allows
- * their weight to be chosen so it answers Poppins', which an off-the-shelf set
- * never guarantees.
+ * The project ships no icon library, and pulling one in for two symbols would grow the
+ * package more than these twenty lines do; drawn by hand, their weight answers Poppins'.
  */
 private fun DrawScope.drawImageGlyph(color: Color) {
     val s = size.minDimension
@@ -245,7 +221,7 @@ private fun DrawScope.drawImageGlyph(color: Color) {
         style = stroke
     )
     drawCircle(color, radius = s * 0.075f, center = Offset(s * 0.33f, s * 0.36f))
-    // The ridge line: it is what makes this read as "picture" rather than "frame".
+    // The ridge line: what makes this read as "picture" rather than "frame".
     val ridge = Path().apply {
         moveTo(s * 0.14f, s * 0.76f)
         lineTo(s * 0.40f, s * 0.50f)
@@ -278,11 +254,8 @@ private fun DrawScope.drawPencilGlyph(color: Color) {
 }
 
 /**
- * Places the card against the tile's flank, on whichever side has the room.
- *
- * Remembers the chosen side so the animation starts from the right edge: a card
- * that opens to the left but grows from its own left looks like it is fleeing the
- * tile rather than coming out of it.
+ * Places the card on whichever flank has the room, and remembers the side so the animation
+ * starts from the right edge: growing from the wrong one reads as fleeing the tile.
  */
 private class SidePlacement : PopupPositionProvider {
     var openLeft: Boolean = false
@@ -302,8 +275,8 @@ private class SidePlacement : PopupPositionProvider {
             if (openLeft) anchorBounds.left - popupContentSize.width - gap
             else anchorBounds.right + gap
 
-        // Centred on the tile, then pulled back into the screen: on the bottom
-        // row a centred card would spill under the navigation bar.
+        // Centred on the tile, then pulled back into the screen: on the bottom row a
+        // centred card spills under the navigation bar.
         val y = anchorBounds.center.y - popupContentSize.height / 2
         return IntOffset(
             x.coerceIn(gap, (windowSize.width - popupContentSize.width - gap).coerceAtLeast(gap)),
@@ -313,12 +286,8 @@ private class SidePlacement : PopupPositionProvider {
 }
 
 /**
- * A crossed-out eye, and not a bin.
- *
- * The bin is the wrong promise: nothing here deletes a file, and a player who
- * reads "delete" on a menu that only hides is right to be angry when they go
- * looking for the ROM afterwards. An eye says what actually happens: the game
- * leaves the grid and stays on the card.
+ * An eye, not a bin: nothing here deletes a file. The game leaves the grid and stays on
+ * the card.
  */
 private fun DrawScope.drawHideGlyph(color: Color) {
     val s = size.minDimension
@@ -331,8 +300,6 @@ private fun DrawScope.drawHideGlyph(color: Color) {
     }
     drawPath(eye, color, style = stroke)
     drawCircle(color, radius = s * 0.11f, center = Offset(s * 0.50f, s * 0.50f))
-    // The bar crosses the whole glyph: half a stroke reads as a scratch on the
-    // screen rather than as a deliberate mark.
     drawLine(
         color,
         start = Offset(s * 0.16f, s * 0.84f),

@@ -11,9 +11,9 @@ import java.net.URL
 import eu.emufii.app.profile.Profile
 
 /**
- * debug  → host Mac loopback seen from an AVD (cleartext, allowed by
- *          network_security_config for that host only)
- * release → hosted coordinator over HTTPS; override at build time with
+ * debug  → host Mac loopback seen from an AVD, cleartext, allowed by
+ *          network_security_config for that host only
+ * release → hosted coordinator over HTTPS, overridden at build time with
  *          -Pemufii.coordinatorUrl=https://...
  */
 val COORDINATOR_BASE_URL: String = BuildConfig.COORDINATOR_BASE_URL
@@ -31,8 +31,8 @@ data class CreatedSession(
 )
 
 /**
- * The distinction is the player's, not the log's: a missing code is theirs to
- * fix, an unreachable server is ours.
+ * The distinction is the player's, not the log's: a missing code is theirs to fix, an
+ * unreachable server is ours.
  * pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § Telling "it does not exist" from "I could not ask"
  */
 sealed class CoordinatorError(message: String) : Exception(message) {
@@ -217,10 +217,7 @@ class CoordinatorClient(private val baseUrl: String = COORDINATOR_BASE_URL) {
             }
         }
 
-    /**
-     * The session heartbeat: the coordinator drops members that fall silent, so
-     * this repeats for as long as the session lasts. See [Heartbeat].
-     */
+    /** The coordinator drops members that fall silent: this repeats for the whole session. */
     suspend fun heartbeat(code: String, id: String, name: String): Result<Heartbeat> = request(
         path = "/sessions/$code/members",
         method = "POST",
@@ -246,8 +243,7 @@ class CoordinatorClient(private val baseUrl: String = COORDINATOR_BASE_URL) {
             .map { }
 
     /**
-     * Say we're here, so friends holding our code can see it. Only needed
-     * outside a session, where [heartbeat] already does it.
+     * Only needed outside a session: inside one, [heartbeat] already says we are here.
      * pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § Presence outside a session, and why it goes out inside one
      */
     suspend fun announcePresence(
@@ -265,8 +261,7 @@ class CoordinatorClient(private val baseUrl: String = COORDINATOR_BASE_URL) {
     ).map { }
 
     /**
-     * Ask which of these friends are online. Only the codes we send can come
-     * back: there is no listing route and no directory behind this.
+     * Only the codes we send can come back: no listing route, no directory behind this.
      * pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § The defaults for an absent field are chosen in a precise direction
      */
     suspend fun friendStatuses(codes: List<String>): Result<Map<String, FriendPresence>> {
@@ -291,8 +286,7 @@ class CoordinatorClient(private val baseUrl: String = COORDINATOR_BASE_URL) {
     }
 
     /**
-     * Claims this device's address, presenting the WireGuard public key.
-     * Idempotent on the key, so a retry lands on the same address.
+     * Idempotent on the WireGuard public key, so a retry lands on the same address.
      * pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § Claiming an address is idempotent on the key
      */
     suspend fun claimAddress(
@@ -315,8 +309,7 @@ class CoordinatorClient(private val baseUrl: String = COORDINATOR_BASE_URL) {
             ?: error("the coordinator has no relay configured")
         WgTunnelInfo(
             address = json.getString("ip"),
-            // `isNull`, never `optString`: the latter returns the string
-            // "null" on a JSON null.
+            // `isNull`, never `optString`: the latter returns "null" on a JSON null.
             // pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § Claiming an address is idempotent on the key
             hairpinAddress = if (json.isNull("hairpin_ip")) null
             else json.optString("hairpin_ip").takeIf { it.isNotBlank() },
@@ -326,8 +319,6 @@ class CoordinatorClient(private val baseUrl: String = COORDINATOR_BASE_URL) {
             relayAllowedIps = relay.getString("allowed_ips")
         )
     }
-
-    // -- plumbing --
 
     private suspend fun request(
         path: String,
@@ -347,9 +338,8 @@ class CoordinatorClient(private val baseUrl: String = COORDINATOR_BASE_URL) {
                     doOutput = true
                 }
                 if (bearer != null) setRequestProperty("Authorization", "Bearer $bearer")
-                // What tells Emufii apart from any other client. A build with no
-                // key sends nothing and talks to a dev coordinator, which demands
-                // nothing. See `ClientAuth`.
+                // A build with no key sends nothing and talks to a dev coordinator,
+                // which demands nothing.
                 ClientAuth.sign(method, path, payload)?.let { s ->
                     setRequestProperty(ClientAuth.HEADER_AUTH, s.value)
                     setRequestProperty(ClientAuth.HEADER_TIMESTAMP, s.timestamp)
@@ -357,9 +347,8 @@ class CoordinatorClient(private val baseUrl: String = COORDINATOR_BASE_URL) {
                 }
             }
             try {
-                // `payload` and not `body.toString()`: the signature covers
-                // those bytes, and two successive serialisations of the same
-                // JSONObject are under no obligation to match.
+                // `payload`, not `body.toString()`: the signature covers those bytes, and
+                // two serialisations of the same JSONObject need not match.
                 payload?.let { conn.outputStream.use { out -> out.write(it.toByteArray(Charsets.UTF_8)) } }
                 val status = conn.responseCode
                 when {
@@ -373,9 +362,9 @@ class CoordinatorClient(private val baseUrl: String = COORDINATOR_BASE_URL) {
                 conn.disconnect()
             }
         }.recoverCatching { err ->
-            // Everything that is not already a verdict on the answer is a
-            // failure to get one at all: `openConnection`, `responseCode` and
-            // the body read all surface as IOException when nothing answers.
+            // Anything that is not already a verdict on the answer is a failure to get
+            // one: `openConnection`, `responseCode` and the body read all surface as
+            // IOException when nothing answers.
             throw if (err is CoordinatorError) err else CoordinatorError.Unreachable(err)
         }
     }
@@ -384,8 +373,7 @@ class CoordinatorClient(private val baseUrl: String = COORDINATOR_BASE_URL) {
         if (has(key) && !isNull(key)) getString(key) else null
 
     /**
-     * The room, or null. An incomplete room counts as no room: all three
-     * fields are needed to dial.
+     * An incomplete room counts as no room: all three fields are needed to dial.
      * pourquoi : docs/decisions/coordinator-et-mise-a-jour.md § The Eden room on the VPS changes the shape of a Switch game
      */
     private fun JSONObject.roomOrNull(): RoomRef? {

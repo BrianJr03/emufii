@@ -25,22 +25,16 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /**
- * The DUOTONE SHELVES material. See [Direction]. A tile is four things in this
- * order: a shadow growing with logical elevation, a face, a 1 dp contour, and a
- * moulding, lit along the top inner edge and shaded along the bottom, from one
- * light source high and slightly left.
- *
- * Without the moulding it reads as one undifferentiated sheet: a white plate
- * sits four points of luminance above a cream shell, and neither a hairline at
- * 24 % nor an ambient shadow at 14 % says "this is on top of that". Volume lives
- * in the rim, never in a hard offset shadow or an engraved tray.
+ * The DUOTONE SHELVES material. A tile is drawn in this order: shadow, face, 1 dp
+ * contour, moulding, the last lit along the top inner edge from one light source high
+ * and slightly left. Without it a white plate sits four points of luminance above a
+ * cream shell and reads as one sheet; volume lives in the rim, never in a hard shadow.
  * pourquoi : docs/decisions/theme-duotone-shelves.md § MATERIAL (replaces Plastic.kt)
  */
 
-/** The shadow's ink: warm black on the warm neutrals, never blue-black. */
+/** Warm black on the warm neutrals, never blue-black. */
 private val ShadowInk = Color(0xFF241610)
 
-/** The gentlest vertical pair: a face lit from above is a hair brighter at the top. */
 @Composable
 fun plateBrush(dark: Boolean, oled: Boolean): Brush =
     Brush.verticalGradient(plateColors(dark, oled))
@@ -55,14 +49,13 @@ fun plateColors(dark: Boolean, oled: Boolean): List<Color> = when {
 fun edgeColor(dark: Boolean, oled: Boolean): Color =
     if (oled) EdgeOled else if (dark) EdgeDark else EdgeLight
 
-/** Top-lit then bottom-shaded, or the reverse for a recess: the same light on a hollow. */
+/** Reversed for a recess: the same light on a hollow. */
 private fun bevelStops(dark: Boolean, oled: Boolean, inverted: Boolean): Pair<Color, Color> {
     val lit = if (dark || oled) BevelDark else BevelLight
     val shade = if (dark || oled) BevelShadeDark else BevelShadeLight
     return if (inverted) shade to lit else lit to shade
 }
 
-/** One stroke around the shape, inset by half its width so it lands inside the tile. */
 private fun DrawScope.drawMoulding(
     shape: Shape,
     dark: Boolean,
@@ -72,8 +65,7 @@ private fun DrawScope.drawMoulding(
 ) {
     val (top, bottom) = bevelStops(dark, oled, inverted)
     val w = width.toPx()
-    // A plate smaller than its own lip is skipped: `inset` needs what is left after the
-    // trim.
+    // A plate smaller than its own lip is skipped: `inset` needs what the trim leaves.
     if (size.width <= w || size.height <= w) return
     // A stroke straddles its path, and the outer half would sit on the 1 dp contour.
     val brush = Brush.verticalGradient(
@@ -96,7 +88,7 @@ private fun DrawScope.drawMoulding(
 }
 
 /**
- * Shadow, face, contour, moulding. Both shadow and moulding grow with [lift].
+ * Both shadow and moulding grow with [lift].
  * pourquoi : docs/decisions/theme-duotone-shelves.md § MATERIAL (replaces Plastic.kt)
  */
 @Composable
@@ -151,7 +143,7 @@ fun Modifier.bevel(shape: Shape, dark: Boolean): Modifier {
     }
 }
 
-/** Kept for compatibility and empty: the tray's texture is the backdrop's shelves now. */
+/** Kept empty for compatibility: the tray's texture is the backdrop's shelves now. */
 fun DrawScope.engravedGrid(
     @Suppress("UNUSED_PARAMETER") step: Float,
     @Suppress("UNUSED_PARAMETER") line: Color,
@@ -178,7 +170,7 @@ fun Modifier.moldedRim(shape: Shape, dark: Boolean, oled: Boolean): Modifier {
     }
 }
 
-/** A dashed contour with nothing inside. Not [socket], which is a carved hollow. */
+/** Not [socket], which is a carved hollow. */
 fun Modifier.dashedSlot(shape: Shape, color: Color, corner: Dp = 20.dp): Modifier =
     this.drawBehind {
         val stroke = 1.5.dp.toPx()
@@ -200,8 +192,7 @@ fun Modifier.dashedSlot(shape: Shape, color: Color, corner: Dp = 20.dp): Modifie
  */
 @Composable
 fun Modifier.socket(shape: Shape, dark: Boolean): Modifier {
-    // OLED is read here rather than in the signature: the twenty callers already pass
-    // `dark`.
+    // Read here rather than in the signature: the twenty callers already pass `dark`.
     val oled = LocalEmufiiOledTheme.current && dark
     val fill = when {
         oled -> PlateOledLow

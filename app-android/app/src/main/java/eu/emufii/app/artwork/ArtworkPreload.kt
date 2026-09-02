@@ -27,7 +27,6 @@ object ArtworkPreload {
      */
     private const val DECODED_AHEAD = 24
 
-    /** The size, in pixels, a grid tile draws its cover art at. */
     private const val TILE_PX = 360
 
     suspend fun warm(context: Context, roms: List<Rom>) = withContext(Dispatchers.IO) {

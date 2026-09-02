@@ -17,7 +17,6 @@ fun List<Rom>.sortedFor(sort: LibrarySort): List<Rom> = when (sort) {
     LibrarySort.CONSOLE -> sortedBy { it.displayName.lowercase() }
 }
 
-/** A console with no game gets no folder. */
 fun List<Rom>.byConsole(): List<Pair<Console, List<Rom>>> =
     groupBy { it.console }
         .toList()

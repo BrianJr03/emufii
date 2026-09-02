@@ -27,8 +27,7 @@ class TunnelSlotTest {
 
     @Test
     fun `a session still starting already holds the slot`() {
-        // establish() may have happened; this is the window where two tunnels
-        // would otherwise collide.
+        // establish() may have happened: this is the window where two tunnels collide.
         assertEquals(TunnelHolder.SESSION, tunnelHolder(WgState.Starting("UUF-758"), noWfc))
     }
 
@@ -60,8 +59,7 @@ class TunnelSlotTest {
 
     @Test
     fun `the session wins when both look up`() {
-        // Should not happen, but if it does one of them is a leftover, and the
-        // session is the one whose loss costs the player a game in progress.
+        // One of them is a leftover; the session is the one whose loss costs a game in progress.
         assertEquals(
             TunnelHolder.SESSION,
             tunnelHolder(WgState.Online("UUF-758", "10.67.1.2"), WfcState.Active("me.magnum.melonds"))
@@ -76,8 +74,7 @@ class TunnelSlotTest {
 
     @Test
     fun `taking the slot you already hold is not a conflict`() {
-        // Pointing the tunnel at another session is an in-service rebuild, not
-        // a second VpnService.
+        // Pointing the tunnel at another session is a rebuild, not a second VpnService.
         assertTrue(slotIsFree(WgState.Online("UUF-758", "10.67.1.2"), noWfc, TunnelHolder.SESSION))
         assertTrue(slotIsFree(noSession, WfcState.Active("me.magnum.melonds"), TunnelHolder.WFC))
     }

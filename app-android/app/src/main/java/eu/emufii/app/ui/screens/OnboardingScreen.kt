@@ -91,9 +91,8 @@ import eu.emufii.app.ui.wallpaper.TrayBackdrop
 import kotlinx.coroutines.delay
 
 /**
- * First launch: what to know, then what to do. The run has no fixed length, the
- * emulator pages being drawn from what the player answers on the consoles page, and
- * each page has two columns, the why on the left and the what-to-do on the right.
+ * The run has no fixed length: the emulator pages are drawn from what the player
+ * answers on the consoles page.
  * pourquoi : docs/decisions/onboarding.md § The walkthrough has no fixed length
  */
 @Composable
@@ -154,9 +153,8 @@ fun OnboardingScreen(
     val notificationPermission = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
-        // A refusal showed the same tick as a grant, which was a lie, and it counts:
-        // after two refusals Android stops showing the prompt and the button never does
-        // anything again.
+        // A refusal showed the same tick as a grant: after two refusals Android stops
+        // showing the prompt and the button never does anything again.
         notificationsGranted = granted
         notificationsRefused = !granted
     }
@@ -197,8 +195,7 @@ fun OnboardingScreen(
         if (index > 0) current = steps[index - 1]
     }
 
-    // Back is the system button and B: a third control would be three things to read
-    // for one decision.
+    // Back is the system button and B; a third control would be one more to read.
     BackHandler(enabled = index > 0) { goBack() }
 
     // The fixed elements tighten too: at 468 dp tall their margins alone overflowed the
@@ -278,8 +275,7 @@ fun OnboardingScreen(
                 }
             }
 
-            // Both exits on one line: stacked, they cost one more row to a page that
-            // has none to spare.
+            // Both exits on one line: stacked, they cost a row the page has not got.
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -301,9 +297,8 @@ fun OnboardingScreen(
                     modifier = Modifier.weight(1f).height(actionHeight)
                 )
 
-                // Offered only where something is asked: the welcome page does not
-                // invite skipping a page that asks nothing, and the final summary has
-                // nothing to skip.
+                // Offered only where something is asked: the welcome page and the
+                // summary have nothing to skip.
                 if (current.skippable) {
                     GhostButton(
                         label = stringResource(R.string.onb_skip),
@@ -319,7 +314,7 @@ fun OnboardingScreen(
 /** Where Cocoon keeps its images, so the picker opens in the right place. */
 private val COCOON_DEFAULT_FOLDER: Uri? = null
 
-/** One page of the run. The enum's order is the run's order. */
+/** The enum's order is the run's order. */
 private enum class OnbStep(val railLabel: Int, val skippable: Boolean = true) {
     WELCOME(R.string.onb_rail_welcome, skippable = false),
     NAME(R.string.onb_rail_name, skippable = false),
@@ -347,7 +342,6 @@ private val AUTOMATED = setOf(
     Console.PS2,
 )
 
-/** The run, cut to the consoles the player keeps. */
 private fun onboardingSteps(hidden: Set<Console>): List<OnbStep> = buildList {
     add(OnbStep.WELCOME)
     add(OnbStep.NAME)
@@ -363,8 +357,7 @@ private fun onboardingSteps(hidden: Set<Console>): List<OnbStep> = buildList {
 }
 
 /**
- * The why on the left, the what-to-do on the right; stacked when narrow. A page with no
- * work centres its column.
+ * The why on the left, the what-to-do on the right; stacked when narrow.
  * pourquoi : docs/decisions/onboarding.md § Two columns, and they do not say the same thing
  */
 @Composable
@@ -373,11 +366,9 @@ private fun StepLayout(
     mark: @Composable () -> Unit,
     title: String,
     body: String,
-    /** The state of what the page asks for, when there is one to show. */
     state: (@Composable () -> Unit)? = null,
     /**
-     * True when the work needs the full width, the why becoming a banner. One page asks
-     * for it, the consoles page.
+     * The why becomes a banner. One page asks for it, the consoles page.
      * pourquoi : docs/decisions/onboarding.md § The consoles page takes the full width
      */
     fullWidthWork: Boolean = false,
@@ -445,8 +436,7 @@ private fun StepLayout(
             horizontalArrangement = Arrangement.spacedBy(26.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // No plate: it speaks over the tray like a screen title, leaving the only
-            // plate to what is done.
+            // No plate: it speaks over the tray like a screen title.
             why(Modifier.weight(0.42f))
             Box(Modifier.weight(0.58f)) { work() }
         }
@@ -474,7 +464,6 @@ private fun StepMark(size: Dp = 64.dp, glyph: @Composable (Color) -> Unit) {
     }
 }
 
-/** The app's own mark, for the welcome and the farewell. */
 @Composable
 private fun LogoMark(size: Dp = 96.dp) {
     Image(
@@ -484,7 +473,7 @@ private fun LogoMark(size: Dp = 96.dp) {
     )
 }
 
-/** The work card. Emulator pages lay the settings block there instead. */
+/** Emulator pages lay the settings block here instead. */
 @Composable
 private fun WorkCard(content: @Composable () -> Unit) {
     SoftCard(modifier = Modifier.waitTrim()) {
@@ -495,7 +484,6 @@ private fun WorkCard(content: @Composable () -> Unit) {
     }
 }
 
-/** A page's content, dispatched by [OnbStep]. */
 @Composable
 private fun StepBody(
     step: OnbStep,
@@ -706,7 +694,6 @@ private fun StepBody(
         }
     )
 
-    // The three emulator rituals: the settings block, laid as it is.
     OnbStep.PPSSPP -> StepLayout(
         wide = wide,
         mark = { StepMark { ChipMark(size = 34.dp, color = it) } },
@@ -807,7 +794,7 @@ private fun StepBody(
 }
 
 /**
- * The final summary. Rows that do not concern this player do not appear.
+ * Rows that do not concern this player do not appear.
  * pourquoi : docs/decisions/onboarding.md § The summary names what was skipped
  */
 @Composable
@@ -851,8 +838,7 @@ private fun folderLabel(uri: Uri): String {
 }
 
 /**
- * Where you are and what it is about: dots alone announced a length that changed under
- * the player's eyes.
+ * Dots alone announced a length that changed under the player's eyes.
  * pourquoi : docs/decisions/onboarding.md § Where you are, and what it is about
  */
 @Composable
@@ -871,8 +857,7 @@ private fun StepRail(current: Int, total: Int, label: String) {
                         .width(if (active) 20.dp else 7.dp)
                         .clip(if (active) PillShape else CircleShape)
                         .background(
-                            // The onboarding speaks play and system: the dots carry the
-                            // teal axis, deep to hold on the cream.
+                            // The teal axis, deep enough to hold on the cream.
                             if (active) (if (dark) Teal.darkBright else Teal.deep)
                             else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.22f)
                         )

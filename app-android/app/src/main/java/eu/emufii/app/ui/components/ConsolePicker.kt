@@ -51,9 +51,8 @@ import eu.emufii.app.ui.theme.socket
 import eu.emufii.app.ui.theme.TileShape
 
 /**
- * The consoles and the emulators that play them, as tiles. The tile carries the icon
- * and the version and is the control: who plays this, and do I want it, in one glance
- * and one press.
+ * The consoles and the emulators that play them, as tiles; the tile carries the icon and
+ * the version and is the control.
  * pourquoi : docs/decisions/reglages-ecran.md § A console carries a row, not a tile
  */
 @Composable
@@ -62,23 +61,20 @@ fun ConsoleGrid(
     onSetVisible: (Console, Boolean) -> Unit,
     modifier: Modifier = Modifier,
     /**
-     * True when this grid is its page's first control, the first tile becoming the
-     * pad's named destination. The naming must land on a really focusable control,
-     * never on a container.
+     * The first tile becomes the pad's named destination; the naming must land on a
+     * really focusable control, never on a container.
      * pourquoi : docs/decisions/coquille-ecrans.md § The header is declared before the content, and drawn over it
      */
     firstTileIsEntry: Boolean = false,
     /**
-     * True for the short form: no version number, a smaller icon, a shorter tile,
-     * enough to hold seven consoles on one line.
+     * The short form: no version number, a smaller icon, seven consoles on one line.
      * pourquoi : docs/decisions/reglages-ecran.md § The console tile has a short version
      */
     compact: Boolean = false
 ) {
     val context = LocalContext.current
-    // Read once: a row costs a package query and an icon rasterisation, and the
-    // answer cannot change without the player leaving to install something,
-    // which recreates this anyway.
+    // Read once: a row costs a package query and an icon rasterisation, and the answer
+    // cannot change without the player leaving to install something, which recreates this.
     val emulators = remember { allEmulators(context) }
 
     // Counted on the width actually given to the grid, never the screen's: the settings
@@ -91,8 +87,7 @@ fun ConsoleGrid(
             .coerceIn(3, emulators.size)
         val columns = balancedColumns(emulators.size, fits)
 
-        // The row holding the cursor passes in front: `controlRing`'s `zIndex` only
-        // orders siblings, so not rows.
+        // `controlRing`'s `zIndex` only orders siblings, so not rows.
         // pourquoi : docs/decisions/navigation-manette.md § The selected control draws in front of its neighbours
                 var focusedRow by remember { mutableStateOf(-1) }
 
@@ -116,8 +111,8 @@ fun ConsoleGrid(
                             modifier = Modifier.weight(1f)
                         )
                     }
-                    // The last row is not filled: a tile drawn at the end of a console
-                    // grid reads as a console. The place is held, not painted.
+                    // A tile drawn at the end of a console grid reads as a console: the
+                    // place is held, not painted.
                     // pourquoi : docs/decisions/reglages-ecran.md § The console grid is not allowed an orphan
                     repeat(columns - row.size) {
                         Spacer(Modifier.weight(1f))
@@ -129,8 +124,7 @@ fun ConsoleGrid(
 }
 
 /**
- * How many columns, once we know how many fit: the count that best fills the last row,
- * never the maximum, which leaves an orphan.
+ * The count that best fills the last row, never the maximum, which leaves an orphan.
  * pourquoi : docs/decisions/reglages-ecran.md § The console grid is not allowed an orphan
  * pourquoi : docs/decisions/reglages-ecran.md § How many tiles per line, and the width that decides it
  */
@@ -148,7 +142,6 @@ internal fun balancedColumns(count: Int, fits: Int): Int {
     return best
 }
 
-/** The narrowest a tile can be and still spell out its console and version. */
 private val MIN_TILE = 118.dp
 
 private val GRID_GAP = 8.dp
@@ -161,17 +154,15 @@ private fun ConsoleTile(
     modifier: Modifier = Modifier,
     entry: Boolean = false,
     compact: Boolean = false,
-    /** Tells the row it holds the cursor, so it passes in front of the others. */
     onFocused: (Boolean) -> Unit = {}
 ) {
-    // Off is dimmed, not greyed out and not removed: the tile still has to say
-    // which console it is, because turning one back on is the other half of the
-    // gesture and a blank square gives nothing to aim at.
+    // Dimmed, not removed: turning a console back on is the other half of the gesture,
+    // and a blank square gives nothing to aim at.
     val alpha = if (visible) 1f else 0.45f
 
     /**
-     * The icon loses its colour when the console is off: desaturated rather than
-     * veiled, or the tile's loudest thing said on while the rest said otherwise.
+     * Desaturated rather than veiled, or the tile's loudest thing says on while the rest
+     * says otherwise.
      * pourquoi : docs/decisions/reglages-ecran.md § A switched-off console is a hole in the board
      */
     val iconFilter = remember(visible) {
@@ -185,15 +176,13 @@ private fun ConsoleTile(
         modifier = modifier
             .height(if (compact) TILE_HEIGHT_COMPACT else TILE_HEIGHT)
             .onFocusEvent { onFocused(it.hasFocus) }
-            // Before the `clickable`: a `focusRequester` placed after no longer targets
-            // the focus node the clickable just created, and the request fails
-            // silently.
+            // Before the `clickable`: a `focusRequester` placed after no longer targets the
+            // focus node the clickable just created, and the request fails silently.
             .then(if (entry) Modifier.padEntry() else Modifier)
-            // The ring before the clip, always. After, its glow is cut to the tile's
-            // shape and fills it with a hard-edged wash instead of spilling out.
+            // The ring before the clip: after, its glow is cut to the tile's shape and
+            // fills it with a hard-edged wash instead of spilling out.
             .controlRing(TILE_SHAPE)
-            // On it is a plate, off it is a hole: the tray already knows how to say
-            // laid on and carved into.
+            // On it is a plate, off it is a hole.
             // pourquoi : docs/decisions/reglages-ecran.md § A switched-off console is a hole in the board
             .then(
                 if (visible) Modifier.plate(shape = TILE_SHAPE, dark = dark, oled = oled, lift = 5.dp)
@@ -220,9 +209,8 @@ private fun ConsoleTile(
                     modifier = Modifier.fillMaxWidth()
                 )
             } else {
-                // The console's abbreviation rather than a question mark: an absent
-                // emulator is the ordinary case on a new device, and the tile must
-                // still name its machine.
+                // The abbreviation rather than a question mark: an absent emulator is the
+                // ordinary case on a new device, and the tile must still name its machine.
                 Text(
                     info.console.shortLabel,
                     style = MaterialTheme.typography.labelSmall,
@@ -236,15 +224,14 @@ private fun ConsoleTile(
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = alpha),
             maxLines = 1,
-            // Three narrow columns and names we do not choose: this is where the
-            // default hard clip bit deepest.
+            // Three narrow columns and names we do not choose: the default hard clip bit
+            // deepest here.
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center
         )
         Text(
-            // The emulator's name, on its own line, never translated: it is a product.
-            // A tile saying only "Switch" left the page unable to answer the question
-            // it asks, which is what to install.
+            // Never translated: it is a product name, and a tile saying only "Switch"
+            // cannot answer what to install.
             info.name,
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = alpha * 0.85f),
@@ -254,8 +241,6 @@ private fun ConsoleTile(
         )
         if (!compact) {
             Text(
-                // The version alone, never "Installed, version x": the sentence does
-                // not fit a tile, and the number is the part that is read.
                 info.version?.let { stringResource(R.string.emulators_version_short, shortVersion(it)) }
                     ?: if (info.installed) stringResource(R.string.emulators_installed_unknown)
                     else stringResource(R.string.emulators_absent_short),
@@ -270,28 +255,26 @@ private fun ConsoleTile(
 }
 
 /**
- * A fixed tile height: the last row's empty slots must match it, and an intrinsic
- * height is not shared between siblings.
+ * Fixed: the last row's empty slots must match it, and an intrinsic height is not shared
+ * between siblings.
  * pourquoi : docs/decisions/reglages-ecran.md § How many tiles per line, and the width that decides it
  */
 private val TILE_HEIGHT = 124.dp
 
-/** The short form's height, set so seven tiles fit on one line. */
 private val TILE_HEIGHT_COMPACT = 92.dp
 
 /** A short tile's minimum width: "GameCube" still fits. */
 private val MIN_TILE_COMPACT = 92.dp
 
 /**
- * The tile's corner, matching the library's own: the theme's one squircle
- * radius, not a private copy of it.
+ * The theme's one squircle radius, not a private copy of it.
  * pourquoi : docs/decisions/theme-duotone-shelves.md § SHAPES
  */
 private val TILE_SHAPE = TileShape
 
 /**
- * The version as it fits on a tile, cut at display and not at the source,
- * because PPSSPP already carries its `v` and the other five do not.
+ * Cut at display and not at the source: PPSSPP already carries its `v`, the other five
+ * do not.
  * pourquoi : docs/decisions/reglages-ecran.md § An emulator's version is trimmed at display, not at the source
  */
 private fun shortVersion(version: String): String =

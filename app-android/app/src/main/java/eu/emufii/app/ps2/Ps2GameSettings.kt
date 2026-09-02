@@ -11,7 +11,6 @@ import eu.emufii.app.wg.WgConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-/** The ARMSX2 per-game layer EmuFii can configure without private app access. */
 object Ps2GameSettings {
 
     sealed interface Outcome {
@@ -28,14 +27,9 @@ object Ps2GameSettings {
             Ps2NetworkProfile.receipt(context) != null
 
     /**
-     * The library scan computes the ELF CRC in the background, but a player who
-     * updates Emufii over a library last scanned by an older build holds ROM
-     * entries with no CRC, and no rescan happens until the folder changes. The
-     * direct path then silently stays the old accessibility one, measured on a
-     * real CHD library the day after the feature shipped.
-     *
-     * So the disc is read on demand, once, when the fields are empty: the
-     * in-memory cache serves every later call. Callers run off the main thread.
+     * A library last scanned by an older build holds ROM entries with no ELF CRC, and no
+     * rescan happens until the folder changes: the direct path then silently stays the old
+     * accessibility one. Hence reading the disc on demand when the fields are empty.
      */
     suspend fun canConfigureNow(context: Context, rom: RomRef): Boolean = withContext(Dispatchers.IO) {
         rootAndCardPresent(context) && resolvedIdentity(context, rom) != null
@@ -48,10 +42,8 @@ object Ps2GameSettings {
         identity(rom) ?: DiscImageReader(context).read(rom.uri)?.ps2Identity
 
     /**
-     * Merges only EmuFii's keys and leaves every graphics, speedhack and patch
-     * override untouched. ARMSX2 loads this layer after its global preferences,
-     * so both network and Slot 1 apply to this boot without changing any other
-     * game or navigating its UI.
+     * ARMSX2 loads this layer after its global preferences, so network and Slot 1 apply to
+     * this boot alone; every graphics, speedhack and patch override is left untouched.
      */
     fun apply(context: Context, rom: RomRef, plan: NetplayPlan): Outcome = runCatching {
         val identity = resolvedIdentity(context, rom) ?: return Outcome.UnknownDiscIdentity
@@ -81,8 +73,8 @@ object Ps2GameSettings {
                     "EthEnable" to "true",
                     "EthApi" to "Local Link",
                     "LocalLinkHost" to host.toString(),
-                    // ARMSX2 ignores this in host mode. Removing a value left by
-                    // a previous guest keeps the file an exact description.
+                    // ARMSX2 ignores this in host mode; removing a previous guest's value
+                    // keeps the file an exact description.
                     "LocalLinkAddress" to if (host) null else WgConfig.PS2_HOST_NAME,
                     "LocalLinkPort" to plan.port.toString(),
                     "LocalLinkRoomCode" to room,
@@ -94,8 +86,8 @@ object Ps2GameSettings {
             ),
         )
 
-        // Verify a staging document before touching an existing game override;
-        // some providers acknowledge a write and then publish a short file.
+        // Some providers acknowledge a write and then publish a short file, hence a staging
+        // document verified before the existing override is touched.
         val tempName = ".emufii-${identity.serial}-${identity.elfCrc}.tmp"
         settings.child(tempName)?.delete()
         val temp = settings.createFile("application/octet-stream", tempName)
@@ -117,13 +109,11 @@ object Ps2GameSettings {
     }.getOrElse { Outcome.WriteFailed(it.message ?: it.javaClass.simpleName) }
 
     /**
-     * A provider may rewrite a created document's name from its MIME type:
-     * measured on the Thor, `text/plain` turned `SLES-53501_02F4B541.ini` into
-     * `SLES-53501_02F4B541.ini.txt`, ARMSX2 loaded none of it, and every launch
-     * piled one more ` (1)` copy. `application/octet-stream` leaves the name
-     * alone on that provider, and a rename catches any other that still
-     * rewrites it. A failure is returned rather than swallowed: a file whose
-     * name ARMSX2 will not read is a launch with no network.
+     * A provider may rewrite a created document's name from its MIME type: on the Thor,
+     * `text/plain` turned `SLES-53501_02F4B541.ini` into `.ini.txt`, ARMSX2 loaded none of
+     * it, and every launch piled one more ` (1)` copy. `application/octet-stream` leaves the
+     * name alone there, a rename catches any other provider, and a failure is returned:
+     * a name ARMSX2 will not read is a launch with no network.
      */
     private fun createExactFile(context: Context, dir: DocumentFile, filename: String): DocumentFile? {
         val created = dir.createFile("application/octet-stream", filename) ?: return null
@@ -160,8 +150,8 @@ object Ps2GameSettings {
     }
 
     /**
-     * Sparse INI merge. A null value removes a key EmuFii owns; unknown lines,
-     * comments, blank lines, sections and their order are preserved verbatim.
+     * A null value removes a key EmuFii owns; unknown lines, comments, blank lines, sections
+     * and their order are preserved verbatim.
      */
     internal fun merge(
         original: String,

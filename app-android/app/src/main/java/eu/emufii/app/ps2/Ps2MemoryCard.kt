@@ -7,14 +7,10 @@ import java.time.OffsetDateTime
 import java.time.ZoneOffset
 
 /**
- * Builds a PlayStation 2 memory card image, from nothing but format constants.
- *
- * The emulator checks almost nothing: every judgement is made by the *emulated
- * console* against bytes the image carries literally, so this layout is modelled
- * on one the BIOS actually wrote and was measured byte for byte.
- *
- * Standard 8 MB RAW: 16 384 pages of 528 bytes, one `BWNETCNF` save at the root,
- * free space erased to `0xFF`.
+ * Builds a PlayStation 2 memory card image. The emulator checks almost nothing: every
+ * judgement is made by the *emulated console* against bytes the image carries literally,
+ * so this layout is measured byte for byte off one the BIOS wrote. Standard 8 MB RAW:
+ * 16 384 pages of 528 bytes, one `BWNETCNF` save at the root, free space erased to `0xFF`.
  * pourquoi : docs/decisions/ps2-carte-memoire.md § What the emulator checks of a card: almost nothing
  */
 object Ps2MemoryCard {
@@ -39,10 +35,7 @@ object Ps2MemoryCard {
     internal val SPARE_ERASED =
         byteArrayOf(0x77, 0x7F, 0x7F, 0x77, 0x7F, 0x7F, 0x77, 0x7F, 0x7F, 0x77, 0x7F, 0x7F, 0, 0, 0, 0)
 
-    /**
-     * The files of a `BWNETCNF` save. One list, so the generator and the
-     * [Ps2CardPatch] injector cannot drift on what a save holds.
-     */
+    /** One list, so the generator and the [Ps2CardPatch] injector cannot drift. */
     internal fun saveFiles(
         saveTitle: String,
         consoleId: ByteArray = Ps2NetcnfConfig.ARMSX2_CONSOLE_ID,
@@ -59,16 +52,10 @@ object Ps2MemoryCard {
         saveTitle.filter { it in ' '..'~' }.take(64).ifEmpty { "Emufii" }
 
     /**
-     * Builds the 8 650 752-byte image of a card holding one `BWNETCNF` save.
-     *
-     * @param saveTitle the label the PS2 browser shows under the save, from the
-     *   player's profile name; reduced to printable ASCII, `Emufii` if nothing
-     *   survives.
-     * @param consoleId the 8-byte i.Link ID the YNCF halves are encrypted for,
-     *   [Ps2NetcnfConfig.ARMSX2_CONSOLE_ID] unless the player's ARMSX2 runs a
-     *   real console `.nvm`.
-     * @param epochSecond the save's timestamps, in Japan time as the format
-     *   dictates; pass a fixed value for a reproducible build.
+     * The 8 650 752-byte image of a card holding one `BWNETCNF` save. [saveTitle] is
+     * reduced to printable ASCII, `Emufii` if nothing survives; [consoleId] is the 8-byte
+     * i.Link ID the YNCF halves are encrypted for, the ARMSX2 one unless the player runs a
+     * real console `.nvm`; [epochSecond] is stamped in Japan time, as the format dictates.
      */
     fun generate(
         saveTitle: String,
@@ -96,7 +83,7 @@ object Ps2MemoryCard {
             writePage(2 * cluster + 1, data.copyOfRange(512, 1024))
         }
 
-        /** First-fit over the FAT, chains linked; returns the clusters taken. */
+        /** First-fit over the FAT, chains linked. */
         fun allocate(count: Int): List<Int> {
             val taken = mutableListOf<Int>()
             while (taken.size < count && nextFree < ALLOCATION_END) {
@@ -123,7 +110,6 @@ object Ps2MemoryCard {
             return clusters.first() to data.size
         }
 
-        // -- superblock, the reserved block's ECC'd remainder, the FAT scaffolding
         writePage(0, superblock())
         for (page in 1 until 16) {
             System.arraycopy(SPARE_ERASED, 0, image, page * PAGE + PAGE_DATA, 16)
@@ -132,7 +118,7 @@ object Ps2MemoryCard {
         for (i in 0 until 32) indirectFat.putInt(i * 4, 9 + i)
         writeCluster(8, indirectFat.array())
 
-        // -- the save, directories first the way the console's allocator leaves them
+        // Directories first, the way the console's allocator leaves them.
         val files = saveFiles(title, consoleId)
         val saveEntryCount = 2 + files.size
         val root = allocate(2)
@@ -159,7 +145,7 @@ object Ps2MemoryCard {
             writeCluster(ALLOCATION_OFFSET + cluster, dirBytes.array().copyOfRange(i * 1024, (i + 1) * 1024))
         }
 
-        // -- the FAT itself, last, once every chain exists
+        // The FAT itself last, once every chain exists.
         for (i in 0 until 32) {
             val clusterBytes = ByteBuffer.wrap(ByteArray(1024) { 0xFF.toByte() }).order(ByteOrder.LITTLE_ENDIAN)
             for (e in 0 until 256) {
@@ -193,8 +179,8 @@ object Ps2MemoryCard {
         for (i in 0 until 32) sb.putInt(-1) // no bad blocks
         sb.put(2) // card type
         sb.put(0x2B) // card flags: ECC, bad-block table, as the BIOS sets them
-        // The tail the BIOS format writes: three counts, the 0x1F41 marker,
-        // then mostly erase, byte-for-byte as measured off a BIOS-formatted card.
+        // The tail as measured off a BIOS-formatted card: three counts, the 0x1F41
+        // marker, then mostly erase.
         sb.position(0x154)
         for (word in intArrayOf(0x400, 0x100, 8, -1, 0, 0, 0, 0x1F41, 0, 0, -1, 0, -1, -1)) {
             sb.putInt(word)
@@ -204,8 +190,8 @@ object Ps2MemoryCard {
     }
 
     /**
-     * One 512-byte directory entry. A directory is terminated by one all-`0xFF`
-     * entry after the last real one, never by the zero padding.
+     * One 512-byte directory entry. A directory is terminated by one all-`0xFF` entry
+     * after the last real one, never by the zero padding.
      * pourquoi : docs/decisions/ps2-carte-memoire.md § The layout, in card order
      */
     internal fun dirent(
@@ -234,8 +220,7 @@ object Ps2MemoryCard {
     }
 
     /**
-     * The PS2's time-of-day: eight bytes in Japan time, whatever the
-     * console's setting.
+     * The PS2's time-of-day: eight bytes in Japan time, whatever the console's setting.
      * pourquoi : docs/decisions/ps2-carte-memoire.md § The layout, in card order
      */
     internal fun timestamp(epochSecond: Long): ByteArray {
@@ -248,8 +233,8 @@ object Ps2MemoryCard {
     }
 
     /**
-     * The 16 spare bytes of a written page. The emulator never verifies them,
-     * but the console can, so they are computed rather than filled.
+     * The emulator never verifies these 16 spare bytes, but the console can: they are
+     * computed rather than filled.
      * pourquoi : docs/decisions/ps2-carte-memoire.md § The layout, in card order
      */
     internal fun spare(page: ByteArray): ByteArray {
@@ -273,10 +258,7 @@ object Ps2MemoryCard {
         return out
     }
 
-    /**
-     * The column-parity contribution of one byte, over the code's seven masks.
-     * Bits 3 and 6 are always zero, hence the `0x77`.
-     */
+    /** Bits 3 and 6 are always zero, hence the `0x77`. */
     private fun columnParity(b: Int): Int {
         var m = 0
         val masks = intArrayOf(0x55, 0x33, 0x0F, 0x00, 0xAA, 0xCC, 0xF0)
@@ -287,8 +269,7 @@ object Ps2MemoryCard {
     }
 
     /**
-     * `icon.sys`, 964 bytes of documented header fields. The title is the one
-     * personalised thing on the card.
+     * `icon.sys`, 964 bytes of header fields; the title is the one personalised thing.
      * pourquoi : docs/decisions/ps2-carte-memoire.md § The save, and why nothing of Sony's travels in it
      */
     private fun iconSys(title: String): ByteArray {
@@ -316,8 +297,7 @@ object Ps2MemoryCard {
     }
 
     /**
-     * The save icon: a single quad textured with one colour, a few hundred
-     * bytes, so nothing of Sony's has to travel inside the app.
+     * A single quad textured with one colour: nothing of Sony's travels inside the app.
      * pourquoi : docs/decisions/ps2-carte-memoire.md § The save, and why nothing of Sony's travels in it
      */
     private fun icon(): ByteArray {

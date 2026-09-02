@@ -30,9 +30,7 @@ import eu.emufii.app.ui.theme.PillShape
 import eu.emufii.app.ui.theme.plate
 
 /**
- * The pad legend: a moulded cap and what it does. It left the rear panel because the
- * front screen needs it too, the code entry announcing there what back does. One
- * drawing of this motif, or the two drift.
+ * The front screen needs the legend too: one drawing of this motif, or the two drift.
  * pourquoi : docs/decisions/second-ecran.md § The legend, and why the symbols are drawn
  */
 @Composable
@@ -51,11 +49,10 @@ fun PadHintRow(hint: PadHint, modifier: Modifier = Modifier) {
     }
 }
 
-/** A cap's height, and therefore the band's: [PadKeyCap] and it are tied. */
 internal val LEGEND_CAP = 26.dp
 
 /**
- * One button, moulded like the machine's own: a plate, never a recess.
+ * Moulded like the machine's own: a plate, never a recess.
  * pourquoi : docs/decisions/second-ecran.md § The legend, and why the symbols are drawn
  */
 @Composable
@@ -83,10 +80,8 @@ fun PadKeyCap(hint: PadHint) {
 }
 
 /**
- * The letter, centred on its own ink.
- *
- * Laying the text out cannot do this: the glyph is drawn and placed from
- * [android.graphics.Paint.getTextBounds], pen at `w/2 - (left + right)/2`.
+ * Laying the text out cannot centre a letter on its ink: the glyph is drawn and placed
+ * from [android.graphics.Paint.getTextBounds], pen at `w/2 - (left + right)/2`.
  * pourquoi : docs/decisions/second-ecran.md § A letter is centred on its ink, not on its box
  */
 @Composable
@@ -98,8 +93,8 @@ private fun CapLetter(glyph: String, tint: Color) {
             typeface = runCatching { ResourcesCompat.getFont(context, R.font.rounded_bold) }
                 .getOrNull() ?: android.graphics.Typeface.DEFAULT_BOLD
             textSize = with(density) { 14.sp.toPx() }
-            // LEFT, not CENTER: the pen is positioned from the ink bounds below,
-            // and CENTER would subtract half an advance on top of it.
+            // The pen is positioned from the ink bounds below; CENTER would subtract
+            // half an advance on top of it.
             textAlign = android.graphics.Paint.Align.LEFT
             color = tint.toArgb()
         }
@@ -124,12 +119,9 @@ private fun CapLetter(glyph: String, tint: Color) {
 @Composable
 private fun DPadGlyph(tint: Color) {
     Canvas(Modifier.size(10.dp)) {
-        // Arms a touch wider than a third, the proportion a moulded d-pad
-        // actually has: thinner reads as a mathematical plus.
+        // The proportion a moulded d-pad has: thinner reads as a mathematical plus.
         val arm = size.width * 0.38f
         val radius = CornerRadius(size.width * 0.06f, size.width * 0.06f)
-        // Two bars crossing, each centred: the overlap is the hub, so the cross
-        // has no seam and needs no third shape.
         drawRoundRect(
             color = tint,
             topLeft = Offset((size.width - arm) / 2f, 0f),

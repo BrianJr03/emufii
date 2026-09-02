@@ -26,6 +26,11 @@ docs/*
 !docs/images/
 CLAUDE.md
 .claude/
+# L'outillage de la passe de commentaires du 2026-09-02 : le contrat de forme, le
+# verificateur qui prouve qu'une passe n'a touche que des commentaires, et les
+# listes de lots. Ce sont des notes de travail sur la maniere d'ecrire ici, pas
+# du code de l'app. Meme raison que `.claude/` juste au-dessus.
+.emufii-style/
 .agents/
 .impeccable
 skills-lock.json

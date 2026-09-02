@@ -1,9 +1,8 @@
 package eu.emufii.app.azahar
 
 /**
- * The names Azahar installs under. Never replace one with another: all three coexist
- * depending on where the install came from. The order is preference. What really
- * decides drivability is [NetplayUiSupport], not the name.
+ * All three names coexist depending on where the install came from; the order is
+ * preference. Drivability is decided by [NetplayUiSupport], not by the name.
  * pourquoi : docs/decisions/pilotes-emulateurs.md § Azahar has not finished changing its id
  */
 object AzaharPackage {

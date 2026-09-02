@@ -62,18 +62,8 @@ import eu.emufii.app.ui.tap
 import eu.emufii.app.ui.SilenceSystemSfx
 
 /**
- * Choosing a game's icon yourself.
- *
- * Automatic matching takes the first result the catalogue returns for the
- * filename. It gets it wrong, and not rarely: a sequel, a port, a regional
- * subtitle, an exotic dump name, and the tile then carries another game's icon.
- * No heuristic repairs that reliably, only someone who recognises the right game
- * can.
- *
- * Hence two levels, and the second is the real subject: we show every icon for
- * the matched game, but we also allow searching for a different game. Offering
- * only the icons would amount to fixing the colour while leaving the wrong game,
- * which is the commonest case.
+ * Automatic matching takes the catalogue's first result for the filename and often lands
+ * on the wrong game: hence searching for another game, not only for another icon.
  */
 @Composable
 fun IconPickerDialog(
@@ -91,15 +81,11 @@ fun IconPickerDialog(
     var searching by remember { mutableStateOf(false) }
     var loadingIcons by remember { mutableStateOf(false) }
 
-    // One search per keystroke would flood the API for nothing: we wait for the
-    // typing to settle. 400 ms is short when reading and long when typing.
+    // 400 ms so one keystroke is not one API call.
     LaunchedEffect(query, apiKey) {
         searching = true
         kotlinx.coroutines.delay(400)
         games = SteamGridDb.searchGames(query, apiKey)
-        // The first result is the one automatic matching would have taken:
-        // preselecting it shows straight away what it did, and makes the fact
-        // that it got it wrong visible.
         selectedGame = games.firstOrNull()
         searching = false
     }
@@ -115,10 +101,8 @@ fun IconPickerDialog(
         loadingIcons = false
     }
 
-    // The search field must on no account take focus on opening: in landscape
-    // the IME then shows fullscreen (extract mode) and covers the whole window,
-    // leaving not one icon visible. An invisible anchor takes focus first and
-    // keeps it.
+    // In landscape the IME opens fullscreen (extract mode) and covers every icon: an
+    // invisible anchor takes focus so the search field never does.
     val anchor = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { anchor.requestFocus() } }
 
@@ -126,8 +110,7 @@ fun IconPickerDialog(
 
     Dialog(
         onDismissRequest = onDismiss,
-        // A Dialog's default width is narrow and fixed: on a landscape screen it
-        // gave a column of icons lost in the middle of the emptiness.
+        // A Dialog's default width is narrow and fixed: one lost column in landscape.
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         SilenceSystemSfx()
@@ -135,9 +118,8 @@ fun IconPickerDialog(
             modifier = Modifier
                 .padding(24.dp)
                 .widthIn(max = 560.dp)
-                // Bounded to the screen, otherwise the grid pushes the buttons
-                // off it and the window can only be closed by tapping outside,
-                // which is written down nowhere.
+                // Otherwise the grid pushes the buttons off screen and only a tap
+                // outside closes the window.
                 .heightIn(max = (screenHeight * 0.92f).dp)
         ) {
             Column(
@@ -150,12 +132,8 @@ fun IconPickerDialog(
                     style = MaterialTheme.typography.headlineSmall
                 )
 
-                // A `PadTextField`: the frame is the traversal step and A goes
-                // in, so the pad's cursor can pass over the search box without
-                // the IME springing up. That is the same failure the invisible
-                // anchor above guards against on opening: the anchor stays,
-                // because it also has to survive a recomposition, but the field
-                // no longer causes it.
+                // `PadTextField`: the frame is the traversal step and A enters, so the
+                // pad crosses the box without raising the IME.
                 PadTextField(
                     value = query,
                     onValueChange = { query = it },
@@ -165,9 +143,6 @@ fun IconPickerDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                // The games found, in a scrolling row: this is the choice that
-                // decides everything else, so it stays visible while the icons
-                // are being looked at.
                 if (games.size > 1) {
                     Row(
                         modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
@@ -205,9 +180,7 @@ fun IconPickerDialog(
                         columns = GridCells.Adaptive(84.dp),
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp),
-                        // `fill = false`: the grid takes what is left but no
-                        // more than its content, so three icons do not leave a
-                        // large gap underneath them.
+                        // `fill = false`: three icons leave no gap under them.
                         modifier = Modifier.fillMaxWidth().weight(1f, fill = false)
                     ) {
                         items(icons, key = { it.url }) { icon ->
@@ -226,8 +199,6 @@ fun IconPickerDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    // Only when a choice exists: offering to undo what was never
-                    // done suggests it was.
                     if (store.chosenFor(rom) != null) {
                         GhostButton(
                             label = stringResource(R.string.icon_pick_reset),
@@ -252,15 +223,6 @@ fun IconPickerDialog(
 @Composable
 private fun Spacer() = Box(Modifier)
 
-/**
- * One of the games the search came back with.
- *
- * A moulded pill like every other pressable thing, and not the tonal `Surface`
- * that was here: `surfaceVariant` against `primary` was Material choosing two
- * flat fills of its own, in a world where relief says "object" and the one
- * accent says "this one". Selected, the pill is pushed in: the choice already
- * made is the one that is down.
- */
 @Composable
 private fun GameChip(label: String, selected: Boolean, onClick: () -> Unit) {
     val dark = LocalEmufiiDarkTheme.current
@@ -292,12 +254,7 @@ private fun GameChip(label: String, selected: Boolean, onClick: () -> Unit) {
     }
 }
 
-/**
- * A candidate icon, on a checkerboard.
- *
- * Many are transparent: laid on a solid background, emptiness cannot be told
- * from white, and you end up choosing an icon whose real shape you never saw.
- */
+/** Many icons are transparent: on a solid ground emptiness cannot be told from white. */
 @Composable
 private fun IconChoice(icon: SgdbIcon, onClick: () -> Unit) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -305,12 +262,9 @@ private fun IconChoice(icon: SgdbIcon, onClick: () -> Unit) {
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(1f)
-                // The ring before the clip, as everywhere: after it, the glow
-                // was sliced at the tile's own outline.
+                // The ring before the clip: after it, the glow is sliced at the outline.
                 .controlRing(ArtworkShape, width = 3.dp, glowRadius = 18.dp)
                 .clip(ArtworkShape)
-                // The checkerboard ground: the plate's own low cut rather than a
-                // hand-picked grey, so it follows the theme.
                 .background(PlateLightLow)
                 .border(1.dp, EdgeLight, ArtworkShape)
                 .tap(onClick = onClick)

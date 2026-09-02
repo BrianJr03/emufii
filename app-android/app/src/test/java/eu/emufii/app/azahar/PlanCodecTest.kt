@@ -6,11 +6,8 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 /**
- * A netplay plan has to survive Emufii being killed, launching an emulator is the
- * most memory-hungry thing a phone does, and Android took Emufii down every single
- * time on the test bench, but it must not survive the session that
- * justified it. This is that rule about time, tested by winding the clock rather
- * than by waiting.
+ * A plan must survive Emufii being killed, which Android did on every emulator launch on
+ * the bench, and must not survive the session that justified it: the clock is wound.
  */
 class PlanCodecTest {
 
@@ -30,20 +27,17 @@ class PlanCodecTest {
 
     @Test
     fun `it survives a while, then stops meaning anything`() {
-        // A real wall-clock instant: an armed_at of zero is how a *missing*
-        // timestamp reads, and the decoder is right to refuse that.
+        // A real instant: an `armed_at` of zero reads as a missing timestamp.
         val armedAt = 1_785_000_000_000L
         val encoded = PlanCodec.encode(plan, now = armedAt)
         assertNotNull(PlanCodec.decode(encoded, now = armedAt))
         assertNotNull(PlanCodec.decode(encoded, now = armedAt + PlanCodec.TTL_MS - 1))
-        // Past the window, a forgotten plan would type an address into whatever
-        // room the player happens to be setting up next.
+        // A forgotten plan would type an address into the next room being set up.
         assertNull(PlanCodec.decode(encoded, now = armedAt + PlanCodec.TTL_MS + 1))
     }
 
     @Test
     fun `a plan with no timestamp is treated as no plan`() {
-        // What a truncated or hand-edited entry looks like.
         assertNull(PlanCodec.decode("""{"role":"Host","ip":"1.2.3.4","port":1,"armed_at":0}""", now = 5))
     }
 

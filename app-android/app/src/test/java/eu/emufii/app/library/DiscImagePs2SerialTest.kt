@@ -5,10 +5,8 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 /**
- * The PS2's real serial, and why it is not where it used to be looked for.
- *
- * Measured on the bench's eight discs: only two carried a serial in the volume
- * identifier. The rest said `MC3REMIX`, `FINAL_FANTASY_X`, `1_01` or nothing.
+ * Measured on the bench's eight discs: only two carried a serial in the volume identifier,
+ * the rest said `MC3REMIX`, `FINAL_FANTASY_X`, `1_01` or nothing.
  */
 class DiscImagePs2SerialTest {
 
@@ -30,8 +28,8 @@ class DiscImagePs2SerialTest {
 
     @Test
     fun `a boot file that is not a serial yields nothing`() {
-        // A homebrew boots from an ELF with any name at all. Returning it would
-        // file the disc under a key that means nothing and can never match.
+        // A homebrew boots from an ELF with any name: returning it files the disc under
+        // a key that can never match.
         assertNull(DiscImage.bootSerial("BOOT2 = cdrom0:\\MYHOMEBREW.ELF;1"))
         assertNull(DiscImage.bootSerial("VER = 1.00"))
         assertNull(DiscImage.bootSerial(""))
@@ -39,8 +37,7 @@ class DiscImagePs2SerialTest {
 
     @Test
     fun `a PS1 disc is not answered for`() {
-        // PS1 uses BOOT, not BOOT2. Reading it would give the PS2 a serial for a
-        // console Emufii does not serve.
+        // PS1 uses BOOT, not BOOT2.
         assertNull(DiscImage.bootSerial("BOOT = cdrom:\\SLES_012.34;1"))
     }
 
@@ -72,26 +69,22 @@ class DiscImagePs2SerialTest {
     }
 
     /**
-     * The smallest ISO9660 that answers the three questions the walk asks: a
-     * primary descriptor at sector 16, a root directory record pointing at
-     * sector 18, and one file record in it.
+     * The smallest ISO9660 the walk reads: a primary descriptor at sector 16, a root
+     * record pointing at sector 18, one file record in it.
      */
     private fun syntheticIso(serial: String?): ByteArray {
         val sector = 2048
         val image = ByteArray(sector * 20)
 
-        // Primary volume descriptor.
         val pvd = sector * 16
         "CD001".toByteArray(Charsets.ISO_8859_1).copyInto(image, pvd + 1)
 
-        // Root directory record, embedded at offset 156: extent at sector 18,
-        // one sector long.
+        // The root directory record is embedded at offset 156 of the descriptor.
         val root = pvd + 156
         image[root] = 34
         putLe(image, root + 2, 18)
         putLe(image, root + 10, sector)
 
-        // The root directory itself, holding one file record.
         val dir = sector * 18
         val name = "SYSTEM.CNF;1"
         val recordLength = 33 + name.length
@@ -100,14 +93,13 @@ class DiscImagePs2SerialTest {
         putLe(image, dir + 10, 64)
         image[dir + 32] = name.length.toByte()
         name.toByteArray(Charsets.ISO_8859_1).copyInto(image, dir + 33)
-        // A zero length after it is what says "no more records in this sector".
+        // A zero length says "no more records in this sector".
         image[dir + recordLength] = 0
 
         if (serial != null) {
             val cnf = "BOOT2 = cdrom0:\\$serial;1\nVER = 1.00\n"
             cnf.toByteArray(Charsets.ISO_8859_1).copyInto(image, sector * 19)
         } else {
-            // A directory with no SYSTEM.CNF at all.
             image[dir] = 0
         }
         return image

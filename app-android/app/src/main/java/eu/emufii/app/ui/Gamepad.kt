@@ -48,39 +48,29 @@ import eu.emufii.app.ui.theme.LocalEmufiiDarkTheme
 import eu.emufii.app.ui.theme.Teal
 
 /**
- * Playing Emufii with the sticks and buttons, not the screen. Two jobs, separate
- * on purpose: [gamepadClick] makes a thing pressable from the pad, [focusRing]
- * makes it obvious which thing that is.
+ * [gamepadClick] makes a thing pressable from the pad, [focusRing] makes it obvious
+ * which thing that is.
  * pourquoi : docs/decisions/navigation-manette.md § Two jobs, separated on purpose
  */
 
 /**
- * How long the cursor takes to arrive. Everything marking the selected cell moves
- * on this one clock.
+ * Everything marking the selected cell moves on this one clock.
  * pourquoi : docs/decisions/navigation-manette.md § The cursor never lingers
  */
 const val RING_IN_MS = 140
 
-/** How long the ring takes to leave: not at all. Do not restore a fade here. */
+/** The ring leaves at once; do not restore a fade here. */
 private const val RING_OUT_MS = 0
 
-/**
- * Face buttons that mean "do it". B is absent: it means back. Public because the
- * library grid handles its own keys and must recognise exactly these.
- */
+/** B is absent: it means back. Public because the library grid recognises exactly these. */
 val CONFIRM_KEYS = setOf(Key.ButtonA, Key.DirectionCenter, Key.Enter, Key.NumPadEnter)
 
 /**
- * Which axis the cursor's ring speaks: teal for play and system, coral on the
- * social zones. The colour of the cursor names the zone.
+ * Teal for play and system, coral on the social zones: the cursor's colour names the zone.
  * pourquoi : docs/decisions/theme-duotone-shelves.md § GAMEPAD FOCUS
  */
 enum class RingTone { TEAL, CORAL }
 
-/**
- * Provide `RingTone.CORAL` around a social zone and every [controlRing] and
- * [focusRing] inside it that names no colour turns coral.
- */
 val LocalRingTone = compositionLocalOf { RingTone.TEAL }
 
 @Composable
@@ -90,69 +80,53 @@ fun ringColor(tone: RingTone = LocalRingTone.current, dark: Boolean = LocalEmufi
         RingTone.CORAL -> if (dark) Coral.darkBright else Coral.bright
     }
 
-/**
- * Makes the element pressable from a controller. Sits next to a `clickable`,
- * never replaces it; both share the same [interactionSource] so the existing
- * press animation plays.
- */
+/** Sits next to a `clickable`, never replaces it; the shared [interactionSource] keeps the press animation. */
 fun Modifier.gamepadClick(
     interactionSource: MutableInteractionSource,
     enabled: Boolean = true,
-    /**
-     * Whether to make the element focusable here. Off by default: `clickable`
-     * already does it, and two focus targets in one chain means two d-pad stops
-     * for one thing on screen.
-     */
+    /** Off by default: `clickable` already focuses, and two focus targets are two d-pad stops for one thing. */
     focusable: Boolean = false,
     onClick: () -> Unit
 ): Modifier = this
     .onKeyEvent { event ->
         if (!enabled) return@onKeyEvent false
         if (event.type == KeyEventType.KeyUp && event.key in CONFIRM_KEYS) {
-            // The pad path: `tap` covers the finger and the keys Compose knows
-            // itself, never `ButtonA`.
+            // `tap` covers the finger and the keys Compose knows itself, never `ButtonA`.
             // pourquoi : docs/decisions/sons.md § The sound and the click are one call
             Sfx.click()
             onClick()
             true
         } else {
-            // Swallow the matching key-down as well, or the platform delivers it
-            // onwards and a single press reads as two.
+            // Swallow the matching key-down too, or the platform delivers it onwards and
+            // one press reads as two.
             event.type == KeyEventType.KeyDown && event.key in CONFIRM_KEYS
         }
     }
     .then(if (focusable) Modifier.focusable(enabled = enabled, interactionSource = interactionSource) else Modifier)
 
 /**
- * The cursor: a lit contour and a wide coloured glow, animated in.
+ * A lit contour and a wide coloured glow, animated in.
  * pourquoi : docs/decisions/navigation-manette.md § Three things at once, and the breath that was taken back
  */
 @Composable
 fun Modifier.focusRing(
     focused: Boolean,
     shape: Shape,
-    /**
-     * Teal, or coral via [LocalRingTone], unless the caller names one. Drawn by
-     * hand rather than by Material, so the axis is fetched explicitly here.
-     */
     color: Color = ringColor(),
     /**
-     * The stroke's thickness and the glow's reach. Defaults are the tiles'
-     * (150 dp wide); small controls pass reduced values.
+     * Defaults are the tiles' (150 dp wide); small controls pass reduced values.
      * pourquoi : docs/decisions/navigation-manette.md § The ring keeps the same weight everywhere
      */
     width: Dp = 4.dp,
     glowRadius: Dp = 28.dp,
     /**
-     * How much of the control the neon band takes. Game tiles pass under the
-     * default, where the band would take over the cover art it points at. No
-     * effect on [FocusRingStyle.FLAT], whose thickness is [width] alone.
+     * Game tiles pass under the default, where the band would take over the cover art it
+     * points at. No effect on [FocusRingStyle.FLAT], whose thickness is [width] alone.
      */
     bandFraction: Float = 0.12f
 ): Modifier {
-    // The cursor's sound lives here and nowhere else: this is the one point
-    // everything carrying the cursor passes through, controls via `controlRing`
-    // and grid tiles calling in directly with their own index.
+    // The cursor's sound lives here and nowhere else: the one point everything carrying
+    // the cursor passes through, `controlRing` and grid tiles alike.
     // pourquoi : docs/decisions/sons.md § Hover fires where the cursor is drawn
     var wasFocused by remember { mutableStateOf(focused) }
     if (focused != wasFocused) {
@@ -172,14 +146,12 @@ fun Modifier.focusRing(
         animationSpec = tween(if (focused) RING_IN_MS else RING_OUT_MS),
         label = "focus-glow"
     )
-    // No breath, and do not add one: an animated `shadow` elevation shows through
-    // a non-opaque surface and drifts inside the cursor.
+    // No breath, and do not add one: an animated `shadow` elevation shows through a
+    // non-opaque surface and drifts inside the cursor.
     if (FOCUS_RING_STYLE == FocusRingStyle.NEON) {
         return this.neonFocusRing(
             focused = focused,
             shape = shape,
-            // The gradient runs from the bright cut to the deep cut of the same
-            // axis, so the cursor never invents a third colour.
             start = color,
             end = deepCut(color),
             minBand = width,
@@ -193,10 +165,9 @@ fun Modifier.focusRing(
         .shadow(
             elevation = glowRadius * glow,
             shape = shape,
-            // Never clip. `shadow` defaults to `clip = elevation > 0`, so lighting
-            // the ring cut the control to the ring's own shape: invisible on a
-            // rectangle, but the profile avatar's pencil pill sits at the corner
-            // of a square box, outside the circle, and half vanished under focus.
+            // `shadow` defaults to `clip = elevation > 0`, which cut the control to the
+            // ring's own shape: the profile avatar's pencil pill sits at the corner of a
+            // square box, outside the circle, and half vanished under focus.
             // pourquoi : docs/decisions/navigation-manette.md § The ring surrounds, it does not clip
             clip = false,
             ambientColor = Color.Transparent,
@@ -207,25 +178,19 @@ fun Modifier.focusRing(
 
 
 /**
- * The two cursors the app can draw. [FLAT] is kept on purpose: a 4 dp stroke plus
- * the shadow bent into a halo, which holds on every ground and needs no
- * `BlurMaskFilter`. If the neon costs too much on a scrolling grid or reads
- * badly on light cover art, this constant is the whole switch.
+ * [FLAT] is kept on purpose: a 4 dp stroke plus the shadow bent into a halo, holding on
+ * every ground with no `BlurMaskFilter`. If the neon costs too much on a scrolling grid
+ * or reads badly on light cover art, this constant is the whole switch.
  */
 enum class FocusRingStyle { FLAT, NEON }
 
 val FOCUS_RING_STYLE = FocusRingStyle.NEON
 
-/**
- * The deep cut of the axis [bright] is the bright cut of. The band's gradient
- * needs both and the ring receives one colour, so the axis is recovered here
- * rather than threaded through forty callers.
- */
+/** The ring receives one colour: the axis is recovered here rather than threaded through forty callers. */
 private fun deepCut(bright: Color): Color = when (bright) {
     Teal.bright, Teal.darkBright -> Teal.deep
     Coral.bright, Coral.darkBright -> Coral.deep
-    // A colour named by a caller: darken it in place rather than fall back to an
-    // axis that is not its own.
+    // A colour named by a caller: darkened in place rather than snapped to a foreign axis.
     else -> Color(
         red = bright.red * 0.72f,
         green = bright.green * 0.72f,
@@ -235,7 +200,7 @@ private fun deepCut(bright: Color): Color = when (bright) {
 }
 
 /**
- * Filled in by the scaffold, read by [controlRing]. Zero when there is no header.
+ * Filled in by the scaffold, read by [controlRing]; zero when there is no header.
  * pourquoi : docs/decisions/navigation-manette.md § Nothing must stop under the header
  */
 val LocalScaffoldBand = compositionLocalOf { 0.dp }
@@ -249,9 +214,8 @@ val ACTION_CORNER = 18.dp
 val ActionShape = RoundedCornerShape(ACTION_CORNER)
 
 /**
- * The standard ring on every ordinary control: [focusRing] with the control's own
- * shape. Reads focus itself, so place it before the `clickable` or `focusable`;
- * after, it sees nothing and stays dark.
+ * Reads focus itself, so place it before the `clickable` or `focusable`; after, it sees
+ * nothing and stays dark.
  * pourquoi : docs/decisions/navigation-manette.md § The ring reads focus itself, and the order matters
  */
 @OptIn(ExperimentalFoundationApi::class)
@@ -259,7 +223,7 @@ val ActionShape = RoundedCornerShape(ACTION_CORNER)
 fun Modifier.controlRing(
     shape: Shape,
     /**
-     * The tiles' stroke and glow. Do not shrink these.
+     * Do not shrink these.
      * pourquoi : docs/decisions/navigation-manette.md § The ring keeps the same weight everywhere
      */
     width: Dp = 4.dp,
@@ -275,16 +239,16 @@ fun Modifier.controlRing(
     val requester = remember { BringIntoViewRequester() }
     val scope = rememberCoroutineScope()
 
-    // Top margin at least the header's height: Compose counts a control under the
-    // header as visible, so asking for less never reaches the top.
+    // Compose counts a control under the header as visible, so a top margin below the
+    // header's height never reaches the top.
     val top = with(LocalDensity.current) {
         maxOf(scrollMargin, LocalScaffoldBand.current).toPx()
     }
     val bottom = with(LocalDensity.current) { scrollMargin.toPx() }
 
     return this
-        // The ring overflows, and between siblings the last drawn wins. Only
-        // orders siblings: a multi-row grid raises its row too.
+        // The ring overflows and the last sibling drawn wins; a multi-row grid raises its
+        // row too.
         // pourquoi : docs/decisions/navigation-manette.md § The selected control draws in front of its neighbours
         .zIndex(if (focused && enabled) 1f else 0f)
         .bringIntoViewRequester(requester)

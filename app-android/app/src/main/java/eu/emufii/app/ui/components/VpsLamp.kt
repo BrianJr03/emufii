@@ -37,8 +37,8 @@ import eu.emufii.app.ui.theme.LocalEmufiiDarkTheme
  */
 @Composable
 fun VpsLamp(modifier: Modifier = Modifier, dotSize: Dp = 15.dp) {
-    // The poll lives with the lamp, its only consumer, and [VpsStatus.keepPolling]
-    // guarantees a single loop when both screens draw it together.
+    // The poll lives with the lamp, its only consumer; [VpsStatus.keepPolling] keeps one
+    // loop when both screens draw it together.
     LaunchedEffect(Unit) { VpsStatus.keepPolling() }
 
     val state by VpsStatus.state.collectAsState()
@@ -47,8 +47,8 @@ fun VpsLamp(modifier: Modifier = Modifier, dotSize: Dp = 15.dp) {
     val tone = when (state) {
         VpsState.ONLINE -> if (dark) GoodDark else GoodLight
         VpsState.OFFLINE -> if (dark) ErrorDark else ErrorLight
-        // Grey while nothing is known. Writing "down" because a handheld is in a tunnel
-        // would accuse our machine of the train.
+        // Grey while nothing is known: writing "down" for a handheld in a tunnel would
+        // blame our machine for the train.
         VpsState.UNKNOWN -> MaterialTheme.colorScheme.onSurfaceVariant
     }
 
@@ -60,8 +60,6 @@ fun VpsLamp(modifier: Modifier = Modifier, dotSize: Dp = 15.dp) {
         Box(
             modifier = Modifier
                 .size(dotSize)
-                // A lit lamp, not a printed dot: it carries its own glow as the plates
-                // carry their shadow.
                 .shadow(
                     elevation = if (state == VpsState.UNKNOWN) 0.dp else 12.dp,
                     shape = CircleShape,

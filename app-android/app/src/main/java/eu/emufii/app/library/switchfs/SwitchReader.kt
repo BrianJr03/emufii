@@ -7,28 +7,16 @@ import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
 
 /**
- * Reads the one thing a Switch dump says without any console key: its title id.
- *
- * The title and the icon live in an encrypted NCA, and reading them used to be
- * the whole point of this package: a few megabytes of AES per file, against a
- * key file the player had to be talked into providing. The titles now come from
- * the public index by title id (see `GameTitles`), in the app's language, and
- * the icons from the artwork sources; the decryption stack, and the `prod.keys`
- * plumbing that fed it, are gone.
- *
- * What is left is the cheapest read in the library: the plaintext table of
- * contents at the head of an NSP, no decryption, one small read. A cartridge
- * dump (`.xci`) carries no ticket and says nothing without keys: its game is
- * named by its filename, cleaned, and that is the honest limit.
+ * The title id is the one thing a Switch dump says without a console key: title and icon
+ * live in an encrypted NCA, and the titles now come from the public index instead (see
+ * `GameTitles`). One small read of the NSP's plaintext table of contents, no decryption.
+ * A cartridge dump (`.xci`) carries no ticket and is named by its filename, cleaned.
  */
 class SwitchReader(private val context: Context) {
 
     /**
-     * The title id an NSP gives away for free, e.g. `0100CD801CE5E000`.
-     *
-     * Read off the ticket or certificate entry name, which an NSP carries in
-     * clear: `0100cd801ce5e0000000000000000011.tik`. Not from the file name on
-     * disk, which is whoever-dumped-it's opinion.
+     * Read off the ticket or certificate entry name, which an NSP carries in clear
+     * (`0100cd801ce5e0000000000000000011.tik`), never off the file name on disk.
      */
     fun titleId(uri: Uri): String? = runCatching {
         context.contentResolver.openFileDescriptor(uri, "r")?.use { pfd ->

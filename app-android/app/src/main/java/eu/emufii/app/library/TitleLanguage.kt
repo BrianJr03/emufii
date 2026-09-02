@@ -11,15 +11,13 @@ import android.content.Context
 object TitleLanguage {
 
     /**
-     * The language Emufii is displayed in, not the device's. `Locale.getDefault()`
-     * ignores the per-app locale, so a French app on an English phone reported
-     * English and the library came back in English under French labels. The
-     * resources configuration carries it; read once per scan.
+     * The language Emufii is displayed in, not the device's: `Locale.getDefault()` ignores
+     * the per-app locale, so a French app on an English phone listed the library in English
+     * under French labels. Read once per scan, from the resources configuration.
      */
     @Volatile
     private var current: String = "en"
 
-    /** The only place the locale enters. */
     fun apply(context: Context) {
         set(context.resources.configuration.locales[0].language)
     }
@@ -46,8 +44,8 @@ object TitleLanguage {
         get() = if (isFrench) intArrayOf(2, 1, 0, 3, 4, 5) else intArrayOf(1, 2, 0, 3, 4, 5)
 
     /**
-     * Named rather than numbered: `icon_French.dat`. Both English variants are
-     * tried, since a European dump often carries only the British one.
+     * Named rather than numbered: `icon_French.dat`. Both English variants are tried, a
+     * European dump often carrying only the British one.
      */
     val switch: List<String>
         get() = if (isFrench) {
@@ -67,8 +65,7 @@ object TitleLanguage {
      * Wii `IMET` slots: 0 Japanese, 1 English, 2 German, 3 French, 4 Spanish,
      * 5 Italian, 6 Dutch, 7 Simplified Chinese, 8 Traditional Chinese, 9 Korean.
      *
-     * Not [gcBanner]'s order, which is why they are two lists: slot 2 is French
-     * on a GameCube disc and German on a Wii one.
+     * Not [gcBanner]'s order: slot 2 is French on a GameCube disc, German on a Wii one.
      */
     val wiiImet: IntArray
         get() = if (isFrench) intArrayOf(3, 1, 0, 2, 4, 5, 6) else intArrayOf(1, 3, 0, 2, 4, 5, 6)

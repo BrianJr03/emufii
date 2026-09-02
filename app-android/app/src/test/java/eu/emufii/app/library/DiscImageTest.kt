@@ -6,18 +6,12 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Which console an `.iso` belongs to, when the extension refuses to say.
+ * Which console an `.iso` belongs to, when the extension refuses to say. The offsets
+ * were measured on the disc images on this machine: six PSP rips stayed on the PSP,
+ * eleven RVZ files came out as Wii, the one Dreamcast `.chd` did not move.
  *
- * The offsets pinned here were measured on the disc images on this machine, not
- * read off a wiki, and the whole library was run through the rule before it was
- * written: six PSP rips stayed on the PSP, eleven RVZ files came out as Wii, and
- * the one Dreamcast `.chd` was left exactly where it was. These tests keep that
- * result from drifting.
- *
- * The direction of the rule is the thing to protect. A wrong "yes" moves a
- * player's game onto an emulator that cannot open it; a wrong "no" merely leaves
- * it where it already was. So the assertions below care far more about what must
- * *not* be identified than about what must.
+ * A wrong "yes" moves a game onto an emulator that cannot open it, a wrong "no" leaves
+ * it where it was; the assertions weigh accordingly.
  */
 class DiscImageTest {
 
@@ -37,8 +31,7 @@ class DiscImageTest {
 
     @Test
     fun `a raw image is read from the magic at its own offset`() {
-        // 0x18 for the Wii, 0x1C for the GameCube, four bytes apart, which is
-        // why they are checked in that order and never by a range scan.
+        // Wii and GameCube magics sit four bytes apart: checked in order, never scanned for.
         assertEquals(Console.WII, DiscImage.identify(header { putBE(0x18, 0x5D1C9EA3) }))
         assertEquals(
             Console.GAMECUBE,
@@ -48,14 +41,12 @@ class DiscImageTest {
 
     @Test
     fun `a PSP rip is not identified, so it stays with PPSSPP`() {
-        // Measured: a UMD rip has plain zeroes at both offsets. This is the
-        // assertion that keeps Dolphin from stealing the PSP's extension.
+        // Measured: a UMD rip has plain zeroes at both offsets.
         assertNull(DiscImage.identify(ByteArray(DiscImage.HEADER_BYTES)))
     }
 
     @Test
     fun `RVZ states its console in the disc type field`() {
-        // 1 GameCube, 2 Wii, at 0x48, the value every real RVZ here carries.
         assertEquals(
             Console.WII,
             DiscImage.identify(header { putAscii(0, "RVZ"); putBE(0x48, 2) })
@@ -68,9 +59,8 @@ class DiscImageTest {
 
     @Test
     fun `an unknown disc type falls back to the copy of the real header`() {
-        // The container keeps the first 0x80 bytes of the disc verbatim at 0x58,
-        // which is why the Wii magic shows up at 0x70 in a hex dump. It is the
-        // answer for a disc_type this build has never seen.
+        // The container copies the disc's first 0x80 bytes verbatim at 0x58: the Wii
+        // magic shows up at 0x70 in a hex dump.
         assertEquals(
             Console.WII,
             DiscImage.identify(
@@ -96,9 +86,6 @@ class DiscImageTest {
 
     @Test
     fun `the PSP keeps every extension it had`() {
-        // The other half of the guarantee, and the one a future edit is most
-        // likely to break: no matter what Dolphin declares, `.iso` and `.chd`
-        // must still resolve to the PSP by name alone.
         assertEquals(Console.PSP, Console.forExtension("iso"))
         assertEquals(Console.PSP, Console.forExtension("chd"))
         assertEquals(Console.PSP, Console.forExtension("cso"))
@@ -106,15 +93,9 @@ class DiscImageTest {
     }
 
     /**
-     * A complete disc, as far as the ISO9660 volume descriptor.
-     *
-     * The values are the ones taken from the Thor's real files on 2026-08-17, not
-     * plausible-looking ones:
-     *
-     * ```
-     * TimeSplitters 2 (PS2): 'PLAYSTATION' / 'SLES_50877'
-     * WipEout Pulse  (PSP) : 'PSP GAME'    / 'SCEE'
-     * ```
+     * A disc as far as the ISO9660 volume descriptor. The values come from the Thor's
+     * real files on 2026-08-17: TimeSplitters 2 (PS2) is `PLAYSTATION` / `SLES_50877`,
+     * WipEout Pulse (PSP) is `PSP GAME` / `SCEE`.
      */
     private fun disc(systemId: String, volumeId: String = "") =
         ByteArray(DiscImage.PVD_BYTES).apply {
@@ -131,38 +112,31 @@ class DiscImageTest {
 
     @Test
     fun `a UMD rip stays with the PSP, even read as far as the descriptor`() {
-        // The regression that matters: on the Thor, the six PS2 games and the six
-        // PSP games are all `.iso`.
-        // The UMD rip says so itself in the descriptor, which is what settles
-        // a shared `.iso` the folder did not speak for.
+        // On the Thor the six PS2 games and the six PSP games are all `.iso`: only the
+        // descriptor settles one the folder did not speak for.
         assertEquals(Console.PSP, DiscImage.identify(disc("PSP GAME", "SCEE")))
     }
 
     @Test
     fun `the PS2 number is the one ARMSX2 shows`() {
-        // The emulator writes `SLES-50877`, the disc `SLES_50877`.
         assertEquals("SLES-50877", DiscImage.gameId(disc("PLAYSTATION", "SLES_50877")))
     }
 
     @Test
     fun `a short header promotes nothing to the PS2`() {
-        // What was read stops before `0x8000`: say nothing, rather than read
-        // zeroes that do not come from the file.
+        // The read stops before `0x8000`: say nothing rather than trust absent bytes.
         assertNull(DiscImage.identify(ByteArray(DiscImage.HEADER_BYTES)))
     }
 
     @Test
     fun `the PS2 claims no extension`() {
-        // It only ever arrives through the bytes: giving it `.iso` would take
-        // that from the PSP, the table being a map.
+        // The table is a map: giving the PS2 `.iso` would take it from the PSP.
         assertTrue(Console.PS2.extensions.isEmpty())
         assertEquals(Console.PSP, Console.forExtension("iso"))
     }
 
     @Test
     fun `the sniffed extensions are ones the scan actually recognises`() {
-        // An extension listed for sniffing but absent from every console's set
-        // would never reach the reader: the scan skips the file before asking.
         for (ext in DiscImage.SNIFFED_EXTENSIONS) {
             assert(Console.forExtension(ext) != null) {
                 ".$ext is sniffed but no console claims it, so the scan drops it first"
@@ -172,8 +146,7 @@ class DiscImageTest {
 
     @Test
     fun `a console folder name settles the console`() {
-        // The player sorted the file themselves: that name outranks any
-        // extension collision. Separators are ignored, case too.
+        // The player sorted the file themselves: the folder outranks any extension clash.
         assertEquals(Console.PS2, Console.forFolder("ps2"))
         assertEquals(Console.PS2, Console.forFolder("PlayStation 2"))
         assertEquals(Console.PSP, Console.forFolder("PSP"))
@@ -181,9 +154,6 @@ class DiscImageTest {
         assertEquals(Console.THREE_DS, Console.forFolder("n3ds"))
         assertEquals(Console.SWITCH, Console.forFolder("Nintendo Switch"))
         assertEquals(Console.GAMECUBE, Console.forFolder("gc"))
-
-        // Unknown folders say nothing, and a console Emufii does not serve
-        // must not steal its neighbour's name.
         assertNull(Console.forFolder("ROMS"))
         assertNull(Console.forFolder("dumps"))
         assertNull(Console.forFolder("ps1"))

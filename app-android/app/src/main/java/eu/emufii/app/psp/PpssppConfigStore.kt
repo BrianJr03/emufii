@@ -20,12 +20,9 @@ sealed interface PpssppConfigResult {
 }
 
 /**
- * The one bridge stock PPSSPP exposes to another Android application.
- *
- * The player grants Emufii PPSSPP's memory-stick tree once. We then edit only
- * `PSP/SYSTEM/<DISC_ID>_ppsspp.ini`, the file PPSSPP itself loads as the game
- * boots. No broad storage permission, private-data access, accessibility, root,
- * or PPSSPP fork is involved.
+ * The one bridge stock PPSSPP exposes to another Android application: the player grants
+ * its memory-stick tree once, and we edit only `PSP/SYSTEM/<DISC_ID>_ppsspp.ini`, which
+ * PPSSPP loads as the game boots. No broad storage permission, root or fork involved.
  */
 class PpssppConfigStore(context: Context) {
     private val appContext = context.applicationContext
@@ -51,15 +48,12 @@ class PpssppConfigStore(context: Context) {
     fun canApply(productCode: String?, filename: String?, displayName: String?): Boolean =
         isReady() && PpssppIni.resolveDiscId(productCode, filename, displayName) != null
 
-    /**
-     * Called directly from an ACTION_OPEN_DOCUMENT_TREE result while its
-     * temporary read/write grant is still attached to Emufii.
-     */
+    /** Call from an ACTION_OPEN_DOCUMENT_TREE result, while its grant is still attached. */
     fun configureRoot(uri: Uri): PpssppConfigResult {
         val previous = rootUri()
         if (previous != null && previous != uri && backupFiles().isNotEmpty()) {
-            // Those backups belong to the old memory stick. Forgetting where
-            // they came from would strand its private-session values there.
+            // Those backups belong to the old memory stick: forgetting where they came
+            // from would strand its private-session values there.
             return PpssppConfigResult.ActiveOverrides
         }
         val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or
@@ -101,22 +95,17 @@ class PpssppConfigStore(context: Context) {
         }.getOrElse { PpssppConfigResult.Failure(it.message ?: it.javaClass.simpleName) }
     }
 
-    /**
-     * Put back only the four values we borrowed, preserving settings PPSSPP or
-     * the player changed during the private game.
-     */
+    /** Only the four values we borrowed, so changes made during the game survive. */
     fun restorePublic(
         productCode: String?,
         filename: String?,
         displayName: String?,
     ): PpssppConfigResult {
         val id = PpssppIni.resolveDiscId(productCode, filename, displayName)
-            // applyPrivate() refuses an unknown ID, so no override can exist
-            // for one. Public launch therefore has nothing to undo.
+            // applyPrivate() refuses an unknown ID, so none can have an override.
             ?: return PpssppConfigResult.Success
         val backup = backupFile(id)
-        // This game was never put in private mode by Emufii. Public launch has
-        // nothing to restore and does not need the PPSSPP folder grant.
+        // Never put in private mode: nothing to restore, and no folder grant needed.
         if (!backup.exists()) return PpssppConfigResult.Success
         val uri = rootUri() ?: return PpssppConfigResult.NotConfigured
         if (!hasPersistedWrite(uri)) return PpssppConfigResult.PermissionMissing
@@ -155,8 +144,8 @@ class PpssppConfigStore(context: Context) {
         val psp = root.child("PSP")?.takeIf { it.isDirectory } ?: return null
         val system = psp.child("SYSTEM")?.takeIf { it.isDirectory } ?: return null
         val global = system.child("ppsspp.ini")?.takeIf { it.isFile } ?: return null
-        // Opening without writing is a stronger validation than DocumentFile's
-        // capability flags, which some providers report optimistically.
+        // Stronger than DocumentFile's capability flags, which some providers report
+        // optimistically.
         runCatching { resolver.openInputStream(global.uri)?.use { it.read() } }.getOrNull()
             ?: return null
         return system

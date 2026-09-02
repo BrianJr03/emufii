@@ -7,13 +7,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Which Eden variant Emufii opens when the player has several.
- *
- * Eden does not ship as two channels but as a matrix of packages, two of which
- * do not even carry the word "eden", the "Optimized" one presenting itself under
- * Genshin Impact's identity. Two distinct flaws live there: not recognising a
- * variant at all, and recognising several then opening the wrong one. Both
- * happened on the Thor on 2026-08-10.
+ * Eden ships as a matrix of packages, two of which do not carry the word "eden", the
+ * "Optimized" one presenting itself under Genshin Impact's identity. Two flaws live there:
+ * not recognising a variant at all, and recognising several then opening the wrong one.
+ * Both happened on the Thor on 2026-08-10.
  */
 class EdenVariantTest {
 

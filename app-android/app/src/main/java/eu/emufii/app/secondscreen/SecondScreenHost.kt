@@ -36,10 +36,7 @@ fun SecondScreenHost(enabled: Boolean) {
 
     val wanted = secondScreenWanted(enabled, foreground, model)
 
-    // The poll is no longer tied to the panel: the lamp is in the library's bar too.
-
-    // Keyed on all of it: setting off, app left, or panel gone must take the window
-    // down alike.
+    // Setting off, app left, or panel gone must take the window down alike.
     DisposableEffect(display, wanted) {
         val target = display
         if (!wanted || target == null) return@DisposableEffect onDispose {}
@@ -56,7 +53,6 @@ fun SecondScreenHost(enabled: Boolean) {
 }
 
 /**
- * Emufii in front, or a session running. Pure, so the rule is testable.
  * pourquoi : docs/decisions/second-ecran.md § The panel only lights up if it has a reason
  */
 fun secondScreenWanted(
@@ -66,8 +62,7 @@ fun secondScreenWanted(
 ): Boolean = enabled && (foreground || model is SecondScreenModel.InSession)
 
 /**
- * Carries its own [SecondScreenWindowOwner]: the service host has no activity to borrow
- * from.
+ * Carries its own [SecondScreenWindowOwner]: the service host has no activity to borrow from.
  * pourquoi : docs/decisions/second-ecran.md § The panel's state lives process-wide, not in the composition
  */
 private class EmufiiPresentation(
@@ -77,10 +72,7 @@ private class EmufiiPresentation(
 
     private val owner = SecondScreenWindowOwner()
 
-    /**
-     * Back does not close the panel: a `Presentation` is a `Dialog`, and a `Dialog`
-     * closes on back.
-     */
+    /** A `Presentation` is a `Dialog`, and a `Dialog` closes on back. */
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
     }
@@ -88,8 +80,8 @@ private class EmufiiPresentation(
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // The panel is touchable. It was not: the window carried `FLAG_NOT_TOUCHABLE`
-        // and `FLAG_NOT_FOCUSABLE`.
+        // The window carried `FLAG_NOT_TOUCHABLE` and `FLAG_NOT_FOCUSABLE`, and the panel
+        // is touch.
         // pourquoi : docs/decisions/second-ecran.md § The panel takes the steps, because it is touch
         window?.apply {
             addFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL)
@@ -109,7 +101,6 @@ private class EmufiiPresentation(
 }
 
 /**
- * Read back from [LocaleManager], so an Android-side change reaches this window.
  * pourquoi : docs/decisions/second-ecran.md § The language comes from the window, not from the process
  */
 private fun Context.withAppLocales(): Context {
@@ -122,8 +113,7 @@ private fun Context.withAppLocales(): Context {
 }
 
 /**
- * The theme is read from the store, not inherited: the service host has no enclosing
- * one.
+ * The theme is read from the store, not inherited: the service host has no enclosing one.
  * pourquoi : docs/decisions/second-ecran.md § The panel's state lives process-wide, not in the composition
  */
 @Composable
@@ -135,13 +125,11 @@ private fun SecondScreenSurface() {
     val aside by SecondScreen.aside.collectAsState()
 
     /**
-     * The resting face waits [IDLE_GRACE]: switching front screens is not atomic.
+     * The resting face waits: switching front screens is not atomic.
      * pourquoi : docs/decisions/second-ecran.md § The resting face waits its turn
      */
     var model by remember { mutableStateOf(published) }
     LaunchedEffect(published, aside) {
-        // The grace covers a rest that is suffered, one screen gone before the next
-        // speaks, never one laid deliberately.
         if (published is SecondScreenModel.Idle &&
             model !is SecondScreenModel.Idle &&
             aside == null
@@ -151,7 +139,6 @@ private fun SecondScreenSurface() {
         model = published
     }
 
-    // Against this window's configuration, which is the second display's.
     EmufiiTheme(
         darkTheme = theme.isDark(androidx.compose.foundation.isSystemInDarkTheme()),
         oled = theme.isOled
@@ -160,5 +147,4 @@ private fun SecondScreenSurface() {
     }
 }
 
-/** Set on the only thing it must cover: the time one screen takes to replace another. */
 private const val IDLE_GRACE_MS = 400L

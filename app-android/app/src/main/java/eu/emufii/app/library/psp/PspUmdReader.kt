@@ -10,12 +10,8 @@ import java.nio.ByteOrder
 import java.nio.channels.FileChannel
 
 /**
- * What a PSP game consents to say about itself.
- *
- * [recognised] says something other than "there is an icon": that the file really
- * is a PSP game. A PS2 or Xbox `.iso` carries the same extension and used to end
- * up in the grid under its filename, next to games Emufii really can put into a
- * game.
+ * [recognised] says the file really is a PSP game: a PS2 or Xbox `.iso` carries the same
+ * extension and used to land in the grid under its filename.
  */
 data class PspData(
     val icon: Bitmap?,
@@ -25,18 +21,10 @@ data class PspData(
 )
 
 /**
- * Reads a PSP game's icon and title, without reading the game.
- *
- * Five small reads are enough, the volume descriptor, the root, the `PSP_GAME`
- * directory, then the two files, that is about ten kilobytes on a disc weighing
- * a million of them. That is what makes it possible during the library scan, as
- * for the DS and the 3DS.
- *
- * Two containers are served. The UMD (`.iso`) files its contents in an ordinary
- * ISO9660, decoded by [UmdIso]. The `EBOOT.PBP`, the form taken by downloaded
- * games and homebrew, instead carries an address table up front, so the icon is
- * found without walking anything. `.cso` and `.chd` are compressed: their table
- * of contents is not readable as it stands, and those tiles keep their initials.
+ * Five reads, about ten kilobytes on a disc weighing a million: cheap enough for the
+ * library scan. The UMD (`.iso`) is an ordinary ISO9660, decoded by [UmdIso]; the
+ * `EBOOT.PBP` carries an address table up front. `.cso` and `.chd` are compressed, their
+ * table of contents unreadable as it stands, and those tiles keep their initials.
  */
 class PspUmdReader(private val context: Context) {
 
@@ -47,7 +35,6 @@ class PspUmdReader(private val context: Context) {
         /** `\0PBP`: an EBOOT's signature. */
         const val PBP_MAGIC = 0x50425000
 
-        /** Inside a PBP, the offsets of `PARAM.SFO` and `ICON0.PNG`. */
         const val PBP_SFO_AT = 0x08
         const val PBP_ICON_AT = 0x0C
 
@@ -55,10 +42,8 @@ class PspUmdReader(private val context: Context) {
         const val MAX_SFO = 64 * 1024
 
         /**
-         * A UMD's icon is 144x80, and the grid draws without smoothing, which is
-         * right for a DS's 32 pixels, where every pixel is an artist's choice,
-         * and wrong for PSP artwork, which would then be seen as large squares.
-         * So we scale it up here, once, with smoothing.
+         * A UMD's icon is 144x80 and the grid draws without smoothing, right for a DS's
+         * 32 pixels, wrong for PSP artwork: scaled up here once, smoothed.
          */
         const val UPSCALE = 3
     }
@@ -75,7 +60,6 @@ class PspUmdReader(private val context: Context) {
 
     private val empty get() = PspData(null, null, null)
 
-    /** The two files we care about, once located. */
     private data class Payload(val sfo: ByteArray?, val icon: ByteArray?)
 
     private fun decode(payload: Payload): PspData {
@@ -84,8 +68,7 @@ class PspUmdReader(private val context: Context) {
             BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.let(::upscale)
         }
         // A `PARAM.SFO` title often wraps to fit the console's thumbnail
-        // ("WipEout\nPulse"): in a grid, those breaks become holes in the middle
-        // of the name.
+        // ("WipEout\nPulse"); in a grid those breaks are holes in the name.
         val title = fields["TITLE"]
             ?.replace(Regex("\\s+"), " ")
             ?.trim()
@@ -96,8 +79,6 @@ class PspUmdReader(private val context: Context) {
             icon = bitmap,
             title = title,
             cacheKey = id?.let { "PSP-$it" },
-            // We only get here after finding `PSP_GAME` in an ISO9660 or an
-            // EBOOT header: in both cases this is a PSP game.
             recognised = true
         )
     }
@@ -119,10 +100,7 @@ class PspUmdReader(private val context: Context) {
         )
     }
 
-    /**
-     * A PBP says where its pieces are itself: every offset is followed by the
-     * next piece's, so the size follows without looking for anything.
-     */
+    /** Every offset in a PBP is followed by the next piece's, so the size comes for free. */
     private fun pbpPayload(source: UmdIso.Source): Payload? {
         val header = source.read(0, 40) ?: return null
         if (header.size < 40) return null
@@ -148,9 +126,6 @@ class PspUmdReader(private val context: Context) {
             if (channel.read(buffer) < 0) break
         }
         val read = buffer.position()
-        // A short read is not a usable partial read here: every structure read
-        // has an announced size, so a truncated dump has to say so rather than be
-        // guessed at.
         return if (read == length) buffer.array() else null
     }
 }

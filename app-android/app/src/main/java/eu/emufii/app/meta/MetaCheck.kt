@@ -9,34 +9,24 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 /**
- * Where the game metadata comes from, and what happens when it does not.
+ * The same road as `/compat`: unauthenticated GET of a static document on the
+ * coordinator, cached on disk, the network answer only ever replacing the cache.
+ * Handhelds are offline half the time.
  *
- * The same road as `/compat`, deliberately: an unauthenticated GET of a static
- * document on the coordinator, cached on disk, the network answer only ever
- * replacing the cache. Handhelds are offline half the time and a synopsis that
- * disappears without Wi-Fi would make the second page look broken rather than
- * empty.
- *
- * It is *not* merged into the compatibility document, and the split is on
- * purpose. That one is a verdict, small, and read on the first frame by every
- * tile in the grid; this one is paragraphs and picture URLs, read by one panel
- * page. Putting them together would make every cold start pay for prose nobody
- * has asked to see.
+ * Kept out of the compatibility document on purpose: that one is a small verdict read on
+ * the first frame by every tile in the grid, this one is paragraphs and picture URLs read
+ * by one panel page, and merging them would make every cold start pay for the prose.
  */
 object MetaCheck {
 
     private const val FILE = "meta.json"
 
-    /** The cached copy, or an empty database. Never touches the network. */
     fun cached(context: Context): GameMetaDb = runCatching {
         val file = File(context.filesDir, FILE)
         if (!file.exists()) GameMetaDb.EMPTY else GameMetaDb.parse(file.readText())
     }.getOrDefault(GameMetaDb.EMPTY)
 
-    /**
-     * Fetches the database and replaces the cache, returning what should now be
-     * displayed. On any failure, the cache untouched.
-     */
+    /** On any failure, the cache is left untouched. */
     suspend fun refresh(
         context: Context,
         baseUrl: String = BuildConfig.COORDINATOR_BASE_URL

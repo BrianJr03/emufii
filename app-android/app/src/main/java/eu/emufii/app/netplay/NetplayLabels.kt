@@ -6,32 +6,22 @@ import android.content.res.Resources
 import java.util.Locale
 
 /**
- * Reads a label out of the emulator's own resources.
- *
- * Everything else in this package matches on view ids ([NetplayTarget]), but
- * Azahar's home settings list is a RecyclerView whose rows share the same ids
- * (`option_card`, `option_title`), so only the text tells Multiplayer from
- * System Files. Requires the package in `<queries>`.
- *
- * Returns null when the package or the string is missing; callers stop there
- * rather than click something arbitrary.
+ * Everything else in this package matches on view ids ([NetplayTarget]), but Azahar's home
+ * settings list is a RecyclerView whose rows share the same ids (`option_card`,
+ * `option_title`), so only the text tells Multiplayer from System Files. Requires the
+ * package in `<queries>`.
  */
 object NetplayLabels {
 
-    /** The emulator's own name for the multiplayer entry, in the current locale. */
     const val MULTIPLAYER = "multiplayer"
 
-    /**
-     * Most specific first. The hub shows a title and a description, and which of
-     * the two carries the word differs between builds.
-     */
+    /** Most specific first: which of the hub's title and description carries the word differs between builds. */
     val MULTIPLAYER_STRINGS = listOf(MULTIPLAYER, "multiplayer_description")
 
     /**
-     * Every translation the emulator ships for this string, not just the expected
-     * one: a third-party app's language is set per application since Android 13
-     * and no public API reads it. On the Thor the system announces `[en, fr_FR]`
-     * and Azahar still displays "Multijoueur". Some thirty string reads per screen.
+     * Every translation the emulator ships, not just the expected one: a third-party app's
+     * language is per application since Android 13 and no public API reads it. On the Thor the
+     * system announces `[en, fr_FR]` and Azahar still displays "Multijoueur".
      */
     fun of(context: Context, pkg: String, name: String): List<String> {
         val res = runCatching {
@@ -53,10 +43,7 @@ object NetplayLabels {
         return out.toList()
     }
 
-    /**
-     * Closed on purpose: a missing language breaks only the automatic opening,
-     * never the form filling. One language too many costs a single string read.
-     */
+    /** Closed on purpose: a missing language breaks only the automatic opening, never the form filling. */
     private val CANDIDATE_LANGUAGES = listOf(
         "en", "fr", "de", "es", "it", "pt", "nl", "pl", "ru", "tr",
         "ja", "ko", "zh", "ar", "cs", "da", "fi", "hu", "id", "nb",

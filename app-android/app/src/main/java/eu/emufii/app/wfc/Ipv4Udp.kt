@@ -1,16 +1,9 @@
 package eu.emufii.app.wfc
 
 /**
- * Just enough IPv4/UDP to read a datagram off a tun device and write one back.
- *
- * A `VpnService` tunnel hands over raw IP packets, so the DNS relay has to do
- * its own parsing and its own checksums. Kept free of Android types on purpose:
- * every rule here is covered by JVM tests, the same way `TapserverHub`'s framing
- * is.
- *
- * Only what the relay needs is implemented, no fragmentation, no IPv6. A
- * fragmented DNS query over a tunnel we control does not happen, and a packet
- * we do not understand is dropped rather than guessed at.
+ * A `VpnService` tunnel hands over raw IP packets, so the DNS relay does its own parsing
+ * and checksums; free of Android types, so every rule is covered by JVM tests. No
+ * fragmentation and no IPv6: a packet not understood is dropped rather than guessed at.
  */
 object Ipv4Udp {
 
@@ -18,7 +11,7 @@ object Ipv4Udp {
     private const val MIN_IP_HEADER = 20
     private const val UDP_HEADER = 8
 
-    /** A parsed UDP datagram, addresses kept as raw 4-byte big-endian. */
+    /** Addresses kept as raw 4-byte big-endian. */
     data class Datagram(
         val source: ByteArray,
         val destination: ByteArray,
@@ -26,8 +19,7 @@ object Ipv4Udp {
         val destinationPort: Int,
         val payload: ByteArray
     ) {
-        // Data class equality on ByteArray compares references, which makes for
-        // confusing tests. Compare contents.
+        // Data class equality on ByteArray compares references, which confuses the tests.
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
             if (other !is Datagram) return false
@@ -49,9 +41,8 @@ object Ipv4Udp {
     }
 
     /**
-     * Reads the first [length] bytes of [packet] as an IPv4/UDP datagram, or
-     * returns null if it is anything else, wrong version, not UDP, truncated,
-     * fragmented, or claiming a length the buffer does not back up.
+     * Null for anything else: wrong version, not UDP, truncated, fragmented, or claiming
+     * a length the buffer does not back up.
      */
     fun parse(packet: ByteArray, length: Int = packet.size): Datagram? {
         if (length < MIN_IP_HEADER) return null
@@ -64,8 +55,7 @@ object Ipv4Udp {
 
         if ((packet[9].toInt() and 0xFF) != PROTO_UDP) return null
 
-        // Fragmented? Bail: reassembly is not our job and a partial datagram
-        // would parse as a plausible one.
+        // Reassembly is not our job, and a fragment parses as a plausible datagram.
         val fragmentField = readShort(packet, 6)
         if ((fragmentField and 0x1FFF) != 0 || (fragmentField and 0x2000) != 0) return null
 
@@ -88,11 +78,8 @@ object Ipv4Udp {
     }
 
     /**
-     * Builds a complete IPv4/UDP packet, with both checksums filled in.
-     *
-     * The UDP checksum is optional in IPv4, but computing it costs nothing here
-     * and a wrong-but-present checksum is the kind of bug that shows up as
-     * "DNS silently doesn't work", so it is computed and tested.
+     * The UDP checksum is optional in IPv4, but a wrong-but-present one shows up as "DNS
+     * silently doesn't work", so it is computed and tested.
      */
     fun build(
         source: ByteArray,
@@ -130,10 +117,7 @@ object Ipv4Udp {
         return packet
     }
 
-    /**
-     * Standard 16-bit one's complement sum, returned already complemented.
-     * A run over a header that already carries its checksum yields 0.
-     */
+    /** One's complement sum, already complemented; a run over a filled header yields 0. */
     fun checksum(data: ByteArray, offset: Int, length: Int): Int {
         var sum = 0
         var i = offset
@@ -147,10 +131,7 @@ object Ipv4Udp {
         return sum.inv() and 0xFFFF
     }
 
-    /**
-     * UDP checksum over the pseudo-header plus the datagram, for a packet whose
-     * checksum field is currently zero.
-     */
+    /** Over the pseudo-header plus the datagram, whose checksum field must still be zero. */
     private fun udpChecksum(packet: ByteArray): Int {
         val udpLength = readShort(packet, 24)
         var sum = 0
@@ -158,7 +139,6 @@ object Ipv4Udp {
         for (i in 12 until 20 step 2) sum += readShort(packet, i)
         sum += PROTO_UDP
         sum += udpLength
-        // The datagram itself, checksum field included as the zero it currently is.
         var i = MIN_IP_HEADER
         val end = MIN_IP_HEADER + udpLength
         while (i + 1 < end) {

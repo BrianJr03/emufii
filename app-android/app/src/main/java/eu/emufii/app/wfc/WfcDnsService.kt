@@ -23,16 +23,10 @@ import java.net.InetAddress
 import java.net.InetSocketAddress
 
 /**
- * A tunnel that exists only to answer DNS, so DS online play lands on Kaeru.
- *
- * Deliberately separate from [eu.emufii.app.wg.EmufiiWgService] rather than bolted
- * onto it. The WFC route is architecturally disjoint from the session one, no
- * network, no session code, no hub, and Android runs one VpnService at a time
- * anyway, so the two modes are mutually exclusive whether we like it or not. The
- * separation also keeps the tunnel that carries live sessions untouched.
- *
- * It is scoped to melonDS alone via [VpnService.Builder.addAllowedApplication],
- * so nothing else on the device has its name resolution moved.
+ * A tunnel that only answers DNS, so DS online play lands on Kaeru. Kept separate from
+ * [eu.emufii.app.wg.EmufiiWgService]: no session code and no hub, and Android runs one
+ * VpnService at a time, so the two modes are mutually exclusive anyway. Scoped to melonDS
+ * via [VpnService.Builder.addAllowedApplication], so nothing else is moved.
  */
 class WfcDnsService : VpnService() {
 
@@ -43,14 +37,11 @@ class WfcDnsService : VpnService() {
         private const val ACTION_START = "eu.emufii.app.wfc.START"
         private const val ACTION_STOP = "eu.emufii.app.wfc.STOP"
 
-        /** Upstream is one UDP round trip; a game waiting on it should not hang. */
         private const val UPSTREAM_TIMEOUT_MS = 4000
 
         /**
-         * A single timeout is weather; three in a row is a server that is gone.
-         * At the timeout above that is roughly twelve seconds of silence, which
-         * is shorter than the console's own patience, so Emufii can name the
-         * cause before the game shows its own error code.
+         * Three in a row is a server that is gone: roughly twelve seconds at the timeout
+         * above, shorter than the console's patience, so Emufii names the cause first.
          */
         private const val UNREACHABLE_AFTER_FAILURES = 3
 
@@ -93,7 +84,7 @@ class WfcDnsService : VpnService() {
         try {
             val socket = DatagramSocket().apply { soTimeout = UPSTREAM_TIMEOUT_MS }
             if (!protect(socket)) {
-                // Without this the query would be sent back into our own tunnel.
+                // Without this the query is sent back into our own tunnel.
                 socket.close()
                 throw IllegalStateException("protect() failed on the upstream socket")
             }
@@ -104,8 +95,8 @@ class WfcDnsService : VpnService() {
 
             val established = Builder()
                 .addAddress(KaeruWfc.TUN_ADDRESS, 32)
-                // One host route, for the resolver we advertise. Everything else
-                // keeps using the real network: this tunnel moves DNS, not traffic.
+                // One host route, for the resolver advertised: everything else keeps
+                // using the real network, this tunnel moves DNS, not traffic.
                 .addRoute(KaeruWfc.SENTINEL_DNS, 32)
                 .addDnsServer(KaeruWfc.SENTINEL_DNS)
                 .addAllowedApplication(melonPackage)
@@ -161,40 +152,22 @@ class WfcDnsService : VpnService() {
                 publishReachability(active)
                 if (reply == null) continue
                 output.write(reply)
-                // Loud on the first one, then sparse: enough to tell "the console
-                // is going through Kaeru" from "nothing is reaching the relay",
-                // without a log line per lookup.
                 val count = active.queriesRelayed
                 if (count == 1L || count % 25L == 0L) {
                     Log.d(TAG, "relayed $count queries to ${KaeruWfc.DNS_SERVER}")
                 }
             }
         } catch (e: Exception) {
-            // Closing the descriptor to stop the service lands here; that is the
-            // normal way out, not a failure worth surfacing.
+            // Closing the descriptor to stop the service lands here: the normal way out.
             Log.d(TAG, "relay loop ended: ${e.message}")
         }
         Log.d(TAG, "relay loop stopped")
     }
 
-    /**
-     * Turns a run of unanswered lookups into something the player can read.
-     *
-     * Called after every packet the relay looked at, including the ones it
-     * dropped, so the state follows the run rather than the last write. Only the
-     * transitions touch the flow and the notification, a lookup that changes
-     * nothing must not repost a notification on every DNS query of a race.
-     *
-     * The notification matters more than the screen here: while a game is on,
-     * Emufii is in the background and the shade is the only surface the player
-     * still sees.
-     */
     private fun publishReachability(active: DnsRelay) {
         val scoped = when (val s = _state.value) {
             is WfcState.Active -> s.scopedTo
             is WfcState.Unreachable -> s.scopedTo
-            // Stopping, Idle or Error: the tunnel is not in a steady state and
-            // reachability is not the interesting fact about it.
             else -> return
         }
         val down = active.consecutiveUpstreamFailures >= UNREACHABLE_AFTER_FAILURES
@@ -225,10 +198,8 @@ class WfcDnsService : VpnService() {
     }
 
     /**
-     * The user swiped Emufii out of the recents list: take the tunnel down.
-     *
-     * Deliberately unconditional, and `stopSelf` counts as much as [stopTunnel]:
-     * it clears the sticky restart.
+     * Unconditional, and `stopSelf` counts as much as [stopTunnel]: it clears the sticky
+     * restart.
      * pourquoi : docs/decisions/tunnel-wireguard.md § Swiping the app out of recents cuts the tunnel
      */
     override fun onTaskRemoved(rootIntent: Intent?) {
@@ -280,14 +251,8 @@ sealed interface WfcState {
     data class Active(val scopedTo: String) : WfcState
 
     /**
-     * The tunnel is up and the console is asking, but Kaeru has stopped
-     * answering.
-     *
-     * A separate state rather than [Error], because nothing on this side is
-     * broken: the redirection still works and will start serving again the
-     * moment the server comes back. What it changes is what the player should
-     * conclude, the game's own "could not connect" is about to appear, and it
-     * is not their network.
+     * Separate from [Error]: nothing on this side is broken, the redirection serves again
+     * the moment Kaeru comes back.
      */
     data class Unreachable(val scopedTo: String) : WfcState
     data object Stopping : WfcState

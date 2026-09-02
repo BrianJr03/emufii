@@ -8,14 +8,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Reading Dolphin's netplay form when it hands us nothing to hold on to.
- *
- * The trees below are transcribed from `uiautomator dump` on the Thor, Dolphin
- * dev build 2606-302, 2026-08-15, in landscape at 1920×1080, the same screens
- * a player sees. Every bound is the real one. That matters here more than
- * usual: this backend has no resource ids at all, so geometry and text are
- * the entire contract, and a plausible-looking synthetic tree would prove
- * nothing about the screen we actually have to drive.
+ * The trees below are transcribed from `uiautomator dump` on the Thor, Dolphin dev build
+ * 2606-302, 2026-08-15, landscape at 1920×1080. This backend has no resource ids at all,
+ * so geometry and text are the entire contract and a synthetic tree would prove nothing.
  */
 class DolphinScreenTest {
 
@@ -26,25 +21,13 @@ class DolphinScreenTest {
         Node(text = text, className = Node.TEXT_VIEW, bounds = bounds)
 
     /**
-     * A button box, as a sibling of its own caption.
-     *
-     * That is how the real tree comes out, and getting it wrong is what stopped
-     * the driver one tap short of opening a room: the first version of this test
-     * nested the caption inside the button because that is what Compose looked
-     * like it should do. Read off the Thor instead, the `Button` and its
-     * `TextView` sit at the same depth, and only the bounds relate them.
+     * A button box, sibling of its own caption: on the Thor the `Button` and its `TextView`
+     * sit at the same depth and only the bounds relate them. Nesting them, as Compose
+     * suggests, stopped the driver one tap short of opening a room.
      */
     private fun buttonBox(bounds: Bounds) =
         Node(text = "", className = "android.widget.Button", bounds = bounds, clickable = true)
 
-    /**
-     * The Connect tab, the guest's form, transcribed from the real tree.
-     *
-     * Every bound below was read off the Thor, including the two that separate
-     * the "Connect" tab from the "Connect" button. This is the side no second
-     * device has exercised yet, so the tree is the only evidence there is that
-     * the rules read it correctly.
-     */
     private val connectTab = listOf(
         label("Connect", Bounds(419, 235, 542, 282)),
         label("Host", Bounds(1405, 235, 1475, 282)),
@@ -60,7 +43,6 @@ class DolphinScreenTest {
         buttonBox(Bounds(1668, 859, 1883, 988))
     )
 
-    /** The Host tab, direct connection: no address field, and a UPnP row. */
     private val hostTab = listOf(
         label("Connect", Bounds(419, 235, 542, 282)),
         label("Host", Bounds(1405, 235, 1475, 282)),
@@ -80,8 +62,6 @@ class DolphinScreenTest {
 
     @Test
     fun `a field is found by the label drawn inside it`() {
-        // Compose puts the caption inside the field's own border, so the pair is
-        // nested rather than sequential, that containment is the anchor.
         assertEquals("127.0.0.1", DolphinScreen.fieldFor(connectTab, listOf("IP address"))?.text)
         assertEquals("2626", DolphinScreen.fieldFor(connectTab, listOf("Port"))?.text)
         assertEquals("Closssv", DolphinScreen.fieldFor(connectTab, listOf("Nickname"))?.text)
@@ -89,17 +69,14 @@ class DolphinScreenTest {
 
     @Test
     fun `the host tab has no address field, which is what identifies it`() {
-        // The driver reads exactly this to know which tab it is looking at,
-        // rather than trusting a tab label that also names a button.
         assertNull(DolphinScreen.fieldFor(hostTab, listOf("IP address")))
         assertNotNull(DolphinScreen.fieldFor(hostTab, listOf("Port")))
     }
 
     @Test
     fun `the tab and the button share a label and must not be confused`() {
-        // Dolphin labels both from `netplay_connection_role_host`. Pressing the
-        // button while the wrong tab is showing starts the wrong side of the
-        // session, so this is the assertion that keeps a guest from hosting.
+        // Dolphin labels both from `netplay_connection_role_host`: pressing the button on
+        // the wrong tab starts the wrong side of the session.
         val tab = DolphinScreen.tab(hostTab, listOf("Host"))
         val button = DolphinScreen.actionButton(hostTab, listOf("Host"))
         assertNotNull(tab)
@@ -110,16 +87,14 @@ class DolphinScreenTest {
 
     @Test
     fun `the closed dropdown is not mistaken for an open one`() {
-        // The form shows the selected option as the field's text, so matching on
-        // the option labels alone would fire on every pass and re-open the menu
-        // forever. A popup carries no EditText; that is the difference.
+        // The form shows the selected option as the field's text, so matching option labels
+        // alone re-opens the menu forever; a popup carries no EditText.
         assertFalse(DolphinScreen.isDropdownOpen(connectTab, direct, traversal))
         assertFalse(DolphinScreen.isDropdownOpen(hostTab, direct, traversal))
     }
 
     @Test
     fun `the open dropdown is recognised and its direct entry picked`() {
-        // Real bounds of the popup window, captured with the menu open.
         val popup = listOf(
             label("Direct connection", Bounds(74, 734, 332, 781)),
             label("Traversal server", Bounds(74, 845, 306, 892))
@@ -130,9 +105,8 @@ class DolphinScreenTest {
 
     @Test
     fun `labels are matched in whatever language Dolphin runs in`() {
-        // The driver passes every translation of a string, because there is no
-        // API to ask a third-party app which locale it is using. Matching has to
-        // be case and whitespace insensitive for the same reason.
+        // No API asks a third-party app which locale it is in, so the driver passes every
+        // translation and matches case- and whitespace-insensitively.
         val french = listOf("Adresse IP", "IP address")
         assertEquals("127.0.0.1", DolphinScreen.fieldFor(connectTab, french)?.text)
         assertEquals("2626", DolphinScreen.fieldFor(connectTab, listOf(" port "))?.text)
@@ -140,9 +114,6 @@ class DolphinScreenTest {
 
     @Test
     fun `the guest's own tab and button are told apart too`() {
-        // The guest side has not been played by anyone yet: these bounds are the
-        // only evidence that its rules read the right screen. The same trap as on
-        // the host side, "Connect" names the tab *and* the button.
         val tab = DolphinScreen.tab(connectTab, listOf("Connect"))
         val button = DolphinScreen.actionButton(connectTab, listOf("Connect"))
         assertEquals(Bounds(419, 235, 542, 282), tab?.bounds)
@@ -150,11 +121,8 @@ class DolphinScreenTest {
     }
 
     /**
-     * The lobby, once the connection is made.
-     *
-     * Transcribed from the Thor's `uiautomator dump` on 2026-08-16, with the
-     * lobby open as host. The game selector reads like the form's fields: a
-     * clickable `EditText` whose "Game" label fits inside its bounds.
+     * The lobby as host, dumped from the Thor on 2026-08-16. The game selector reads like
+     * the form's fields: a clickable `EditText` whose "Game" label fits inside its bounds.
      */
     private val lobby = listOf(
         field("Smash Bros. Brawl", Bounds(978, 203, 1883, 221)),
@@ -177,10 +145,8 @@ class DolphinScreenTest {
 
     @Test
     fun `the disc's title and ours name the same game`() {
-        // The lobby's real trap, measured for real: Emufii cuts the filename at
-        // the first bracket and gets "Super Smash Bros. Brawl"; Dolphin reads the
-        // disc header and displays "Smash Bros. Brawl". Strict equality would
-        // reopen the list forever.
+        // Emufii cuts the filename at the first bracket and gets "Super Smash Bros. Brawl";
+        // Dolphin reads the disc header and displays "Smash Bros. Brawl".
         assertTrue(DolphinScreen.looselyMatches("Smash Bros. Brawl", "Super Smash Bros. Brawl"))
         assertFalse(DolphinScreen.looselyMatches("Resident Evil 4", "Super Smash Bros. Brawl"))
     }
@@ -200,9 +166,6 @@ class DolphinScreenTest {
 
     @Test
     fun `an ambiguous game list is left to the player`() {
-        // Two entries that mean the target ROM equally well: picking one at
-        // random would start the wrong game, which is worse than doing nothing.
-        // The driver hands back and leaves the lobby usable.
         val twins = listOf(
             label("Mario Kart Wii", Bounds(0, 0, 500, 50)),
             label("Mario Kart Wii", Bounds(0, 50, 500, 100))
@@ -212,8 +175,6 @@ class DolphinScreenTest {
 
     @Test
     fun `an unknown label finds nothing rather than the wrong field`() {
-        // The failure that must stay a failure: a renamed string upstream should
-        // stop the automation, not write an address into whatever came first.
         assertNull(DolphinScreen.fieldFor(connectTab, listOf("Serveur")))
         assertNull(DolphinScreen.fieldFor(connectTab, emptyList()))
         assertNull(DolphinScreen.actionButton(connectTab, listOf("Rejoindre")))

@@ -21,31 +21,18 @@ private const val ICON_DIM = 48
 
 data class SmdhData(val icon: Bitmap?, val title: String?)
 
-/**
- * What can separate a title from its subtitle in a long description. The em dash
- * is the one used by translated Japanese cover art.
- */
+/** The em dash is the one translated Japanese cover art uses. */
 private val SUBTITLE_SEPARATORS = charArrayOf(':', '-', '\u2013', '\u2014', '\n')
 
 /** What gives away a tagline rather than a subtitle. */
 private val SENTENCE_ENDINGS = charArrayOf('!', '.', '?')
 
 /**
- * A game's full title, subtitle included.
- *
- * An SMDH entry carries a short description and a long one. The short one
- * truncates: A Link Between Worlds is called "The Legend of Zelda" there, and
- * nothing more, so two Zeldas in the library carried the same name, and an icon
- * search on that name could only bring back whichever Zelda came first.
- *
- * The long one cannot be taken as it stands either: it is sometimes cover-art
- * copy rather than a title. We only keep it when it extends the short one.
- *
- * The separator that matters most is the line break: Nintendo writes the series
- * on the first line and the subtitle on the second. That is the real shape of the
- * Zelda case, verified on the dump, and the first version of this function missed
- * it, because it normalised whitespace before looking for the separator, thereby
- * erasing the very sign it had to read.
+ * The SMDH short description truncates: A Link Between Worlds is called "The Legend of
+ * Zelda" there, so two Zeldas carried the same name. The long one is sometimes cover-art
+ * copy, so it is kept only when it extends the short one. The separator that matters is
+ * the line break, Nintendo writing the series on one line and the subtitle on the next:
+ * normalising whitespace before looking for it erases the very sign to read.
  */
 internal fun fullTitle(shortDesc: String, longDesc: String): String {
     val short = shortDesc.collapse()
@@ -58,9 +45,8 @@ internal fun fullTitle(shortDesc: String, longDesc: String): String {
     val subtitle = rest.dropWhile { it.isWhitespace() || it in SUBTITLE_SEPARATORS }.collapse()
     if (subtitle.isEmpty()) return short
 
-    // A second line is not always a subtitle: it is sometimes a tagline ("Race
-    // your friends!"). The closing punctuation gives it away, and that is the
-    // only reliable sign short of understanding the language.
+    // A second line is sometimes a tagline ("Race your friends!"); the closing
+    // punctuation is the only sign short of understanding the language.
     if (subtitle.last() in SENTENCE_ENDINGS) return short
 
     return "$short: $subtitle"
@@ -106,21 +92,7 @@ class SmdhReader(private val context: Context) {
         return null
     }
 
-    /**
-     * The game's title, subtitle included when there is one.
-     *
-     * An SMDH entry carries three fields: short description, long description,
-     * publisher. The short one is what the 3DS menu displays, and it truncates
-     * subtitles: A Link Between Worlds is called "The Legend of Zelda" there, and
-     * nothing more. Two Zeldas in the library therefore carried the same name,
-     * and the icon search could find nothing better than whichever Zelda came
-     * first.
-     *
-     * The long one is not a better source for all that: it is often marketing
-     * copy ("Fight for the future!") rather than a title. So we only take it if
-     * it extends the short one, same beginning, more of it. That is exactly the
-     * "title: subtitle" shape, and nothing else satisfies the test.
-     */
+    /** An SMDH entry carries three fields per language: short description, long description, publisher. */
     private fun pickTitle(smdh: ByteBuffer): String? {
         val buf = smdh.array()
         for (lang in TitleLanguage.smdh) {

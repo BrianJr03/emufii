@@ -34,11 +34,8 @@ import eu.emufii.app.ui.theme.socket
 import eu.emufii.app.ui.tap
 
 /**
- * A socket cut into the plate, with a moulded button sliding in it. Not
- * Material's `Switch`: its tinted track and flat thumb read as a sticker on a
- * moulded plate, and its focus veil reads as "disabled" on a console where the
- * cursor is always somewhere. Lit, the socket takes the accent, which means "on"
- * and not "here".
+ * Not Material's `Switch`: its tinted track reads as a sticker on a moulded plate, and its
+ * focus veil reads as "disabled" on a console where the cursor is always somewhere.
  * pourquoi : docs/decisions/reglages-ecran.md § A setting with only two states is a switch
  */
 private val TRACK_WIDTH = 52.dp
@@ -48,8 +45,7 @@ private val PAD = 3.dp
 
 /**
  * The whole row is the finger's target, but focus lives on the switch alone
- * (`canFocus = false` on the row): a ring around three words of label reads as a
- * selection rather than a cursor.
+ * (`canFocus = false` on the row): a ring around a label reads as a selection, not a cursor.
  * pourquoi : docs/decisions/reglages-ecran.md § A setting with only two states is a switch
  */
 @Composable
@@ -58,7 +54,6 @@ fun SwitchRow(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
-    /** The line under the label, when what the switch costs has to be said. */
     note: String? = null,
 ) {
     Row(
@@ -84,7 +79,6 @@ fun SwitchRow(
                 )
             }
         }
-        // The row's only focus stop: the ring hugs the switch, not the whole line.
         Box(
             modifier = Modifier
                 .controlRing(CircleShape)
@@ -96,9 +90,8 @@ fun SwitchRow(
 }
 
 /**
- * The switch without its click or its ring, the row carrying it having both. Published
- * because the launch card has its own, and an app is allowed one switch. Flat like the
- * rest; the track is a socket.
+ * The switch without its click or its ring, the row carrying it having both; published
+ * because the launch card has its own.
  * pourquoi : docs/decisions/theme-duotone-shelves.md § Hollows become notches
  */
 @Composable
@@ -121,9 +114,8 @@ fun SwitchFace(checked: Boolean) {
             .background(fill, CircleShape),
         contentAlignment = Alignment.CenterStart
     ) {
-        // The thumb is always the light plate, whatever the theme. As a dark plate on a
-        // dark theme it read as one more hole in the socket instead of the thumb
-        // sliding in it: a switch has to say which side it is on, from a distance.
+        // The thumb is always the light plate: dark on a dark theme, it read as one more
+        // hole in the socket rather than the thumb sliding in it.
         // pourquoi : docs/decisions/reglages-ecran.md § A setting with only two states is a switch
         Box(
             modifier = Modifier

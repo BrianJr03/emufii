@@ -9,21 +9,13 @@ import org.junit.Assume.assumeTrue
 import org.junit.Test
 
 /**
- * The one container where the extension settles nothing.
- *
- * `.chd` holds PSP, PS2 and Dreamcast games alike, and unlike an `.iso` the
- * bytes that answer the question are compressed. The three fixtures next to this
- * test are real CHDs, small ones: a v5 header, a Huffman-coded hunk map and
- * zlib hunks, built to the same layout as the two commercial files the reader
- * was measured against (a Dreamcast `Phantasy Star Online` and a PS2
- * `Unreal Tournament`).
- *
- * The direction of the rule is what these protect, as in [DiscImageTest]: a
- * wrong "yes" moves somebody's game onto an emulator that cannot open it, a
- * wrong "no" leaves it where it already was. Hence the Dreamcast fixture, which
- * is the nasty one: it carries a *PlayStation* volume descriptor behind a
- * GD-ROM tag, so anything that decoded content before checking the tag would
- * claim it for the PS2.
+ * `.chd` holds PSP, PS2 and Dreamcast games alike, and unlike an `.iso` the bytes that
+ * answer the question are compressed. The three fixtures are real CHDs, small ones: a
+ * v5 header, a Huffman-coded hunk map and zlib hunks, on the layout of the two
+ * commercial files the reader was measured against (a Dreamcast `Phantasy Star Online`
+ * and a PS2 `Unreal Tournament`). The Dreamcast one is the nasty one: it carries a
+ * PlayStation volume descriptor behind a GD-ROM tag, so anything decoding content
+ * before checking the tag claims it for the PS2.
  */
 class ChdImageTest {
 
@@ -60,15 +52,13 @@ class ChdImageTest {
     @Test
     fun `a UMD rip in the same container answers for the PSP`() {
         val sector = requireNotNull(sector("psp.chd")) { "secteur illisible" }
-        // Positively, not "as nothing": a shared `.chd` no folder spoke for
-        // needs the bytes to vouch, or it is not listed at all.
         assertEquals(Console.PSP, requireNotNull(DiscImage.fromSector(sector)).first)
     }
 
     @Test
     fun `a Dreamcast disc is refused on its tag, before its content is believed`() {
-        // This fixture's sector 16 says PLAYSTATION. If the reader ever decodes
-        // first and checks the GD-ROM tag second, this test is what catches it.
+        // This fixture's sector 16 says PLAYSTATION: catches a reader that decodes
+        // first and checks the GD-ROM tag second.
         assertNull(sector("dreamcast.chd"))
     }
 
@@ -93,8 +83,8 @@ class ChdImageTest {
 
     @Test
     fun `the sparse FLAC hunk used by DVD CHDs decodes as zero`() {
-        // Hunk 6 from Midnight Club 3 Remix. libchdr decodes this exact frame to
-        // 4096 zero bytes, and 36 ELF hunks SELF-reference it.
+        // Hunk 6 from Midnight Club 3 Remix: libchdr decodes this exact frame to 4096
+        // zero bytes, and 36 ELF hunks self-reference it.
         val frame = byteArrayOf(
             0x4C, 0xFF.toByte(), 0xF8.toByte(), 0xA9.toByte(), 0x18, 0x00, 0x07,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x76, 0x46,
@@ -115,9 +105,8 @@ class ChdImageTest {
 
     @Test
     fun `the sector rule reads a raw CD sector at its user data offset`() {
-        // A PS2 CD is pressed MODE2, so its descriptor sits 24 bytes into the
-        // raw sector; measured on the real Unreal Tournament file. A reader that
-        // only knew the 2048 layout would find nothing there.
+        // A PS2 CD is pressed MODE2, so its descriptor sits 24 bytes into the raw
+        // sector, measured on the real Unreal Tournament file.
         val raw = ByteArray(2352)
         "CD001".forEachIndexed { i, c -> raw[24 + 1 + i] = c.code.toByte() }
         "PLAYSTATION".forEachIndexed { i, c -> raw[24 + 8 + i] = c.code.toByte() }
@@ -128,13 +117,9 @@ class ChdImageTest {
     }
 
     /**
-     * The commercial discs, when someone points this at them.
-     *
-     * The fixtures above are zlib, because that is what can be forged in a few
-     * hundred bytes. Real discs are `cdlz`, that is LZMA over raw CD frames, and
-     * that path deserves to be run against a real file rather than trusted. It
-     * is skipped when the variables are unset, so it never fails a build for
-     * being on the wrong machine:
+     * The fixtures above are zlib, being what can be forged in a few hundred bytes;
+     * real discs are `cdlz`, LZMA over raw CD frames. Skipped when the variables are
+     * unset, so it never fails a build for being on the wrong machine:
      *
      * ```
      * EMUFII_CHD_PS2=… EMUFII_CHD_DREAMCAST=… ./gradlew :app:testDebugUnitTest

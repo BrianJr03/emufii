@@ -12,7 +12,6 @@ import java.nio.ByteOrder
  */
 object Ps2CardPatch {
 
-    /** The card is not something the operation can safely work on. */
     class CardFormatException(message: String) : IllegalArgumentException(message)
 
     private const val PAGE = 528
@@ -28,11 +27,8 @@ object Ps2CardPatch {
     private val HEADER = "# <Sony Computer Entertainment Inc.>\n\n".toByteArray(Charsets.US_ASCII)
 
     /**
-     * The network configuration, written into [card] for the console [consoleId].
-     *
-     * @throws CardFormatException when the card is not a PS2 memory card image
-     *   this can parse: wrong size, PS1, foreign magic, or a filesystem whose
-     *   declared geometry does not match the file holding it.
+     * @throws CardFormatException when the card is not a PS2 memory card image this can
+     *   parse: wrong size, PS1, foreign magic, or a geometry that does not match the file.
      */
     fun inject(
         card: ByteArray,
@@ -40,9 +36,6 @@ object Ps2CardPatch {
         epochSecond: Long = System.currentTimeMillis() / 1000,
         saveTitle: String = "Emufii",
     ): ByteArray {
-        // Never let a caller accidentally corrupt its only source image. The
-        // provisioning layer can validate and publish this returned clone
-        // transactionally while retaining [card] as its rollback artifact.
         val work = if (looksFormatted(card)) card.copyOf() else format(card)
         return PatchedCard(work, epochSecond).apply {
             removeSave("BWNETCNF")
@@ -51,14 +44,6 @@ object Ps2CardPatch {
         }.image
     }
 
-    /**
-     * Adds an ordinary save to a card: game-shaped, not copy-protected.
-     *
-     * Product code in its own right (the same machinery the network save
-     * uses), and the fixture builder for the tests: a card with several saves,
-     * one of them sitting in the middle of the root, is what "every save
-     * still reads back after injection" gets proven on.
-     */
     fun addSave(
         card: ByteArray,
         directory: String,
@@ -74,14 +59,11 @@ object Ps2CardPatch {
     }
 
     /**
-     * The console a card's own `BWNETCNF` was encrypted for, or null.
-     *
-     * The 38-byte header every YNCF file starts with is known plaintext, and
-     * each 16-bit word of it exposes the rotation it was given: three of
-     * those per i.Link ID byte. Words 0-18 (the whole header) recover ID bytes
-     * 0-6 outright; the eighth byte steers only words 21-23, past the header,
-     * so it is found by trying all 256 values and keeping the one under which
-     * the rest of the files decode to plausible configuration text.
+     * The console a card's own `BWNETCNF` was encrypted for, or null. The 38-byte YNCF
+     * header is known plaintext and each of its 16-bit words exposes its rotation, three
+     * per i.Link ID byte: words 0-18 recover bytes 0-6, the eighth byte steers only words
+     * past the header and is found by trying all 256 and keeping the one whose files
+     * decode to text.
      */
     fun recoverConsoleId(card: ByteArray): ByteArray? {
         if (!looksFormatted(card)) return null
@@ -108,12 +90,8 @@ object Ps2CardPatch {
             if (found < 0) return null // not this cipher, or not a YNCF file
             shifts[k] = found
         }
-        // Nineteen known words rebuild table entries 0-18: ID bytes 0-5 in
-        // full, and the top three bits of byte 6 (entry 18 is its high part).
-        // The rest of byte 6 and all of byte 7 steer words past the header,
-        // where the plaintext is unknown, so they are searched, bounded by
-        // what is known, and judged by whether the files' tails still decode
-        // to text.
+        // Entries 0-18 give ID bytes 0-5 in full and the top three bits of byte 6; the
+        // rest of byte 6 and all of byte 7 are searched.
         val id = ByteArray(8)
         for (byte in 0 until 6) {
             for (part in 0 until 3) {
@@ -159,8 +137,6 @@ object Ps2CardPatch {
     private fun looksFormatted(card: ByteArray): Boolean =
         card.size >= PAGE && card.copyOfRange(0, 28).contentEquals("Sony PS2 Memory Card Format ".toByteArray(Charsets.US_ASCII))
 
-    // ------------------------------------------------------------- the card
-
     private class Entry(val name: String, val bytes: ByteArray, val cluster: Int)
 
     private class PatchedCard(val image: ByteArray, epochSecond: Long) {
@@ -204,9 +180,6 @@ object Ps2CardPatch {
             if (rootChain.isEmpty()) throw CardFormatException("card has no root directory")
         }
 
-        // -------------------------------------------------------------- read
-
-        /** The files of one save directory, by name, `.` and `..` excluded. */
         fun readSaveFiles(directory: String): Map<String, ByteArray> {
             val entry = rootEntries().firstOrNull { it.name == directory } ?: return emptyMap()
             return readDirFiles(entry.cluster)
@@ -243,9 +216,6 @@ object Ps2CardPatch {
             return out
         }
 
-        // ------------------------------------------------------------- write
-
-        /** Frees a save: every cluster returned, root entry compacted away. */
         fun removeSave(directory: String) {
             val entries = rootEntries()
             val victim = entries.firstOrNull { it.name == directory } ?: return
@@ -271,11 +241,9 @@ object Ps2CardPatch {
         }
 
         /**
-         * Writes a save directory under the root, growing the root's chain if
-         * every slot is taken, and re-emits the root compactly. Saves shifted
-         * by the compaction get their back-reference fixed: the `dir_entry`
-         * field of a directory's `.` names its slot in the parent, and a stale
-         * one is exactly the kind of lie a browser might believe.
+         * Saves shifted by the root's compaction get their back-reference fixed: the
+         * `dir_entry` field of a directory's `.` names its slot in the parent, and a
+         * stale one is exactly the kind of lie a browser believes.
          */
         fun writeSave(directory: String, files: List<Pair<String, ByteArray>>, protectedDir: Boolean) {
             val saveEntryCount = 2 + files.size
@@ -302,7 +270,6 @@ object Ps2CardPatch {
                 saveEntryCount, saveDir.first(), directory, created, created, 0,
             )
             entries.add(Entry(directory, entry.array(), saveDir.first()))
-            // The save's own '.' now knows where it sits in the root.
             dirBytes.putInt(0x14, rootSlot)
             writeCluster(allocOffset + saveDir.first(), dirBytes.array().copyOfRange(0, 1024))
 
@@ -330,10 +297,6 @@ object Ps2CardPatch {
             fat[rootChain.last()] = FAT_TAIL
         }
 
-        /**
-         * Rewrites `dir_entry` in a save's `.` when compaction moved it, so the
-         * field keeps naming the save's real slot in the root.
-         */
         private fun fixBackReference(entry: Entry, newSlot: Int) {
             val dir = chainAsBytes(entry.cluster)
             val current = u32(dir, 0x14)
@@ -353,8 +316,6 @@ object Ps2CardPatch {
             }
         }
 
-        // ---------------------------------------------------------- plumbing
-
         private fun page(p: Int): ByteArray = image.copyOfRange(p * PAGE, p * PAGE + PAGE_DATA)
 
         /** The 1024 data bytes of a cluster, spare bytes skipped. */
@@ -366,7 +327,6 @@ object Ps2CardPatch {
             return out
         }
 
-        /** The clusters of a chain, FAT-followed, loop-checked. */
         private fun chain(first: Int): MutableList<Int> {
             val out = mutableListOf<Int>()
             var rel = first
@@ -469,13 +429,9 @@ object Ps2CardPatch {
         }
     }
 
-    // --------------------------------------------------------- blank format
-
     /**
-     * Formats an erased card of any supported size, with the constants the
-     * BIOS itself writes. The geometry follows the card's own cluster count:
-     * one indirect FAT cluster at 8, then `ceil(clusters / 256)` FAT clusters,
-     * the root directory right after.
+     * Formats an erased card with the constants the BIOS itself writes: one indirect FAT
+     * cluster at 8, then `ceil(clusters / 256)` FAT clusters, the root right after.
      */
     private fun format(card: ByteArray): ByteArray {
         if (card.size % PAGE != 0 || card.size / PAGE < 32 || card.size / PAGE % 2 != 0) {

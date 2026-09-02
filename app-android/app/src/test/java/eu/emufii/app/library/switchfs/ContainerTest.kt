@@ -7,13 +7,8 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 /**
- * The plaintext table of contents at the head of an NSP: the one thing a
- * Switch dump says with no console key, and therefore the one thing still read
- * here: the title id a tile is named by comes out of a `.tik` entry name in
- * this table.
- *
- * (The XCI half of this suite went with the decryption stack: nothing is read
- * out of a cartridge dump any more, so its reader had nothing left to serve.)
+ * The plaintext table of contents at the head of an NSP: the one thing a Switch dump says
+ * with no console key. The title id a tile is named by comes out of a `.tik` entry name here.
  */
 class ContainerTest {
 
@@ -71,8 +66,7 @@ class ContainerTest {
     @Test
     fun `an entry pointing past the end of the file is refused`() {
         val nsp = pfs0(listOf("a.nca" to ByteArray(16)))
-        // Claim the entry is far bigger than the archive: a truncated download
-        // would otherwise have us read, and allocate, whatever it asked for.
+        // A truncated download would otherwise have us allocate whatever the entry asked for.
         ByteBuffer.wrap(nsp).order(ByteOrder.LITTLE_ENDIAN).putLong(0x18, 1L shl 40)
         assertNull(Pfs0.entries(Bytes(nsp)))
     }

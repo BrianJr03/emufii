@@ -14,9 +14,9 @@ import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import android.view.View
 
 /**
- * The three owners Compose insists on, owned by nobody in particular. Standalone from
- * the first line: the foreground service keeping the panel alive while the emulator
- * owns the front screen has no activity to borrow from.
+ * The three owners Compose insists on, standalone from the first line: the foreground
+ * service holding the panel while the emulator owns the front screen has no activity to
+ * borrow them from.
  * pourquoi : docs/decisions/second-ecran.md § The three owners are self-contained from the first line
  */
 class SecondScreenWindowOwner : LifecycleOwner, ViewModelStoreOwner, SavedStateRegistryOwner {
@@ -28,15 +28,7 @@ class SecondScreenWindowOwner : LifecycleOwner, ViewModelStoreOwner, SavedStateR
     override val viewModelStore: ViewModelStore = ViewModelStore()
     override val savedStateRegistry: SavedStateRegistry get() = savedStateController.savedStateRegistry
 
-    /**
-     * Hand the owners to a view and bring it to life.
-     *
-     * The restore has to happen before the lifecycle passes CREATED, which is
-     * the ordering the platform documents and the one that fails loudly if it
-     * is wrong. Nothing is ever saved into this registry: the panel holds no
-     * state of its own, it renders a flow. It exists because Compose asks for
-     * one, and an empty registry is the honest answer.
-     */
+    /** The restore must precede CREATED; nothing is ever saved, the panel renders a flow. */
     fun attachTo(view: View) {
         savedStateController.performRestore(null)
         view.setViewTreeLifecycleOwner(this)
@@ -46,13 +38,9 @@ class SecondScreenWindowOwner : LifecycleOwner, ViewModelStoreOwner, SavedStateR
     }
 
     /**
-     * Tear the window down.
-     *
-     * Both halves matter. Without DESTROYED the composition keeps its
-     * collectors on [SecondScreen] and the window leaks; without clearing the
-     * store the same leak happens one indirection further away. A panel that is
-     * unplugged and replugged twenty times in an evening has to leave nothing
-     * behind each time.
+     * Both halves matter: without DESTROYED the composition keeps its collectors on
+     * [SecondScreen] and the window leaks, without clearing the store it leaks one
+     * indirection further away.
      */
     fun detach() {
         lifecycleRegistry.currentState = Lifecycle.State.DESTROYED

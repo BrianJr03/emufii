@@ -5,25 +5,17 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 /**
- * Parsing a UMD, exercised on discs built here byte by byte.
- *
- * Three of the standard's traps deserve to be pinned down rather than assumed:
- * the `;1` ISO9660 sticks after filenames, the end-of-sector padding that cuts a
- * large directory in two, and a path that crosses a directory. Each shows up as
- * the same symptom, "file not found" on a disc that contains it, so telling them
- * apart requires separate cases.
+ * Three ISO9660 traps, each showing up as the same symptom, "file not found" on a disc
+ * that contains it: the `;1` stuck after filenames, the end-of-sector padding that cuts a
+ * large directory in two, and a path that crosses a directory.
  */
 class UmdIsoTest {
 
     private val sector = UmdIso.SECTOR
 
     /**
-     * A minimal disc: a volume descriptor, a root containing the [dirName]
-     * directory, which in turn contains [files].
-     *
-     * With [padded], the directory occupies two sectors and its files are pushed
-     * into the second, behind the zero padding, the shape any real directory
-     * takes as soon as it exceeds 2048 bytes.
+     * With [padded], the directory occupies two sectors and its files are pushed into the
+     * second behind the zero padding: the shape any directory past 2048 bytes takes.
      */
     private class Disc(
         dirName: String,
@@ -32,7 +24,6 @@ class UmdIsoTest {
     ) {
         val bytes: ByteArray
 
-        /** The sector each file's content lands in. */
         val lbaOf: Map<String, Int>
 
         init {
@@ -42,20 +33,17 @@ class UmdIsoTest {
             lbaOf = files.keys.mapIndexed { i, name -> name to firstFile + i }.toMap()
             bytes = ByteArray((firstFile + files.size.coerceAtLeast(1)) * s)
 
-            // Sector 16: the volume descriptor, its signature, and the root
-            // record at the offset the standard specifies.
+            // Sector 16: the volume descriptor, with the root record at the standard's offset.
             val pvd = 16 * s
             "CD001".toByteArray(Charsets.US_ASCII).copyInto(bytes, pvd + 1)
             record(pvd + 156, name = "\u0000", lba = 17, size = s, dir = true)
 
-            // Sector 17: the root, which contains only the game's directory.
             var at = 17 * s
             at += record(at, "\u0000", 17, s, dir = true)
             record(at, dirName, 18, dirSectors * s, dir = true)
 
-            // Sector 18: the game's directory. In [padded] mode its entries
-            // start at the following sector and the first stays empty behind its
-            // "." entry.
+            // In [padded] mode the entries start at the next sector, the first staying
+            // empty behind its "." entry.
             at = 18 * s
             at += record(at, "\u0000", 18, dirSectors * s, dir = true)
             if (padded) at = 19 * s
@@ -65,7 +53,6 @@ class UmdIsoTest {
             }
         }
 
-        /** One ISO9660 directory record. Returns its length. */
         private fun record(at: Int, name: String, lba: Int, size: Int, dir: Boolean): Int {
             val raw = name.toByteArray(Charsets.US_ASCII)
             // The standard wants an even length: a padding byte otherwise.
@@ -134,8 +121,8 @@ class UmdIsoTest {
     fun `a folder requested as a file does not get through`() {
         val disc = Disc("PSP_GAME", mapOf("ICON0.PNG" to ByteArray(8)))
 
-        // "PSP_GAME" exists, but it is a directory: reading it as an icon would
-        // give table-of-contents bytes dressed up as an image.
+        // "PSP_GAME" exists, but as a directory: read as an icon it gives table-of-contents
+        // bytes dressed up as an image.
         assertNull(UmdIso.find(sourceOf(disc.bytes), listOf("PSP_GAME")))
     }
 
@@ -148,10 +135,8 @@ class UmdIsoTest {
 
     @Test
     fun `a PS2 disc has no PSP_GAME, and that is how it is recognised`() {
-        // A PS2 burns a perfectly valid ISO9660, with `SYSTEM.CNF` at the root
-        // and not a trace of a `PSP_GAME`. This null is what stops the library
-        // listing its games: the `.iso` extension is the same as a UMD's and
-        // distinguishes nothing.
+        // A PS2 burns a valid ISO9660, `SYSTEM.CNF` at the root and no `PSP_GAME`; the
+        // `.iso` extension is a UMD's too, so this null is what keeps it out of the library.
         val ps2 = Disc("SYSTEM", mapOf("SYSTEM.CNF" to ByteArray(64)))
         val source = sourceOf(ps2.bytes)
 
@@ -169,12 +154,9 @@ class UmdIsoTest {
     }
 }
 
-/**
- * The `PARAM.SFO`, which gives the game its name and its disc id.
- */
+/** The `PARAM.SFO`, which gives the game its name and its disc id. */
 class ParamSfoTest {
 
-    /** Builds a record with the given keys, all of them strings. */
     private fun sfo(fields: Map<String, String>): ByteArray {
         val keyBytes = fields.keys.map { it.toByteArray(Charsets.UTF_8) + 0 }
         val valueBytes = fields.values.map { it.toByteArray(Charsets.UTF_8) + 0 }

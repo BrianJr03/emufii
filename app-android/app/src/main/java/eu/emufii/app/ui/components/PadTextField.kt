@@ -103,8 +103,7 @@ fun PadTextField(
     }
 
     Column(modifier = modifier) {
-        // The label sits above the frame, not in it: `OutlinedTextField` reserves room
-        // for its own.
+        // Above the frame, not in it: `OutlinedTextField` reserves room for its own label.
         // pourquoi : docs/decisions/coquille-ecrans.md § The ring is the field's outline, and it is the only arrangement that holds
         if (label != null) {
             Text(
@@ -117,8 +116,7 @@ fun PadTextField(
         }
         Box(
             modifier = Modifier
-                // One outline at a time, so there is nothing left to align. Before the
-                // fill.
+                // One outline at a time, so there is nothing left to align; before the fill.
                 // pourquoi : docs/decisions/coquille-ecrans.md § The ring is the field's outline, and it is the only arrangement that holds
                 .controlRing(shape, enabled = !editing)
                 // Opaque, or the glow shows through: the cursor's glow is a shadow.
@@ -129,8 +127,7 @@ fun PadTextField(
                 .onKeyEvent { event ->
                     if (editing) return@onKeyEvent false
                     if (event.key in CONFIRM_KEYS) {
-                        // Opened on release, as everywhere else; the key-down is
-                        // swallowed so one press counts once.
+                        // The key-down is swallowed so one press counts once.
                         if (event.type == KeyEventType.KeyUp) { Sfx.click(); editing = true }
                         true
                     } else {
@@ -147,8 +144,7 @@ fun PadTextField(
                 singleLine = singleLine,
                 shape = shape,
                 keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-                // Transparent exactly when the ring is drawn, so the two never show at
-                // once.
+                // Transparent exactly when the ring is drawn, so the two never show at once.
                 // pourquoi : docs/decisions/theme-duotone-shelves.md § Session / Join, coral domain
                 colors = OutlinedTextFieldDefaults.colors(
                     cursorColor = ringColor(),
@@ -159,8 +155,7 @@ fun PadTextField(
                     disabledBorderColor =
                         if (framed) Color.Transparent
                         else MaterialTheme.colorScheme.outline,
-                    // The error outline clears like the others: Material puts it ahead
-                    // of the other three.
+                    // Cleared like the others: Material puts the error outline ahead of the three.
                     // pourquoi : docs/decisions/coquille-ecrans.md § The ring is the field's outline, and it is the only arrangement that holds
                     errorBorderColor =
                         if (framed) Color.Transparent
@@ -170,13 +165,11 @@ fun PadTextField(
                     .fillMaxWidth()
                     .focusRequester(field)
                     .focusProperties { canFocus = editing }
-                    // Focus can leave other than through B, the system gesture for
-                    // instance.
+                    // Focus can leave other than through B, the system gesture for instance.
                     .onFocusChanged { if (editing && !it.isFocused) editing = false }
             )
 
-            // Compose tests children first, and the field consumed taps it then did
-            // nothing with.
+            // Compose tests children first, and the field consumed taps it did nothing with.
             // pourquoi : docs/decisions/coquille-ecrans.md § The finger could not reach the frame
             if (!editing) {
                 Box(
@@ -186,7 +179,6 @@ fun PadTextField(
                 )
             }
         }
-        // Outside the ring: the helper text is not the control being aimed at.
         if (supportingText != null) {
             Box(modifier = Modifier.padding(start = 20.dp, top = 4.dp)) {
                 ProvideTextStyle(

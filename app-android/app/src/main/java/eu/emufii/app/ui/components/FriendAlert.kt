@@ -34,15 +34,8 @@ import eu.emufii.app.ui.RingTone
 import kotlinx.coroutines.delay
 
 /**
- * "Clément is online", while the player is already in the app.
- *
- * A card that arrives from the top and leaves on its own. It is deliberately not
- * a dialog and not a system notification: the player is holding the app, the
- * news is small, and anything that has to be dismissed would make a friend
- * coming online feel like a problem to deal with.
- *
- * Tapping it goes to the friends list, which is the only thing anybody would
- * want next. Ignoring it costs nothing, which is the point.
+ * Neither a dialog nor a system notification: the player is already holding the app, and
+ * anything that has to be dismissed would make a friend coming online read as a problem.
  */
 @Composable
 fun FriendAlert(
@@ -51,8 +44,6 @@ fun FriendAlert(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Keyed on the event, so a second friend arriving restarts the countdown
-    // rather than inheriting what was left of the first one's.
     LaunchedEffect(event) {
         if (event != null) {
             delay(VISIBLE_MS)
@@ -66,12 +57,9 @@ fun FriendAlert(
             enter = slideInVertically(animationSpec = tween(220)) { -it } + fadeIn(tween(220)),
             exit = slideOutVertically(animationSpec = tween(180)) { -it } + fadeOut(tween(180))
         ) {
-            // Held across the exit animation: reading `event` directly would blank
-            // the text the moment it goes null, and the card would slide away
-            // empty.
+            // Held across the exit animation: reading `event` directly blanks the text the
+            // moment it goes null, and the card slides away empty.
             val shown = lastNonNull(event)
-            // A friend coming online is the social axis: the card's ring and
-            // its accents speak coral, never teal.
             // pourquoi : docs/decisions/theme-duotone-shelves.md § Two semantic axes
             CompositionLocalProvider(LocalRingTone provides RingTone.CORAL) {
             SoftCard(
@@ -115,12 +103,7 @@ fun FriendAlert(
     }
 }
 
-/**
- * The last event that was not null.
- *
- * Compose keeps the composable alive through the exit animation, so the card
- * needs something to draw after the state has already been cleared.
- */
+/** Compose keeps the composable alive through the exit animation, with nothing left to draw. */
 @Composable
 private fun lastNonNull(event: FriendEvent?): FriendEvent? {
     val holder = androidx.compose.runtime.remember {

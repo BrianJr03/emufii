@@ -38,9 +38,8 @@ import eu.emufii.app.ui.theme.ErrorLight
 import eu.emufii.app.ui.theme.ErrorDark
 
 /**
- * The inside of an unfolded settings row, and the reason this file exists. Three things
- * and nothing else: [DetailNote], [DetailActions], [DetailStatus]. The state's hollow
- * is the tray's vocabulary: a settings screen has one kind of state.
+ * The inside of an unfolded settings row: three things and nothing else, [DetailNote],
+ * [DetailActions], [DetailStatus].
  * pourquoi : docs/decisions/coquille-ecrans.md § An expanded row is made of three things, and nothing else
  */
 @Composable
@@ -54,11 +53,8 @@ fun DetailNote(text: String, modifier: Modifier = Modifier) {
 }
 
 /**
- * The actions of a section, in the order they are meant.
- *
  * Nothing here decides what a button looks like: the caller passes a filled
- * [PrimaryButton] first and [GhostButton]s after. What this owns is the gap
- * between them, so that two sections never disagree about it.
+ * [PrimaryButton] first and [GhostButton]s after. This owns only the gap between them.
  */
 @Composable
 fun DetailActions(
@@ -71,24 +67,16 @@ fun DetailActions(
     ) { content() }
 }
 
-/** What a state looks like. Four, matching the beads the library already uses. */
+/** Four, matching the beads the library already uses. */
 enum class DetailTone { GOOD, BUSY, WARN, BAD }
 
-/** One fact, as a label and its value. */
 data class DetailFact(val label: String, val value: String)
 
 /**
- * What the app knows right now, in a recess under the actions.
- *
- * [headline] is the one sentence that matters, and it comes first because it is
- * what the player opened the section to find out. [facts] are the identifiers
- * behind it, a filename, a BIOS, a console id, which belong in a column of
- * aligned rows: they are looked *up*, not read, and prose separated by middle
- * dots makes that impossible.
- *
- * [caveat] is the one thing that can be wrong while the state is still good,
- * and it sits at the bottom in the error colour, because it qualifies
- * everything above it rather than replacing it.
+ * [facts] are the identifiers behind the headline, a filename, a BIOS, a console id: they
+ * are looked *up*, not read, so they go in a column of aligned rows. [caveat] is the one
+ * thing that can be wrong while the state is still good, so it qualifies rather than
+ * replaces, and sits at the bottom in the error colour.
  */
 @Composable
 fun DetailStatus(
@@ -105,20 +93,16 @@ fun DetailStatus(
         modifier = modifier
             .fillMaxWidth()
             .socket(shape, dark)
-            // On OLED the recess has almost nothing to shade against: the tray
-            // is truly off, so the gradient that carves the hole everywhere
-            // else lands on black and vanishes. There the edge does the whole
-            // job, and it is drawn stronger, exactly as the design system says
-            // for that theme.
+            // On OLED the tray is truly off, so the gradient that carves the hole lands on
+            // black and vanishes; the edge does the whole job there.
             .then(if (oled) Modifier.border(1.dp, EdgeOled, shape) else Modifier)
             .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Row(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
-            // Top, not centre: a headline is meant to be short, but a
-            // translation can push one onto two lines, and a bead floating at
-            // the middle of a two-line sentence stops reading as its mark.
+            // Top, not centre: a translation can push a headline onto two lines, and a bead
+            // floating mid-sentence stops reading as its mark.
             verticalAlignment = Alignment.Top
         ) {
             StateBead(tone)
@@ -144,14 +128,7 @@ fun DetailStatus(
     }
 }
 
-/**
- * A label and its value, on one line, with the labels aligned.
- *
- * The fixed label column is the whole point: four facts under each other with
- * their values starting at the same x are scannable, and the same four written
- * as sentences are not. 84 dp holds the longest label the app has in either
- * language without wrapping it.
- */
+/** 84 dp holds the longest label the app has in either language without wrapping it. */
 @Composable
 private fun FactRow(fact: DetailFact) {
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -170,14 +147,7 @@ private fun FactRow(fact: DetailFact) {
     }
 }
 
-/**
- * The state as a moulded bead, the same object the tiles wear.
- *
- * Deliberately the same shape, lighting and glyph vocabulary as the
- * compatibility bead on a game tile: an app should have one way of saying "this
- * is fine" and one way of saying "this is not", and a settings screen that
- * invented a second one would be teaching the player twice.
- */
+/** Deliberately the shape, lighting and glyphs of the compatibility bead on a game tile. */
 @Composable
 fun StateBead(tone: DetailTone, size: Dp = 14.dp) {
     val dark = LocalEmufiiDarkTheme.current

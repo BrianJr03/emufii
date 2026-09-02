@@ -5,15 +5,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/**
- * The rules that decide whether someone's phone buzzes.
- *
- * Every case here is a notification that was imagined before it was written:
- * the burst on first launch, the same game announced every five seconds, the
- * friend who was announced on screen and again by the background job. They cost
- * nothing to prevent here and would be very hard to take back once a player has
- * decided the app cries wolf.
- */
 class FriendEventsTest {
 
     private fun online(game: String? = null) = FriendStatus(
@@ -98,8 +89,7 @@ class FriendEventsTest {
 
         assertEquals(SeenFriend(online = true, game = "Smash"), seen["A"])
         assertEquals(SeenFriend(online = false, game = null), seen["B"])
-        // And a round trip through the comparison is silent, which is the
-        // property the whole feature rests on.
+        // A round trip through the comparison is silent: the property the feature rests on.
         assertTrue(friendEvents(seen, mapOf("A" to online("Smash"))).isEmpty())
     }
 

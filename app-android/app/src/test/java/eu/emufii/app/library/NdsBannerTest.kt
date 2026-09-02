@@ -7,10 +7,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Banner decoding, checked against banners built here byte by byte. The tile
- * layout and the palette are the two things easy to get subtly wrong, a
- * transposed tile or a red/blue swap still produces a plausible-looking icon,
- * so the tests pin exact pixels rather than "it returned something".
+ * Banner decoding, checked against banners built here byte by byte. A transposed tile or
+ * a red/blue swap still produces a plausible icon, so the tests pin exact pixels.
  */
 class NdsBannerTest {
 
@@ -109,17 +107,16 @@ class NdsBannerTest {
             setTitle(1, "Pokémon White 2")
             setTitle(2, "Pokémon Version Blanche 2")
         }
-        // The whole point: one cartridge, two answers, decided by the app's own
-        // language rather than by a list frozen at French.
+        // One cartridge, two answers, decided by the app's language and not by a list
+        // frozen at French.
         TitleLanguage.set("fr")
         assertEquals("Pokémon Version Blanche 2", NdsBanner.pickTitle(both))
         TitleLanguage.set("en")
         assertEquals("Pokémon White 2", NdsBanner.pickTitle(both))
     }
 
-    // The three shapes below are the exact strings dumped from the cartridges in
-    // the test library, not invented ones. Getting this rule wrong is what made
-    // "Pokémon White Version 2" show up in the grid as plain "Pokémon".
+    // Exact strings dumped from the test library's cartridges, not invented: getting this
+    // rule wrong showed "Pokémon White Version 2" in the grid as plain "Pokémon".
     @Test
     fun `joins title and subtitle but drops the publisher`() {
         val threeLines = banner().apply { setTitle(2, "Pokémon\nWhite Version 2\nNintendo") }
@@ -186,8 +183,7 @@ class NdsBannerTest {
     @Test
     fun `cache key stays usable as a filename`() {
         val header = ByteArray(0x200)
-        // Junk bytes where the codes belong, a bad dump should not produce a
-        // key with a slash or a dot in it.
+        // Junk where the codes belong: a bad dump must not produce a key with a slash.
         header[0x00C] = 0x2F.toByte()  // '/'
         header[0x00D] = 0x2E.toByte()  // '.'
         header[0x00E] = 'A'.code.toByte()

@@ -11,14 +11,13 @@ import eu.emufii.app.library.EmulatorPick
 
 /**
  * Read off the 2.0.1 APK's manifest: `EmulatorActivity` is exported with an
- * intent-filter on melonDS's `LAUNCH_ROM`/`LAUNCH_FIRMWARE`, and takes the ROM
- * from `intent.data` as a URI. It reads its library through SAF, so a
- * `content://` is the expected way in, which is what our library holds and what
- * Dolphin's path-based `AutoStartFile` cannot take.
+ * intent-filter on `LAUNCH_ROM`/`LAUNCH_FIRMWARE` and takes the ROM from
+ * `intent.data`. It reads its library through SAF, so a `content://` is the way in,
+ * which Dolphin's path-based `AutoStartFile` cannot take.
  *
  * melonDS DualS is a rebrand: the classes are still `me.magnum.melonds.*`, so
- * [EMULATOR_ACTIVITY] is unchanged, but its actions carry the applicationId,
- * hence [actionLaunchRom] deriving from the installed package.
+ * [EMULATOR_ACTIVITY] is unchanged, but its actions carry the applicationId, hence
+ * [actionLaunchRom] deriving from the installed package.
  * pourquoi : docs/PHASE1_SCOUT_MELONDS_DUALS.md
  */
 object MelonDsPackage {

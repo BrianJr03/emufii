@@ -158,7 +158,6 @@ fun SecondScreenContent(model: SecondScreenModel) {
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
             .focusRequester(keys)
-            // Focusable, but not a cursor destination: this is an ear, not a stop.
             .focusProperties { canFocus = true }
             .focusable()
             .onKeyEvent { event ->
@@ -178,7 +177,6 @@ fun SecondScreenContent(model: SecondScreenModel) {
         // geometry.
         // pourquoi : docs/decisions/second-ecran.md § Every face centres in the same place
         Column(modifier = Modifier.fillMaxSize()) {
-            // Both bands are permanent, so the eye learns where a thing is said.
             PanelHeader(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -233,8 +231,6 @@ fun SecondScreenContent(model: SecondScreenModel) {
                                 (model as? SecondScreenModel.Friends) ?: shown
                             )
                             is SecondScreenModel.Asking -> AskingFace(
-                                // Live: the question can change without the modal layer
-                                // closing.
                                 (model as? SecondScreenModel.Asking) ?: shown
                             )
                             is SecondScreenModel.InSession -> InSession(shown)
@@ -262,11 +258,9 @@ private fun faceKey(model: SecondScreenModel): String = when (model) {
     // One key for every console: the card resizes between folders rather than being
     // replaced.
     is SecondScreenModel.ConsoleFolder -> "console"
-    // One key for every entry: the face must not be replaced when the cursor moves.
     is SecondScreenModel.SettingsEntry -> "settings"
     is SecondScreenModel.Browsing -> "rom:${model.rom.uri}"
     is SecondScreenModel.Friends -> "friends"
-    // One key: the question's content changes in place.
     is SecondScreenModel.Asking -> "asking"
     is SecondScreenModel.InSession -> "session:${model.code}"
 }
@@ -352,7 +346,6 @@ private fun Idle() {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(22.dp)
     ) {
-        // The real logo: an approximation next to the real one reads as a mistake.
         Image(
             painter = painterResource(R.drawable.emufii_logo_v3),
             contentDescription = null,
@@ -365,7 +358,6 @@ private fun Idle() {
             Text(
                 stringResource(R.string.app_name),
                 style = MaterialTheme.typography.headlineMedium,
-                // At rest this panel is the least interesting thing in the room.
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             // A step smaller and dimmer than the name: a footnote to it.
@@ -397,8 +389,6 @@ private fun ConsoleCard(console: Console) {
         targetState = console,
         transitionSpec = {
             (fadeIn(tween(200, delayMillis = 80)) togetherWith fadeOut(tween(140)))
-                // The frame outlasts the text, so the words are gone before the plate
-                // stops moving.
                 .using(SizeTransform(clip = false) { _, _ -> tween(280) })
         },
         label = "console-card",
@@ -478,7 +468,6 @@ private fun SettingsFace(model: SecondScreenModel.SettingsEntry) {
             verticalArrangement = Arrangement.spacedBy(14.dp),
             modifier = Modifier.fillMaxWidth(0.86f)
         ) {
-            // The mark in its socket, as on the front tile, at panel scale.
             Box(
                 modifier = Modifier
                     .size(84.dp)
@@ -760,8 +749,6 @@ private fun Details(model: SecondScreenModel.Browsing) {
                         summary,
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurface,
-                        // Fewer lines when pictures need the room: a synopsis is a
-                        // taste, not a manual.
                         maxLines = if (stills.isEmpty()) 9 else 5,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -852,8 +839,6 @@ private fun Screenshots(urls: List<Any>) {
                     // screen cropped loses exactly the words printed on it.
                     contentScale = ContentScale.Fit,
                     placeholder = ColorPainter(Color.Transparent),
-                    // A still that will not load leaves its empty frame, the shape this
-                    // tray already uses.
                     error = ColorPainter(Color.Transparent),
                     modifier = Modifier.fillMaxSize().clip(ArtworkShape)
                 )
@@ -903,7 +888,6 @@ private fun ArrowGlyph(tint: Color, up: Boolean) {
         val w = size.width
         val h = size.height
         val stem = w * 0.26f
-        // A head about half the height, wide enough to read as moulded.
         drawRoundRect(
             color = tint,
             topLeft = Offset((w - stem) / 2f, 0f),
@@ -946,7 +930,6 @@ private fun Cover(model: SecondScreenModel.Browsing, modifier: Modifier = Modifi
     Box(
         modifier = modifier
             .aspectRatio(1f)
-            // The game's tone as depth, not a wash over the chrome.
             .shadow(
                 // On OLED the tray is truly off and a shadow draws nothing; the
                 // edge and bevel below carry the separation alone.
@@ -966,10 +949,7 @@ private fun Cover(model: SecondScreenModel.Browsing, modifier: Modifier = Modifi
             modifier = Modifier
                 .fillMaxSize()
                 .clip(CoverArtworkShape)
-                // White under the artwork in daylight, as the tiles do.
                 .background(tilePlateBrush(dark, oled))
-                // The picture keeps its own contour inside the frame, drawn over
-                // the image the way a tile does it.
                 .moldedRim(CoverArtworkShape, dark = dark, oled = oled)
         ) {
             val cover = art.model
@@ -984,7 +964,6 @@ private fun Cover(model: SecondScreenModel.Browsing, modifier: Modifier = Modifi
                     modifier = Modifier.fillMaxSize()
                 )
             } else {
-                // An empty slot rather than a broken picture.
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier.fillMaxSize().socket(CoverArtworkShape, dark)
@@ -1035,7 +1014,6 @@ private fun InSession(model: SecondScreenModel.InSession) {
         // pourquoi : docs/decisions/second-ecran.md § Both bands are permanent, the legend included
         modifier = Modifier.fillMaxWidth()
     ) {
-        // Console and game on one line: two labels of what the session is.
         Row(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -1090,7 +1068,6 @@ private fun InSession(model: SecondScreenModel.InSession) {
         // pourquoi : docs/decisions/second-ecran.md § One column, and the code takes the whole width
         if (steps.isNotEmpty()) {
             val stepCursor by SecondScreen.stepCursor.collectAsState()
-            // `IntrinsicSize.Min`: both plates take the height of the longer label.
             Row(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.fillMaxWidth().padding(top = 2.dp).height(IntrinsicSize.Min)
@@ -1118,7 +1095,6 @@ private fun FriendsFace(model: SecondScreenModel.Friends) {
             verticalArrangement = Arrangement.spacedBy(14.dp),
             modifier = Modifier.fillMaxSize()
         ) {
-            // The name of what the face carries, not a caption over an object.
             Text(
                 stringResource(R.string.friends_panel_title),
                 style = MaterialTheme.typography.titleLarge,
@@ -1232,7 +1208,6 @@ private fun PanelFriendRow(friend: PanelFriend, onRemove: () -> Unit) {
     ) {
         Avatar(name = friend.name, size = 34.dp)
         Column(modifier = Modifier.weight(1f)) {
-            // Against the name, not at the far end: it is a property of the person.
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -1284,7 +1259,6 @@ private fun PanelFriendRow(friend: PanelFriend, onRemove: () -> Unit) {
 @Composable
 private fun StepButton(step: PanelStep, selected: Boolean, modifier: Modifier = Modifier) {
     val dark = LocalEmufiiDarkTheme.current
-    // The same ring as everywhere else, stroke and glow from focusRing.
     Box(
         modifier = modifier
             .padding(6.dp)

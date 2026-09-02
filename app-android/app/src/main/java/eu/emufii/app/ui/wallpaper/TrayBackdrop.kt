@@ -40,8 +40,7 @@ import kotlin.math.max
 import kotlin.math.sin
 
 /**
- * Two shelves, their waves and a vignette. The movement budget is the subject:
- * everything here is drawn once and reused.
+ * Everything here is drawn once and reused: the movement budget is the subject.
  * pourquoi : docs/decisions/theme-duotone-shelves.md § MATERIAL (background)
  * pourquoi : docs/decisions/theme-duotone-shelves.md § The lustre is gone
  */
@@ -49,7 +48,6 @@ import kotlin.math.sin
 fun TrayBackdrop(
     modifier: Modifier = Modifier,
     dark: Boolean = false,
-    // Read from the theme rather than passed: the six callers already pass `dark`.
     oled: Boolean = LocalEmufiiOledTheme.current,
     /**
      * False for a still tray. No caller passes it any more.
@@ -59,10 +57,7 @@ fun TrayBackdrop(
 ) {
     val time = (if (animated) rememberSlowMillis() else FROZEN_MS) / CYCLE_MS
 
-    /**
-     * The still tray, baked into a bitmap. A `Picture` avoided rebuilding the paths but
-     * still replayed every gradient per frame.
-     */
+    /** A `Picture` avoided rebuilding the paths but still replayed every gradient per frame. */
     val still = remember { mutableStateOf<ImageBitmap?>(null) }
     var baked by remember { mutableStateOf<StillKey?>(null) }
 
@@ -102,7 +97,6 @@ fun TrayBackdrop(
 /** Half a side, so a quarter of the pixels: the tray is only wide gradients. */
 private const val STILL_SCALE = 0.5f
 
-/** What stales the baked image: size and theme, nothing else. */
 private data class StillKey(
     val width: Float,
     val height: Float,
@@ -110,10 +104,7 @@ private data class StillKey(
     val oled: Boolean,
 )
 
-/**
- * Computed once per frame and shared between the still tray and the waves, or the two
- * drift apart.
- */
+/** Shared between the still tray and the waves, or the two drift apart. */
 private class TrayGeometry(size: Size) {
     val side = 0.58f * max(size.width, size.height)
     val radius = CornerRadius(side * 0.30f, side * 0.30f)
@@ -121,7 +112,6 @@ private class TrayGeometry(size: Size) {
     val coral = shelfRect(size.width * 0.02f, size.height * -0.06f)
     val teal = shelfRect(size.width * 0.98f, size.height * 1.06f)
 
-    /** The corner facing the middle of the screen: the motif, and the waves' source. */
     val coralCorner = Offset(coral.right, coral.bottom)
     val tealCorner = Offset(teal.left, teal.top)
 
@@ -134,7 +124,6 @@ private class TrayGeometry(size: Size) {
     )
 }
 
-/** The ground, the two shelves and the vignette. Nothing here reads the clock. */
 private fun DrawScope.drawStillTray(
     geometry: TrayGeometry,
     dark: Boolean,
@@ -168,8 +157,7 @@ private fun DrawScope.drawStillTray(
         ground: Color,
     ) {
         val path = Path().apply { addRoundRect(rect) }
-        // A vertical pair inside the tile: a flat fill made it look printed rather than
-        // moulded.
+        // A flat fill made the tile look printed rather than moulded.
         drawPath(
             path,
             brush = Brush.verticalGradient(
@@ -183,8 +171,8 @@ private fun DrawScope.drawStillTray(
         )
         drawPath(path, color = axisBright.copy(alpha = stroke), style = Stroke(width = 2.dp.toPx()))
 
-        // What dissolves the long sides, and why the corner is left alone: a shelf
-        // shows a sharp corner and two edges running off screen.
+        // Dissolves the long sides, not the corner: a shelf shows one sharp corner and
+        // two edges running off screen.
         if (dark || oled) {
             drawPath(
                 path,
@@ -200,8 +188,7 @@ private fun DrawScope.drawStillTray(
             )
         }
 
-        // The shelf is a flat fill with a sharp edge, but its corner stopped on
-        // nothing.
+        // The sharp corner otherwise stops on nothing.
         drawCircle(
             brush = Brush.radialGradient(
                 colorStops = arrayOf(
@@ -248,7 +235,6 @@ private fun DrawScope.drawStillTray(
     }
 }
 
-/** One shape, inflated, repeated at three distances. */
 private fun DrawScope.drawWaves(
     geometry: TrayGeometry,
     time: Double,

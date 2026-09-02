@@ -35,32 +35,14 @@ import eu.emufii.app.update.UpdateInstaller
 import eu.emufii.app.update.UpdateOutcome
 import kotlinx.coroutines.launch
 
-/**
- * How much room the banner takes at the top of the library.
- *
- * The grid uses it to offset itself by that much. A constant rather than a
- * measurement: the card has only two or three possible lines, and varying a
- * grid's offset with a text measurement would cost an extra layout pass at every
- * opening for a gain nobody sees.
- */
+/** A constant, not a measurement: reading the text back would cost a layout pass per opening. */
 val UPDATE_BANNER_ROOM = 96.dp
 
 /**
- * "A new version exists."
- *
- * Emufii is sideloaded: no store will give notice on its behalf, and a fix that
- * stays on the development machine fixes nothing. This was point S5 of the
- * security review, and the last one left open.
- *
- * The install button pulls the APK from the coordinator, checks its signature
- * against the running app's, then hands it to Android; the three locks are
- * detailed in [UpdateInstaller]. Tapping that button is the only consent asked
- * for: Android 12 and later install an app that updates itself with no
- * confirmation dialog, which was verified here. So the label says "Install", not
- * "Download".
- *
- * Dismissible, and the dismissal holds for that version only: refusing once must
- * not switch the announcement off forever.
+ * Emufii is sideloaded: no store gives notice on its behalf. The locks are in
+ * [UpdateInstaller]; tapping is the only consent asked for, Android 12 and later
+ * installing a self-update with no confirmation dialog, verified here, so the label says
+ * "Install". The dismissal holds for that version only.
  */
 @Composable
 fun UpdateBanner(
@@ -72,10 +54,8 @@ fun UpdateBanner(
     val scope = rememberCoroutineScope()
 
     var busy by remember { mutableStateOf(false) }
-    // What the last attempt produced, in one sentence. Replaces the notes line
-    // rather than adding below it: the card has a fixed height, and a fourth line
-    // would push the buttons out of the frame, the flaw the Thor's landscape has
-    // already revealed once.
+    // Replaces the notes line rather than adding below it: the card has a fixed height,
+    // and a fourth line pushes the buttons out of frame in the Thor's landscape.
     var failure by remember { mutableStateOf<Int?>(null) }
 
     fun install() {
@@ -86,9 +66,6 @@ fun UpdateBanner(
             when (val outcome = UpdateInstaller.downloadAndInstall(context, latest)) {
                 is UpdateOutcome.HandedToAndroid -> Unit
                 is UpdateOutcome.NeedsPermission ->
-                    // The settings screen, not a message: what is missing is two
-                    // taps away, and saying so without leading there would send
-                    // people searching.
                     runCatching { context.startActivity(outcome.settings) }
                         .onFailure { failure = R.string.update_failed_permission }
                 UpdateOutcome.Unavailable -> failure = R.string.update_failed_unavailable
@@ -99,8 +76,6 @@ fun UpdateBanner(
         }
     }
 
-    // An update is a link, not a game: the banner belongs to the social axis,
-    // and everything pressable in it speaks coral: rings included.
     // pourquoi : docs/decisions/theme-duotone-shelves.md § Two semantic axes
     val coral = MaterialTheme.colorScheme.tertiary
     CompositionLocalProvider(LocalRingTone provides RingTone.CORAL) {
@@ -114,10 +89,8 @@ fun UpdateBanner(
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold
             )
-            // The language read off the configuration, not off
-            // `Locale.getDefault()`: it is the one the system actually applied to
-            // the app, hence the one everything else on this card is written
-            // in.
+            // Off the configuration, not `Locale.getDefault()`: this is the language the
+            // system actually applied to the app.
             val locale = LocalConfiguration.current.locales[0]
             val secondLine = failure?.let { stringResource(it) } ?: latest.notesFor(locale)
             secondLine?.let {
@@ -127,9 +100,6 @@ fun UpdateBanner(
                     color = if (failure != null) MaterialTheme.colorScheme.error
                     else MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 2,
-                    // A release note or a failure message has no guaranteed length: it
-                    // is the app's least controlled text, and the only one that comes
-                    // off the network.
                     overflow = TextOverflow.Ellipsis
                 )
             }
@@ -143,17 +113,14 @@ fun UpdateBanner(
                     onClick = { if (!busy) onDismiss() },
                     tint = coral
                 )
-                // The link stays on offer when one is published: it leads to a
-                // page to read, where the button next to it leads to a binary.
                 latest.url?.let { url ->
                     GhostButton(
                         label = stringResource(R.string.update_open),
                         tint = coral,
                         onClick = {
                             if (busy) return@GhostButton
-                            // Best-effort: on a device with no browser there is
-                            // nothing to open, and bringing the library down over
-                            // it would be out of proportion with the stakes.
+                            // A device with no browser has nothing to open; that must not
+                            // bring the library down.
                             runCatching {
                                 context.startActivity(
                                     Intent(Intent.ACTION_VIEW, Uri.parse(url))
@@ -163,9 +130,6 @@ fun UpdateBanner(
                         }
                     )
                 }
-                // The install keeps its spinner in place of its label: the
-                // download is the one thing here that takes time, and the
-                // button is where you look for its progress.
                 GhostButton(
                     label = stringResource(R.string.update_install),
                     onClick = { if (!busy) install() },

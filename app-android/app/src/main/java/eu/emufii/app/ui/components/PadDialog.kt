@@ -29,15 +29,9 @@ import eu.emufii.app.ui.theme.LocalAccent
 import eu.emufii.app.ui.SilenceSystemSfx
 
 /**
- * The filled action, the only one of its kind on a screen.
- *
- * Two cuts of the one accent, and the second exists for a measurable reason:
- * white text on the light cyan sits at 2.2:1. The deep cut takes it to 4.6:1,
- * so the light theme fills with that and keeps the bright cut for the cursor,
- * where nothing is written on top of it. The dark themes keep the bright cut
- * and write on it in the ink cut, at 5:1. Every choosable accent carries the
- * same three cuts at those same ratios, so the button is as legible whichever
- * colour is in force.
+ * White on the light cyan sits at 2.2:1, so the light theme fills with the deep cut
+ * (4.6:1) and the dark themes write in the ink cut on the bright one (5:1). Every
+ * choosable accent carries the same three cuts at those ratios.
  */
 @Composable
 fun PrimaryButton(
@@ -45,7 +39,6 @@ fun PrimaryButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    /** A mark laid before the label: the destination's face. */
     leading: (@Composable () -> Unit)? = null
 ) {
     val dark = LocalEmufiiDarkTheme.current
@@ -59,8 +52,7 @@ fun PrimaryButton(
         colors = ButtonDefaults.buttonColors(
             containerColor = container,
             contentColor = ink,
-            // Disabled, but still legibly the action: Material's grey-on-grey
-            // slab reads as an absence rather than as a button waiting its turn.
+            // Material's grey-on-grey slab reads as an absence, not as a button waiting.
             disabledContainerColor = container.copy(alpha = 0.16f),
             disabledContentColor = container.copy(alpha = 0.55f)
         ),
@@ -81,43 +73,24 @@ fun PrimaryButton(
 }
 
 /**
- * The shape every dialog in Emufii takes: one moulded plate, and its actions
- * made of the same controls as the rest of the app.
- *
- * It replaces `AlertDialog`, which was the last Material component left with a
- * say in the look of a screen. Two things were wrong with it, and only one was
- * cosmetic. Its container is a tonal surface, not a plate: no offset shadow,
- * no lit bevel, no moulding edge, so it landed on the tray as a flat rectangle
- * of colour. And its buttons are `TextButton`s: bare text, focusable, with the
- * Material focus veil turned off across the app. On a pad the cursor went into
- * a dialog and disappeared, which on a screen whose whole job is to ask a
- * question leaves nothing to answer it with.
- *
- * The actions are laid out end-aligned, cancel first: the destructive answer is
- * never the one under the thumb when the dialog opens.
+ * Replaces `AlertDialog`: its buttons are `TextButton`s, and the Material focus veil is
+ * off across the app, so on a pad the cursor went into a dialog and disappeared.
+ * Actions are end-aligned, cancel first: the destructive answer is never under the thumb
+ * when the dialog opens.
  */
 @Composable
 fun PadDialog(
     title: String,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
-    /** Dismissable by tapping outside, except where the choice has to be made. */
     dismissOnOutside: Boolean = true,
-    /**
-     * The consequence in one sentence, for the rear panel. This dialog's body is a
-     * `@Composable` and therefore unreadable from here: the sentence is given again,
-     * not recovered. That is the price of the panel no longer contradicting the front
-     * screen.
-     */
+    /** The body is a `@Composable` and unreadable from here: the sentence is given again. */
     panelDetail: String? = null,
     /** Coral when the question is about a session or someone. */
     panelSocial: Boolean = false,
     actions: @Composable () -> Unit,
     content: @Composable () -> Unit
 ) {
-    // The panel learns something is being asked in front. Laid here rather than at the
-    // call sites: this is the app's only confirmation dialog, so the only place to wire
-    // the rule, and a future one inherits it.
     // pourquoi : docs/decisions/second-ecran.md § What travels to the panel
     DisposableEffect(title, panelDetail, panelSocial) {
         val token = SecondScreen.putAside(
@@ -135,19 +108,14 @@ fun PadDialog(
         properties = DialogProperties(
             dismissOnClickOutside = dismissOnOutside,
             dismissOnBackPress = true,
-            // The dialog measures itself, so a long body wraps instead of being
-            // squeezed into the platform's default width.
+            // The dialog measures itself: a long body wraps instead of being squeezed
+            // into the platform's default width.
             usePlatformDefaultWidth = false
         )
     ) {
         SilenceSystemSfx()
-        // Bounded, and that bound is the whole reason this measures itself.
-        //
-        // `usePlatformDefaultWidth = false` is what lets a long sentence wrap
-        // instead of being squeezed into the platform's narrow column. Left
-        // unbounded it goes the other way on the Thor, whose screen is 1920 wide
-        // in landscape: the panel ran edge to edge and read as a bar across the
-        // tray, which is the one silhouette this world does not have.
+        // Left unbounded on the Thor, 1920 wide in landscape, the plate ran edge to
+        // edge and read as a bar across the tray.
         SoftCard(
             modifier = modifier
                 .padding(horizontal = 24.dp)
@@ -171,7 +139,6 @@ fun PadDialog(
     }
 }
 
-/** The body of a dialog that is one sentence to read, which is most of them. */
 @Composable
 fun PadDialogText(text: String) {
     Text(

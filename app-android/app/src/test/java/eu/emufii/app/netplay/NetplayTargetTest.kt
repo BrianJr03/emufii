@@ -6,28 +6,17 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/**
- * Which emulator an accessibility event belongs to, and whether it has an
- * in-game way into its multiplayer dialog.
- *
- * The service is the one piece of Emufii that reads another app's screen, so the
- * question "is this package one of ours?" has to be exact. A wrong yes means
- * typing into a stranger's window; a wrong no means the automation silently
- * does nothing.
- */
 class NetplayTargetTest {
 
     @Test
     fun `each emulator is recognised by its own packages`() {
         assertEquals(NetplayTarget.AZAHAR, NetplayTarget.forPackage("org.azahar_emu.azahar"))
         assertEquals(NetplayTarget.AZAHAR, NetplayTarget.forPackage("org.azahar_emu.azahar.debug"))
-        // The identifier inherited from Lime3DS, which some Azahar builds still
-        // carry. Seen on the Thor, 2026-08-26: Emufii showed "not installed" in
-        // front of a complete Azahar. See AzaharPackage.
+        // The Lime3DS identifier some Azahar builds still carry; on the Thor, 2026-08-26,
+        // Emufii showed "not installed" in front of a complete Azahar. See AzaharPackage.
         assertEquals(NetplayTarget.AZAHAR, NetplayTarget.forPackage("io.github.lime3ds.android"))
         assertEquals(NetplayTarget.EDEN, NetplayTarget.forPackage("dev.eden.eden_emulator"))
-        // The nightly is what most players actually have installed.
-        assertEquals(NetplayTarget.EDEN, NetplayTarget.forPackage("dev.eden.eden_emulator.nightly"))
+        assertEquals(NetplayTarget.EDEN, NetplayTarget.forPackage("dev.eden.eden_emulator.nightly")) // what most players have
     }
 
     @Test
@@ -48,15 +37,13 @@ class NetplayTargetTest {
 
     @Test
     fun `both emulators are reachable from the settings hub, and from a running game`() {
-        // The two paths to the multiplayer sheet. Every target must declare the
-        // settings one, because that is the path Emufii's own button takes: without
-        // it the button opens the emulator and leaves the player to go hunting.
+        // Emufii's own button takes the settings path: without it the button opens the
+        // emulator and leaves the player to go hunting.
         for (target in NetplayTarget.all) {
             assertEquals(target.packages.toString(), NetplayUi.NAV_HOME_SETTINGS, target.homeNavId)
             assertEquals(target.packages.toString(), NetplayUi.HOME_SETTINGS_LIST, target.homeListId)
         }
-        // The in-game entry is Azahar's original path; Eden's stable build turns
-        // out to carry the same id, which the nightly scout had not seen.
+        // Azahar's original in-game path; Eden's stable build carries the same id.
         assertEquals(NetplayUi.MENU_MULTIPLAYER, NetplayTarget.AZAHAR.inGameMenuId)
         assertEquals(NetplayUi.MENU_MULTIPLAYER, NetplayTarget.EDEN.inGameMenuId)
     }

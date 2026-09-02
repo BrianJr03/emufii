@@ -11,13 +11,7 @@ import org.json.JSONObject
 /** Durable state of the generated card used by ARMSX2 per-game settings. */
 object Ps2NetworkProfile {
 
-    /**
-     * Last full verdict, for the life of the process.
-     *
-     * Cleared wherever the answer can change: preparing a card, assigning one,
-     * dropping readiness, so a cached yes never outlives the thing it was
-     * about.
-     */
+    /** Cleared wherever the answer can change, so a cached yes never outlives its card. */
     @Volatile
     private var verified: Boolean? = null
 
@@ -42,7 +36,6 @@ object Ps2NetworkProfile {
 
     fun rootUri(context: Context): Uri? = prefs(context).getString(KEY_ROOT, null)?.toUri()
 
-    /** Store a new tree only once Android confirms persistent read and write grants. */
     fun setRootUri(context: Context, uri: Uri): Boolean {
         val grant = context.contentResolver.persistedUriPermissions.firstOrNull { it.uri == uri }
         if (grant?.isReadPermission != true || grant.isWritePermission != true) return false
@@ -76,9 +69,8 @@ object Ps2NetworkProfile {
         prefs(context).edit {
             putString(KEY_ROOT, prepared.rootUri)
             putString(KEY_RECEIPT, json.toString())
-            // Publishing and reading the card back is the complete preparation.
-            // It no longer needs a second accessibility pass to occupy global
-            // Slot 1; each launch assigns it only to the selected game.
+            // Publishing and reading the card back is the whole preparation: no second
+            // accessibility pass for global Slot 1, each launch assigns the game instead.
             putBoolean(KEY_READY, true)
             putBoolean(KEY_ASSIGNED, false)
         }
@@ -107,16 +99,15 @@ object Ps2NetworkProfile {
                 assigned = if (prefs(context).contains(KEY_ASSIGNED)) {
                     prefs(context).getBoolean(KEY_ASSIGNED, false)
                 } else {
-                    // Before version 45 KEY_READY meant that accessibility had
-                    // observed the global Slot 1 assignment. Preserve that
-                    // evidence across the preference migration.
+                    // Before version 45 KEY_READY meant accessibility had observed the
+                    // global Slot 1 assignment; keep that evidence across the migration.
                     prefs(context).getBoolean(KEY_READY, false)
                 },
             )
         }.getOrNull()
     }
 
-    /** Legacy accessibility completion, retained for an in-flight old setup. */
+    /** Retained for a setup started under the accessibility flow and still in flight. */
     fun markAssigned(context: Context, cardName: String, cardSha256: String): Boolean {
         val receipt = receipt(context) ?: return false
         if (receipt.cardName != cardName || !receipt.cardSha256.equals(cardSha256, ignoreCase = true)) {
@@ -131,16 +122,11 @@ object Ps2NetworkProfile {
     }
 
     /**
-     * The full check, and it is not cheap: measured at ~175 ms on the Thor,
-     * because proving the profile is still on the card means reading the whole
-     * 8 MB image and the BIOS beside it. Never call it from a composable body or
-     * anywhere else on the main thread: use [isReadyQuick] to draw and
-     * [verifyReady] to confirm.
-     *
-     * Kept synchronous for the one caller that must be authoritative in a single
-     * step: the gate before joining a session, where a stale yes would land the
-     * guest in a tunnel whose game never opens its local menu, and where 175 ms
-     * disappears next to the round trip that follows.
+     * ~175 ms on the Thor: proving the profile is still on the card reads the whole 8 MB
+     * image and the BIOS beside it. Never call it on the main thread, draw with
+     * [isReadyQuick] and confirm with [verifyReady]. Kept synchronous for the gate before
+     * joining a session, where a stale yes lands the guest in a tunnel whose game never
+     * opens its local menu.
      */
     fun isReady(context: Context): Boolean {
         if (!prefs(context).getBoolean(KEY_READY, false)) return false
@@ -154,18 +140,13 @@ object Ps2NetworkProfile {
     }
 
     /**
-     * What to draw with, answered from memory or from one preference read.
-     *
-     * A composable body runs on every recomposition, and the launch card called
-     * [isReady] three times for a single opening: half a second of blocked main
-     * thread on a popup that should appear instantly. This is the answer that
-     * costs nothing, and [verifyReady] refines it a moment later if the card has
-     * moved since.
+     * The launch card called [isReady] three times for a single opening: half a second of
+     * blocked main thread on a popup meant to appear instantly. [verifyReady] refines this
+     * a moment later if the card has moved since.
      */
     fun isReadyQuick(context: Context): Boolean =
         verified ?: prefs(context).getBoolean(KEY_READY, false)
 
-    /** [isReady], off the main thread, caching its verdict for [isReadyQuick]. */
     suspend fun verifyReady(context: Context): Boolean =
         withContext(Dispatchers.IO) { isReady(context) }
 

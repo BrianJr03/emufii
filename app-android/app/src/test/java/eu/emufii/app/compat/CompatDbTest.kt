@@ -27,8 +27,7 @@ class CompatDbTest {
 
     @Test
     fun `every region of one game answers with the same verdict`() {
-        // The whole feature in one assertion: two unrelated serials, one entry,
-        // one badge.
+        // Two unrelated serials, one entry, one badge.
         val db = CompatDb.parse(sample)
         assertEquals(CompatRating.PERFECT, db.ratingFor(listOf("ps2:SLES-50877"))?.rating)
         assertEquals(CompatRating.PERFECT, db.ratingFor(listOf("ps2:SLUS-20314"))?.rating)

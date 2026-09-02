@@ -4,17 +4,15 @@ import org.json.JSONObject
 import java.util.Locale
 
 /**
- * What a game is about, for the panel's second page. Editorial only: a missing
- * entry costs a page nobody had to open, never a launch, a badge or a session,
- * so every field is nullable and nothing is inferred from silence. Matched on
- * the same keys as the compatibility list ([eu.emufii.app.library.compatKeys]).
+ * Editorial only: a missing entry costs a page, never a launch, a badge or a session,
+ * so nothing is inferred from silence. Matched on the same keys as the compatibility
+ * list ([eu.emufii.app.library.compatKeys]).
  */
 data class GameMeta(
     val keys: List<String>,
     /**
-     * `action-RPG · cross-over`, in each language the source had one. Two fields
-     * rather than one translated at read time: Wikidata already publishes both,
-     * and the app has no business guessing that "course" is "racing".
+     * Two fields rather than one translated at read time: Wikidata publishes both, and
+     * the app has no business guessing that "course" is "racing".
      */
     val genreFr: String? = null,
     val genreEn: String? = null,
@@ -22,23 +20,15 @@ data class GameMeta(
     val summaryFr: String? = null,
     val summaryEn: String? = null,
     val screenshots: List<String> = emptyList(),
-    /**
-     * Who wrote the paragraph, printed under it. The text is Wikipedia's under
-     * CC BY-SA, and attribution is the condition it comes with.
-     */
+    /** The text is Wikipedia's under CC BY-SA: attribution is the condition. */
     val source: String? = null,
 ) {
-    /**
-     * The paragraph in the player's language, falling back to the other one: an
-     * English synopsis still says what the game is, an empty page does not.
-     */
     fun summaryFor(locale: Locale): String? =
         if (locale.language.equals("fr", ignoreCase = true)) summaryFr ?: summaryEn
         else summaryEn ?: summaryFr
 
     /**
-     * The genre in the player's language, falling back like the summary. The
-     * first only: the line already holds a region, and the catalogue keeps the
+     * The first genre only, the line already holding a region; the catalogue keeps the
      * second so a roomier screen can print it without a rebuild.
      */
     fun genreFor(locale: Locale): String? {
@@ -52,10 +42,7 @@ data class GameMeta(
             summaryFor(locale) == null
 }
 
-/**
- * A flat map from key to entry, flattened on parse like
- * [eu.emufii.app.compat.CompatDb]: the lookup happens while a cursor moves.
- */
+/** Flattened on parse like [eu.emufii.app.compat.CompatDb]: the lookup happens while a cursor moves. */
 class GameMetaDb private constructor(private val byKey: Map<String, GameMeta>) {
     val size: Int get() = byKey.size
 
@@ -64,7 +51,6 @@ class GameMetaDb private constructor(private val byKey: Map<String, GameMeta>) {
     companion object {
         val EMPTY = GameMetaDb(emptyMap())
 
-        /** Entry by entry, skipping whatever it cannot read: one bad line costs one game. */
         fun parse(json: String): GameMetaDb = runCatching {
             val games = JSONObject(json).optJSONArray("games") ?: return@runCatching EMPTY
             val map = LinkedHashMap<String, GameMeta>()
@@ -83,8 +69,7 @@ class GameMetaDb private constructor(private val byKey: Map<String, GameMeta>) {
                     summaryFr = obj.text("summary_fr"),
                     summaryEn = obj.text("summary_en"),
                     source = obj.text("source"),
-                    // https only: a picture fetched in clear is one anybody can
-                    // replace, and this is drawn full width on the back panel.
+                    // https only: a picture fetched in clear is one anybody can replace.
                     screenshots = (0 until (shots?.length() ?: 0))
                         .mapNotNull { shots?.optString(it)?.trim() }
                         .filter { it.startsWith("https://") }
@@ -100,8 +85,4 @@ class GameMetaDb private constructor(private val byKey: Map<String, GameMeta>) {
     }
 }
 
-/**
- * Empty by default, which is the state before the first fetch and the permanent
- * state of an offline player: the second page says it has nothing.
- */
 val LocalGameMetaDb = androidx.compose.runtime.staticCompositionLocalOf { GameMetaDb.EMPTY }

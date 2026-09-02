@@ -1,16 +1,12 @@
 package eu.emufii.app.library
 
 /**
- * The icon and title a DS cartridge carries in its banner.
+ * A `.nds` header points at a banner block (offset `0x068`) holding a 32×32 icon, 4 bits
+ * per pixel, 8×8 tiles, one 16-colour palette, and the title in up to eight languages: that
+ * is where "Pokémon Version Blanche 2" lives, against the `white2.nds` of a filename.
  *
- * A `.nds` header points at a banner block (offset `0x068`) holding a 32×32
- * icon, 4 bits per pixel, 8×8 tiles, one 16-colour palette, and the game's
- * title in up to eight languages. That is where "Pokémon Version Blanche 2"
- * lives, as opposed to the `white2.nds` a filename gives us.
- *
- * Decoding is pure and lives here so the tile and palette arithmetic can be
- * tested without a device; [NdsBannerReader] does the I/O and turns pixels into
- * a Bitmap. Same split as the 3DS side, for the same reason.
+ * Pure, so the tile and palette arithmetic tests without a device; [NdsBannerReader] does
+ * the I/O and the Bitmap. Same split as the 3DS side.
  */
 object NdsBanner {
 
@@ -32,12 +28,8 @@ object NdsBanner {
 
 
     /**
-     * The 32×32 icon as ARGB_8888 pixels, row-major, or null if [banner] is too
-     * short to hold one.
-     *
-     * Palette index 0 is transparent by definition on this hardware, not merely
-     * by convention, treating it as a colour is what turns these icons into
-     * squares with a black background.
+     * ARGB_8888, row-major. Palette index 0 is transparent by definition on this hardware,
+     * not by convention: treating it as a colour turns these icons into black squares.
      */
     fun decodeIcon(banner: ByteArray): IntArray? {
         if (banner.size < PALETTE_OFFSET + 32) return null
@@ -72,19 +64,14 @@ object NdsBanner {
     }
 
     /**
-     * The best available title, with the publisher line dropped.
-     *
-     * The last line is the publisher, and the ones before it are the title,
-     * that much is convention, and the shape varies by cartridge. Checked
-     * against three real dumps:
+     * The last line is the publisher and the ones before it the title, by convention, and
+     * the shape varies by cartridge. Checked against three real dumps:
      *
      * - `Pokémon\nWhite Version 2\nNintendo`      → "Pokémon White Version 2"
      * - `Pokémon SoulSilver\nNintendo`            → "Pokémon SoulSilver"
      * - `Inazuma Eleven 2\nBlizzard\nNintendo`    → "Inazuma Eleven 2 Blizzard"
      *
-     * Taking only the first line, which is what this did at first, turns
-     * "Pokémon White Version 2" into a bare "Pokémon", and there is no telling
-     * two Pokémon games apart in a grid after that.
+     * Taking the first line alone, as this once did, leaves a bare "Pokémon".
      */
     fun pickTitle(banner: ByteArray): String? {
         for (language in TitleLanguage.ndsBanner) {
@@ -99,8 +86,6 @@ object NdsBanner {
             val title = when (lines.size) {
                 0 -> null
                 1 -> lines[0]
-                // Two lines is title then publisher; three is title, subtitle,
-                // publisher. Either way the last line is not part of the name.
                 else -> lines.dropLast(1).joinToString(" ")
             }
             if (!title.isNullOrBlank()) return title
@@ -109,9 +94,8 @@ object NdsBanner {
     }
 
     /**
-     * A stable key for the icon cache: the 4-letter game code plus the 2-letter
-     * maker code, e.g. `NDS-IRBO-01`. Distinct per game *and* region, which is
-     * what matters, two regional releases have different icons.
+     * Icon cache key: 4-letter game code plus 2-letter maker code, `NDS-IRBO-01`. Distinct
+     * per game *and* region, two regional releases having different icons.
      */
     fun cacheKey(header: ByteArray): String? {
         if (header.size < HEADER_MAKER_CODE_OFFSET + 2) return null

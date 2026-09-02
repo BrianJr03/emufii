@@ -5,16 +5,8 @@ import androidx.core.content.edit
 import org.json.JSONObject
 
 /**
- * What the last look at the coordinator found, kept so the next one can tell a
- * change from a repetition.
- *
- * Shared by the app and the background job on purpose: they take turns looking,
- * and if each kept its own memory the job would re-announce, half an hour later,
- * the friend the player already saw arrive on screen.
- *
- * Small enough for shared preferences, a handful of friends and two integers,
- * and it survives the process being killed, which is exactly the moment the
- * memory has to hold.
+ * Shared by the app and the background job: with one memory each, the job would
+ * re-announce half an hour later the friend the player watched arrive on screen.
  */
 class WatchState(context: Context) {
 
@@ -47,12 +39,8 @@ class WatchState(context: Context) {
     }
 
     /**
-     * The highest version we have already announced.
-     *
-     * Separate from [eu.emufii.app.update.UpdateDismissals]: dismissing the
-     * banner means "stop showing me this card", not "never mention this version
-     * again". A player who swipes the notification away and never opens the app
-     * would otherwise be told about the same version every fifteen minutes.
+     * Separate from [eu.emufii.app.update.UpdateDismissals]: dismissing the banner means
+     * "stop showing me this card", not "stop notifying me about this version".
      */
     fun notifiedVersion(): Int = prefs.getInt(KEY_VERSION, 0)
 

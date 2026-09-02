@@ -14,8 +14,6 @@ import eu.emufii.app.library.Console
 import eu.emufii.app.library.EmulatorPick
 
 /**
- * Starts a Switch game in Eden, and arms the netplay autofill.
- *
  * Eden's launch contract is the best of the three backends: `EmulationActivity`
  * is exported, with an `ACTION_VIEW` filter on `content:` +
  * `application/octet-stream`. A SAF uri is therefore enough, no file copy, no
@@ -38,13 +36,9 @@ class EdenLauncher(private val context: Context) {
     fun isInstalled(): Boolean = installedPackage() != null
 
     /**
-     * Launches [romUri] in Eden. If [plan] is non-null and the automation is on,
-     * arms it so the Join dialog fills itself.
-     *
-     * Unlike Azahar, arming is useful *before* or *after* the launch: Eden's
-     * multiplayer lives in the app's settings rather than in an in-game drawer,
-     * so a player can open it whenever they like and the automation will be
-     * waiting. Nothing here depends on the game having started.
+     * Unlike Azahar, arming is useful before or after the launch: Eden's multiplayer
+     * lives in the app's settings, not in an in-game drawer, so nothing here depends
+     * on the game having started.
      */
     fun launchGame(romUri: Uri, plan: NetplayPlan? = null, automationOn: Boolean = false): LaunchResult {
         val pkg = installedPackage() ?: return LaunchResult.NotInstalled
@@ -63,10 +57,7 @@ class EdenLauncher(private val context: Context) {
         }.getOrElse { LaunchResult.Error(it.message ?: "Unknown launch error") }
     }
 
-    /**
-     * Opens Eden with the netplay plan armed, no ROM, same two-step flow as
-     * Azahar: join the room first, boot the game second.
-     */
+    /** Same two-step flow as Azahar: join the room first, boot the game second. */
     fun openForNetplay(plan: NetplayPlan): LaunchResult {
         val pkg = installedPackage() ?: return LaunchResult.NotInstalled
         if (!NetplayUiSupport.isPresent(context, pkg)) {
@@ -78,7 +69,6 @@ class EdenLauncher(private val context: Context) {
         return launch()
     }
 
-    /** Opens Eden without a game, for the player who wants the room up first. */
     fun launch(): LaunchResult {
         val pkg = installedPackage() ?: return LaunchResult.NotInstalled
         val intent = context.packageManager.getLaunchIntentForPackage(pkg)
@@ -96,11 +86,8 @@ class EdenLauncher(private val context: Context) {
 }
 
 /**
- * Which of these variants to drive, the last-update date being authoritative.
- *
- * Kept apart from the `PackageManager` so it can be exercised: this is a choice
- * rule, not a system access. `maxByOrNull` returns the first of the ties, so the
- * order of the list received decides them, and that order puts our fork first.
+ * Kept apart from the `PackageManager` so it can be exercised. `maxByOrNull` returns
+ * the first of the ties, and the order of the list received puts our fork first.
  */
 internal fun pickEden(installed: List<Pair<String, Long>>): String? =
     installed.maxByOrNull { it.second }?.first

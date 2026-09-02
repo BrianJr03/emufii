@@ -193,8 +193,7 @@ fun SessionScreen(
             rom.displayName,
         )
     }
-    // First frame from the library scan, then the disc itself: an old scan can carry a
-    // stale serial.
+    // First frame from the library scan, then the disc itself: an old scan can carry a stale serial.
     val ps2Automatic by produceState(
         initialValue = session.rom != null && session.backend == Backend.ARMSX2 &&
             Ps2GameSettings.canConfigure(context, session.rom),
@@ -205,8 +204,7 @@ fun SessionScreen(
     }
     var status by remember { mutableStateOf<String?>(null) }
     var members by remember { mutableStateOf<List<Member>>(emptyList()) }
-    // Our name in this session's list, see `Heartbeat.memberHandle`. Re-read every
-    // beat.
+    // Our name in this session's list, see `Heartbeat.memberHandle`; re-read every beat.
     var myHandle by remember { mutableStateOf<String?>(null) }
 
     var netplayPrepared by remember(session.code) { mutableStateOf(false) }
@@ -243,8 +241,7 @@ fun SessionScreen(
     var automationOn by remember { mutableStateOf(azahar.isNetplayAutomationEnabled()) }
 
     /**
-     * How many times we have come back into Emufii from outside: the second,
-     * weaker proof that a host made their room.
+     * Returns into Emufii from outside: the second, knowingly weaker proof of a room.
      * pourquoi : docs/decisions/session.md § Two proofs that a room exists, and the second is knowingly weaker
      */
     var returns by remember(session.code) { mutableIntStateOf(0) }
@@ -253,8 +250,7 @@ fun SessionScreen(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 automationOn = azahar.isNetplayAutomationEnabled()
-                // The moment to notice the automation was never heard from:
-                // silence has a cause the player can act on.
+                // The moment to notice the automation was never heard from.
                 // pourquoi : docs/decisions/session.md § Two proofs that a room exists, and the second is knowingly weaker
                 if (NetplayAutomation.neverStarted()) {
                     NetplayAutomation.report(
@@ -281,8 +277,8 @@ fun SessionScreen(
 
     /** One definition for both layouts, which drifted apart once. */
     val onNetplayStep: () -> Unit = fun() {
-        // Only an image whose boot ELF cannot be read reaches this branch, and
-        // it needs the one legacy global assignment per-game files avoid.
+        // Only an image whose boot ELF cannot be read reaches this branch: it needs the one
+        // legacy global assignment per-game files avoid.
         // pourquoi : docs/decisions/session.md § What each backend receives at launch
         if (session.backend == Backend.ARMSX2 && !ps2Automatic) {
             val receipt = Ps2NetworkProfile.receipt(context)
@@ -317,10 +313,9 @@ fun SessionScreen(
 
     /** ARMSX2's direct path performs its former two steps behind one launch. */
     /**
-     * True as soon as the emulator has left. For the rear panel above all: the front
-     * screen vanishes behind the emulator the second you press, and the panel stayed on
-     * a step nothing told apart from one never pressed. An action whose effect is
-     * invisible is one you doubt.
+     * True as soon as the emulator has left, for the rear panel above all: the front screen
+     * vanishes behind the emulator, and the panel stayed on a step nothing told apart from one
+     * never pressed.
      * pourquoi : docs/decisions/second-ecran.md § A panel that asserts something false is a fault
      */
     var launched by remember(session.code) { mutableStateOf(false) }
@@ -357,8 +352,8 @@ fun SessionScreen(
                     if (err is CoordinatorError.NotFound) gone++ else mute++
                 }
 
-            // Only a coordinator that *answers* 404 proves the room is gone; a
-            // silent one proves only that we cannot reach it.
+            // Only a coordinator that *answers* 404 proves the room is gone; a silent one
+            // proves only that we cannot reach it.
             // pourquoi : docs/decisions/session.md § Only a 404 proves a room is closed
             if (gone >= MAX_PRESENCE_MISSES && session.role == Session.Role.GUEST) {
                 onSessionEnded()
@@ -370,15 +365,13 @@ fun SessionScreen(
     }
 
     val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-    // Both comparisons: an up-to-date coordinator returns the handle, an old one the
-    // friend code.
+    // An up-to-date coordinator returns the handle, an old one the friend code.
     val others = members.filter { it.id != myHandle && it.id != profile.id }
 
     val configuration = LocalConfiguration.current
     val landscape = configuration.screenWidthDp > configuration.screenHeightDp
 
-    // Hoisted, because a value computed inside one column would only be true
-    // on one side.
+    // Hoisted: computed inside one column the value would be true on one side only.
     // pourquoi : docs/decisions/session.md § The address shown is the one to type, never another
     val psp = session.backend == Backend.PPSSPP
     // With a VPS room nobody hosts, so the host's address is the address of nothing.
@@ -419,8 +412,7 @@ fun SessionScreen(
         }
     }
 
-    // The steps, resolved once and served to both screens: the labels travel already
-    // translated.
+    // Resolved once and served to both screens: the labels travel already translated.
     // pourquoi : docs/decisions/second-ecran.md § What travels to the panel travels already resolved
     // pourquoi : docs/decisions/second-ecran.md § The panel takes the steps, because it is touch
     val showNetplayStep = session.backend.hasNetplay && !ps2Automatic
@@ -472,8 +464,7 @@ fun SessionScreen(
         }
         add(
             PanelStep(
-                // Once launched the step keeps its place and changes face, staying
-                // pressable.
+                // Once launched the step keeps its place and changes face, still pressable.
                 label = if (launched) launchedLabel else launchLabel,
                 done = launched,
                 enabled = launchEnabled(
@@ -486,8 +477,7 @@ fun SessionScreen(
             )
         )
     }
-    // The lambdas belong to this composition: clear them on the way out or the panel
-    // keeps a dead session.
+    // The lambdas belong to this composition: clear them on the way out, or the panel keeps a dead session.
     DisposableEffect(panelLive, panelSteps) {
         SecondScreen.publishSteps(if (panelLive) panelSteps else emptyList())
         onDispose { SecondScreen.publishSteps(emptyList()) }
@@ -509,8 +499,7 @@ fun SessionScreen(
         modifier = modifier,
         onBack = { confirmingLeave = true },
         backIcon = { CrossIcon(size = 20.dp, color = danger()) },
-        // In landscape, leave moves into the header, and the 60 dp go back to the left
-        // pane.
+        // In landscape, leave moves into the header and the 60 dp go back to the left pane.
         // pourquoi : docs/decisions/session.md § What the panel carries, the front screen gives back in space
         trailing = if (landscape && !panelLive) {
             { SessionCodeChip(code = session.code, onCopy = onCopyCode) }
@@ -518,13 +507,11 @@ fun SessionScreen(
         // Both panes fit, so nothing rises under the header.
         contentScrolls = !landscape
     ) { topPadding ->
-        // The pilot lives in the scaffold: leaving past the first step lands on its
-        // cross.
+        // The pilot lives in the scaffold: leaving past the first step lands on its cross.
         val scaffoldFocus = LocalScaffoldFocus.current
 
         /**
-         * Place the cursor as soon as the steps exist, without waiting for the pilot to
-         * take focus.
+         * Placed as soon as the steps exist, without waiting for the pilot to take focus.
          * pourquoi : docs/decisions/second-ecran.md § The panel's cursor does not depend on focus, which never arrives
          */
         LaunchedEffect(panelLive, panelSteps) {
@@ -536,14 +523,12 @@ fun SessionScreen(
             }
         }
 
-        // One `focusRequester`, the scaffold's: two stacked and the node never took
-        // focus.
+        // One `focusRequester`, the scaffold's: two stacked and the node never took focus.
         // pourquoi : docs/decisions/session.md § One `focusRequester` per node, and it is the shell's
         val pilotFocus = remember(scaffoldFocus) { scaffoldFocus?.first ?: FocusRequester() }
 
         /**
-         * Frame by frame: one request after 150 ms lost against Compose's initial
-         * focus.
+         * Frame by frame: one request after 150 ms lost against Compose's initial focus.
          * pourquoi : docs/decisions/session.md § One `focusRequester` per node, and it is the shell's
          */
         LaunchedEffect(panelLive) {
@@ -556,8 +541,7 @@ fun SessionScreen(
 
         val panelPilot = if (!panelLive) Modifier else Modifier
             .focusRequester(pilotFocus)
-            // Before `focusable()`, never after: `onFocusChanged` observes what follows
-            // it in the chain.
+            // Before `focusable()`, never after: `onFocusChanged` observes what follows it.
             .onFocusChanged { state ->
                 // Giving the cursor back to the pilot gives it back to the steps.
                 if (state.isFocused &&
@@ -592,8 +576,7 @@ fun SessionScreen(
                 } else {
                     val steps = SecondScreen.steps.value
                     when {
-                        // A and its synonyms press the aimed step; KeyDown is swallowed
-                        // so one press reads once.
+                        // A and its synonyms press the aimed step; KeyDown is swallowed so one press reads once.
                         event.key in CONFIRM_KEYS -> {
                             if (event.type == KeyEventType.KeyUp) {
                                 steps.getOrNull(cursor)?.takeIf { it.enabled }
@@ -608,8 +591,7 @@ fun SessionScreen(
                                 if (cursor == 0) leavePanel() else SecondScreen.moveStep(-1)
                                 true
                             }
-                            // One row: down has nowhere to go, but must not hand the
-                            // cursor back either.
+                            // One row: down has nowhere to go, and must not hand the cursor back.
                             Key.DirectionDown -> true
                             Key.ButtonB, Key.Back -> { leavePanel(); true }
                             else -> false
@@ -619,8 +601,8 @@ fun SessionScreen(
                 }
             }
         if (landscape) {
-            // Two panes: state on the left, what is left to do on the right,
-            // with every answer under the button that produced it.
+            // State on the left, what is left to do on the right, every answer under the
+            // button that produced it.
             // pourquoi : docs/decisions/session.md § Two panels, because stacked this screen does not fit
             Row(
                 modifier = panelPilot
@@ -633,16 +615,15 @@ fun SessionScreen(
                     ),
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // No `verticalScroll`: a state pane that can hide its state is not
-                // doing its job.
+                // No `verticalScroll`: a state pane that can hide its state is not doing its job.
                 // pourquoi : docs/decisions/session.md § The state panel does not scroll, so it has to fit
                 // pourquoi : docs/decisions/session.md § What the panel carries, the front screen gives back in space
                 Column(
                     modifier = Modifier.width(if (panelLive) 220.dp else 272.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    // Presence gives way, never the address: the weight is what
-                    // reverses Compose's measuring order to guarantee it.
+                    // Presence gives way, never the address: the weight reverses Compose's
+                    // measuring order to guarantee it.
                     // pourquoi : docs/decisions/session.md § The state panel does not scroll, so it has to fit
                     PresenceCard(
                         youName = profile.name,
@@ -664,8 +645,7 @@ fun SessionScreen(
                         )
                     }
 
-                    // Only once the panel has freed the room; without one there is no
-                    // gap to fill.
+                    // Only once the panel has freed the room; without one there is no gap to fill.
                     // pourquoi : docs/decisions/session.md § What the panel carries, the front screen gives back in space
                     if (panelLive) {
                         sessionArt?.let { art ->
@@ -688,8 +668,7 @@ fun SessionScreen(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    // The explanation gives way, never the buttons. The fade exists on
-                    // one screen only.
+                    // The explanation gives way, never the buttons; the fade exists on one screen only.
                     // pourquoi : docs/decisions/session.md § What the panel carries, the front screen gives back in space
                     val fade = !panelLive
                     Column(
@@ -725,12 +704,10 @@ fun SessionScreen(
                         )
                     }
 
-                    // With the panel carrying the steps, the front screen does not
-                    // redraw them.
+                    // With the panel carrying the steps, the front screen does not redraw them.
                     // pourquoi : docs/decisions/second-ecran.md § The panel takes the steps, because it is touch
                     if (!panelLive) {
-                    // The first button that exists AND responds: a disabled one
-                    // does not take focus. Then a real gap before the buttons.
+                    // The first button that exists AND responds: a disabled one does not take focus.
                     // pourquoi : docs/decisions/session.md § Down aims at the first button that answers
                     Spacer(Modifier.height(2.dp))
                     if (session.backend.hasNetplay && !ps2Automatic) {
@@ -759,8 +736,7 @@ fun SessionScreen(
                         directPs2 = ps2Automatic,
                         waitingForHost = ps2Automatic && waitingForHost,
                         onClick = onLaunchStep,
-                        // Last resort: when no step precedes it, this is the
-                        // first button on the page.
+                        // Last resort: with no step above, this is the first button on the page.
                         modifier = if ((session.backend.hasNetplay && !ps2Automatic) ||
                                        (session.backend == Backend.PPSSPP && !pspAutomatic)) Modifier
                                    else Modifier.padEntry()
@@ -790,9 +766,8 @@ fun SessionScreen(
             // pourquoi : docs/decisions/session.md § What is done by hand is said before the button, never after
             if (session.backend == Backend.PPSSPP) PspHintCard(pspAutomatic)
 
-            // Above the member list, because that list is the thing that has
-            // gone stale: whoever is shown there was here the last time we
-            // heard back, not necessarily now.
+            // Above the member list, which is what has gone stale: whoever is shown there was
+            // here the last time we heard back.
             if (offline) OfflineCard()
 
             PresenceCard(
@@ -803,23 +778,19 @@ fun SessionScreen(
                 live = !offline
             )
 
-            // As in landscape: what the panel reports, the front screen does not
-            // repeat.
+            // As in landscape: what the panel reports, the front screen does not repeat.
             // pourquoi : docs/decisions/session.md § What the rear panel carries, the front screen does not repeat
             if (!panelLive) {
                 ConnectionCard(
                     hostIp = shownAddress,
                     addressLabel = addressLabel,
-                    // And no port: the ad hoc server's is fixed and PPSSPP does
-                    // not ask for it. One more field to fill in is one more
-                    // field to fill in wrong.
+                    // No port: the ad hoc server's is fixed and PPSSPP does not ask for it.
                     port = shownPort,
                     romName = session.rom?.displayName
                 )
             }
 
-            // Before the buttons: Azahar refuses the room over the nickname
-            // while blaming the address.
+            // Before the buttons: Azahar refuses the room over the nickname while blaming the address.
             // pourquoi : docs/decisions/session.md § What is done by hand is said before the button, never after
             EmulatorHintCard(
                 session = session,
@@ -829,10 +800,8 @@ fun SessionScreen(
             // As in landscape: the panel carries the steps when it is there.
             // pourquoi : docs/decisions/second-ecran.md § The panel takes the steps, because it is touch
             if (!panelLive) {
-            // Two steps, in the order the emulator itself expects: join the room
-            // from its main menu, then boot the game. One button did both, so
-            // the ROM started in an emulator that had joined nothing, and the
-            // player learned it from the game instead of from Emufii.
+            // The order the emulator expects: join the room from its main menu, then boot the
+            // game. One button did both, and the ROM started in an emulator that had joined nothing.
             if (session.backend.hasNetplay && !ps2Automatic) {
                 NetplayButton(
                     session = session,
@@ -844,8 +813,7 @@ fun SessionScreen(
                 )
             }
 
-            // The button does not apply the settings, it opens the emulator,
-            // and its label says so.
+            // The button does not apply the settings, it opens the emulator, and says so.
             // pourquoi : docs/decisions/session.md § The per-console cards, and what each must prevent
             if (session.backend == Backend.PPSSPP && !pspAutomatic) {
                 PspSetupButton(
@@ -867,8 +835,8 @@ fun SessionScreen(
             )
             }
 
-            // Directly under the button that produces it: rendered last, a
-            // refusal landed off-screen and read as a dead button.
+            // Under the button that produces it: rendered last, a refusal landed off-screen
+            // and read as a dead button.
             // pourquoi : docs/decisions/session.md § What is done by hand is said before the button, never after
             status?.let { StatusLine(it) }
 
@@ -882,8 +850,7 @@ fun SessionScreen(
         PadDialog(
             title = stringResource(if (host) R.string.session_close else R.string.session_leave),
             onDismiss = { confirmingLeave = false },
-            // The dialog that made the panel most wrong: it kept showing the code while
-            // asking to leave.
+            // The dialog that made the panel most wrong: it kept showing the code while asking to leave.
             panelDetail = stringResource(
                 if (host) R.string.session_close_confirm else R.string.session_leave_confirm
             ),
@@ -903,8 +870,7 @@ fun SessionScreen(
                 )
             }
         ) {
-            // Host and guest do not risk the same thing: one closes for everyone, the
-            // other withdraws.
+            // Host and guest do not risk the same thing: one closes for everyone, the other withdraws.
             PadDialogText(
                 stringResource(
                     if (host) R.string.session_close_confirm else R.string.session_leave_confirm
@@ -914,10 +880,7 @@ fun SessionScreen(
     }
 }
 
-/**
- * What the player has to set in the emulator, if anything. One definition, so
- * the two layouts cannot drift apart.
- */
+/** One definition, so the two layouts cannot drift apart. */
 @Composable
 private fun EmulatorHintCard(
     session: Session,
@@ -934,17 +897,14 @@ private fun EmulatorHintCard(
             hostIp = session.hostIp,
             port = session.port
         )
-        // Unreachable from the library, which routes DS straight to the Kaeru
-        // screen. Handled anyway: a session joined from the finder carries
-        // whatever console the host had.
+        // Unreachable from the library, which routes DS to the Kaeru screen; a session joined
+        // from the finder carries whatever console the host had.
         Backend.EDEN -> EdenHintCard(
             automationOn = automationOn,
-            // With a room on the VPS the host joins like everyone else: telling
-            // them "Create" would send them to open a second, empty room next to
-            // the one where their guest is waiting.
+            // With a room on the VPS the host joins like everyone else: "Create" would open a
+            // second, empty room next to the one where their guest waits.
             isHost = session.role == Session.Role.HOST && session.room == null,
-            // What the player would type by hand if the automation failed: the
-            // room when there is one, the host otherwise.
+            // What the player would type by hand: the room when there is one, the host otherwise.
             hostIp = session.room?.host ?: session.hostIp,
             port = session.room?.port?.toString() ?: session.port
         )
@@ -969,8 +929,7 @@ private fun EmulatorHintCard(
 }
 
 /**
- * Step 1: join the room, without launching the game. Green once the room is
- * actually joined, not once the emulator was merely opened.
+ * Green once the room is actually joined, not once the emulator was merely opened.
  * pourquoi : docs/decisions/session.md § Two proofs that a room exists, and the second is knowingly weaker
  */
 @Composable
@@ -979,8 +938,7 @@ private fun NetplayButton(
     netplayDone: Boolean,
     netplayPrepared: Boolean,
     /**
-     * The host has not opened their room yet, so the button greys out and says
-     * so rather than sending the guest to a room that does not exist.
+     * The button greys out and says so rather than sending the guest to a room that does not exist.
      * pourquoi : docs/decisions/session.md § Host then guest is not a comfort detail
      */
     waitingForHost: Boolean,
@@ -1001,8 +959,7 @@ private fun NetplayButton(
             .fillMaxWidth()
             .height(56.dp)
             .controlRing(ActionShape)
-            // Greyed out but still reachable: focus does not promise a click
-            // will land, it says where you are.
+            // Greyed out but still reachable: focus says where you are, not that a click lands.
             // pourquoi : docs/decisions/session.md § Down aims at the first button that answers
             .then(if (enabled) Modifier else Modifier.focusable())
     ) {
@@ -1018,9 +975,8 @@ private fun NetplayButton(
                     netplayPrepared -> R.string.session_netplay_again
                     else -> R.string.session_netplay_open
                 },
-                // The emulator this session actually drives. It was written
-                // "Azahar" in the string, so a Switch session announced the
-                // wrong program by name.
+                // The emulator this session drives: "Azahar" was hard-coded in the string, so a
+                // Switch session announced the wrong program by name.
                 session.backend.emulatorName
             ),
             style = MaterialTheme.typography.titleMedium
@@ -1029,8 +985,7 @@ private fun NetplayButton(
 }
 
 /**
- * PPSSPP has no netplay to drive: this opens the emulator so the player can
- * enter the settings, and its label says exactly that.
+ * PPSSPP has no netplay to drive: this opens the emulator, and the label says exactly that.
  * pourquoi : docs/decisions/session.md § The per-console cards, and what each must prevent
  */
 @Composable
@@ -1063,7 +1018,6 @@ private fun PspSetupButton(
     }
 }
 
-/** Step 2: launch the game, once the room has been joined. */
 @Composable
 private fun LaunchButton(
     session: Session,
@@ -1077,8 +1031,7 @@ private fun LaunchButton(
         onClick = sounded(onClick),
         enabled = launchEnabled(session, netplayPrepared, directPs2, waitingForHost),
         shape = ActionShape,
-        // Disabled, but still legibly the next step: Material's grey-on-grey
-        // slab read as an absence rather than as a button waiting for step 1.
+        // Material's grey-on-grey slab read as an absence rather than a button waiting for step 1.
         colors = ButtonDefaults.buttonColors(
             disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
             disabledContentColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
@@ -1093,7 +1046,6 @@ private fun LaunchButton(
 }
 
 /**
- * One definition, because two screens draw it.
  * pourquoi : docs/decisions/second-ecran.md § The panel takes the steps, because it is touch
  */
 @Composable
@@ -1112,8 +1064,7 @@ private fun launchLabel(
     session.backend == Backend.AZAHAR ||
         session.backend == Backend.EDEN ||
         session.backend == Backend.PPSSPP ||
-        // The PS2 is included: ARMSX2's `MainActivity` is exported and takes a
-        // `content://`.
+        // The PS2 is included: ARMSX2's `MainActivity` is exported and takes a `content://`.
         session.backend == Backend.ARMSX2 ->
         // Numbered only where a step 1 sits above it.
         stringResource(
@@ -1121,7 +1072,7 @@ private fun launchLabel(
             else R.string.session_launch_emulation
         )
     session.backend == Backend.MELONDS_WFC -> stringResource(R.string.session_wfc_not_a_session)
-    // Dolphin has no step 2, and saying so beats falling back on "not yet supported".
+    // Dolphin has no step 2, and saying so beats "not yet supported".
     // pourquoi : docs/decisions/session.md § The per-console cards, and what each must prevent
     session.backend == Backend.DOLPHIN -> stringResource(R.string.session_dolphin_lobby)
     else -> stringResource(R.string.session_unsupported_short)
@@ -1138,15 +1089,13 @@ private fun launchEnabled(
         (!session.backend.hasNetplay || netplayPrepared || directPs2)
 
 /**
- * The session code, in the header: it is what you read out loud to someone
- * else, so it stays visible at all times. A tap copies.
+ * What you read out loud to someone else, so it stays visible at all times; a tap copies.
  * pourquoi : docs/decisions/session.md § This screen's drawing decisions
  */
 @Composable
 private fun SessionCodeChip(code: String, onCopy: () -> Unit) {
     val dark = LocalEmufiiDarkTheme.current
-    // Round with an explicit height, or `Surface(onClick)` reserves 48 dp and paints
-    // inside it.
+    // Round with an explicit height, or `Surface(onClick)` reserves 48 dp and paints inside it.
     // pourquoi : docs/decisions/theme-duotone-shelves.md § Session / Join, coral domain
     Surface(
         onClick = sounded(onCopy),
@@ -1198,8 +1147,8 @@ private fun LeaveButton(
     /** False in the header, where the button hugs the edge. */
     fillWidth: Boolean = true
 ) {
-    // A moulded pill, like everything else that can be pressed: the
-    // destructive control must not be the one made of nothing.
+    // A moulded pill like everything else pressable: the destructive control must not be the
+    // one made of nothing.
     // pourquoi : docs/decisions/session.md § This screen's drawing decisions
     val dark = LocalEmufiiDarkTheme.current
     val oled = LocalEmufiiOledTheme.current
@@ -1224,8 +1173,8 @@ private fun LeaveButton(
 }
 
 /**
- * A tick, drawn rather than imported: it sits where it is put, where a glyph is
- * centred on its line box rather than its ink.
+ * Drawn rather than imported: it sits where it is put, where a glyph is centred on its line
+ * box rather than its ink.
  * pourquoi : docs/decisions/session.md § This screen's drawing decisions
  */
 @Composable
@@ -1280,17 +1229,16 @@ private fun PresenceCard(
     isHost: Boolean,
     live: Boolean,
     /**
-     * True only in the pane. Not taste: the single-column page already scrolls,
-     * and Compose throws when measuring scrolling content unbounded.
+     * True only in the pane: the single-column page already scrolls, and Compose throws when
+     * measuring scrolling content unbounded.
      * pourquoi : docs/decisions/session.md § This screen's drawing decisions
      */
     scrollable: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val scroll = rememberScrollState()
-    // A line cut in half reads as a rendering glitch; the same line fading into
-    // the card's background reads as "there is more". The gradient only lights
-    // up when something is left below the fold.
+    // A line cut in half reads as a rendering glitch, one fading into the card's background as
+    // "there is more"; lit only when something is left below the fold.
     val fill = softCardFill()
     val fade = scrollable && scroll.canScrollForward
 
@@ -1298,16 +1246,16 @@ private fun PresenceCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                // BEFORE the scroll: placed after, it works in the unrolled
-                // content's coordinates and lands below the fold, invisible.
+                // BEFORE the scroll: after, it works in the unrolled content's coordinates
+                // and lands below the fold, invisible.
                 // pourquoi : docs/decisions/session.md § This screen's drawing decisions
                 .then(
                     if (!fade) Modifier else Modifier.drawWithContent {
                         drawContent()
                         val h = FADE_HEIGHT.toPx()
                         drawRect(
-                            // Opaque before the edge, not at it: measured, a
-                            // linear run left the last line legible and sliced.
+                            // Opaque before the edge, not at it: a linear run left the last
+                            // line legible and sliced.
                             // pourquoi : docs/decisions/session.md § This screen's drawing decisions
                             brush = Brush.verticalGradient(
                                 colorStops = arrayOf(
@@ -1336,8 +1284,8 @@ private fun PresenceCard(
                     )
                 )
                 Spacer(Modifier.weight(1f))
-                // Nothing is live while we're not hearing back: the dot would
-                // be vouching for a list we can no longer refresh.
+                // Nothing is live while we are not hearing back: the dot would vouch for a list
+                // we can no longer refresh.
                 if (others.isNotEmpty() && live) LiveDot()
             }
             Spacer(Modifier.height(12.dp))
@@ -1392,8 +1340,7 @@ private fun PresenceCard(
 }
 
 /**
- * Enough to erase a whole line and its leading, not just bite into it,
- * measured, 28 dp left the cut line half legible.
+ * Enough to erase a whole line and its leading: 28 dp left the cut line half legible.
  * pourquoi : docs/decisions/session.md § This screen's drawing decisions
  */
 private val FADE_HEIGHT = 44.dp
@@ -1432,8 +1379,8 @@ private fun ConnectionCard(
     port: String?,
     romName: String?,
     /**
-     * False in the pane, where its forty dp are exactly what clipped the card,
-     * and a game name is not a state you act on.
+     * False in the pane, where its forty dp are what clipped the card, and a game name is not
+     * a state you act on.
      * pourquoi : docs/decisions/session.md § This screen's drawing decisions
      */
     showGame: Boolean = true
@@ -1461,8 +1408,7 @@ private fun ConnectionCard(
                     }
                 }
             }
-            // No copy buttons: Emufii fills the form, and the clipboard holds one value
-            // at a time.
+            // No copy buttons: Emufii fills the form, and the clipboard holds one value at a time.
             // pourquoi : docs/decisions/session.md § Copying the address stopped making sense once Emufii fills it in
         }
     }
@@ -1474,8 +1420,8 @@ private fun ConnectionCard(
  */
 @Composable
 private fun ImportantNote(text: String) {
-    // A recess, ordinary ink, and a drawn bead, never a red field. Red is
-    // spent exactly twice in the whole app, and spending it here wears it out.
+    // A recess, ordinary ink, a drawn bead, never a red field: red is spent exactly twice in
+    // the whole app.
     // pourquoi : docs/decisions/session.md § This screen's drawing decisions
     val dark = LocalEmufiiDarkTheme.current
     val shape = RoundedCornerShape(14.dp)
@@ -1489,9 +1435,8 @@ private fun ImportantNote(text: String) {
         WarnIcon(
             size = 17.dp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            // Aligned to the first line's ink rather than centred on the block:
-            // a mark that drifts to the middle of a three-line note reads as
-            // decoration instead of as a mark on the sentence it opens.
+            // Aligned to the first line's ink, not centred on the block: a mark that drifts to
+            // the middle of a three-line note reads as decoration.
             modifier = Modifier.padding(top = 2.dp)
         )
         Text(
@@ -1515,8 +1460,7 @@ private fun AzaharHintCard(
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             SectionHeader(stringResource(R.string.hint_azahar_title))
-            // Loud, not a footnote, and on both paths: getting it wrong
-            // produces an error that accuses the address.
+            // Loud on both paths: getting it wrong produces an error that accuses the address.
             // pourquoi : docs/decisions/session.md § What is done by hand is said before the button, never after
             ImportantNote(stringResource(R.string.hint_azahar_username))
             ImportantNote(stringResource(R.string.hint_same_version))
@@ -1539,8 +1483,8 @@ private fun AzaharHintCard(
 }
 
 /**
- * Eden's multiplayer is in the app's own settings, not a game drawer. Host is
- * told to Create and guest to Join: the same words would put both on one side.
+ * Eden's multiplayer is in the app's own settings, not a game drawer; host is told to Create
+ * and guest to Join, the same words would put both on one side.
  * pourquoi : docs/decisions/session.md § The per-console cards, and what each must prevent
  */
 @Composable
@@ -1562,10 +1506,8 @@ private fun EdenHintCard(
                 ),
                 style = MaterialTheme.typography.bodyMedium
             )
-            // As loud as Azahar's nickname, and for the same reason: it is a
-            // prerequisite the emulator does not mention. A differing game
-            // version lets the room form, then the game never starts, and
-            // nothing on screen points at the cause.
+            // A prerequisite the emulator does not mention: a differing game version lets the
+            // room form, then the game never starts, and nothing points at the cause.
             ImportantNote(stringResource(R.string.hint_same_version))
             if (automationOn) {
                 Text(
@@ -1588,8 +1530,8 @@ private fun EdenHintCard(
 }
 
 /**
- * Dolphin, whose flow is one step where the others are two: the game is picked
- * in the lobby. Both sides need the same dump, byte for byte.
+ * One step where the others are two, the game being picked in the lobby; both sides need the
+ * same dump, byte for byte.
  * pourquoi : docs/decisions/session.md § The Dolphin prerequisite nobody checks
  */
 @Composable
@@ -1612,8 +1554,8 @@ private fun DolphinHintCard(
                 style = MaterialTheme.typography.bodyMedium
             )
             ImportantNote(stringResource(R.string.hint_dolphin_same_dump))
-            // The save is more treacherous than the dump: nobody checks it,
-            // and mismatched saves desync silently. We warn, we cannot act.
+            // Worse than the dump: nobody checks the save, and mismatched saves desync
+            // silently. We warn, we cannot act.
             // pourquoi : docs/decisions/session.md § The Dolphin prerequisite nobody checks
             ImportantNote(stringResource(R.string.hint_dolphin_same_save))
             if (automationOn) {
@@ -1632,8 +1574,7 @@ private fun DolphinHintCard(
 }
 
 /**
- * The PS2 card, and the one thing it must prevent: ARMSX2 has two unrelated
- * multiplayers, and Emufii serves only the local one.
+ * ARMSX2 has two unrelated multiplayers and Emufii serves only the local one.
  * pourquoi : docs/decisions/session.md § The per-console cards, and what each must prevent
  */
 @Composable
@@ -1654,9 +1595,8 @@ private fun Ps2HintCard(
                 stringResource(if (isHost) R.string.hint_ps2_host else R.string.hint_ps2_guest),
                 style = MaterialTheme.typography.bodyMedium
             )
-            // Said by ARMSX2 itself, and it is not guessable: with the network
-            // adapter attached, some games stop responding to the pad. Without
-            // this line, that reads as a frozen app.
+            // Said by ARMSX2 itself: with the network adapter attached some games stop
+            // responding to the pad, which reads as a frozen app.
             ImportantNote(stringResource(R.string.hint_ps2_pad))
             if (automationOn) {
                 Text(
@@ -1690,8 +1630,8 @@ private fun MissingRomCard() {
 }
 
 /**
- * The coordinator has gone quiet. Deliberately not an error: a running game
- * keeps running, only the presence list stops being trustworthy.
+ * Deliberately not an error: a running game keeps running, only the presence list stops
+ * being trustworthy.
  * pourquoi : docs/decisions/session.md § Only a 404 proves a room is closed
  */
 @Composable
@@ -1711,8 +1651,7 @@ private fun OfflineCard() {
 }
 
 /**
- * The four PSP settings, with the address copied on *display* rather than on
- * tap: the player is about to leave for PPSSPP.
+ * The address is copied on *display* rather than on tap: the player is about to leave for PPSSPP.
  * pourquoi : docs/decisions/session.md § The per-console cards, and what each must prevent
  */
 @Composable
@@ -1794,8 +1733,8 @@ private fun PspHintCard(automatic: Boolean) {
                 color = MaterialTheme.colorScheme.error,
             )
 
-            // At the end, and deliberately neither an ImportantNote (reserved
-            // for what stops you playing) nor the grey advisory voice.
+            // Neither an ImportantNote, reserved for what stops you playing, nor the grey
+            // advisory voice.
             // pourquoi : docs/decisions/session.md § This screen's drawing decisions
             SectionHeader(stringResource(R.string.hint_psp_wifi_title))
             Text(
@@ -1838,10 +1777,7 @@ private fun UnsupportedHintCard(consoleLabel: String?) {
     }
 }
 
-/**
- * "Toi, Bibi et Théo" / "You, Bibi and Théo". ICU does it: the conjunction and
- * the comma placement differ per locale.
- */
+/** ICU does it: the conjunction and the comma placement differ per locale. */
 @Composable
 private fun nameList(names: List<String>): String {
     val locale = LocalConfiguration.current.locales[0]
@@ -1859,10 +1795,7 @@ private fun humanDuration(seconds: Int): String = when {
     else -> stringResource(R.string.duration_hours, seconds / 3600)
 }
 
-/**
- * Opens PPSSPP so the player can enter their settings there; returns the
- * message to show, null when it went fine. Not a step of [Session.launch].
- */
+/** Not a step of [Session.launch]: it only opens PPSSPP, and returns the message to show. */
 private fun openPpssppForSetup(
     context: android.content.Context,
     ppsspp: PpssppLauncher,
@@ -1882,18 +1815,16 @@ private suspend fun Session.launch(
     ppsspp: PpssppLauncher,
     onPs2Started: () -> Unit = {},
     /**
-     * Called when the emulator has actually left, and only then. The return value
-     * cannot say: it is a status message, and "Launching X…" and "Console not
-     * supported" are both strings. The rear panel has to tell the two apart.
+     * Called when the emulator has actually left, and only then: the return value cannot say,
+     * "Launching X…" and "Console not supported" are both strings, and the panel must tell
+     * them apart.
      * pourquoi : docs/decisions/second-ecran.md § A panel that asserts something false is a fault
      */
     onLaunched: () -> Unit = {},
 ): String {
     val rom = this.rom ?: return context.getString(R.string.session_no_rom_attached)
-    // Step two runs after the room has been joined, so the plan has done its
-    // work, and an armed plan that stays armed is what made the automation
-    // fight the player for the in-game drawer. Disarming here is the one moment
-    // we know for certain it is spent.
+    // An armed plan that stays armed made the automation fight the player for the in-game
+    // drawer; here is the one moment we know for certain it is spent.
     if (backend.hasNetplay) NetplayAutomation.clear(PlanStore(context))
     val (result, emulator) = when (backend) {
         Backend.AZAHAR -> azahar.launchGame(rom.uri, plan = null) to "Azahar"
@@ -1903,8 +1834,8 @@ private suspend fun Session.launch(
             automationOn = azahar.isNetplayAutomationEnabled()
         ) to "Eden"
         Backend.PPSSPP -> ppsspp.launchPrivateGame(rom) to "PPSSPP"
-        // A return, not a launch: resume the existing task, and above all NO
-        // armed plan: re-arming refills the form over a running game.
+        // A return, not a launch: resume the existing task, and NO armed plan, which would
+        // refill the form over a running game.
         // pourquoi : docs/decisions/session.md § What each backend receives at launch
         Backend.DOLPHIN -> {
             val result = DolphinLauncher(context).launch()
@@ -1915,8 +1846,8 @@ private suspend fun Session.launch(
                 context.getString(R.string.err_not_installed, "Dolphin")
             }
         }
-        // A real launch, unlike Dolphin: ARMSX2's MainActivity is exported with
-        // a VIEW filter on `content`. Still no armed plan.
+        // A real launch, unlike Dolphin: ARMSX2's MainActivity is exported with a VIEW filter
+        // on `content`. Still no armed plan.
         // pourquoi : docs/decisions/session.md § What each backend receives at launch
         Backend.ARMSX2 -> {
             val launcher = Ps2Launcher(context)
@@ -1924,8 +1855,8 @@ private suspend fun Session.launch(
             val result = if (plan != null && Ps2GameSettings.canConfigureNow(context, rom)) {
                 launcher.launchPrivateGame(rom, plan)
             } else {
-                // Unsupported CHD codec or a pre-migration profile: keep the
-                // proven accessibility setup as the compatibility fallback.
+                // Unsupported CHD codec or a pre-migration profile: keep the proven
+                // accessibility setup as the fallback.
                 launcher.launchGame(rom.uri)
             }
             if (result == LaunchResult.Success) onPs2Started()
@@ -1950,10 +1881,7 @@ private suspend fun Session.launch(
     }
 }
 
-/**
- * Step one: open the emulator on its multiplayer screen with the plan armed.
- * Null when it worked, a message otherwise.
- */
+/** Opens the emulator on its multiplayer screen with the plan armed. */
 private fun Session.prepareNetplay(
     context: android.content.Context,
     azahar: AzaharLauncher,
@@ -1965,18 +1893,14 @@ private fun Session.prepareNetplay(
     val (result, emulator) = when (backend) {
         Backend.AZAHAR -> azahar.openForNetplay(plan) to "Azahar"
         Backend.EDEN -> eden.openForNetplay(plan) to "Eden"
-        // Dolphin has no multiplayer-less version to detect: netplay arrived in
-        // the same screen as everything else, and a build that is too old simply
-        // lacks the menu entry, at which point the driver stops and the card
-        // says what to type.
+        // No multiplayer-less Dolphin to detect: a build too old simply lacks the menu entry,
+        // at which point the driver stops and the card says what to type.
         Backend.DOLPHIN -> DolphinLauncher(context).openForNetplay(
             plan,
             automationOn = azahar.isNetplayAutomationEnabled()
         ) to "Dolphin"
-        // The PS2, whose driver goes and sets ARMSX2's Network screen. The game
-        // is not passed here: Local Link is set in the app's settings, and the
-        // DEV9 adapter initialises when the game boots, so a port set afterwards
-        // would not be read back. The game goes at step two.
+        // The game is not passed here: Local Link is set in the app's settings and the DEV9
+        // adapter initialises at boot, so a port set afterwards is not read back; step two.
         Backend.ARMSX2 -> Ps2Launcher(context).openForLocalLink(
             plan,
             automationOn = azahar.isNetplayAutomationEnabled()
@@ -1994,15 +1918,13 @@ private fun Session.prepareNetplay(
 }
 
 /**
- * Both roles point Azahar at the host's tunnel address: `netPlayCreateRoom`
- * binds and self-joins on the same address (PHASE0_AZAHAR.md).
+ * Both roles point Azahar at the host's tunnel address: `netPlayCreateRoom` binds and
+ * self-joins on the same address (PHASE0_AZAHAR.md).
  * pourquoi : docs/decisions/session.md § What each backend receives at launch
  */
 internal fun Session.netplayPlan(profileName: String?): NetplayPlan? {
-    // With a room on the VPS nobody hosts: both players join it, and the host
-    // stops being a link in the network. That is the whole point of the work,
-    // the game no longer depends on a phone being reachable, and the tunnel does
-    // not even have to be up in order to dial.
+    // With a room on the VPS nobody hosts: both players join it, so the game no longer
+    // depends on a phone being reachable, and the tunnel need not be up to dial.
     room?.let {
         return NetplayPlan(
             role = NetplayPlan.Role.Guest,
@@ -2019,18 +1941,17 @@ internal fun Session.netplayPlan(profileName: String?): NetplayPlan? {
             Session.Role.GUEST -> NetplayPlan.Role.Guest
         },
         ip = hostIp,
-        // The session's port when it carries one, otherwise the target
-        // emulator's, 2626 for Dolphin, 24872 for the others. A shared default
-        // would send the Dolphin guest to a silent port.
+        // Otherwise the target emulator's, 2626 for Dolphin and 24872 for the others: a shared
+        // default would send the Dolphin guest to a silent port.
         port = port.toIntOrNull() ?: backend.defaultNetplayPort,
-        // Eden only: it ships one default nickname to everybody, and two
-        // players sharing one cannot share a room. Azahar keeps its own.
+        // Eden only: it ships one default nickname to everybody, and two players sharing one
+        // cannot share a room.
         // pourquoi : docs/decisions/session.md § What each backend receives at launch
         username = NetplayNames.usernameFor(backend, profileName),
         roomName = if (role == Session.Role.HOST) NetplayNames.roomName(code) else null,
         preferredGame = if (role == Session.Role.HOST) rom?.displayName else null,
-        // On PS2 the session code doubles as the room code: ARMSX2 requires
-        // one, identical on both sides, and negotiates nothing.
+        // On PS2 the session code doubles as the room code: ARMSX2 requires one, identical on
+        // both sides, and negotiates nothing.
         // pourquoi : docs/decisions/session.md § What each backend receives at launch
         password = if (backend == Backend.ARMSX2) code else null
     )

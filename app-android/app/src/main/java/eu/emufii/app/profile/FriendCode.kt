@@ -13,10 +13,8 @@ object FriendCode {
 
     const val ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 
-    /** Random symbols, before the trailing checksum. */
     const val RANDOM_SYMBOLS = 11
 
-    /** Total length of a canonical (undashed) code. */
     const val LENGTH = RANDOM_SYMBOLS + 1
 
     private const val GROUP = 4
@@ -35,13 +33,10 @@ object FriendCode {
         code.chunked(GROUP).joinToString("-")
 
     /**
-     * Canonical form of whatever the user typed, or null if it cannot be one of
-     * our codes.
-     *
-     * Accepts lower case, stray dashes and spaces, and the four characters
-     * Crockford maps back onto digits, someone reading a code off a screen
-     * types the letter O for zero often enough that refusing it would be our
-     * bug, not theirs.
+     * Canonical form of whatever the user typed, or null if it cannot be one of our
+     * codes. Accepts lower case, stray dashes and spaces, and the four characters
+     * Crockford maps back onto digits: someone reading a code off a screen types the
+     * letter O for zero often enough that refusing it would be our bug, not theirs.
      */
     fun normalize(input: String): String? {
         val cleaned = buildString {
@@ -67,9 +62,8 @@ object FriendCode {
     fun isValid(input: String): Boolean = normalize(input) != null
 
     /**
-     * Positional weights rather than a plain sum, so that swapping two adjacent
-     * symbols, the other half of how people mistype a code, changes the
-     * result. A plain sum would not notice.
+     * Positional weights rather than a plain sum: swapping two adjacent symbols, the
+     * other half of how people mistype a code, changes the result.
      */
     private fun checksum(body: String): Char {
         var acc = 0

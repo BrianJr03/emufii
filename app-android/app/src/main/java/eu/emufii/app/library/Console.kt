@@ -1,8 +1,8 @@
 package eu.emufii.app.library
 
 /**
- * What a ROM is, and what plays it. The grid stays one grid: which emulator is
- * launched, and what the network needs first, is our problem.
+ * The grid stays one grid: which emulator is launched, and what the network needs
+ * first, is our problem.
  * pourquoi : docs/decisions/reglages-et-consoles.md § The grid stays a grid
  */
 enum class Console(
@@ -17,14 +17,13 @@ enum class Console(
     ),
 
     /**
-     * PSP: no room to create and no dialog to fill in, just a fixed ad hoc
-     * server address the relay translates towards the session's host.
+     * No room to create and no dialog to fill in, just a fixed ad hoc server address
+     * the relay translates towards the session's host.
      * pourquoi : docs/decisions/reglages-et-consoles.md § The four multiplayer families
      */
     PSP(
         label = "PSP",
-        // No `.prx`: that is a module, a plugin sitting next to a game, and never
-        // a game. It has no business in a grid of tiles.
+        // No `.prx`: a module sitting next to a game, never a game.
         extensions = setOf("iso", "cso", "pbp", "chd"),
         backend = Backend.PPSSPP
     ),
@@ -42,8 +41,8 @@ enum class Console(
     ),
 
     /**
-     * GameCube and Wii, deliberately without `.iso`: the table is a map,
-     * one owner per key, so claiming it would take it from the PSP.
+     * Without `.iso`: the table is a map, one owner per key, and claiming it would
+     * take it from the PSP.
      * pourquoi : docs/decisions/reglages-et-consoles.md § The extension table is a map: one owner per key
      */
     GAMECUBE(
@@ -59,8 +58,8 @@ enum class Console(
     ),
 
     /**
-     * PS2, without a single extension of its own, and that is not an
-     * oversight. It arrives by its folder (`ps2/`) or by reading the bytes.
+     * No extension of its own, and that is not an oversight: PS2 arrives by its
+     * folder (`ps2/`) or by reading the bytes.
      * pourquoi : docs/decisions/reglages-et-consoles.md § The extension table is a map: one owner per key
      */
     PS2(
@@ -70,8 +69,8 @@ enum class Console(
     );
 
     /**
-     * The name the coordinator receives, and what decides on a VPS room.
-     * Stable lowercase, never derived from [label]: this is a contract.
+     * The name the coordinator receives, and what decides on a VPS room: stable
+     * lowercase, never derived from [label].
      * pourquoi : docs/decisions/reglages-et-consoles.md § The network name is a contract, never a label
      */
     val wireName: String
@@ -92,8 +91,6 @@ enum class Console(
             PSP -> "PSP"
             DS -> "DS"
             SWITCH -> "Switch"
-            // "GameCube" wraps on a tile; the abbreviation is what the console
-            // was sold as anyway.
             GAMECUBE -> "GC"
             WII -> "Wii"
             PS2 -> "PS2"
@@ -105,13 +102,11 @@ enum class Console(
 
         fun forExtension(ext: String): Console? = byExtension[ext.lowercase()]
 
-        /** Used to skip files fast during a scan. */
         val allExtensions: Set<String> = byExtension.keys
 
         /**
-         * The console a folder name says: the cheapest and truest answer, the
-         * player having sorted the file themselves. Normalised, and the
-         * direct folder only, never its ancestors.
+         * The cheapest and truest answer, the player having sorted the file
+         * themselves. Normalised, and the direct folder only, never its ancestors.
          * pourquoi : docs/decisions/reglages-et-consoles.md § The folder name is the cheapest and truest answer
          */
         private val byFolder: Map<String, Console> = mapOf(
@@ -145,47 +140,42 @@ enum class Console(
 enum class Backend {
     AZAHAR,
 
-    /**
-     * Eden's rooms: the Switch's LDN tunnelled over an ENet room, same port and
-     * dialog as Azahar (docs/PHASE1_SCOUT_EDEN.md).
-     */
+    /** The Switch's LDN over an ENet room, same port and dialog as Azahar. */
     EDEN,
 
     /** PSP ad hoc through PPSSPP's per-game INI on a user-granted memory stick. */
     PPSSPP,
 
     /**
-     * Kaeru WFC, reached by moving DNS rather than building a network: no
-     * session code, no tunnel, each console talks to the revival server.
+     * Kaeru WFC, reached by moving DNS rather than building a network: no session
+     * code, no tunnel, each console talks to the revival server.
      * pourquoi : docs/decisions/reglages-et-consoles.md § The four multiplayer families
      */
     MELONDS_WFC,
 
     /**
-     * GameCube and Wii, by Dolphin's own netplay: Compose screen, no view ids,
-     * its own driver, and ENet/UDP 2626 rather than 24872.
+     * Dolphin's own netplay: Compose screen, no view ids, its own driver, and
+     * ENet/UDP 2626 rather than 24872.
      * pourquoi : docs/decisions/reglages-et-consoles.md § The port is part of the plan
      */
     DOLPHIN,
 
     /**
-     * PS2 via ARMSX2's Local Link: the ~57 games with a LAN mode. Real
-     * Android views but no translatable strings, hence hardcoded labels. PS2
-     * *online* play does not go through this at all.
+     * ARMSX2's Local Link, the ~57 games with a LAN mode: real Android views but no
+     * translatable strings, hence hardcoded labels. PS2 online play is not this.
      * pourquoi : docs/decisions/reglages-et-consoles.md § The four multiplayer families
      */
     ARMSX2,
 
     /**
-     * Recognised, but with no multiplayer path built yet. These ROMs still
-     * belong in the grid.
+     * No multiplayer path built yet; these ROMs still belong in the grid.
      * pourquoi : docs/decisions/reglages-et-consoles.md § The four multiplayer families
      */
     NONE;
 
     /**
-     * True where a room must be joined before the game boots. WFC is out: there
-     * is no room at all, only a resolver.
+     * True where a room must be joined before the game boots; WFC is out, having no
+     * room at all, only a resolver.
      * pourquoi : docs/decisions/reglages-et-consoles.md § The four multiplayer families
      */
     val hasNetplay: Boolean get() =
@@ -204,8 +194,8 @@ enum class Backend {
     val defaultNetplayPort: Int
         get() = when (this) {
             DOLPHIN -> eu.emufii.app.dolphin.DolphinTarget.DEFAULT_PORT
-            // ARMSX2 negotiates nothing: "there is no automatic negotiation",
-            // says its own screen. Both ends have to carry this port.
+            // ARMSX2's own screen says "there is no automatic negotiation": both
+            // ends have to carry this port.
             ARMSX2 -> eu.emufii.app.ps2.Ps2Target.DEFAULT_PORT
             else -> eu.emufii.app.netplay.NetplayUi.DEFAULT_PORT
         }

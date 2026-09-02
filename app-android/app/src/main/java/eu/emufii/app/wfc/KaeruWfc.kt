@@ -6,17 +6,12 @@ package eu.emufii.app.wfc
  */
 object KaeruWfc {
 
-    /**
-     * A full recursive resolver, not just a WFC responder, so the relay forwards
-     * every lookup to it and melonDS's unrelated traffic keeps working.
-     */
+    /** A full recursive resolver, not just a WFC responder: melonDS's unrelated traffic keeps working. */
     const val DNS_SERVER = "178.62.43.212"
 
     /**
-     * Advertised to Android in place of [DNS_SERVER]: the tunnel answers these
-     * queries itself over a protected socket, so Kaeru need not be routable
-     * through a tun. Clear of the emulated networks, which use 10.67.x and
-     * 10.0.2.x.
+     * Advertised to Android in place of [DNS_SERVER]: the tunnel answers over a protected
+     * socket, so Kaeru need not be routable through a tun. Clear of 10.67.x and 10.0.2.x.
      */
     const val SENTINEL_DNS = "10.66.53.53"
 

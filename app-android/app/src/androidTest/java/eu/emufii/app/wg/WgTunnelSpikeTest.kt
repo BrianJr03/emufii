@@ -15,13 +15,11 @@ import org.junit.Before
 import org.junit.Test
 
 /**
- * The spike: does a real tunnel come up on a real device, and does traffic cross?
+ * Instrumented rather than a unit test: what is at risk is what Android adds around the
+ * code, the foreground service right, the VPN slot, the tun device. The pure parts are
+ * covered by `WgConfigTest`.
  *
- * Instrumented rather than a unit test because everything at risk here is what
- * Android adds around the code, the right to hold a foreground service, the VPN
- * slot, the tun device. The pure parts are already covered by `WgConfigTest`.
- *
- * Two halves, run separately so that each can be a different device:
+ * Two halves, run separately so each can be a different device:
  *
  * ```
  * # on the host device
@@ -31,22 +29,15 @@ import org.junit.Test
  * ... #guestReachesHost -Pandroid.testInstrumentationRunnerArguments.spikeCode=…
  * ```
  *
- * The host half holds its tunnel up for `spikeHoldSeconds` instead of
- * finishing straight away, and the reason is a correction of a first, wrong
- * assumption: ending the test tears down the app process that hosts the
- * instrumentation, and the service goes with it. The relay's `latest handshake`
- * kept ageing rather than refreshing, which is easy to misread as a tunnel that
- * survived. So the host is kept alive deliberately, which is also what a real
- * session does, the player is sitting on the session screen.
+ * The host half holds its tunnel for `spikeHoldSeconds`: ending the test tears down the
+ * process hosting the instrumentation, the service goes with it, and the relay's `latest
+ * handshake` then ages instead of refreshing, which reads like a tunnel that survived.
  *
- * Both halves are opt-in on `-e spike true`: they create a real session on the
- * hosted coordinator and expect a human to run the other side, so a plain
- * `connectedAndroidTest` must skip them rather than fail on a missing argument.
+ * Both halves are opt-in on `-e spike true`: they create a real session on the hosted
+ * coordinator and expect a human on the other side.
  *
- * Note what this therefore does *not* prove: that the tunnel survives Emufii going
- * to the background. That property is what the foreground service exists for, but
- * an instrumentation run cannot show it, because the harness kills the process
- * either way.
+ * This does not prove the tunnel survives Emufii going to the background: the harness
+ * kills the process either way.
  */
 class WgTunnelSpikeTest {
 
@@ -54,10 +45,6 @@ class WgTunnelSpikeTest {
     private val args = InstrumentationRegistry.getArguments()
     private val client = CoordinatorClient()
 
-    /**
-     * The spike drives real infrastructure and needs an operator on the other
-     * device, so it stays out of the way of the ordinary suite.
-     */
     @Before
     fun onlyOnDemand() {
         assumeTrue(
@@ -89,9 +76,8 @@ class WgTunnelSpikeTest {
     }
 
     private fun startTunnelFor(code: String, profileId: String): WgTunnelInfo = runBlocking {
-        // The profile id is not decoration: it is what ties the route on the relay
-        // to a player, so their session heartbeat keeps it alive. Claiming without
-        // one is why the first spike run's tunnel died at the two-minute mark.
+        // The profile id ties the route on the relay to a player, so their heartbeat keeps
+        // it alive; claiming without one killed the first spike run's tunnel at two minutes.
         val info = client
             .claimAddress(code, EmufiiWgManager.publicKey(ctx), "spike", profileId)
             .getOrThrow()
@@ -111,14 +97,10 @@ class WgTunnelSpikeTest {
     @Test
     fun hostBringsTunnelUp() {
         val code = args.getString("spikeCode") ?: "SPIKE-01"
-        // No token for a session left over from an earlier run: best effort.
         runBlocking { client.deleteSession(code, null) }
         val created = runBlocking {
-            // A host id is needed for the session to survive: the coordinator reaps
-            // a session whose host has stopped checking in past its grace window,
-            // and `hostIsPresent` can only ever be true when host_id is set. The
-            // first spike run learned this the hard way, the session was correctly
-            // reaped between the two halves, and the guest got a truthful 404.
+            // The coordinator reaps a session whose host stopped checking in, and
+            // `hostIsPresent` is only ever true when host_id is set.
             client.createSession(code, null, "Spike", "Host", HOST_ID).getOrThrow()
         }
         runBlocking { client.heartbeat(code, HOST_ID, "Host") }
@@ -127,15 +109,12 @@ class WgTunnelSpikeTest {
         val info = startTunnelFor(code, HOST_ID)
         println("SPIKE host_address=${info.address}")
 
-        // The relay is the one address every session can reach, and reaching it
-        // proves the handshake completed and that packets survive the round trip
-        // out through carrier NAT and back.
+        // The relay is the one address every session reaches: the ping proves the handshake
+        // completed and that packets survive the round trip through carrier NAT.
         val (ok, out) = ping("10.67.0.1")
         println("SPIKE ping relais:\n$out")
         assertTrue("the relay 10.67.0.1 is unreachable inside the tunnel\n$out", ok)
 
-        // Hold the tunnel while the guest runs, heartbeating so the coordinator
-        // does not reap a session whose host looks absent.
         val hold = args.getString("spikeHoldSeconds")?.toIntOrNull() ?: 0
         repeat(hold / 5) {
             Thread.sleep(5_000)
@@ -160,15 +139,12 @@ class WgTunnelSpikeTest {
         val (relayOk, relayOut) = ping("10.67.0.1")
         assertTrue("the relay is unreachable\n$relayOut", relayOk)
 
-        // The real question: two devices, two NATs, one session, and the relay
-        // forwarding between them.
         val (ok, out) = ping(hostIp)
         println("SPIKE ping host:\n$out")
         assertTrue("host $hostIp is unreachable inside the tunnel\n$out", ok)
 
-        // Hold past the peer TTL, heartbeating like the session screen does. This
-        // is the half of the spike that failed the first time round: the tunnel
-        // came up, worked, and died exactly two minutes in.
+        // Hold past the peer TTL: without the heartbeat the tunnel came up, worked, and
+        // died exactly two minutes in.
         val hold = args.getString("spikeHoldSeconds")?.toIntOrNull() ?: 0
         repeat(hold / 5) {
             Thread.sleep(5_000)

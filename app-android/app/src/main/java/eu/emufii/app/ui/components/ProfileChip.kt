@@ -54,11 +54,8 @@ import eu.emufii.app.ui.tap
 private val CHIP_SIZE = 46.dp
 
 /**
- * The floating pill the top-bar buttons are cut from.
- *
- * The dark fill is deliberately lighter than it looks like it should be, and
- * there is no Material indication here: its state layer also covers focus,
- * which a gamepad grants permanently, leaving a "disabled"-looking wash.
+ * No Material indication: its state layer also covers focus, which a gamepad grants
+ * permanently, leaving a "disabled"-looking wash.
  * pourquoi : docs/decisions/direction-visuelle.md § No Material indication: a press animation
  */
 @Composable
@@ -66,9 +63,7 @@ fun TopBarChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     /**
-     * Called when the pill takes or gives back the cursor. That is how the rear panel
-     * learns what is aimed at: the top bar is the library's only layer with nothing to
-     * say for itself, and the panel showed the resting face there.
+     * How the rear panel learns what is aimed at.
      * pourquoi : docs/decisions/second-ecran.md § What travels to the panel
      */
     onFocused: (Boolean) -> Unit = {},
@@ -83,9 +78,8 @@ fun TopBarChip(
         label = "chip-scale"
     )
 
-    // The grid hands back to the top bar when going up from the first row:
-    // without a ring the cursor simply became invisible there and the screen had
-    // to be touched to find out where you were.
+    // The grid hands back to the top bar going up from the first row: without a ring
+    // the cursor became invisible there.
     val focused by interaction.collectIsFocusedAsState()
     LaunchedEffect(focused) { onFocused(focused) }
 
@@ -107,8 +101,7 @@ fun TopBarChip(
 }
 
 /**
- * The profile in the top bar: just the avatar, never a nudge that would
- * change the chip's width with its state.
+ * Just the avatar, never a badge that would change the chip's width with its state.
  * pourquoi : docs/decisions/direction-visuelle.md § The top bar's chips are one family
  */
 @Composable
@@ -131,11 +124,7 @@ fun ProfileChip(
     }
 }
 
-/**
- * Friends, straight from the home screen: seeing who is online is something you
- * do *instead* of browsing, not a preference you adjust.
- * pourquoi : docs/decisions/direction-visuelle.md § The top bar's chips are one family
- */
+/** pourquoi : docs/decisions/direction-visuelle.md § The top bar's chips are one family */
 @Composable
 fun FriendsChip(
     onClick: () -> Unit,
@@ -143,18 +132,14 @@ fun FriendsChip(
     onFocused: (Boolean) -> Unit = {}
 ) {
     TopBarChip(onClick = onClick, modifier = modifier, onFocused = onFocused) {
-        // The icon system's silhouette, the one the finder's empty state already
-        // carries. It was two stacked avatars, on the grounds that the app says other
-        // players with discs rather than a pictogram; that held while no other mark
-        // said player.
+        // The icon system's silhouette, the one the finder's empty state carries.
         // pourquoi : docs/decisions/direction-visuelle.md § The glyphs say "other players" the way the rest of the app does
         PersonMark(size = 22.dp, color = MaterialTheme.colorScheme.onSurface)
     }
 }
 
 /**
- * Open games, in the same family of pills as friends and profile: all three
- * are navigation. Two linked *screens*, not two people: discs are people here.
+ * Two linked screens, not two people: discs are people here.
  * pourquoi : docs/decisions/direction-visuelle.md § The glyphs say "other players" the way the rest of the app does
  */
 @Composable
@@ -173,8 +158,7 @@ fun SessionsChip(
             val stroke = Stroke(width = w * 0.10f)
             val radius = androidx.compose.ui.geometry.CornerRadius(w * 0.09f)
 
-            // Offset diagonally: two consoles side by side would read as a
-            // single object cut in half.
+            // Offset diagonally: two consoles side by side read as one object cut in half.
             drawRoundRect(
                 color = tint,
                 topLeft = Offset(0f, 0f),
@@ -189,8 +173,7 @@ fun SessionsChip(
                 cornerRadius = radius,
                 style = stroke
             )
-            // The link, dotted: a session goes over the network, it is not a
-            // cable between two devices sitting next to each other.
+            // The link is dotted: a session goes over the network, not down a cable.
             drawLine(
                 color = tint,
                 start = Offset(screenW * 0.55f, screenH * 1.25f),
@@ -204,8 +187,7 @@ fun SessionsChip(
 }
 
 /**
- * Two blank avatars, overlapped like [AvatarStack]. Filling them with real
- * friends was dropped: the empty state is what most installs show.
+ * Blank on purpose: the empty state is what most installs show.
  * pourquoi : docs/decisions/direction-visuelle.md § The glyphs say "other players" the way the rest of the app does
  */
 @Composable
@@ -213,14 +195,11 @@ private fun FriendsAvatars(modifier: Modifier = Modifier) {
     val dark = LocalEmufiiDarkTheme.current
     val ring = if (dark) PlateDark else PlateLight
 
-    // By offset from the centre, never corner alignment: the overlap is the
-    // whole point of the shape.
+    // By offset from the centre, never corner alignment: the overlap is the shape.
     // pourquoi : docs/decisions/direction-visuelle.md § The glyphs say "other players" the way the rest of the app does
     Box(modifier = modifier.size(34.dp), contentAlignment = Alignment.Center) {
-        // Behind: muted, up and to the right, so the two read as depth rather than two
-        // things of equal weight. The depth comes from value, no longer from
-        // temperature. This was the last parallel palette left in the app, four hex
-        // values written here with their own light and dark pair.
+        // Behind: muted, so the two read as depth. The depth comes from value, not
+        // from temperature.
         // pourquoi : docs/decisions/theme-duotone-shelves.md § Two semantic axes
         val muted = MaterialTheme.colorScheme.onSurfaceVariant
         val ground = MaterialTheme.colorScheme.surfaceVariant
@@ -229,7 +208,6 @@ private fun FriendsAvatars(modifier: Modifier = Modifier) {
             ring = ring,
             modifier = Modifier.offset(x = 6.dp, y = (-4).dp)
         )
-        // In front: the accent in force, not a hardcoded colour.
         // pourquoi : docs/decisions/direction-visuelle.md § The glyphs say "other players" the way the rest of the app does
         val accent = LocalAccent.current
         Disc(

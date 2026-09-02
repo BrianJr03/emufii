@@ -8,23 +8,14 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/**
- * The holder is three lines, and it is still worth pinning.
- *
- * What it guarantees is not the assignment but the contract the second host
- * depends on: the model is readable at process scope, and clearing really goes
- * back to the resting face. A regression here shows up as a session code left
- * glowing on the back of a handheld after the session ended, which is the one
- * failure this feature would be remembered for.
- */
 class SecondScreenTest {
 
     @After fun reset() = SecondScreen.clear()
 
     @Test fun `the panel follows the app when there is no session`() {
         assertTrue(secondScreenWanted(enabled = true, foreground = true, model = SecondScreenModel.Idle))
-        // The defect this rule exists for: Emufii left for the home screen, its
-        // process still alive, and the rear panel still lit.
+        // The defect this rule exists for: Emufii left for the home screen, its process
+        // still alive, and the rear panel still lit.
         assertFalse(secondScreenWanted(enabled = true, foreground = false, model = SecondScreenModel.Idle))
     }
 
@@ -68,9 +59,8 @@ class SecondScreenTest {
     }
 
     @Test fun `a folder claims only the keys that do something`() {
-        // The grid's long press asks for a game and a folder is not one, so the
-        // hold is inert there: a legend printing it would be the panel claiming
-        // a key the machine ignores.
+        // The grid's long press asks for a game, so the hold is inert on a folder: a
+        // legend printing it would claim a key the machine ignores.
         val legend = SecondScreenModel.ConsoleFolder(Console.PS2).legend
         assertEquals(listOf(PadHint.BACK), legend.left)
         assertEquals(listOf(PadHint.CONFIRM), legend.right)

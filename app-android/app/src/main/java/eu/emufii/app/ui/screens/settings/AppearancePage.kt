@@ -10,9 +10,8 @@ import eu.emufii.app.ui.components.ThemeSwatches
 import eu.emufii.app.ui.components.labelRes
 
 /**
- * The app's look: the theme, and that is all. The two-axis pair replaced the
- * configurable accent, teal for play and system, coral for the social, so the accent
- * beads went. System colour followed them: Material You could not repaint both axes.
+ * The theme, and that is all: Material You could not repaint both axes, so the accent beads
+ * and the system colour went.
  * pourquoi : docs/decisions/theme-duotone-shelves.md § Settings
  */
 @Composable

@@ -198,10 +198,8 @@ fun EmufiiApp(settings: SettingsStore) {
     // pourquoi : docs/decisions/lancement-et-navigation.md § What the second screen receives
     DisposableEffect(Unit) { onDispose { SecondScreen.clear() } }
 
-    // The app is useless without a ROM folder.
     var onboarding by remember { mutableStateOf(!settingsStore.onboardingDone) }
 
-    /** Never on the first launch: the onboarding owns that moment. */
     val splashing = SplashGate.pending && settingsStore.onboardingDone
 
 
@@ -214,7 +212,6 @@ fun EmufiiApp(settings: SettingsStore) {
      * pourquoi : docs/decisions/lancement-et-navigation.md § What is hoisted to app level, and why
      */
     var libraryFolder by remember { mutableStateOf(romsRepo.savedFolderLabel()) }
-    /** Optional: null until the player adds one. */
     var librarySecondFolder by remember { mutableStateOf(romsRepo.secondFolderLabel()) }
     var libraryScanning by remember { mutableStateOf(false) }
     var libraryCount by remember { mutableStateOf<Int?>(null) }
@@ -391,7 +388,6 @@ fun EmufiiApp(settings: SettingsStore) {
                     }
                 },
                 onDenied = {
-                    // Undo it rather than leave a room nobody can enter.
                     scope.launch { client.deleteSession(code, session.token) }
                     fail(R.string.flow_no_vpn_host)
                 }
@@ -477,8 +473,6 @@ fun EmufiiApp(settings: SettingsStore) {
                                 Session(
                                     code = code,
                                     hostIp = hostIp,
-                                    // The host's published port wins; the fallback
-                                    // follows the emulator.
                                     port = (
                                         remote.port
                                             ?: rom?.console?.backend?.defaultNetplayPort
@@ -555,8 +549,6 @@ fun EmufiiApp(settings: SettingsStore) {
             SecondScreen.publish(
                 SecondScreenModel.Friends(
                     entries = friends
-                        // The front screen's order: in game, then online, then the rest
-                        // by name.
                         .sortedWith(
                             compareByDescending<Friend> {
                                 friendStatuses[it.code]?.inSession == true
@@ -666,7 +658,6 @@ fun EmufiiApp(settings: SettingsStore) {
             runCatching { CompatCheck.refresh(context) }
             // Seven system queries and as many rasterisations, paid once here.
             runCatching { allEmulators(context) }
-            // Folder indexes, addresses, then decoding the first two screens of grid.
             runCatching { ArtworkPreload.warm(context, roms) }
         }
         withTimeoutOrNull(PRELOAD_MS) { warm.join() }
@@ -684,7 +675,6 @@ fun EmufiiApp(settings: SettingsStore) {
         Screen.ProfileAndSettings -> ({ onProfilePage = false; screen = Screen.Library })
         else -> ({ screen = Screen.Library })
     }
-    // Everywhere but the library, where the gesture belongs to the system.
     BackHandler(enabled = screen != Screen.Library) { goBack?.invoke() }
 
     /**
@@ -694,7 +684,6 @@ fun EmufiiApp(settings: SettingsStore) {
     var compat by remember { mutableStateOf(CompatCheck.cached(context)) }
     LaunchedEffect(Unit) { compat = CompatCheck.refresh(context) }
 
-    /** Same pattern, read by one page, so nothing waits. */
     var gameMeta by remember { mutableStateOf(MetaCheck.cached(context)) }
     LaunchedEffect(Unit) { gameMeta = MetaCheck.refresh(context) }
 
@@ -809,7 +798,7 @@ fun EmufiiApp(settings: SettingsStore) {
     }
     }
 
-    // Last and over everything, opaque and full screen.
+    // Last in source order, so it covers everything.
     if (splashing) {
         SplashScreen(
             ready = libraryReady,
@@ -824,7 +813,6 @@ fun EmufiiApp(settings: SettingsStore) {
         onDismiss = { alert = null }
     )
 
-    // The answer decides whether the asking screen's action happens at all.
     conflict?.let { (held, proceed) ->
         TunnelConflictDialog(
             held = held,

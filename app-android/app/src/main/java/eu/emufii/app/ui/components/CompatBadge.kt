@@ -29,9 +29,7 @@ import eu.emufii.app.ui.theme.WarnDark
 import eu.emufii.app.ui.theme.WarnLight
 
 /**
- * What Emufii knows about a game, on the game's own tile. Three marks, one per verdict,
- * and a game nobody has rated shows none: silence already means unknown. Three fixed
- * colours, never the chosen accent: a verdict is the same fact for every player.
+ * Fixed colours, never the chosen accent: a verdict is the same fact for every player.
  * pourquoi : docs/decisions/theme-duotone-shelves.md § The compatibility badge is the documented exception to the single accent
  */
 @Composable
@@ -50,8 +48,7 @@ fun CompatBadge(rating: CompatRating, modifier: Modifier = Modifier) {
             .shadow(3.dp, CircleShape)
             .clip(CircleShape)
             .background(Brush.verticalGradient(fill))
-            // Inside the clip, so the rim follows the bead's own edge rather
-            // than a square around it.
+            // Inside the clip: otherwise the rim is a square around the bead.
             .border(1.5.dp, Color.White, CircleShape)
             .padding(3.dp),
         contentAlignment = Alignment.Center
@@ -60,11 +57,6 @@ fun CompatBadge(rating: CompatRating, modifier: Modifier = Modifier) {
             when (rating) {
                 CompatRating.PERFECT -> CheckIcon(size = 13.dp, color = Color.White)
                 CompatRating.PARTIAL -> WarnIcon(size = 13.dp, color = Color.White)
-                // A cross, and not the crossed circle it was: inside a bead that
-                // is already a circle, a second outline just thickened the rim
-                // and the bar across it read as a scratch. A bare cross against
-                // the tick is also the plainer pair: one says yes, one says no,
-                // and the triangle between them says "with caveats".
                 CompatRating.BROKEN -> CrossIcon(size = 12.dp, color = Color.White)
                 CompatRating.UNTESTED -> TildeIcon(size = 14.dp, color = Color.White)
             }
@@ -73,35 +65,16 @@ fun CompatBadge(rating: CompatRating, modifier: Modifier = Modifier) {
 }
 
 /**
- * The three beads, on the theme's semantic set.
- *
- * Good is pulled towards teal, error towards coral: the duotone world's own
- * hues, and each gradient runs from the semantic light cut down to the axis's
- * ink, so the bead keeps its lit-from-above read without a hex of its own. The
- * glyph inside stays white, so the top of each pair must carry white on its own.
+ * Light cut down to the axis's ink, so the bead reads lit from above with no hex of its
+ * own; the glyph stays white, so the top of each pair must carry white.
  * pourquoi : docs/decisions/theme-duotone-shelves.md § Semantics (centralised)
  */
 private val GreenBead = listOf(GoodLight, Teal.ink)
 private val AmberBead = listOf(WarnLight, WarnDark)
 private val RedBead = listOf(ErrorLight, Coral.ink)
 
-/**
- * Slate, and the only bead that is not a colour.
- *
- * "Not tried yet" is not a verdict, so it does not get a verdict's voice. A
- * slate bead sits back on the tile where the three coloured ones step forward,
- * which is exactly the weight the fact deserves.
- */
 private val SlateBead = listOf(InkTextMuted, InkText)
 
-/**
- * The verdict in words, for the places that have room to say it.
- *
- * Shared rather than written twice: the bead reads it out to a screen reader
- * and the launch card prints it, and two copies of this table would drift the
- * day a fifth verdict appears, in the silent direction: a badge whose spoken
- * name no longer matches the line under the title.
- */
 @Composable
 fun compatLabel(rating: CompatRating): String = stringResource(
     when (rating) {

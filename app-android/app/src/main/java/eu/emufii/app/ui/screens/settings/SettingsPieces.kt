@@ -89,8 +89,7 @@ import eu.emufii.app.ui.theme.socket
 import eu.emufii.app.ui.tap
 
 /**
- * The settings' shared pieces: a page shell, a content block, a hub entry, a state
- * pill.
+ * The settings' shared pieces: a page shell, a content block, a hub entry, a state pill.
  * pourquoi : docs/decisions/reglages-ecran.md § One hub and seven pages, plus an accordion
  */
 
@@ -119,7 +118,6 @@ internal fun dangerInk(): Color = if (LocalEmufiiDarkTheme.current) ErrorDark el
  */
 internal enum class EntryDomain { SYSTEM, SOCIAL }
 
-/** The legible cut on the plate: deep on light, dark bright on dark. */
 @Composable
 internal fun domainInk(domain: EntryDomain): Color {
     val dark = LocalEmufiiDarkTheme.current
@@ -165,8 +163,7 @@ internal fun SettingsPage(
                 .navigationBarsPadding(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Bounded to both columns' width: [SettingsColumns] decides how many there
-            // are.
+            // Bounded to both columns' width; [SettingsColumns] decides how many there are.
             // pourquoi : docs/decisions/reglages-ecran.md § Two columns, once the accordion is gone
             Column(
                 modifier = Modifier.widthIn(max = TWO_COLUMN_MAX).fillMaxWidth(),
@@ -184,8 +181,7 @@ internal fun SettingsPage(
 internal fun SettingsColumns(vararg blocks: @Composable () -> Unit) {
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
         if (maxWidth < TWO_COLUMN_FROM || blocks.size < 2) {
-            // On one column two blocks are no longer side by side, so pairing aligns
-            // nothing.
+            // On one column two blocks are no longer side by side: pairing aligns nothing.
             CompositionLocalProvider(LocalBlocksArePaired provides false) {
                 Column(
                     modifier = Modifier.widthIn(max = ONE_COLUMN_MAX).fillMaxWidth(),
@@ -212,7 +208,6 @@ internal fun SettingsColumns(vararg blocks: @Composable () -> Unit) {
     }
 }
 
-/** True when two blocks face each other across the gutter. */
 internal val LocalBlocksArePaired = compositionLocalOf { true }
 
 /**
@@ -239,8 +234,7 @@ internal fun Modifier.sameHeightAs(group: BlockHeights): Modifier {
     val floor = with(LocalDensity.current) { group.tallestPx.toDp() }
     return this
         .heightIn(min = floor)
-        // After `heightIn`: what comes back is the held height, already the group's
-        // maximum.
+        // After `heightIn`: what comes back is the held height, the group's maximum.
         .onSizeChanged { group.offer(it.height) }
 }
 
@@ -258,12 +252,10 @@ internal fun SettingsBlock(
     state: BlockState? = null,
     mark: (@Composable () -> Unit)? = null,
     /**
-     * True when the block fills the height given: header at the top, actions at the
-     * bottom.
+     * True when the block fills the height given: header at the top, actions at the bottom.
      * pourquoi : docs/decisions/reglages-ecran.md § Two columns, once the accordion is gone
      */
     spread: Boolean = false,
-    /** Pinned to the foot when [spread] is true: the actions, typically. */
     footer: (@Composable () -> Unit)? = null,
     /**
      * Non-null when the block folds. For what is set once.
@@ -286,8 +278,7 @@ internal fun SettingsBlock(
                         )
                     }
                     .then(if (spread) Modifier.fillMaxHeight() else Modifier)
-                    // Folding changes the card's height; without this the next column
-                    // jumps.
+                    // Folding changes the card's height; without this the next column jumps.
                     .then(if (onToggleExpanded != null) Modifier.animateContentSize() else Modifier)
                     .padding(ROW_INSET),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
@@ -305,8 +296,7 @@ internal fun SettingsBlock(
                             color = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.weight(1f)
                         )
-                        // No weight: the pill carried one, and a long label then
-                        // squeezed the title.
+                        // No weight: the pill carried one, and a long label squeezed the title.
                         // pourquoi : docs/decisions/reglages-ecran.md § A state badge carries two words, never a sentence
                         state?.let {
                             Box(modifier = Modifier.widthIn(max = STATE_PILL_MAX)) {
@@ -314,8 +304,6 @@ internal fun SettingsBlock(
                             }
                         }
                         if (onToggleExpanded != null) {
-                            // The chevron shows where the content goes, not where it
-                            // is.
                             val turn by animateFloatAsState(
                                 if (expanded) -90f else 90f,
                                 label = "block-chevron"
@@ -459,7 +447,6 @@ internal fun SettingsEntry(
     entry: Boolean = false,
     state: EntryState? = null,
     icon: (@Composable (Color) -> Unit)? = null,
-    /** The domain tints the socket: teal for system, coral for social. */
     domain: EntryDomain = EntryDomain.SYSTEM,
     leading: (@Composable () -> Unit)? = null,
     /**
@@ -557,14 +544,13 @@ internal fun StatePill(tone: DetailTone, label: String) {
             style = MaterialTheme.typography.labelSmall,
             color = ink,
             maxLines = 1,
-            // See SessionFinderScreen: the default clip slices the glyph, an ellipsis
-            // says something is missing.
+            // See SessionFinderScreen: the default clip slices the glyph, an ellipsis says
+            // something is missing.
             overflow = TextOverflow.Ellipsis
         )
     }
 }
 
-/** The filled dot and the tinted ground do the work, with no radio button. */
 @Composable
 internal fun ChoiceRow(
     label: String,
@@ -580,8 +566,7 @@ internal fun ChoiceRow(
             .fillMaxWidth()
             .then(if (entry) Modifier.padEntry() else Modifier)
             .controlRing(ROW_SHAPE)
-            // The selection tint is translucent, so on its own it never made the row
-            // opaque.
+            // The selection tint is translucent: on its own it never made the row opaque.
             .cardSliceFill(
                 ROW_SHAPE,
                 tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f * emphasis)
@@ -640,8 +625,7 @@ internal fun DangerRow(label: String, onClick: () -> Unit) {
 @Composable
 internal fun EmulatorMark(console: Console, size: Dp = 34.dp) {
     val context = LocalContext.current
-    // Asked once: a launcher icon is often an adaptive drawable and rasterising is not
-    // free.
+    // Asked once: a launcher icon is often an adaptive drawable, rasterising is not free.
     val info = remember(console) { emulatorInfo(context, console) }
     val dark = LocalEmufiiDarkTheme.current
     Box(
@@ -657,8 +641,8 @@ internal fun EmulatorMark(console: Console, size: Dp = 34.dp) {
                 modifier = Modifier.fillMaxSize().clip(ArtworkShape)
             )
         } else {
-            // The console's abbreviation rather than a question mark: an absent
-            // emulator is the ordinary case.
+            // The console's abbreviation rather than a question mark: an absent emulator
+            // is the ordinary case.
             Text(
                 console.shortLabel,
                 style = MaterialTheme.typography.labelSmall,

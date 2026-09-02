@@ -4,19 +4,15 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 /**
- * The plaintext table of contents at the head of every NSP.
- *
- * Worth saying plainly because it shapes everything else: this part needs no
- * keys. An NSP announces its own contents, names, offsets, sizes, and only
- * what those entries point at is encrypted. That is why a Switch dump can be
- * recognised, and its title id read off a `.tik` filename, on a device that has
- * never seen a console key.
+ * The plaintext table of contents at the head of every NSP, which needs no keys: an NSP
+ * announces its own names, offsets and sizes, and only what they point at is encrypted.
+ * A Switch dump can therefore be recognised, and its title id read off a `.tik`
+ * filename, on a device that has never seen a console key.
  */
 object Pfs0 {
 
     data class Entry(val name: String, val offset: Long, val size: Long)
 
-    /** A read-only window onto a file, however it was opened. */
     interface RandomAccess {
         val size: Long
         fun read(offset: Long, length: Int): ByteArray

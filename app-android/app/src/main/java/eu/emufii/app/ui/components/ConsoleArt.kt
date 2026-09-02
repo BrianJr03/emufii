@@ -4,8 +4,7 @@ import eu.emufii.app.R
 import eu.emufii.app.library.Console
 
 /**
- * A console's plate image in the theme's variant, or null. Nullable by design: a newly
- * added console shows its name rather than another machine's picture.
+ * Null by design: a newly added console shows its name rather than another machine's picture.
  * pourquoi : docs/decisions/bibliotheque.md § The console folders
  */
 internal fun consoleArtwork(console: Console, dark: Boolean): Int? = when (console) {
