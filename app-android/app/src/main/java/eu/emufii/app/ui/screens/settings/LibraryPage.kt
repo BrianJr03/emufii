@@ -365,7 +365,7 @@ private fun ArtworkBlock(
                             onClick = {
                                 settingsStore.setFrontendFolder("")
                                 // Clears the index only: the scan's thumbnails stay on disk.
-                                // pourquoi : docs/decisions/reglages-ecran.md § Giving up Cocoon needs a fresh walk
+                                // pourquoi : docs/decisions/reglages-ecran.md § Giving up a frontend's folder needs a fresh walk
                                 FrontendMedia.forget()
                                 onSourceChanged()
                             },

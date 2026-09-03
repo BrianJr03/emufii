@@ -372,7 +372,7 @@
     <string name="artwork_frontend_esde">ES-DE</string>
     <string name="settings_cocoon_change">Changer de dossier</string>
     <string name="settings_cocoon_forget">Ne plus utiliser</string>
-    <string name="settings_artwork_body">Une ROM ne contient qu\'une icône de 32 ou 48 pixels. Avec une clé SteamGridDB, Emufii va chercher de vraies jaquettes pour les jeux que Cocoon ne couvre pas.</string>
+    <string name="settings_artwork_body">Une ROM ne contient qu\'une icône de 32 ou 48 pixels. Avec une clé SteamGridDB, Emufii va chercher de vraies jaquettes pour les jeux que ton frontend ne couvre pas.</string>
     <string name="settings_artwork_field">Clé SteamGridDB</string>
     <string name="settings_artwork_where">Clé gratuite sur steamgriddb.com, dans les préférences de ton compte. Sans elle, les icônes des ROMs restent affichées.</string>
     <string name="onb_artwork_title">Une belle bibliothèque</string>

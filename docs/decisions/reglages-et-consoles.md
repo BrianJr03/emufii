@@ -92,10 +92,10 @@ A key frozen into the APK would be the same for everyone: extractable by opening
 the package, and it would be the author's account carrying the quota and the
 abuse of the whole installed base.
 
-The Cocoon folder follows the same logic in reverse: Cocoon Shell has already
-downloaded artwork for those very files, and the player has often cropped some of
-it. Pointing Emufii at it makes their library look here exactly as it looks over
-there, with no key, no network and no wait.
+The frontend's folder follows the same logic in reverse: Cocoon Shell and ES-DE
+have already downloaded artwork for those very files, and the player has often
+cropped some of it. Pointing Emufii at one makes their library look here exactly
+as it looks over there, with no key, no network and no wait.
 
 ## One store for the process
 

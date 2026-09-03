@@ -280,16 +280,20 @@ under it what is true of that folder, that subfolders are walked too, or, when
 there are none yet, what is expected of it. The game count lives in the header
 badge, where it is a state.
 
-## Giving up Cocoon needs a fresh walk
+## Giving up a frontend's folder needs a fresh walk
 
-`CocoonMedia.forget()` only empties Cocoon's index. The thumbnails written during
-the scan stay on disk: after giving up Cocoon, the preview strip and the grid
-went on showing its images, and the setting looked inert while it had very much
-taken effect.
+`FrontendMedia.forget()` only empties the frontend's index. The thumbnails
+written during the scan stay on disk: after giving up the folder, the preview
+strip and the grid went on showing its images, and the setting looked inert while
+it had very much taken effect.
 
 Changing the image source, choosing it as much as giving it up, therefore
 triggers a fresh walk. It is the only way the source really changes, and it is
 also what makes the preview move under the player's eyes.
+
+Switching frontend counts as giving up: the grant was taken on the other layout's
+root, and a Cocoon folder read with ES-DE's names finds nothing. The link is
+dropped with the switch rather than left in place looking valid.
 
 ## The two outbound links, and their order
 
@@ -456,7 +460,8 @@ cost something, and four images that already existed:
 
 - The game icons show a strip of five pieces of artwork from the player's own
   library, taken from the cache the app already warmed at startup. The block
-  announced "Cocoon is in force" and you had to go and check in the grid; here you
+  announced which frontend was in force and you had to go and check in the grid;
+  here you
   see what the grid shows, in the place where you change its source. It is also
   the only colour on this whole screen, and it comes from content, as the
   direction requires.

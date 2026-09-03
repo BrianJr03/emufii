@@ -350,7 +350,7 @@
     <string name="artwork_frontend_esde">ES-DE</string>
     <string name="settings_cocoon_change">Change folder</string>
     <string name="settings_cocoon_forget">Stop using it</string>
-    <string name="settings_artwork_body">A ROM holds only a 32 or 48 pixel icon. With a SteamGridDB key, Emufii fetches real box art for the games Cocoon does not cover.</string>
+    <string name="settings_artwork_body">A ROM holds only a 32 or 48 pixel icon. With a SteamGridDB key, Emufii fetches real box art for the games your frontend does not cover.</string>
     <string name="settings_artwork_field">SteamGridDB key</string>
     <string name="settings_artwork_where">Free key at steamgriddb.com, in your account preferences. Without it, the ROMs\' own icons stay.</string>
     <string name="onb_artwork_title">A library worth looking at</string>

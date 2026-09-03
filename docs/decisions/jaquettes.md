@@ -37,10 +37,10 @@ Strongest to weakest:
 
 1. The image the player chose. When somebody has taken the trouble to correct
    something, correcting them back would be the worst possible behaviour.
-2. Cocoon, when its folder is linked: those images are on the device, were
-   downloaded for those very files, and in places cropped by hand. Preferring a
-   fresh guess from a catalogue over an image somebody already chose would be
-   taking the problem backwards.
+2. The frontend's folder, Cocoon or ES-DE, when one is linked: those images are
+   on the device, were downloaded for those very files, and in places cropped by
+   hand. Preferring a fresh guess from a catalogue over an image somebody already
+   chose would be taking the problem backwards.
 3. The catalogue (SteamGridDB), if a key is given.
 4. The ROM icon, which never goes away.
 
