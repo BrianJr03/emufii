@@ -21,7 +21,7 @@ object PanelFeed {
         val id: Long = nextId(),
     )
 
-    enum class Kind { FRIEND, UPDATE, INFO }
+    enum class Kind { FRIEND, INFO }
 
     private val _note = MutableStateFlow<Note?>(null)
     val note: StateFlow<Note?> = _note.asStateFlow()

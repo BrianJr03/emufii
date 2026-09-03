@@ -621,13 +621,12 @@ fun EmufiiApp(settings: SettingsStore) {
      * pourquoi : docs/decisions/lancement-et-navigation.md § What is hoisted to app level, and why
      */
     val notifyFriends by settingsStore.notifyFriends.collectAsStateWithLifecycle()
-    val notifyUpdates by settingsStore.notifyUpdates.collectAsStateWithLifecycle()
     // A key, not a decoration: the notification permission is granted outside the app.
     val foreground by AppForeground.visible.collectAsStateWithLifecycle()
-    LaunchedEffect(notifyFriends, notifyUpdates, friends.size, foreground) {
+    LaunchedEffect(notifyFriends, friends.size, foreground) {
         if (!foreground) return@LaunchedEffect
         Notifications.ensureChannels(context)
-        FriendWatchJob.sync(context, notifyFriends, notifyUpdates)
+        FriendWatchJob.sync(context, notifyFriends)
     }
 
     if (onboarding) {

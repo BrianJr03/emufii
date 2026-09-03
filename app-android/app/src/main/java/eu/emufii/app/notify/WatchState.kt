@@ -38,20 +38,9 @@ class WatchState(context: Context) {
         prefs.edit { putString(KEY_SEEN, o.toString()) }
     }
 
-    /**
-     * Separate from [eu.emufii.app.update.UpdateDismissals]: dismissing the banner means
-     * "stop showing me this card", not "stop notifying me about this version".
-     */
-    fun notifiedVersion(): Int = prefs.getInt(KEY_VERSION, 0)
-
-    fun setNotifiedVersion(versionCode: Int) {
-        prefs.edit { putInt(KEY_VERSION, versionCode) }
-    }
-
     private companion object {
         const val PREFS = "emufii_watch"
         const val KEY_SEEN = "seen_friends"
-        const val KEY_VERSION = "notified_version_code"
         const val FIELD_ONLINE = "online"
         const val FIELD_GAME = "game"
     }

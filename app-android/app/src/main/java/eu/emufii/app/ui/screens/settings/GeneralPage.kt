@@ -30,7 +30,6 @@ internal fun GeneralPage(
     modifier: Modifier = Modifier
 ) {
     val notifyFriends by settingsStore.notifyFriends.collectAsStateWithLifecycle()
-    val notifyUpdates by settingsStore.notifyUpdates.collectAsStateWithLifecycle()
     val secondScreenOn by settingsStore.secondScreen.collectAsStateWithLifecycle()
 
     SettingsPage(
@@ -61,9 +60,7 @@ internal fun GeneralPage(
             {
                 NotificationsBlock(
                     friends = notifyFriends,
-                    updates = notifyUpdates,
                     onSetFriends = settingsStore::setNotifyFriends,
-                    onSetUpdates = settingsStore::setNotifyUpdates,
                 )
             },
             {
@@ -84,9 +81,7 @@ internal fun GeneralPage(
 @Composable
 private fun NotificationsBlock(
     friends: Boolean,
-    updates: Boolean,
     onSetFriends: (Boolean) -> Unit,
-    onSetUpdates: (Boolean) -> Unit,
 ) {
     val context = LocalContext.current
     // Asked at composition rather than remembered: a cached answer would still show the
@@ -98,30 +93,25 @@ private fun NotificationsBlock(
         state = BlockState(
             when {
                 !allowed -> DetailTone.WARN
-                friends || updates -> DetailTone.GOOD
+                friends -> DetailTone.GOOD
                 else -> DetailTone.BUSY
             },
             stringResource(
                 when {
                     !allowed -> R.string.settings_notify_blocked
-                    friends || updates -> R.string.settings_value_autofill_on
+                    friends -> R.string.settings_value_autofill_on
                     else -> R.string.settings_notify_silent
                 }
             )
         )
     ) {
-        // Two switches, not four buttons with changing labels: "Friends off" does not say
+        // A switch, not two buttons with changing labels: "Friends off" does not say
         // whether it describes the state or the action.
         // pourquoi : docs/decisions/reglages-ecran.md § A setting with only two states is a switch
         SwitchRow(
             label = stringResource(R.string.settings_notify_friends),
             checked = friends,
             onCheckedChange = onSetFriends
-        )
-        SwitchRow(
-            label = stringResource(R.string.settings_notify_updates),
-            checked = updates,
-            onCheckedChange = onSetUpdates
         )
         DetailNote(stringResource(R.string.settings_notifications_note))
         if (!allowed) {

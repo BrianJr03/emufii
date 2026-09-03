@@ -10,7 +10,6 @@ import eu.emufii.app.network.CoordinatorClient
 import eu.emufii.app.profile.FriendStatus
 import eu.emufii.app.profile.FriendStore
 import eu.emufii.app.settings.SettingsStore
-import eu.emufii.app.update.UpdateCheck
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -46,10 +45,10 @@ class FriendWatchJob : JobService() {
         private const val JOB_ID = 7301
         private const val PERIOD_MS = 15 * 60 * 1000L
 
-        fun sync(context: Context, wantFriends: Boolean, wantUpdates: Boolean) {
+        fun sync(context: Context, wantFriends: Boolean) {
             val scheduler = context.getSystemService(JobScheduler::class.java) ?: return
             val hasFriends = FriendStore.get(context).friends.value.isNotEmpty()
-            val wanted = (wantFriends && hasFriends) || wantUpdates
+            val wanted = wantFriends && hasFriends
 
             if (!wanted || !Notifications.allowed(context)) {
                 scheduler.cancel(JOB_ID)
@@ -72,17 +71,6 @@ class FriendWatchJob : JobService() {
         suspend fun sweep(context: Context) {
             val settings = SettingsStore.get(context)
             val state = WatchState(context)
-
-            if (settings.notifyUpdates.value) {
-                val latest = UpdateCheck.fetch()
-                if (latest != null &&
-                    UpdateCheck.isNewer(latest) &&
-                    latest.versionCode > state.notifiedVersion()
-                ) {
-                    Notifications.update(context, latest.versionName)
-                    state.setNotifiedVersion(latest.versionCode)
-                }
-            }
 
             if (!settings.notifyFriends.value) return
 

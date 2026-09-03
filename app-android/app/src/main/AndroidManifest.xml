@@ -14,13 +14,6 @@
     -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!--
-      Installing the update from the banner. This does not grant the right to
-      install, only the right to ask: Android opens its dialog only after the
-      player has allowed Emufii in their settings. See UpdateInstaller for the
-      three locks around this path.
-    -->
-    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
-    <!--
       Keeping the Wi-Fi radio awake during a session. Measured between two
       Thors: 25% loss at one packet per second, 0% at three, which is Wi-Fi
       power saving, and Switch LDN does not tolerate it. See EmufiiWgService.

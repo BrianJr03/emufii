@@ -1,8 +1,12 @@
 # The coordinator, and updating the app
 
-The narrative that lived in `network/CoordinatorClient.kt` and
-`update/UpdateInstaller.kt`, taken out of the code on 2026-08-24 (see
-`docs/STYLE_COMMENTAIRES.md`). Headings are anchors cited from the code.
+The narrative that lived in `network/CoordinatorClient.kt`, taken out of the code
+on 2026-08-24 (see `docs/STYLE_COMMENTAIRES.md`). Headings are anchors cited from
+the code.
+
+The updating half went with the feature on 2026-09-03: the app no longer
+downloads, installs or announces a version. The file keeps its name, which
+fourteen `pourquoi :` lines cite.
 
 ## A token, because the session code is public
 
@@ -84,93 +88,6 @@ played. Moving to "outside a session" on leaving clears that at once, rather tha
 leaving friends watching a finished game.
 
 ---
-
-# Updating
-
-## Why this is acceptable when the S5 review excluded it
-
-`docs/SECURITY_REVIEW.md` (S5) had decided: the app neither downloads nor
-installs. The reasoning rested on one thing, that updating from a URL read off
-the network is a code execution path, and the review assumes the network is
-untrusted.
-
-That path is reopened, and closed again by three locks, in this order:
-
-1. The URL is not followed as it stands. Only the coordinator's host is accepted,
-   over HTTPS. A `url` pointing elsewhere in `latest.json` is ignored:
-   compromising the JSON is therefore not enough to have an arbitrary binary
-   downloaded, you would already have to hold the server.
-2. The signature decides, not the provenance. The downloaded APK is opened here
-   and its certificate compared to that of the running application. A binary
-   signed with another key is thrown away without ever being shown to Android.
-   That is the lock that still holds on the day the server is no longer ours, the
-   assumption the review stated explicitly.
-3. Nothing starts without a press. The download begins when the player presses
-   Install, never on its own.
-
-On that third point, measured on the Thor and against expectation: Android shows
-no confirmation box. Since Android 12, an app updating itself with the same
-signature is installed without asking, and the session goes straight to
-`INSTALL_SUCCEEDED`. The result receiver is still needed for all that: nothing
-guarantees that shortcut from one version or manufacturer to the next, and where
-it does not exist the button would visibly do nothing without it.
-
-A consequence to own rather than hide: pressing Install is the only consent
-collected. Lock 2 is what carries the security, not a system screen, and it is
-stricter than what a browser would offer on the same link, since the refusal
-happens before Android opens the file, with a message saying what happened rather
-than "parse error".
-
-## The central lock: two questions, and both must hold
-
-The certificate is ours, and the version is the one announced. The second closes
-off rollback, serving an old signed and therefore authentic version to bring back
-an already-fixed flaw.
-
-We compare certificates, not key pairs. `hasMultipleSigners` separates two worlds
-that must not be mixed: an app with several signers has no rotation history, and
-reading the wrong array returns an empty list, which would compare equal to
-another empty list. Hence the explicit refusal when there is nothing to compare.
-
-And intersection, not equality: after a key rotation the installed app knows its
-history and the new APK carries only part of it. Requiring equality would fail
-the one update you would really need to see succeed that day.
-
-## Three outcomes, not two
-
-The distinction was paid for: a boolean made a transfer that had started
-perfectly and then stalled report "this version is not downloadable here yet".
-The player went off looking for a binary missing from a server that was serving
-it perfectly well.
-
-60 s timeout: a 32 MB APK on a home network is not an API call. At 30 s a
-transfer that stalled for a moment was abandoned, measured for real on the Thor,
-`broken pipe` server side to the second.
-
-The file goes into the cache: if the install succeeds it is of no further use,
-and if it fails Android reclaims it by itself when space runs short. An APK
-forgotten in the player's documents would be the only lasting trace of this
-feature.
-
-The size ceiling leaves headroom above the current 32 MB and stops a talkative
-server filling the device's cache while we look away.
-
-## Two refusals that are not errors
-
-"Android does not let Emufii install applications yet" is not an error: it is a
-permission to grant once, and the app opens the exact screen to do it.
-
-A link pointing elsewhere is not treated as an attack: the field also serves to
-publish a page to read, and the "View" button opens it in the browser, where the
-player judges.
-
-With no `url` published we fall back on the coordinator's `/download`: the server
-that announced the version also serves it, which avoids having to keep two fields
-consistent in order to publish.
-
-`PackageInstaller` rather than `ACTION_INSTALL_PACKAGE`: the latter has been
-deprecated since Oreo and demands a `FileProvider` plus URI permissions just to
-name a file we already own.
 
 ## Signing the client changes the cost, not the identity
 

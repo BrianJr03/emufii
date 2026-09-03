@@ -166,18 +166,6 @@ class SettingsStore private constructor(context: Context) {
         _notifyFriends.value = enabled
     }
 
-    /**
-     * On by default: Emufii is sideloaded and no store speaks for it.
-     * pourquoi : docs/decisions/reglages-et-consoles.md § The "on" defaults, and why they are switches all the same
-     */
-    private val _notifyUpdates = MutableStateFlow(prefs.getBoolean(KEY_NOTIFY_UPDATES, true))
-    val notifyUpdates: StateFlow<Boolean> = _notifyUpdates.asStateFlow()
-
-    fun setNotifyUpdates(enabled: Boolean) {
-        prefs.edit { putBoolean(KEY_NOTIFY_UPDATES, enabled) }
-        _notifyUpdates.value = enabled
-    }
-
     fun setSteamGridDbKey(key: String) {
         val cleaned = key.trim()
         prefs.edit { putString(KEY_SGDB, cleaned) }
@@ -246,6 +234,5 @@ class SettingsStore private constructor(context: Context) {
         private const val KEY_HIDDEN_CONSOLES = "hidden_consoles"
         private const val KEY_SECOND_SCREEN = "second_screen"
         private const val KEY_NOTIFY_FRIENDS = "notify_friends"
-        private const val KEY_NOTIFY_UPDATES = "notify_updates"
     }
 }

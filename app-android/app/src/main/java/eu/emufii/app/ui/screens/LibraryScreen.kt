@@ -131,7 +131,6 @@ import eu.emufii.app.library.sortedFor
 import eu.emufii.app.meta.LocalGameMetaDb
 import eu.emufii.app.profile.Profile
 import eu.emufii.app.profile.playerDisplayName
-import eu.emufii.app.secondscreen.PanelFeed
 import eu.emufii.app.secondscreen.PanelMark
 import eu.emufii.app.secondscreen.SecondScreen
 import eu.emufii.app.secondscreen.SecondScreenModel
@@ -157,8 +156,6 @@ import eu.emufii.app.ui.components.SearchField
 import eu.emufii.app.ui.components.SessionsChip
 import eu.emufii.app.ui.components.SortChip
 import eu.emufii.app.ui.components.TileMenu
-import eu.emufii.app.ui.components.UPDATE_BANNER_ROOM
-import eu.emufii.app.ui.components.UpdateBanner
 import eu.emufii.app.ui.components.VpsLamp
 import eu.emufii.app.ui.components.WallpaperVeil
 import eu.emufii.app.ui.components.artworkRim
@@ -187,9 +184,6 @@ import eu.emufii.app.ui.theme.moldedRim
 import eu.emufii.app.ui.theme.plate
 import eu.emufii.app.ui.theme.socket
 import eu.emufii.app.ui.wallpaper.TrayBackdrop
-import eu.emufii.app.update.LatestVersion
-import eu.emufii.app.update.UpdateCheck
-import eu.emufii.app.update.UpdateDismissals
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -310,20 +304,6 @@ fun LibraryScreen(
     var hideFor by remember { mutableStateOf<Rom?>(null) }
 
     var reload by remember { mutableStateOf(0) }
-
-    val dismissals = remember { UpdateDismissals(context) }
-    var update by remember { mutableStateOf<LatestVersion?>(null) }
-    LaunchedEffect(Unit) {
-        val latest = UpdateCheck.fetch()
-        if (latest != null && UpdateCheck.isNewer(latest) && !dismissals.isDismissed(latest.versionCode)) {
-            update = latest
-            // Mirrored: the panel keeps saying it once an emulator owns that screen.
-            PanelFeed.post(
-                context.getString(R.string.notify_update_title, latest.versionName),
-                PanelFeed.Kind.UPDATE
-            )
-        }
-    }
 
     val folderPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocumentTree()
@@ -458,8 +438,7 @@ fun LibraryScreen(
                         // Pushes the grid down rather than covering its first
                         // row. The air after the header is [HEADER_GAP].
                         // pourquoi : docs/decisions/bibliotheque.md § The veils, and why the launch card is where it is
-                        top = topInset + 72.dp +
-                            (if (update != null) UPDATE_BANNER_ROOM else 0.dp),
+                        top = topInset + 72.dp,
                         // Travel, not empty space: the last row must rise
                         // fully into the usable area.
                         // pourquoi : docs/decisions/bibliotheque.md § Whole rows, or nothing
@@ -561,18 +540,6 @@ fun LibraryScreen(
                 .padding(horizontal = 20.dp, vertical = 14.dp)
         )
 
-
-        update?.let { latest ->
-            UpdateBanner(
-                latest = latest,
-                onDismiss = { dismissals.dismiss(latest.versionCode); update = null },
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .fillMaxWidth()
-                    .windowInsetsPadding(WindowInsets.statusBarsIgnoringVisibility)
-                    .padding(start = 20.dp, end = 20.dp, top = 76.dp)
-            )
-        }
 
         // OVERLAY : the launch card. Sibling of the Haze source (so it can
         // blur the grid) and last (so a modal covers the chrome).

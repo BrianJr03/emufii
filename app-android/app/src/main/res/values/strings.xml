@@ -70,14 +70,6 @@
     <string name="psp_online_open_settings">1. Open PPSSPP to set up online play</string>
     <string name="psp_online_open_again">1. Reopen PPSSPP for setup</string>
     <string name="psp_online_launch_game">2. Launch the game</string>
-    <string name="update_available">Emufii %1$s is available</string>
-    <string name="update_later">Later</string>
-    <string name="update_open">See it</string>
-    <string name="update_install">Install</string>
-    <string name="update_failed_permission">Allow Emufii to install apps in your Android settings.</string>
-    <string name="update_failed_unavailable">This version isn\'t downloadable here yet.</string>
-    <string name="update_failed_download">Download interrupted. Try again, the file is there.</string>
-    <string name="update_failed_rejected">File rejected: it isn\'t signed like this app.</string>
     <string name="lib_open_emulator">See what to do</string>
     <string name="lib_mode_friends">With friends</string>
     <string name="lib_mode_public">Online</string>
@@ -469,17 +461,13 @@
     <string name="panel_released">Released %1$s</string>
     <string name="panel_details_unknown">Nothing is known about this game yet.</string>
 
-    <!-- Notifications: friends online and updates -->
+    <!-- Notifications: friends online -->
     <string name="notify_channel_friends">Friends</string>
     <string name="notify_channel_friends_desc">When a friend comes online or starts a game.</string>
-    <string name="notify_channel_updates">Updates</string>
-    <string name="notify_channel_updates_desc">When a new version of Emufii is available.</string>
     <string name="notify_friend_unnamed">A friend</string>
     <string name="notify_friend_online">%1$s is online</string>
     <string name="notify_friend_playing">%1$s is playing %2$s</string>
     <string name="notify_friend_in_game">%1$s is in a game</string>
-    <string name="notify_update_title">Emufii %1$s is available</string>
-    <string name="notify_update_body">Open the app to install it.</string>
     <string name="alert_friend_online">is online</string>
     <string name="alert_friend_playing">is playing %1$s</string>
     <string name="alert_friend_in_game">is in a game</string>
@@ -548,7 +536,6 @@
         <item quantity="other">%d hidden</item>
     </plurals>
     <string name="settings_notify_friends">Friends</string>
-    <string name="settings_notify_updates">Updates</string>
     <string name="settings_second_screen_switch">Show on the rear panel</string>
     <string name="settings_library_subfolders">Subfolders are scanned too, whichever console they hold.</string>
     <string name="settings_row_fallback">Fallback artwork</string>

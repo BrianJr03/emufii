@@ -61,14 +61,6 @@
     <string name="psp_online_open_settings">1. Ouvrir PPSSPP pour paramétrer le jeu en ligne</string>
     <string name="psp_online_open_again">1. Rouvrir PPSSPP pour le paramétrage</string>
     <string name="psp_online_launch_game">2. Lancer le jeu</string>
-    <string name="update_available">Emufii %1$s est disponible</string>
-    <string name="update_later">Plus tard</string>
-    <string name="update_open">Voir</string>
-    <string name="update_install">Installer</string>
-    <string name="update_failed_permission">Autorise Emufii à installer des applications dans les réglages Android.</string>
-    <string name="update_failed_unavailable">Cette version n\'est pas encore téléchargeable ici.</string>
-    <string name="update_failed_download">Téléchargement interrompu. Réessaie, le fichier est bien là.</string>
-    <string name="update_failed_rejected">Fichier refusé : il n\'est pas signé avec la même clé qu\'Emufii.</string>
     <string name="lib_open_emulator">Voir la marche à suivre</string>
     <string name="lib_mode_friends">Entre amis</string>
     <string name="lib_mode_public">En ligne</string>
@@ -493,17 +485,13 @@
     <string name="panel_released">Sorti en %1$s</string>
     <string name="panel_details_unknown">Rien de connu sur ce jeu pour l\'instant.</string>
 
-    <!-- Notifications : amis en ligne et mises a jour -->
+    <!-- Notifications : amis en ligne -->
     <string name="notify_channel_friends">Amis</string>
     <string name="notify_channel_friends_desc">Quand un ami se connecte ou lance un jeu.</string>
-    <string name="notify_channel_updates">Mises à jour</string>
-    <string name="notify_channel_updates_desc">Quand une nouvelle version d\'Emufii est disponible.</string>
     <string name="notify_friend_unnamed">Un ami</string>
     <string name="notify_friend_online">%1$s est en ligne</string>
     <string name="notify_friend_playing">%1$s joue à %2$s</string>
     <string name="notify_friend_in_game">%1$s est en partie</string>
-    <string name="notify_update_title">Emufii %1$s est disponible</string>
-    <string name="notify_update_body">Ouvre l\'app pour l\'installer.</string>
     <string name="alert_friend_online">est en ligne</string>
     <string name="alert_friend_playing">joue à %1$s</string>
     <string name="alert_friend_in_game">est en partie</string>
@@ -551,7 +539,6 @@
         <item quantity="other">%d masqués</item>
     </plurals>
     <string name="settings_notify_friends">Amis</string>
-    <string name="settings_notify_updates">Mises à jour</string>
     <string name="settings_second_screen_switch">Afficher sur le panneau arrière</string>
     <string name="settings_library_subfolders">Sous-dossiers explorés aussi, quelle que soit la console.</string>
     <string name="settings_row_fallback">Images de secours</string>

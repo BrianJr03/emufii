@@ -27,9 +27,7 @@ import kotlinx.coroutines.flow.asStateFlow
 object Notifications {
 
     const val CHANNEL_FRIENDS = "emufii_friends"
-    const val CHANNEL_UPDATES = "emufii_updates"
 
-    private const val ID_UPDATE = 4001
     private const val ID_FRIEND_BASE = 5000
 
     const val EXTRA_OPEN = "eu.emufii.app.notify.OPEN"
@@ -63,13 +61,6 @@ object Notifications {
                 NotificationManager.IMPORTANCE_DEFAULT
             ).apply { description = context.getString(R.string.notify_channel_friends_desc) }
         )
-        nm.createNotificationChannel(
-            NotificationChannel(
-                CHANNEL_UPDATES,
-                context.getString(R.string.notify_channel_updates),
-                NotificationManager.IMPORTANCE_DEFAULT
-            ).apply { description = context.getString(R.string.notify_channel_updates_desc) }
-        )
     }
 
     fun allowed(context: Context): Boolean {
@@ -97,18 +88,6 @@ object Notifications {
             title = context.getString(R.string.app_name),
             text = text,
             open = OPEN_FRIENDS
-        )
-    }
-
-    fun update(context: Context, versionName: String) {
-        post(
-            context = context,
-            id = ID_UPDATE,
-            channel = CHANNEL_UPDATES,
-            icon = R.drawable.ic_notify_update,
-            title = context.getString(R.string.notify_update_title, versionName),
-            text = context.getString(R.string.notify_update_body),
-            open = null
         )
     }
 
