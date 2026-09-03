@@ -2,12 +2,11 @@ package eu.emufii.app.artwork
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.net.toUri
 import eu.emufii.app.library.Rom
@@ -34,23 +33,25 @@ fun rememberTileArt(rom: Rom): State<TileArt> {
     val context = LocalContext.current
     val store = remember(context) { ArtworkStore(context.applicationContext) }
     val settings = remember(context) { SettingsStore.get(context) }
-    val apiKey by settings.steamGridDbKey.collectAsState()
-    val cocoon by settings.cocoonFolder.collectAsState()
-    val revision by ArtworkStore.revision.collectAsState()
+    val apiKey by settings.steamGridDbKey.collectAsStateWithLifecycle()
+    val folder by settings.frontendFolder.collectAsStateWithLifecycle()
+    val frontend by settings.artworkFrontend.collectAsStateWithLifecycle()
+    val revision by ArtworkStore.revision.collectAsStateWithLifecycle()
     val state = remember(rom.uri) { mutableStateOf(TileArt(null, rom.iconFile)) }
 
-    LaunchedEffect(rom.uri, apiKey, cocoon, revision) {
-        // Cocoon comes before the catalogue, and the player's own choice before Cocoon,
-        // which `iconUrl` already honours: Cocoon artwork sits on the device, was
-        // downloaded for this exact file, and in places was re-cropped by hand.
+    LaunchedEffect(rom.uri, apiKey, folder, frontend, revision) {
+        // The frontend comes before the catalogue, and the player's own choice before the
+        // frontend, which `iconUrl` already honours: the frontend's artwork sits on the
+        // device, was downloaded for this exact file, and in places was re-cropped by hand.
         if (store.chosenFor(rom) == null) {
             val local = withContext(Dispatchers.IO) {
                 runCatching {
-                    CocoonMedia.uriFor(
+                    FrontendMedia.uriFor(
                         context,
-                        cocoon.takeIf { it.isNotBlank() }?.toUri(),
+                        frontend,
+                        folder.takeIf { it.isNotBlank() }?.toUri(),
                         rom,
-                        CocoonMedia.Kind.ICON
+                        FrontendMedia.Kind.ICON
                     )
                 }.getOrNull()
             }

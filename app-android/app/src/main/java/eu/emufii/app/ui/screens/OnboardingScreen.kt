@@ -3,6 +3,7 @@ package eu.emufii.app.ui.screens
 import android.Manifest
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.provider.DocumentsContract
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -19,7 +20,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -35,7 +35,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,7 +51,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import eu.emufii.app.R
-import eu.emufii.app.artwork.CocoonMedia
+import eu.emufii.app.artwork.ArtworkFrontend
+import eu.emufii.app.artwork.FrontendMedia
 import eu.emufii.app.azahar.AzaharLauncher
 import eu.emufii.app.library.Console
 import eu.emufii.app.profile.Profile
@@ -74,10 +74,10 @@ import eu.emufii.app.ui.components.SignalMark
 import eu.emufii.app.ui.components.SoftCard
 import eu.emufii.app.ui.components.SteamGridDbMark
 import eu.emufii.app.ui.components.waitTrim
-import eu.emufii.app.ui.controlRing
 import eu.emufii.app.ui.screens.settings.AutofillBlock
 import eu.emufii.app.ui.screens.settings.BlockFact
 import eu.emufii.app.ui.screens.settings.BlockNotice
+import eu.emufii.app.ui.screens.settings.ChoiceRow
 import eu.emufii.app.ui.screens.settings.PpssppBlock
 import eu.emufii.app.ui.screens.settings.Ps2Block
 import eu.emufii.app.ui.screens.settings.SettingsSteps
@@ -89,6 +89,8 @@ import eu.emufii.app.ui.theme.Teal
 import eu.emufii.app.ui.theme.socket
 import eu.emufii.app.ui.wallpaper.TrayBackdrop
 import kotlinx.coroutines.delay
+import androidx.core.net.toUri
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /**
  * The run has no fixed length: the emulator pages are drawn from what the player
@@ -107,8 +109,9 @@ fun OnboardingScreen(
     val dark = LocalEmufiiDarkTheme.current
     val context = LocalContext.current
     val settingsStore = remember { SettingsStore.get(context) }
-    val hiddenConsoles by settingsStore.hiddenConsoles.collectAsState()
-    val cocoonFolder by settingsStore.cocoonFolder.collectAsState()
+    val hiddenConsoles by settingsStore.hiddenConsoles.collectAsStateWithLifecycle()
+    val frontendFolder by settingsStore.frontendFolder.collectAsStateWithLifecycle()
+    val artworkFrontend by settingsStore.artworkFrontend.collectAsStateWithLifecycle()
 
     var name by remember { mutableStateOf(initialName) }
     var artworkKey by remember { mutableStateOf("") }
@@ -124,9 +127,9 @@ fun OnboardingScreen(
         }
     }
 
-    // Read only, as in the settings: we look at the images Cocoon has already
+    // Read only, as in the settings: we look at the images the frontend has already
     // downloaded and write nothing into its folder.
-    val cocoonPicker = rememberLauncherForActivityResult(
+    val frontendPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocumentTree()
     ) { uri: Uri? ->
         if (uri != null) {
@@ -136,8 +139,8 @@ fun OnboardingScreen(
                     android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
                 )
             }
-            settingsStore.setCocoonFolder(uri.toString())
-            CocoonMedia.forget()
+            settingsStore.setFrontendFolder(uri.toString())
+            FrontendMedia.forget()
         }
     }
 
@@ -250,11 +253,20 @@ fun OnboardingScreen(
                         onPickFolder = { folderPicker.launch(null) },
                         hiddenConsoles = hiddenConsoles,
                         onSetConsoleVisible = settingsStore::setConsoleVisible,
-                        cocoonFolder = cocoonFolder,
-                        onPickCocoon = { cocoonPicker.launch(COCOON_DEFAULT_FOLDER) },
-                        onForgetCocoon = {
-                            settingsStore.setCocoonFolder("")
-                            CocoonMedia.forget()
+                        frontendFolder = frontendFolder,
+                        artworkFrontend = artworkFrontend,
+                        onSetFrontend = { option ->
+                            if (option != artworkFrontend) {
+                                settingsStore.setArtworkFrontend(option)
+                                // A folder linked for the other layout finds nothing here.
+                                settingsStore.setFrontendFolder("")
+                                FrontendMedia.forget()
+                            }
+                        },
+                        onPickFrontend = { frontendPicker.launch(defaultFolderOf(artworkFrontend)) },
+                        onForgetFrontend = {
+                            settingsStore.setFrontendFolder("")
+                            FrontendMedia.forget()
                         },
                         artworkKey = artworkKey,
                         onArtworkKeyChange = { artworkKey = it },
@@ -311,8 +323,11 @@ fun OnboardingScreen(
     }
 }
 
-/** Where Cocoon keeps its images, so the picker opens in the right place. */
-private val COCOON_DEFAULT_FOLDER: Uri? = null
+/** Where the frontend keeps its images, so the picker opens in the right place. */
+private fun defaultFolderOf(frontend: ArtworkFrontend): Uri = DocumentsContract.buildDocumentUri(
+    "com.android.externalstorage.documents",
+    frontend.defaultFolderId
+)
 
 /** The enum's order is the run's order. */
 private enum class OnbStep(val railLabel: Int, val skippable: Boolean = true) {
@@ -495,9 +510,11 @@ private fun StepBody(
     onPickFolder: () -> Unit,
     hiddenConsoles: Set<Console>,
     onSetConsoleVisible: (Console, Boolean) -> Unit,
-    cocoonFolder: String,
-    onPickCocoon: () -> Unit,
-    onForgetCocoon: () -> Unit,
+    frontendFolder: String,
+    artworkFrontend: ArtworkFrontend,
+    onSetFrontend: (ArtworkFrontend) -> Unit,
+    onPickFrontend: () -> Unit,
+    onForgetFrontend: () -> Unit,
     artworkKey: String,
     onArtworkKeyChange: (String) -> Unit,
     ppssppConfig: PpssppConfigStore,
@@ -616,7 +633,8 @@ private fun StepBody(
     )
 
     OnbStep.COCOON -> {
-        val has = cocoonFolder.isNotBlank()
+        val has = frontendFolder.isNotBlank()
+        val frontendName = stringResource(artworkFrontend.labelRes)
         StepLayout(
             wide = wide,
             mark = { StepMark { PaintMark(size = 34.dp, color = it) } },
@@ -632,35 +650,50 @@ private fun StepBody(
             },
             work = {
                 WorkCard {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        ArtworkFrontend.entries.forEachIndexed { index, option ->
+                            ChoiceRow(
+                                label = stringResource(option.labelRes),
+                                selected = option == artworkFrontend,
+                                onClick = { onSetFrontend(option) },
+                                entry = index == 0
+                            )
+                        }
+                    }
                     if (has) {
                         BlockFact(
                             stringResource(R.string.settings_library_fact_folder),
-                            folderLabel(Uri.parse(cocoonFolder))
+                            folderLabel(frontendFolder.toUri())
                         )
-                        BlockNotice(stringResource(R.string.onb_cocoon_after))
+                        BlockNotice(stringResource(R.string.onb_cocoon_after, frontendName))
                     } else {
                         SettingsSteps(
-                            stringResource(R.string.onb_cocoon_step1),
-                            stringResource(R.string.onb_cocoon_step2),
-                            stringResource(R.string.onb_cocoon_step3),
+                            stringResource(R.string.onb_cocoon_step1, frontendName),
+                            stringResource(
+                                when (artworkFrontend) {
+                                    ArtworkFrontend.COCOON -> R.string.onb_frontend_step2_cocoon
+                                    ArtworkFrontend.ESDE -> R.string.onb_frontend_step2_esde
+                                }
+                            ),
+                            stringResource(R.string.onb_cocoon_step3, frontendName),
                         )
                     }
                     DetailActions {
                         if (has) {
                             GhostButton(
                                 label = stringResource(R.string.settings_cocoon_change),
-                                onClick = onPickCocoon,
+                                onClick = onPickFrontend,
                                 fillWidth = true
                             )
                             GhostButton(
                                 label = stringResource(R.string.settings_cocoon_forget),
-                                onClick = onForgetCocoon,
+                                onClick = onForgetFrontend,
                                 fillWidth = true
                             )
                         } else {
                             PrimaryButton(
-                                label = stringResource(R.string.settings_cocoon_choose),
-                                onClick = onPickCocoon,
+                                label = stringResource(R.string.settings_frontend_choose, frontendName),
+                                onClick = onPickFrontend,
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
@@ -780,7 +813,7 @@ private fun StepBody(
                 Recap(
                     stringResource(R.string.onb_recap_folder) to (romFolder != null),
                     stringResource(R.string.onb_recap_artwork) to
-                        (cocoonFolder.isNotBlank() || artworkKey.isNotBlank()),
+                        (frontendFolder.isNotBlank() || artworkKey.isNotBlank()),
                     stringResource(R.string.onb_recap_ppsspp) to ppssppReady,
                     stringResource(R.string.onb_recap_ps2) to ps2Ready,
                     stringResource(R.string.onb_recap_autofill) to autofillOn,
