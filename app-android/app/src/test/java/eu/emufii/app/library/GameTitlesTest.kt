@@ -2,6 +2,7 @@ package eu.emufii.app.library
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -46,6 +47,25 @@ class GameTitlesTest {
                 keys = listOf("3ds:ARR", "3ds:ARRJ", "3ds:t:000400000011C400")
             )
         )
+    }
+
+    @Test fun `a library too big for one request is asked for in several`() {
+        // The coordinator answers 500 keys and no more, silently. A single request was
+        // therefore losing every title past the 500th without anything failing.
+        val keys = (1..1300).map { "switch:%016X".format(it) }
+        val batches = GameTitles.batches(keys)
+
+        assertEquals(4, batches.size)
+        assertTrue(batches.all { it.size <= 500 })
+        assertEquals(keys, batches.flatten())
+    }
+
+    @Test fun `a small library still goes out in one request`() {
+        assertEquals(1, GameTitles.batches(List(400) { "ds:K$it" }).size)
+    }
+
+    @Test fun `nothing to ask means nothing to send`() {
+        assertTrue(GameTitles.batches(emptyList()).isEmpty())
     }
 
     @Test fun `an unknown game keeps its filename`() {

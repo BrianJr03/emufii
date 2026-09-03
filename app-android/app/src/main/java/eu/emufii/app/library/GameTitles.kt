@@ -68,22 +68,12 @@ object GameTitles {
         if (keys.isEmpty()) return@withContext false
 
         val known = cached(context, lang)
-        val fetched = runCatching {
-            val query = URLEncoder.encode(keys.joinToString(","), "UTF-8")
-            val conn = (URL("$baseUrl/titles?lang=$lang&keys=$query").openConnection() as HttpURLConnection).apply {
-                requestMethod = "GET"
-                connectTimeout = 4000
-                readTimeout = 6000
-            }
-            try {
-                if (conn.responseCode != 200) return@runCatching null
-                conn.inputStream.bufferedReader().use { it.readText() }
-            } finally {
-                conn.disconnect()
-            }
-        }.getOrNull() ?: return@withContext false
-
-        val answer = runCatching { parse(fetched) }.getOrDefault(emptyMap())
+        val answer = HashMap<String, String>()
+        // A batch that comes back empty does not sink the others: what did arrive is
+        // kept, and a key with no answer is asked again next launch regardless.
+        for (batch in batches(keys)) {
+            answer += fetch(baseUrl, lang, batch) ?: continue
+        }
         if (answer.isEmpty()) return@withContext false
 
         val merged = known + answer
@@ -96,6 +86,35 @@ object GameTitles {
 
         roms.any { apply(merged, it).displayName != it.displayName }
     }
+
+    /**
+     * Two ceilings, and one request honoured neither. The coordinator answers the first
+     * 500 keys and says nothing about the rest, and Node shuts the connection past 16 KB
+     * of request line. Measured on the VPS on 2026-09-03: a library of 1717 keys made an
+     * URL of 21657 characters and came back with nothing at all. Between the two limits
+     * is the worse case, an answer that looks whole and is not.
+     */
+    private const val KEYS_PER_REQUEST = 400
+
+    /** Null on anything but a 200: an unreachable index reads as "we do not know". */
+    private fun fetch(baseUrl: String, lang: String, keys: List<String>): Map<String, String>? =
+        runCatching {
+            val query = URLEncoder.encode(keys.joinToString(","), "UTF-8")
+            val conn = (URL("$baseUrl/titles?lang=$lang&keys=$query").openConnection() as HttpURLConnection).apply {
+                requestMethod = "GET"
+                connectTimeout = 4000
+                readTimeout = 6000
+            }
+            try {
+                if (conn.responseCode != 200) return@runCatching null
+                parse(conn.inputStream.bufferedReader().use { it.readText() })
+            } finally {
+                conn.disconnect()
+            }
+        }.getOrNull()
+
+    /** Split out like [resolve]: the batching is a rule to pin, not a network call. */
+    fun batches(keys: List<String>): List<List<String>> = keys.chunked(KEYS_PER_REQUEST)
 
     private fun parse(raw: String): Map<String, String> = runCatching {
         val obj = JSONObject(raw)
