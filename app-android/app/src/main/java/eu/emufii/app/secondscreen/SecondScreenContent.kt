@@ -950,7 +950,7 @@ private fun Cover(model: SecondScreenModel.Browsing, modifier: Modifier = Modifi
                 AsyncImage(
                     model = ImageRequest.Builder(context).data(cover).build(),
                     contentDescription = null,
-                    contentScale = if (art.isPixelArt) ContentScale.Fit else ContentScale.Crop,
+                    contentScale = if (art.fitsWhole) ContentScale.Fit else ContentScale.Crop,
                     filterQuality = if (art.isPixelArt) FilterQuality.None else FilterQuality.High,
                     placeholder = ColorPainter(Color.Transparent),
                     error = ColorPainter(Color.Transparent),
