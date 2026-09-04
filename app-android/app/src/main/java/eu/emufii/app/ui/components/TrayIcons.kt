@@ -244,6 +244,18 @@ fun InfoMark(size: Dp = 20.dp, color: Color, modifier: Modifier = Modifier) =
     }
 
 @Composable
+fun CopyMark(size: Dp = 18.dp, color: Color, modifier: Modifier = Modifier) =
+    TrayIcon(size, color, modifier) { u ->
+        addRoundRect(
+            androidx.compose.ui.geometry.RoundRect(
+                left = 4f * u, top = 8f * u, right = 16f * u, bottom = 20f * u,
+                radiusX = 2f * u, radiusY = 2f * u
+            )
+        )
+        moveTo(8f * u, 4f * u); lineTo(20f * u, 4f * u); lineTo(20f * u, 16f * u)
+    }
+
+@Composable
 fun PencilMark(size: Dp = 14.dp, color: Color, modifier: Modifier = Modifier) =
     TrayIcon(size, color, modifier) { u ->
         moveTo(4.5f * u, 19.5f * u)
