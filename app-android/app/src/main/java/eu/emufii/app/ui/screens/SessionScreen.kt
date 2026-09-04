@@ -2,19 +2,12 @@ package eu.emufii.app.ui.screens
 
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
@@ -24,18 +17,12 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.withFrameNanos
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.BlendMode
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.CompositingStrategy
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
@@ -68,6 +55,7 @@ import eu.emufii.app.ui.screens.session.PresenceCard
 import eu.emufii.app.ui.screens.session.PspHintCard
 import eu.emufii.app.ui.screens.session.PspSetupButton
 import eu.emufii.app.ui.screens.session.SessionCodeChip
+import eu.emufii.app.ui.screens.session.SessionLandscapeLayout
 import eu.emufii.app.ui.screens.session.StatusLine
 import eu.emufii.app.ui.screens.session.danger
 import eu.emufii.app.ui.screens.session.launchEnabled
@@ -83,7 +71,7 @@ import eu.emufii.app.ui.components.GhostButton
 import eu.emufii.app.ui.components.LocalScaffoldFocus
 import eu.emufii.app.ui.components.PadDialog
 import eu.emufii.app.ui.components.PadDialogText
-import eu.emufii.app.ui.components.RomArtwork
+import eu.emufii.app.ui.components.ScaffoldFocus
 import eu.emufii.app.ui.components.padEntry
 
 @Composable
@@ -185,44 +173,24 @@ fun SessionScreen(
         directPs2 = ps2Automatic,
         waitingForHost = ps2Automatic && waitingForHost
     )
-    val panelSteps = buildList {
-        if (showNetplayStep) {
-            add(
-                PanelStep(
-                    label = netplayLabel,
-                    done = netplayDone,
-                    enabled = session.rom != null && !waitingForHost,
-                    onPress = onNetplayStep
-                )
-            )
-        }
-        if (showPspStep) {
-            add(
-                PanelStep(
-                    label = pspLabel,
-                    done = pspOpened,
-                    enabled = true,
-                    onPress = {
-                        state.openPspSetup()
-                    }
-                )
-            )
-        }
-        add(
-            PanelStep(
-                // Once launched the step keeps its place and changes face, still pressable.
-                label = if (launched) launchedLabel else launchLabel,
-                done = launched,
-                enabled = launchEnabled(
-                    session = session,
-                    netplayPrepared = netplayPrepared,
-                    directPs2 = ps2Automatic,
-                    waitingForHost = ps2Automatic && waitingForHost
-                ),
-                onPress = onLaunchStep
-            )
-        )
-    }
+    val panelSteps = buildPanelSteps(
+        session = session,
+        showNetplayStep = showNetplayStep,
+        netplayLabel = netplayLabel,
+        netplayDone = netplayDone,
+        netplayPrepared = netplayPrepared,
+        waitingForHost = waitingForHost,
+        onNetplayStep = onNetplayStep,
+        showPspStep = showPspStep,
+        pspLabel = pspLabel,
+        pspOpened = pspOpened,
+        onPspSetup = state::openPspSetup,
+        launched = launched,
+        launchedLabel = launchedLabel,
+        launchLabel = launchLabel,
+        ps2Automatic = ps2Automatic,
+        onLaunchStep = onLaunchStep,
+    )
     // The lambdas belong to this composition: clear them on the way out, or the panel keeps a dead session.
     DisposableEffect(panelLive, panelSteps) {
         SecondScreen.publishSteps(if (panelLive) panelSteps else emptyList())
@@ -298,209 +266,33 @@ fun SessionScreen(
                 .focusable()
                 // Straight onto the panel's steps: an intermediate stop would be invisible.
 
-                .onKeyEvent { event ->
-                    if (event.type != KeyEventType.KeyDown && event.type != KeyEventType.KeyUp) {
-                        return@onKeyEvent false
-                    }
-                    fun leavePanel() {
-                        SecondScreen.clearStepCursor()
-                        scaffoldFocus?.header?.let { runCatching { it.requestFocus() } }
-                    }
-
-                    val cursor = panelCursor
-                    // Down, once the front cursor has nothing left below it.
-                    if (cursor == null) {
-                        if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown &&
-                            SecondScreen.steps.value.isNotEmpty()
-                        ) {
-                            SecondScreen.selectStep(0)
-                            true
-                        } else {
-                            false
-                        }
-                    } else {
-                        val steps = SecondScreen.steps.value
-                        when {
-                            // A and its synonyms press the aimed step; KeyDown is swallowed so one press reads once.
-                            event.key in CONFIRM_KEYS -> {
-                                if (event.type == KeyEventType.KeyUp) {
-                                    steps.getOrNull(cursor)?.takeIf { it.enabled }
-                                        ?.let { Sfx.click(); it.onPress() }
-                                }
-                                true
-                            }
-
-                            event.type == KeyEventType.KeyDown -> when (event.key) {
-                                Key.DirectionLeft -> {
-                                    SecondScreen.moveStep(-1); true
-                                }
-
-                                Key.DirectionRight -> {
-                                    SecondScreen.moveStep(1); true
-                                }
-
-                                Key.DirectionUp -> {
-                                    if (cursor == 0) leavePanel() else SecondScreen.moveStep(-1)
-                                    true
-                                }
-                                // One row: down has nowhere to go, and must not hand the cursor back.
-                                Key.DirectionDown -> true
-                                Key.ButtonB, Key.Back -> {
-                                    leavePanel(); true
-                                }
-
-                                else -> false
-                            }
-
-                            else -> false
-                        }
-                    }
-                }
+                .onKeyEvent { handlePanelKey(it, panelCursor, scaffoldFocus) }
             if (landscape) {
-                // State on the left, what is left to do on the right, every answer under the
-                // button that produced it.
-                // pourquoi : docs/decisions/session.md § Two panels, because stacked this screen does not fit
-                Row(
-                    modifier = panelPilot
-                        .fillMaxSize()
-                        .padding(
-                            top = topPadding,
-                            bottom = bottomInset + 16.dp,
-                            start = 20.dp,
-                            end = 20.dp
-                        ),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    // No `verticalScroll`: a state pane that can hide its state is not doing its job.
-                    // pourquoi : docs/decisions/session.md § The state panel does not scroll, so it has to fit
-                    // pourquoi : docs/decisions/session.md § What the panel carries, the front screen gives back in space
-                    Column(
-                        modifier = Modifier.width(if (panelLive) 220.dp else 272.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        // Presence gives way, never the address: the weight reverses Compose's
-                        // measuring order to guarantee it.
-                        // pourquoi : docs/decisions/session.md § The state panel does not scroll, so it has to fit
-                        PresenceCard(
-                            youName = profile.name,
-                            others = others,
-                            isHost = session.role == Session.Role.HOST,
-                            live = !offline,
-                            scrollable = true,
-                            modifier = Modifier.weight(1f, fill = false)
-                        )
-                        // The panel already carries both address and port, unasked.
-                        // pourquoi : docs/decisions/session.md § What the rear panel carries, the front screen does not repeat
-                        if (!panelLive) {
-                            ConnectionCard(
-                                hostIp = shownAddress,
-                                addressLabel = addressLabel,
-                                port = shownPort,
-                                romName = session.rom?.displayName
-                            )
-                        }
-
-                        // Only once the panel has freed the room; without one there is no gap to fill.
-                        // pourquoi : docs/decisions/session.md § What the panel carries, the front screen gives back in space
-                        if (panelLive) {
-                            sessionArt?.let { art ->
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .weight(1f, fill = false),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    BoxWithConstraints {
-                                        val side = minOf(maxWidth, maxHeight)
-                                        if (side >= 96.dp) {
-                                            RomArtwork(rom = art, size = minOf(side, 208.dp))
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        // The explanation gives way, never the buttons; the fade exists on one screen only.
-                        // pourquoi : docs/decisions/session.md § What the panel carries, the front screen gives back in space
-                        val fade = !panelLive
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f, fill = false)
-                                .then(
-                                    if (!fade) Modifier else Modifier
-                                        .graphicsLayer {
-                                            compositingStrategy = CompositingStrategy.Offscreen
-                                        }
-                                        .drawWithContent {
-                                            drawContent()
-                                            drawRect(
-                                                brush = Brush.verticalGradient(
-                                                    0f to Color.Transparent,
-                                                    0.05f to Color.Black,
-                                                    0.94f to Color.Black,
-                                                    1f to Color.Transparent
-                                                ),
-                                                blendMode = BlendMode.DstIn
-                                            )
-                                        }
-                                )
-                                .verticalScroll(rememberScrollState()),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            if (offline) OfflineCard()
-                            if (session.backend == Backend.PPSSPP) PspHintCard(pspAutomatic)
-                            EmulatorHintCard(
-                                session = session,
-                                automationOn = automationOn,
-                            )
-                        }
-
-                        // With the panel carrying the steps, the front screen does not redraw them.
-                        // pourquoi : docs/decisions/second-ecran.md § The panel takes the steps, because it is touch
-                        if (!panelLive) {
-                            // The first button that exists AND responds: a disabled one does not take focus.
-                            // pourquoi : docs/decisions/session.md § Down aims at the first button that answers
-                            Spacer(Modifier.height(2.dp))
-                            if (session.backend.hasNetplay && !ps2Automatic) {
-                                NetplayButton(
-                                    session = session,
-                                    netplayDone = netplayDone,
-                                    netplayPrepared = netplayPrepared,
-                                    waitingForHost = waitingForHost,
-                                    onClick = onNetplayStep,
-                                    modifier = Modifier.padEntry()
-                                )
-                            }
-                            if (session.backend == Backend.PPSSPP && !pspAutomatic) {
-                                PspSetupButton(
-                                    pspOpened = pspOpened,
-                                    onClick = state::openPspSetup,
-                                    modifier = if (session.backend.hasNetplay) Modifier
-                                    else Modifier.padEntry()
-                                )
-                            }
-                            LaunchButton(
-                                session = session,
-                                netplayPrepared = netplayPrepared,
-                                directPs2 = ps2Automatic,
-                                waitingForHost = ps2Automatic && waitingForHost,
-                                onClick = onLaunchStep,
-                                // Last resort: with no step above, this is the first button on the page.
-                                modifier = if ((session.backend.hasNetplay && !ps2Automatic) ||
-                                    (session.backend == Backend.PPSSPP && !pspAutomatic)
-                                ) Modifier
-                                else Modifier.padEntry()
-                            )
-                        }
-                        status?.let { StatusLine(it) }
-                    }
-                }
+                SessionLandscapeLayout(
+                    session = session,
+                    profile = profile,
+                    topPadding = topPadding,
+                    bottomInset = bottomInset,
+                    modifier = panelPilot,
+                    panelLive = panelLive,
+                    others = others,
+                    offline = offline,
+                    shownAddress = shownAddress,
+                    shownPort = shownPort,
+                    addressLabel = addressLabel,
+                    sessionArt = sessionArt,
+                    automationOn = automationOn,
+                    pspAutomatic = pspAutomatic,
+                    ps2Automatic = ps2Automatic,
+                    netplayDone = netplayDone,
+                    netplayPrepared = netplayPrepared,
+                    pspOpened = pspOpened,
+                    waitingForHost = waitingForHost,
+                    status = status,
+                    onNetplayStep = onNetplayStep,
+                    onLaunchStep = onLaunchStep,
+                    onPspSetup = state::openPspSetup,
+                )
                 return@EmufiiScaffold
             }
 
@@ -638,6 +430,133 @@ fun SessionScreen(
     }
 }
 
+
+/**
+ * The steps the rear panel carries, in the order the emulator expects them: room first, then
+ * PPSSPP setup where it applies, then the game itself. Labels arrive already resolved so the
+ * panel service does not touch strings.
+ * pourquoi : docs/decisions/second-ecran.md § The panel takes the steps, because it is touch
+ */
+@Suppress("LongParameterList")
+private fun buildPanelSteps(
+    session: Session,
+    showNetplayStep: Boolean,
+    netplayLabel: String,
+    netplayDone: Boolean,
+    netplayPrepared: Boolean,
+    waitingForHost: Boolean,
+    onNetplayStep: () -> Unit,
+    showPspStep: Boolean,
+    pspLabel: String,
+    pspOpened: Boolean,
+    onPspSetup: () -> Unit,
+    launched: Boolean,
+    launchedLabel: String,
+    launchLabel: String,
+    ps2Automatic: Boolean,
+    onLaunchStep: () -> Unit,
+): List<PanelStep> = buildList {
+    if (showNetplayStep) {
+        add(
+            PanelStep(
+                label = netplayLabel,
+                done = netplayDone,
+                enabled = session.rom != null && !waitingForHost,
+                onPress = onNetplayStep
+            )
+        )
+    }
+    if (showPspStep) {
+        add(
+            PanelStep(
+                label = pspLabel,
+                done = pspOpened,
+                enabled = true,
+                onPress = onPspSetup
+            )
+        )
+    }
+    add(
+        PanelStep(
+            // Once launched the step keeps its place and changes face, still pressable.
+            label = if (launched) launchedLabel else launchLabel,
+            done = launched,
+            enabled = launchEnabled(
+                session = session,
+                netplayPrepared = netplayPrepared,
+                directPs2 = ps2Automatic,
+                waitingForHost = ps2Automatic && waitingForHost
+            ),
+            onPress = onLaunchStep
+        )
+    )
+}
+
+/**
+ * Focus does not cross windows: the front pad drives the panel's steps from here. Returns
+ * true to consume the event, false to let it propagate to the front cursor.
+ * pourquoi : docs/decisions/second-ecran.md § R turns the page from both screens
+ */
+private fun handlePanelKey(
+    event: KeyEvent,
+    panelCursor: Int?,
+    scaffoldFocus: ScaffoldFocus?,
+): Boolean {
+    if (event.type != KeyEventType.KeyDown && event.type != KeyEventType.KeyUp) return false
+
+    fun leavePanel() {
+        SecondScreen.clearStepCursor()
+        scaffoldFocus?.header?.let { runCatching { it.requestFocus() } }
+    }
+
+    // Down, once the front cursor has nothing left below it.
+    if (panelCursor == null) {
+        return if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown &&
+            SecondScreen.steps.value.isNotEmpty()
+        ) {
+            SecondScreen.selectStep(0)
+            true
+        } else {
+            false
+        }
+    }
+
+    val steps = SecondScreen.steps.value
+    return when {
+        // A and its synonyms press the aimed step; KeyDown is swallowed so one press reads once.
+        event.key in CONFIRM_KEYS -> {
+            if (event.type == KeyEventType.KeyUp) {
+                steps.getOrNull(panelCursor)?.takeIf { it.enabled }
+                    ?.let { Sfx.click(); it.onPress() }
+            }
+            true
+        }
+
+        event.type == KeyEventType.KeyDown -> when (event.key) {
+            Key.DirectionLeft -> {
+                SecondScreen.moveStep(-1); true
+            }
+
+            Key.DirectionRight -> {
+                SecondScreen.moveStep(1); true
+            }
+
+            Key.DirectionUp -> {
+                if (panelCursor == 0) leavePanel() else SecondScreen.moveStep(-1)
+                true
+            }
+            // One row: down has nowhere to go, and must not hand the cursor back.
+            Key.DirectionDown -> true
+            Key.ButtonB, Key.Back -> {
+                leavePanel(); true
+            }
+
+            else -> false
+        }
+
+        else -> false
+    }
+}
 
 /** How many frames the pilot spends claiming the cursor, like the scaffold. */
 private const val PILOT_FOCUS_FRAMES = 6
