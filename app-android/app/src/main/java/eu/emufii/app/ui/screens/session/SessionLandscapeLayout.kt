@@ -185,6 +185,7 @@ internal fun SessionLandscapeLayout(
                         AutoSetupNetplayButton(
                             session = session,
                             netplayDone = netplayDone,
+                            netplayPrepared = netplayPrepared,
                             waitingForHost = waitingForHost,
                             onClick = onNetplayStep,
                             modifier = Modifier

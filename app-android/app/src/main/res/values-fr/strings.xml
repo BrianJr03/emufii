@@ -104,7 +104,6 @@
     <string name="session_netplay_done">1. %1$s est paramétré</string>
     <string name="session_netplay_no_address">Adresse de session indisponible.</string>
     <string name="session_manual_hint">À saisir dans %1$s si le remplissage automatique échoue.</string>
-    <string name="session_manual_nickname">Pseudo</string>
     <string name="session_manual_room_name">Nom du salon / Code de session</string>
     <string name="session_manual_password">Mot de passe</string>
     <string name="session_manual_copy">Copier %1$s</string>

@@ -64,6 +64,7 @@ import eu.emufii.app.ui.theme.plate
 internal fun AutoSetupNetplayButton(
     session: Session,
     netplayDone: Boolean,
+    netplayPrepared: Boolean,
     /**
      * The button greys out and says so rather than sending the guest to a room that does not exist.
      * pourquoi : docs/decisions/session.md § Host then guest is not a comfort detail
@@ -76,6 +77,7 @@ internal fun AutoSetupNetplayButton(
         session = session,
         netPlayReadyStrRes = R.string.session_netplay_open,
         netplayDone = netplayDone,
+        netplayPrepared = netplayPrepared,
         waitingForHost = waitingForHost,
         modifier = modifier,
         onClick = onClick

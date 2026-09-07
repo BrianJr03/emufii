@@ -111,7 +111,6 @@
     <string name="session_netplay_done">1. %1$s is set up</string>
     <string name="session_netplay_no_address">Session address unavailable.</string>
     <string name="session_manual_hint">Type these into %1$s if autofill doesn\'t work.</string>
-    <string name="session_manual_nickname">Nickname</string>
     <string name="session_manual_room_name">Room name / Session code</string>
     <string name="session_manual_password">Password</string>
     <string name="session_manual_copy">Copy %1$s</string>
