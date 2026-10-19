@@ -1,45 +1,43 @@
 package eu.emufii.app.ui.components
 
-import androidx.compose.ui.res.painterResource
+import android.content.res.Configuration
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.ui.focus.onFocusEvent
-import androidx.compose.ui.zIndex
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusEvent
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import eu.emufii.app.R
 import eu.emufii.app.library.Console
 import eu.emufii.app.library.EmulatorInfo
@@ -47,9 +45,9 @@ import eu.emufii.app.library.allEmulators
 import eu.emufii.app.ui.controlRing
 import eu.emufii.app.ui.theme.LocalEmufiiDarkTheme
 import eu.emufii.app.ui.theme.LocalEmufiiOledTheme
+import eu.emufii.app.ui.theme.TileShape
 import eu.emufii.app.ui.theme.plate
 import eu.emufii.app.ui.theme.socket
-import eu.emufii.app.ui.theme.TileShape
 
 @Composable
 fun ConsoleGrid(
@@ -65,9 +63,15 @@ fun ConsoleGrid(
 
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
         val minTile = if (compact) MIN_TILE_COMPACT else MIN_TILE
-        val fits = ((maxWidth + GRID_GAP) / (minTile + GRID_GAP))
-            .toInt()
-            .coerceIn(3, emulators.size)
+        val isPortrait = LocalConfiguration.current.orientation ==
+            Configuration.ORIENTATION_PORTRAIT
+        val fits = if (isPortrait) {
+            2.coerceAtMost(emulators.size)
+        } else {
+            ((maxWidth + GRID_GAP) / (minTile + GRID_GAP))
+                .toInt()
+                .coerceIn(3, emulators.size)
+        }
         val columns = if (oneLine) emulators.size else balancedColumns(emulators.size, fits)
 
         // `controlRing`'s `zIndex` only orders siblings, so not rows.
@@ -186,7 +190,10 @@ private fun ConsoleTile(
                         info.console.shortLabel,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Visible
                     )
                 }
             }
@@ -195,7 +202,7 @@ private fun ConsoleTile(
             if (compact && info.console == Console.GAMECUBE) info.console.shortLabel else info.console.label,
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = alpha),
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center
         )
@@ -203,7 +210,7 @@ private fun ConsoleTile(
             info.name,
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = alpha * 0.85f),
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center
         )

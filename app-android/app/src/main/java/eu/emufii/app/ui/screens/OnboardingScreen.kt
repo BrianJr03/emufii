@@ -7,20 +7,28 @@ import android.provider.DocumentsContract
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.content.ContextCompat
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
-import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -31,31 +39,48 @@ import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathMeasure
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.emufii.app.R
 import eu.emufii.app.artwork.ArtworkFrontend
 import eu.emufii.app.artwork.FrontendMedia
 import eu.emufii.app.azahar.AzaharLauncher
 import eu.emufii.app.library.Console
+import eu.emufii.app.library.EmulatorInfo
+import eu.emufii.app.library.emulatorInfo
 import eu.emufii.app.profile.Profile
 import eu.emufii.app.ps2.Ps2NetworkProfile
 import eu.emufii.app.psp.PpssppConfigStore
@@ -64,79 +89,46 @@ import eu.emufii.app.ui.components.ChipMark
 import eu.emufii.app.ui.components.ConsoleGrid
 import eu.emufii.app.ui.components.DetailActions
 import eu.emufii.app.ui.components.DetailTone
+import eu.emufii.app.ui.components.FactTile
+import eu.emufii.app.ui.components.FitColumn
 import eu.emufii.app.ui.components.FolderMark
 import eu.emufii.app.ui.components.GhostButton
 import eu.emufii.app.ui.components.GridMark
+import eu.emufii.app.ui.components.LocalSheetMaxHeight
+import eu.emufii.app.ui.components.Optional
 import eu.emufii.app.ui.components.PadTextField
 import eu.emufii.app.ui.components.PaintMark
 import eu.emufii.app.ui.components.PersonMark
 import eu.emufii.app.ui.components.PrimaryButton
+import eu.emufii.app.ui.components.SheetHeader
+import eu.emufii.app.ui.components.SheetLabel
+import eu.emufii.app.ui.components.SheetStep
+import eu.emufii.app.ui.components.SheetWarning
 import eu.emufii.app.ui.components.SignalMark
 import eu.emufii.app.ui.components.SoftCard
 import eu.emufii.app.ui.components.SteamGridDbMark
-import eu.emufii.app.ui.screens.settings.AutofillBlock
-import eu.emufii.app.ui.screens.settings.BlockFact
-import eu.emufii.app.ui.screens.settings.BlockNotice
-import eu.emufii.app.ui.screens.settings.ChoiceRow
-import eu.emufii.app.ui.screens.settings.PpssppBlock
-import eu.emufii.app.ui.screens.settings.Ps2Block
-import eu.emufii.app.ui.screens.settings.SettingsSteps
-import eu.emufii.app.ui.screens.settings.StatePill
-import eu.emufii.app.ui.theme.ArtworkShape
-import eu.emufii.app.ui.theme.LocalEmufiiDarkTheme
-import eu.emufii.app.ui.theme.PillShape
-import eu.emufii.app.ui.theme.Teal
-import eu.emufii.app.ui.theme.socket
-import eu.emufii.app.ui.wallpaper.TrayBackdrop
-import kotlinx.coroutines.delay
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.StrokeJoin
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.PathMeasure
-import androidx.compose.ui.graphics.Path
-import androidx.compose.foundation.Canvas
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.Animatable
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.offset
-import eu.emufii.app.ui.components.SheetLabel
-import androidx.compose.ui.layout.layout
-import androidx.compose.foundation.layout.aspectRatio
-import eu.emufii.app.ui.components.consoleArtwork
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.RowScope
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.produceState
-import androidx.compose.ui.text.style.TextOverflow
-import eu.emufii.app.library.EmulatorInfo
-import eu.emufii.app.library.emulatorInfo
-import eu.emufii.app.ui.components.FactTile
-import eu.emufii.app.ui.components.FitColumn
-import eu.emufii.app.ui.components.LocalSheetMaxHeight
-import eu.emufii.app.ui.components.Optional
-import eu.emufii.app.ui.components.SheetHeader
-import eu.emufii.app.ui.components.SheetStep
-import eu.emufii.app.ui.components.SheetWarning
 import eu.emufii.app.ui.components.accented
+import eu.emufii.app.ui.components.consoleArtwork
+import eu.emufii.app.ui.screens.settings.ChoiceRow
+import eu.emufii.app.ui.screens.settings.StatePill
 import eu.emufii.app.ui.screens.settings.rememberPpssppSetup
 import eu.emufii.app.ui.screens.settings.rememberPs2Setup
+import eu.emufii.app.ui.theme.ArtworkShape
 import eu.emufii.app.ui.theme.Coral
 import eu.emufii.app.ui.theme.GoodDark
 import eu.emufii.app.ui.theme.GoodLight
+import eu.emufii.app.ui.theme.LocalEmufiiDarkTheme
+import eu.emufii.app.ui.theme.PillShape
+import eu.emufii.app.ui.theme.Teal
 import eu.emufii.app.ui.theme.WarnDark
 import eu.emufii.app.ui.theme.WarnLight
+import eu.emufii.app.ui.theme.socket
+import eu.emufii.app.ui.wallpaper.TrayBackdrop
+import eu.emufii.app.util.isPortraitMode
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
-import androidx.core.net.toUri
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 fun OnboardingScreen(
@@ -186,7 +178,7 @@ fun OnboardingScreen(
     var notificationsGranted by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
-                PackageManager.PERMISSION_GRANTED
+                    PackageManager.PERMISSION_GRANTED
         )
     }
     var notificationsRefused by remember { mutableStateOf(false) }
@@ -214,7 +206,7 @@ fun OnboardingScreen(
         if (current == OnbStep.AUTOFILL) {
             while (true) {
                 autofillOn = launcher.isNetplayAutomationEnabled()
-                delay(700)
+                delay(700.milliseconds)
             }
         }
     }
@@ -231,9 +223,9 @@ fun OnboardingScreen(
 
     BackHandler(enabled = index > 0) { goBack() }
 
-    val configuration = LocalConfiguration.current
-    val shortScreen = configuration.screenHeightDp < 520
-    val wide = configuration.screenWidthDp >= 720
+    val config =  LocalWindowInfo.current.containerSize
+    val shortScreen = config.height < 520
+    val wide = config.width >= 720
     val gap = if (shortScreen) 12.dp else 18.dp
     val edge = if (shortScreen) 10.dp else 18.dp
     val actionHeight = if (shortScreen) 48.dp else 56.dp
@@ -259,63 +251,63 @@ fun OnboardingScreen(
                     .then(if (wide) Modifier else Modifier.verticalScroll(rememberScrollState())),
                 contentAlignment = Alignment.Center
             ) {
-              CompositionLocalProvider(
-                  LocalSheetMaxHeight provides if (wide) maxHeight else Dp.Unspecified
-              ) {
-                AnimatedContent(
-                    targetState = current,
-                    transitionSpec = {
-                        val forward = steps.indexOf(targetState) > steps.indexOf(initialState)
-                        (slideInHorizontally { if (forward) it / 3 else -it / 3 } + fadeIn())
-                            .togetherWith(
-                                slideOutHorizontally { if (forward) -it / 4 else it / 4 } + fadeOut()
-                            )
-                            .using(SizeTransform(clip = false))
-                    },
-                    label = "onboarding-step"
-                ) { shown ->
-                    StepBody(
-                        step = shown,
-                        wide = wide,
-                        name = name,
-                        onNameChange = { name = it.take(Profile.MAX_NAME_LENGTH) },
-                        nameTooShort = nameTooShort,
-                        romFolder = romFolder,
-                        onPickFolder = { folderPicker.launch(null) },
-                        hiddenConsoles = hiddenConsoles,
-                        onSetConsoleVisible = settingsStore::setConsoleVisible,
-                        frontendFolder = frontendFolder,
-                        artworkFrontend = artworkFrontend,
-                        onSetFrontend = { option ->
-                            if (option != artworkFrontend) {
-                                settingsStore.setArtworkFrontend(option)
+                CompositionLocalProvider(
+                    LocalSheetMaxHeight provides if (wide) maxHeight else Dp.Unspecified
+                ) {
+                    AnimatedContent(
+                        targetState = current,
+                        transitionSpec = {
+                            val forward = steps.indexOf(targetState) > steps.indexOf(initialState)
+                            (slideInHorizontally { if (forward) it / 3 else -it / 3 } + fadeIn())
+                                .togetherWith(
+                                    slideOutHorizontally { if (forward) -it / 4 else it / 4 } + fadeOut()
+                                )
+                                .using(SizeTransform(clip = false))
+                        },
+                        label = "onboarding-step"
+                    ) { shown ->
+                        StepBody(
+                            step = shown,
+                            wide = wide,
+                            name = name,
+                            onNameChange = { name = it.take(Profile.MAX_NAME_LENGTH) },
+                            nameTooShort = nameTooShort,
+                            romFolder = romFolder,
+                            onPickFolder = { folderPicker.launch(null) },
+                            hiddenConsoles = hiddenConsoles,
+                            onSetConsoleVisible = settingsStore::setConsoleVisible,
+                            frontendFolder = frontendFolder,
+                            artworkFrontend = artworkFrontend,
+                            onSetFrontend = { option ->
+                                if (option != artworkFrontend) {
+                                    settingsStore.setArtworkFrontend(option)
+                                    settingsStore.setFrontendFolder("")
+                                    FrontendMedia.forget()
+                                }
+                            },
+                            onPickFrontend = { frontendPicker.launch(defaultFolderOf(artworkFrontend)) },
+                            onForgetFrontend = {
                                 settingsStore.setFrontendFolder("")
                                 FrontendMedia.forget()
-                            }
-                        },
-                        onPickFrontend = { frontendPicker.launch(defaultFolderOf(artworkFrontend)) },
-                        onForgetFrontend = {
-                            settingsStore.setFrontendFolder("")
-                            FrontendMedia.forget()
-                        },
-                        artworkKey = artworkKey,
-                        onArtworkKeyChange = { artworkKey = it },
-                        ppssppConfig = ppssppConfig,
-                        ppssppReady = ppssppReady,
-                        onPpssppReady = { ppssppReady = it },
-                        ps2Ready = ps2Ready,
-                        onPs2Ready = { ps2Ready = it },
-                        profileName = name,
-                        autofillOn = autofillOn,
-                        onOpenAutofill = { launcher.openAccessibilitySettings() },
-                        notificationsGranted = notificationsGranted,
-                        notificationsRefused = notificationsRefused,
-                        onAskNotifications = {
-                            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
-                        },
-                    )
+                            },
+                            artworkKey = artworkKey,
+                            onArtworkKeyChange = { artworkKey = it },
+                            ppssppConfig = ppssppConfig,
+                            ppssppReady = ppssppReady,
+                            onPpssppReady = { ppssppReady = it },
+                            ps2Ready = ps2Ready,
+                            onPs2Ready = { ps2Ready = it },
+                            profileName = name,
+                            autofillOn = autofillOn,
+                            onOpenAutofill = { launcher.openAccessibilitySettings() },
+                            notificationsGranted = notificationsGranted,
+                            notificationsRefused = notificationsRefused,
+                            onAskNotifications = {
+                                notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            },
+                        )
+                    }
                 }
-              }
             }
 
             Row(
@@ -333,7 +325,9 @@ fun OnboardingScreen(
                     ),
                     onClick = { goNext() },
                     enabled = current != OnbStep.NAME || !nameTooShort,
-                    modifier = Modifier.weight(1f).height(actionHeight)
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(actionHeight)
                 )
 
                 if (current.skippable) {
@@ -408,7 +402,9 @@ private fun StepLayout(
             verticalArrangement = Arrangement.spacedBy(14.dp),
             horizontalAlignment = if (wide && work != null) Alignment.Start else Alignment.CenterHorizontally
         ) {
-            Box(Modifier.onSizeChanged { markHeight = with(density) { it.height.toDp() } }) { mark() }
+            Box(Modifier.onSizeChanged {
+                markHeight = with(density) { it.height.toDp() }
+            }) { mark() }
             Text(
                 title,
                 style = MaterialTheme.typography.headlineSmall,
@@ -429,12 +425,16 @@ private fun StepLayout(
     when {
         work == null -> Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
             SoftCard(modifier = Modifier) {
-                Box(Modifier.fillMaxWidth().padding(26.dp)) { why(Modifier.fillMaxWidth()) }
+                Box(Modifier
+                    .fillMaxWidth()
+                    .padding(26.dp)) { why(Modifier.fillMaxWidth()) }
             }
         }
 
         wide && fullWidthWork -> Column(
-            modifier = Modifier.fillMaxWidth().padding(bottom = 32.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Row(
@@ -489,7 +489,9 @@ private val BANNER_HEIGHT = 86.dp
 private fun StepMark(size: Dp = 64.dp, glyph: @Composable (Color) -> Unit) {
     val dark = LocalEmufiiDarkTheme.current
     Box(
-        modifier = Modifier.size(size).socket(ArtworkShape, dark),
+        modifier = Modifier
+            .size(size)
+            .socket(ArtworkShape, dark),
         contentAlignment = Alignment.Center
     ) {
         glyph(MaterialTheme.colorScheme.onSurfaceVariant)
@@ -540,7 +542,14 @@ private val SheetPadV = 16.dp
 private fun EmulatorHeader(console: Console, title: String, inks: OnbInks) {
     val context = LocalContext.current
     val emulator by produceState<EmulatorInfo?>(null, console) {
-        value = withContext(Dispatchers.IO) { runCatching { emulatorInfo(context, console) }.getOrNull() }
+        value = withContext(Dispatchers.IO) {
+            runCatching {
+                emulatorInfo(
+                    context,
+                    console
+                )
+            }.getOrNull()
+        }
     }
     val missing = emulator?.installed == false
     SheetHeader(
@@ -555,7 +564,13 @@ private fun EmulatorHeader(console: Console, title: String, inks: OnbInks) {
 }
 
 @Composable
-private fun StateTile(done: Boolean, doneLabel: String, todoLabel: String, inks: OnbInks, modifier: Modifier) {
+private fun StateTile(
+    done: Boolean,
+    doneLabel: String,
+    todoLabel: String,
+    inks: OnbInks,
+    modifier: Modifier
+) {
     FactTile(
         label = stringResource(R.string.onb_tile_state),
         value = if (done) doneLabel else todoLabel,
@@ -566,7 +581,11 @@ private fun StateTile(done: Boolean, doneLabel: String, todoLabel: String, inks:
 
 @Composable
 private fun TileRow(content: @Composable RowScope.() -> Unit) {
-    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth(), content = content)
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier.fillMaxWidth(),
+        content = content
+    )
 }
 
 @Composable
@@ -640,7 +659,12 @@ private fun StepBody(
                     selectAllOnEdit = true,
                     supportingText = {
                         if (nameTooShort) {
-                            Text(stringResource(R.string.onb_name_too_short, Profile.MIN_NAME_LENGTH))
+                            Text(
+                                stringResource(
+                                    R.string.onb_name_too_short,
+                                    Profile.MIN_NAME_LENGTH
+                                )
+                            )
                         }
                     },
                     modifier = Modifier.fillMaxWidth()
@@ -660,7 +684,8 @@ private fun StepBody(
                 CheckedTile(done = romFolder != null, inks = inks) {
                     FactTile(
                         stringResource(R.string.onb_tile_folder),
-                        romFolder?.let { folderLabel(it) } ?: stringResource(R.string.onb_tile_none),
+                        romFolder?.let { folderLabel(it) }
+                            ?: stringResource(R.string.onb_tile_none),
                         if (romFolder != null) inks.good else inks.warn,
                         Modifier.fillMaxWidth()
                     )
@@ -722,14 +747,17 @@ private fun StepBody(
             body = stringResource(R.string.onb_cocoon_body),
             work = {
                 OnbSheet { inks ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                         ArtworkFrontend.entries.forEachIndexed { index, option ->
                             Box(Modifier.weight(1f)) {
                                 ChoiceRow(
                                     label = stringResource(option.labelRes),
                                     selected = option == artworkFrontend,
                                     onClick = { onSetFrontend(option) },
-                                    entry = index == 0
+                                    entry = index == 0,
                                 )
                             }
                         }
@@ -743,7 +771,14 @@ private fun StepBody(
                                 Modifier.fillMaxWidth()
                             )
                         }
-                        Optional { SheetNote(stringResource(R.string.onb_cocoon_after, frontendName), inks) }
+                        Optional {
+                            SheetNote(
+                                stringResource(
+                                    R.string.onb_cocoon_after,
+                                    frontendName
+                                ), inks
+                            )
+                        }
                     } else {
                         Steps(
                             inks,
@@ -756,7 +791,14 @@ private fun StepBody(
                                 }
                             ),
                         )
-                        Optional { SheetNote(stringResource(R.string.onb_cocoon_step3, frontendName), inks) }
+                        Optional {
+                            SheetNote(
+                                stringResource(
+                                    R.string.onb_cocoon_step3,
+                                    frontendName
+                                ), inks
+                            )
+                        }
                     }
                     DetailActions {
                         if (has) {
@@ -772,7 +814,10 @@ private fun StepBody(
                             )
                         } else {
                             PrimaryButton(
-                                label = stringResource(R.string.settings_frontend_choose, frontendName),
+                                label = stringResource(
+                                    R.string.settings_frontend_choose,
+                                    frontendName
+                                ),
                                 onClick = onPickFrontend,
                                 modifier = Modifier.fillMaxWidth()
                             )
@@ -844,7 +889,9 @@ private fun StepBody(
                             if (it == Console.GAMECUBE) "GC" else it.label
                         },
                         MaterialTheme.colorScheme.onSurface,
-                        Modifier.weight(2.4f)
+                        Modifier.weight(2.4f),
+                        shouldScroll = true,
+                        showScrollArrow = true
                     )
                 }
                 if (!autofillOn) {
@@ -853,10 +900,20 @@ private fun StepBody(
                         stringResource(R.string.onb_fill_step1),
                         stringResource(R.string.onb_fill_step2),
                     )
-                    Optional { SheetWarning(stringResource(R.string.onb_fill_restricted), inks.alarm) }
+                    Optional {
+                        SheetWarning(
+                            stringResource(R.string.onb_fill_restricted),
+                            inks.alarm
+                        )
+                    }
                 }
                 Optional { SheetNote(stringResource(R.string.onb_fill_scope), inks) }
-                if (!autofillOn) Optional { SheetNote(stringResource(R.string.onb_fill_without), inks) }
+                if (!autofillOn) Optional {
+                    SheetNote(
+                        stringResource(R.string.onb_fill_without),
+                        inks
+                    )
+                }
                 DetailActions {
                     if (autofillOn) {
                         GhostButton(
@@ -890,8 +947,18 @@ private fun StepBody(
                     inks, Modifier.fillMaxWidth()
                 )
                 when {
-                    notificationsGranted -> Optional { SheetNote(stringResource(R.string.onb_notif_after), inks) }
-                    notificationsRefused -> SheetWarning(stringResource(R.string.onb_notif_refused), inks.alarm)
+                    notificationsGranted -> Optional {
+                        SheetNote(
+                            stringResource(R.string.onb_notif_after),
+                            inks
+                        )
+                    }
+
+                    notificationsRefused -> SheetWarning(
+                        stringResource(R.string.onb_notif_refused),
+                        inks.alarm
+                    )
+
                     else -> {
                         Steps(inks, stringResource(R.string.onb_notif_step1))
                         DetailActions {
@@ -918,7 +985,7 @@ private fun StepBody(
                 Recap(
                     stringResource(R.string.onb_recap_folder) to (romFolder != null),
                     stringResource(R.string.onb_recap_artwork) to
-                        (frontendFolder.isNotBlank() || artworkKey.isNotBlank()),
+                            (frontendFolder.isNotBlank() || artworkKey.isNotBlank()),
                     stringResource(R.string.onb_recap_ppsspp) to ppssppReady,
                     stringResource(R.string.onb_recap_ps2) to ps2Ready,
                     stringResource(R.string.onb_recap_autofill) to autofillOn,
@@ -936,7 +1003,10 @@ private fun WelcomeSheet() {
     val dark = LocalEmufiiDarkTheme.current
     OnbSheet { inks ->
         SheetLabel(stringResource(R.string.onb_tile_consoles))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
             Console.entries.forEach { console ->
                 consoleArtwork(console, dark)?.let { art ->
                     Image(
@@ -961,7 +1031,9 @@ private fun WelcomeSheet() {
 private fun CheckedTile(done: Boolean, inks: OnbInks, tile: @Composable () -> Unit) {
     Box(contentAlignment = Alignment.CenterEnd) {
         tile()
-        if (done) DrawnCheck(inks.good, Modifier.padding(end = 14.dp).size(30.dp))
+        if (done) DrawnCheck(inks.good, Modifier
+            .padding(end = 14.dp)
+            .size(30.dp))
     }
 }
 
@@ -973,7 +1045,7 @@ private fun DrawnCheck(color: Color, modifier: Modifier) {
         disc.animateTo(1f, spring(dampingRatio = 0.45f, stiffness = 380f))
     }
     LaunchedEffect(Unit) {
-        delay(140)
+        delay(140.milliseconds)
         stroke.animateTo(1f, tween(durationMillis = 320, easing = FastOutSlowInEasing))
     }
     val tick = remember { Path() }
@@ -991,13 +1063,21 @@ private fun DrawnCheck(color: Color, modifier: Modifier) {
         drawPath(
             part,
             Color.White,
-            style = Stroke(width = size.width * 0.11f, cap = StrokeCap.Round, join = StrokeJoin.Round)
+            style = Stroke(
+                width = size.width * 0.11f,
+                cap = StrokeCap.Round,
+                join = StrokeJoin.Round
+            )
         )
     }
 }
 
 @Composable
-private fun PpssppSheet(store: PpssppConfigStore, ready: Boolean, onReadyChanged: (Boolean) -> Unit) {
+private fun PpssppSheet(
+    store: PpssppConfigStore,
+    ready: Boolean,
+    onReadyChanged: (Boolean) -> Unit
+) {
     val setup = rememberPpssppSetup(store, onReadyChanged)
     OnbSheet { inks ->
         Optional { EmulatorHeader(Console.PSP, "PPSSPP", inks) }
@@ -1116,9 +1196,13 @@ private fun Recap(vararg rows: Pair<String, Boolean>, hidden: Set<Console>) {
             else -> true
         }
     }
+    val columns = if (isPortraitMode()) 1 else 2
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        shown.chunked(2).forEach { pair ->
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+        shown.chunked(columns).forEach { pair ->
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
                 pair.forEach { (label, done) ->
                     Row(
                         modifier = Modifier.weight(1f),
@@ -1139,7 +1223,7 @@ private fun Recap(vararg rows: Pair<String, Boolean>, hidden: Set<Console>) {
                         )
                     }
                 }
-                if (pair.size == 1) Box(Modifier.weight(1f))
+                repeat(columns - pair.size) { Box(Modifier.weight(1f)) }
             }
         }
     }

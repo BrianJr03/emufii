@@ -1,26 +1,24 @@
 package eu.emufii.app.ui.screens.settings
 
 import androidx.compose.animation.animateContentSize
-import eu.emufii.app.ui.Cascade
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -30,54 +28,50 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import eu.emufii.app.ui.EntryScroll
-import eu.emufii.app.ui.LocalEntryScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.focus.onFocusEvent
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.layout.positionInRoot
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.focus.onFocusEvent
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import eu.emufii.app.library.Console
 import eu.emufii.app.library.Rom
 import eu.emufii.app.library.emulatorInfo
+import eu.emufii.app.ui.Cascade
+import eu.emufii.app.ui.EntryScroll
+import eu.emufii.app.ui.LocalEntryScroll
 import eu.emufii.app.ui.components.CardBounds
 import eu.emufii.app.ui.components.ChevronRight
-import eu.emufii.app.ui.components.LocalCardBounds
-import eu.emufii.app.ui.components.cardSliceFill
-import eu.emufii.app.ui.components.RomArtwork
 import eu.emufii.app.ui.components.DetailTone
 import eu.emufii.app.ui.components.EmufiiScaffold
+import eu.emufii.app.ui.components.LocalCardBounds
+import eu.emufii.app.ui.components.RomArtwork
 import eu.emufii.app.ui.components.SoftCard
+import eu.emufii.app.ui.components.StateBead
+import eu.emufii.app.ui.components.cardSliceFill
 import eu.emufii.app.ui.components.padEntry
 import eu.emufii.app.ui.controlRing
+import eu.emufii.app.ui.tap
 import eu.emufii.app.ui.theme.ArtworkShape
-import eu.emufii.app.ui.theme.CardShape
-import eu.emufii.app.ui.theme.Coral
 import eu.emufii.app.ui.theme.ErrorDark
 import eu.emufii.app.ui.theme.ErrorLight
 import eu.emufii.app.ui.theme.GoodDark
@@ -85,14 +79,11 @@ import eu.emufii.app.ui.theme.GoodLight
 import eu.emufii.app.ui.theme.InfoDark
 import eu.emufii.app.ui.theme.InfoLight
 import eu.emufii.app.ui.theme.LocalEmufiiDarkTheme
-import eu.emufii.app.ui.theme.LocalEmufiiOledTheme
 import eu.emufii.app.ui.theme.Teal
 import eu.emufii.app.ui.theme.WarnDark
 import eu.emufii.app.ui.theme.WarnLight
-import eu.emufii.app.ui.theme.plateColors
-import eu.emufii.app.ui.components.StateBead
 import eu.emufii.app.ui.theme.socket
-import eu.emufii.app.ui.tap
+import eu.emufii.app.util.isPortraitMode
 
 internal val SETTINGS_MAX_WIDTH = 620.dp
 
@@ -221,8 +212,8 @@ internal data class BlockState(val tone: DetailTone, val label: String)
 
 @Composable
 internal fun SettingsBlock(
-    title: String? = null,
     modifier: Modifier = Modifier,
+    title: String? = null,
     state: BlockState? = null,
     mark: (@Composable () -> Unit)? = null,
     spread: Boolean = false,
@@ -482,24 +473,21 @@ internal fun ChoiceRow(
     label: String,
     selected: Boolean,
     onClick: () -> Unit,
-    entry: Boolean = false
+    entry: Boolean = false,
 ) {
     val emphasis by animateFloatAsState(if (selected) 1f else 0f, label = "choice-row")
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .then(if (entry) Modifier.padEntry() else Modifier)
-            .controlRing(ROW_SHAPE)
-            .cardSliceFill(
-                ROW_SHAPE,
-                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f * emphasis)
-            )
-            .clip(ROW_SHAPE)
-            .tap(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 12.dp)
-    ) {
+    val containerModifier = Modifier
+        .fillMaxWidth()
+        .then(if (entry) Modifier.padEntry() else Modifier)
+        .controlRing(ROW_SHAPE)
+        .cardSliceFill(
+            ROW_SHAPE,
+            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f * emphasis)
+        )
+        .clip(ROW_SHAPE)
+        .tap(onClick = onClick)
+        .padding(horizontal = 14.dp, vertical = 12.dp)
+    val bubble: @Composable () -> Unit = {
         Box(
             Modifier
                 .size(18.dp)
@@ -514,11 +502,32 @@ internal fun ChoiceRow(
                 Box(Modifier.size(7.dp).clip(CircleShape).background(Color.White))
             }
         }
+    }
+    val text: @Composable () -> Unit = {
         Text(
             label,
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurface
         )
+    }
+    if (isPortraitMode()) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = containerModifier
+        ) {
+            bubble()
+            text()
+        }
+    } else {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = containerModifier
+        ) {
+            bubble()
+            text()
+        }
     }
 }
 
