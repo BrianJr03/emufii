@@ -2,22 +2,29 @@ package eu.emufii.app.ui.components
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -34,6 +41,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import eu.emufii.app.ui.theme.PillShape
+import kotlinx.coroutines.launch
 
 @Composable
 fun SheetHeader(
@@ -93,7 +101,16 @@ fun SheetHeader(
 }
 
 @Composable
-fun FactTile(label: String, value: String, ink: Color, modifier: Modifier = Modifier) {
+fun FactTile(
+    label: String,
+    value: String,
+    ink: Color,
+    modifier: Modifier = Modifier,
+    shouldScroll: Boolean = false,
+    showScrollArrow: Boolean = false
+) {
+    val scrollState = rememberScrollState()
+    val scope = rememberCoroutineScope()
     Column(
         verticalArrangement = Arrangement.spacedBy(3.dp),
         modifier = modifier
@@ -101,15 +118,59 @@ fun FactTile(label: String, value: String, ink: Color, modifier: Modifier = Modi
             .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f))
             .padding(horizontal = 14.dp, vertical = 11.dp)
     ) {
-        SheetLabel(label)
-        Text(
-            value,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = ink,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
+        if (shouldScroll && showScrollArrow) {
+            val atStart = scrollState.value == 0
+            val arrowColor = MaterialTheme.colorScheme.onSurfaceVariant
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                SheetLabel(label)
+                Spacer(Modifier.weight(1f))
+                Box(
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .clickable {
+                            scope.launch {
+                                scrollState.animateScrollTo(
+                                    if (atStart) scrollState.maxValue else 0
+                                )
+                            }
+                        }
+                        .padding(
+                            start = 2.dp,
+                            top = 2.dp,
+                            bottom = 2.dp
+                        )
+                ) {
+                    if (atStart) ChevronRight(size = 16.dp, color = arrowColor)
+                    else ChevronLeft(size = 16.dp, color = arrowColor)
+                }
+            }
+        } else {
+            SheetLabel(label)
+        }
+        if (shouldScroll) {
+            Text(
+                value,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = ink,
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Visible,
+                modifier = Modifier.horizontalScroll(scrollState)
+            )
+        } else {
+            Text(
+                value,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = ink,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
     }
 }
 
@@ -211,7 +272,10 @@ fun FitColumn(
     strictOrder: Boolean = false,
     content: @Composable () -> Unit,
 ) {
-    androidx.compose.ui.layout.Layout(content = content, modifier = modifier) { measurables, constraints ->
+    androidx.compose.ui.layout.Layout(
+        content = content,
+        modifier = modifier
+    ) { measurables, constraints ->
         val gap = spacing.roundToPx()
         val limit = if (maxHeight == Dp.Unspecified) Int.MAX_VALUE else maxHeight.roundToPx()
         val loose = constraints.copy(minWidth = 0, minHeight = 0)
